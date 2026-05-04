@@ -18,12 +18,12 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.19",
     "@nestjs/throttler": "^6.5.0",
-    "@prisma/client": "^5.22.0",
-    "bcryptjs": "^2.4.3",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
+    "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
-    "helmet": "^8.0.0",
+    "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
@@ -31,11 +31,11 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.21",
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.8",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.9.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.12.2",
     "@types/passport-jwt": "^4.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^6.0.3"
   }
 }

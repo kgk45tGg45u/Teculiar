@@ -8,29 +8,34 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "npm run dev:web",
     "dev:web": "npm --workspace @crimson/web run dev",
     "dev:api": "npm --workspace @crimson/api run start:dev",
+    "dev:full": "concurrently -n web,api -c cyan,magenta \"npm:dev:web\" \"npm:dev:api\"",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
     "typecheck": "npm --workspaces run typecheck",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "db:push": "prisma db push --schema prisma/schema.prisma",
     "db:studio": "prisma studio --schema prisma/schema.prisma"
   },
   "devDependencies": {
-    "prisma": "^5.22.0",
-    "typescript": "^5.6.3"
+    "concurrently": "^9.2.1",
+    "prisma": "^6.19.3",
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "@nestjs/common": "11.1.19",
     "@nestjs/core": "11.1.19",
     "@nestjs/platform-express": "11.1.19",
-    "file-type": "^21.3.2",
+    "file-type": "^22.0.1",
     "multer": "^2.1.1",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.13",
     "rxjs": "^7.8.2"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=24.15.0",
+    "npm": ">=11.0.0"
   }
 }

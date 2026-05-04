@@ -19,14 +19,21 @@ Production-grade SaaS foundation for a German hosting and IT services provider. 
 
 ## Getting Started
 
+Use Node `24.15.0` with npm `11+`. The project no longer needs Docker for day-to-day website work; the public Next.js website can run with only Node and npm.
+
 ```bash
 npm install
 cp .env.example .env
-docker compose up -d
+npm run dev
+```
+
+For the full API stack, use any native or hosted PostgreSQL database and point `DATABASE_URL` at it. On macOS, Postgres.app or Homebrew PostgreSQL are much smaller than Docker Desktop.
+
+```bash
+createdb crimson_hosting
 npm run db:generate
 npm run db:migrate
-npm run dev:api
-npm run dev:web
+npm run dev:full
 ```
 
 ## Key URLs
@@ -35,6 +42,13 @@ npm run dev:web
 - Customer portal: `http://localhost:3000/client`
 - Admin panel: `http://localhost:3000/admin`
 - REST API: `http://localhost:4000/api/v1`
+
+## Native Scripts
+
+- `npm run dev` - starts only the website, no database required.
+- `npm run dev:full` - starts the website and API together; requires `DATABASE_URL`.
+- `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
+- `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
 
 ## Design Direction
 

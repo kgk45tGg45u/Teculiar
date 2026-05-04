@@ -58,7 +58,6 @@
 │       └── src
 ├── prisma
 │   └── schema.prisma
-├── docker-compose.yml
 ├── package.json
 ├── README.md
 └── tsconfig.base.json
