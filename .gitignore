@@ -9,3 +9,5 @@ coverage
 .DS_Store
 generated
 prisma/migrations/dev
+.npm-cache
+
