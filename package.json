@@ -1,0 +1,36 @@
+{
+  "name": "crimson-hosting-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Production-grade SaaS platform foundation for a German hosting and IT services provider.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace @crimson/web run dev",
+    "dev:api": "npm --workspace @crimson/api run start:dev",
+    "build": "npm --workspaces run build",
+    "lint": "npm --workspaces run lint",
+    "typecheck": "npm --workspaces run typecheck",
+    "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "db:studio": "prisma studio --schema prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0",
+    "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "@nestjs/common": "11.1.19",
+    "@nestjs/core": "11.1.19",
+    "@nestjs/platform-express": "11.1.19",
+    "file-type": "^21.3.2",
+    "multer": "^2.1.1",
+    "postcss": "^8.5.10",
+    "rxjs": "^7.8.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

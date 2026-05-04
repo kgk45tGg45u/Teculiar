@@ -1,0 +1,272 @@
+'Log files:
+/Users/balsamico/Documents/Codex/2026-05-03/you-are-a-senior-full-stack/.npm-cache/_logs/2026-05-03T21_03_51_526Z-debug-0.log
+
+# npm resolution error report
+
+While resolving: @nestjs/common@11.1.19
+Found: rxjs@7.8.1
+node_modules/rxjs
+  peer rxjs@"^7.1.0" from @nestjs/common@10.4.22
+  node_modules/@nestjs/common
+    peer @nestjs/common@"^10.0.0 || ^11.0.0" from @nestjs/config@4.0.4
+    node_modules/@nestjs/config
+      @nestjs/config@"^4.0.4" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    peer @nestjs/common@"^10.0.0" from @nestjs/core@10.4.22
+    node_modules/@nestjs/core
+      peer @nestjs/core@"^10.0.0" from @nestjs/platform-express@10.4.22
+      node_modules/@nestjs/platform-express
+        peerOptional @nestjs/platform-express@"^10.0.0" from @nestjs/core@10.4.22
+      peer @nestjs/core@"^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0" from @nestjs/throttler@6.5.0
+      node_modules/@nestjs/throttler
+        @nestjs/throttler@"^6.5.0" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+    peer @nestjs/common@"^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0" from @nestjs/jwt@11.0.2
+    node_modules/@nestjs/jwt
+      @nestjs/jwt@"^11.0.2" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    peer @nestjs/common@"^10.0.0 || ^11.0.0" from @nestjs/passport@11.0.5
+    node_modules/@nestjs/passport
+      @nestjs/passport@"^11.0.5" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    peer @nestjs/common@"^10.0.0" from @nestjs/platform-express@10.4.22
+    node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^10.0.0" from @nestjs/core@10.4.22
+    peer @nestjs/common@"^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0" from @nestjs/throttler@6.5.0
+    node_modules/@nestjs/throttler
+      @nestjs/throttler@"^6.5.0" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+  peer rxjs@"^7.1.0" from @nestjs/config@4.0.4
+  node_modules/@nestjs/config
+    @nestjs/config@"^4.0.4" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+  peer rxjs@"^7.1.0" from @nestjs/core@10.4.22
+  node_modules/@nestjs/core
+    peer @nestjs/core@"^10.0.0" from @nestjs/platform-express@10.4.22
+    node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^10.0.0" from @nestjs/core@10.4.22
+    peer @nestjs/core@"^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0" from @nestjs/throttler@6.5.0
+    node_modules/@nestjs/throttler
+      @nestjs/throttler@"^6.5.0" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+  rxjs@"7.8.1" from @angular-devkit/core@19.2.24
+  apps/api/node_modules/@angular-devkit/core
+    @angular-devkit/core@"19.2.24" from @angular-devkit/schematics@19.2.24
+    apps/api/node_modules/@angular-devkit/schematics
+      @angular-devkit/schematics@"19.2.24" from @angular-devkit/schematics-cli@19.2.24
+      apps/api/node_modules/@angular-devkit/schematics-cli
+        @angular-devkit/schematics-cli@"19.2.24" from @nestjs/cli@11.0.21
+        apps/api/node_modules/@nestjs/cli
+          dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+          apps/api
+            @crimson/api@0.1.0
+            node_modules/@crimson/api
+              workspace apps/api from the root project
+      @angular-devkit/schematics@"19.2.24" from @nestjs/cli@11.0.21
+      apps/api/node_modules/@nestjs/cli
+        dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+      @angular-devkit/schematics@"19.2.24" from @nestjs/schematics@11.1.0
+      apps/api/node_modules/@nestjs/schematics
+        @nestjs/schematics@"^11.0.1" from @nestjs/cli@11.0.21
+        apps/api/node_modules/@nestjs/cli
+          dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+          apps/api
+            @crimson/api@0.1.0
+            node_modules/@crimson/api
+              workspace apps/api from the root project
+    @angular-devkit/core@"19.2.24" from @angular-devkit/schematics-cli@19.2.24
+    apps/api/node_modules/@angular-devkit/schematics-cli
+      @angular-devkit/schematics-cli@"19.2.24" from @nestjs/cli@11.0.21
+      apps/api/node_modules/@nestjs/cli
+        dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+    @angular-devkit/core@"19.2.24" from @nestjs/cli@11.0.21
+    apps/api/node_modules/@nestjs/cli
+      dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @angular-devkit/core@"19.2.24" from @nestjs/schematics@11.1.0
+    apps/api/node_modules/@nestjs/schematics
+      @nestjs/schematics@"^11.0.1" from @nestjs/cli@11.0.21
+      apps/api/node_modules/@nestjs/cli
+        dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+  rxjs@"7.8.1" from @angular-devkit/schematics@19.2.24
+  apps/api/node_modules/@angular-devkit/schematics
+    @angular-devkit/schematics@"19.2.24" from @angular-devkit/schematics-cli@19.2.24
+    apps/api/node_modules/@angular-devkit/schematics-cli
+      @angular-devkit/schematics-cli@"19.2.24" from @nestjs/cli@11.0.21
+      apps/api/node_modules/@nestjs/cli
+        dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+    @angular-devkit/schematics@"19.2.24" from @nestjs/cli@11.0.21
+    apps/api/node_modules/@nestjs/cli
+      dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @angular-devkit/schematics@"19.2.24" from @nestjs/schematics@11.1.0
+    apps/api/node_modules/@nestjs/schematics
+      @nestjs/schematics@"^11.0.1" from @nestjs/cli@11.0.21
+      apps/api/node_modules/@nestjs/cli
+        dev @nestjs/cli@"^11.0.21" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+  peer rxjs@"^7.1.0" from @nestjs/common@11.1.19
+  apps/api/node_modules/@nestjs/common
+    peer @nestjs/common@"^11.0.0" from @nestjs/core@11.1.19
+    apps/api/node_modules/@nestjs/core
+      peer @nestjs/core@"^11.0.0" from @nestjs/platform-express@11.1.19
+      apps/api/node_modules/@nestjs/platform-express
+        peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+        @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+      @nestjs/core@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    peer @nestjs/common@"^11.0.0" from @nestjs/platform-express@11.1.19
+    apps/api/node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+      @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @nestjs/common@"^11.1.19" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+  peer rxjs@"^7.1.0" from @nestjs/core@11.1.19
+  apps/api/node_modules/@nestjs/core
+    peer @nestjs/core@"^11.0.0" from @nestjs/platform-express@11.1.19
+    apps/api/node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+      @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @nestjs/core@"^11.1.19" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+  rxjs@"^7.8.1" from @crimson/api@0.1.0
+  apps/api
+    @crimson/api@0.1.0
+    node_modules/@crimson/api
+      workspace apps/api from the root project
+
+Could not resolve dependency:
+peer rxjs@"^7.1.0" from @nestjs/common@11.1.19
+apps/api/node_modules/@nestjs/common
+  peer @nestjs/common@"^11.0.0" from @nestjs/core@11.1.19
+  apps/api/node_modules/@nestjs/core
+    peer @nestjs/core@"^11.0.0" from @nestjs/platform-express@11.1.19
+    apps/api/node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+      @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @nestjs/core@"^11.1.19" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+  peer @nestjs/common@"^11.0.0" from @nestjs/platform-express@11.1.19
+  apps/api/node_modules/@nestjs/platform-express
+    peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+    @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+  @nestjs/common@"^11.1.19" from @crimson/api@0.1.0
+  apps/api
+    @crimson/api@0.1.0
+    node_modules/@crimson/api
+      workspace apps/api from the root project
+
+Conflicting peer dependency: rxjs@7.8.2
+node_modules/rxjs
+  peer rxjs@"^7.1.0" from @nestjs/common@11.1.19
+  apps/api/node_modules/@nestjs/common
+    peer @nestjs/common@"^11.0.0" from @nestjs/core@11.1.19
+    apps/api/node_modules/@nestjs/core
+      peer @nestjs/core@"^11.0.0" from @nestjs/platform-express@11.1.19
+      apps/api/node_modules/@nestjs/platform-express
+        peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+        @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+        apps/api
+          @crimson/api@0.1.0
+          node_modules/@crimson/api
+            workspace apps/api from the root project
+      @nestjs/core@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    peer @nestjs/common@"^11.0.0" from @nestjs/platform-express@11.1.19
+    apps/api/node_modules/@nestjs/platform-express
+      peerOptional @nestjs/platform-express@"^11.0.0" from @nestjs/core@11.1.19
+      @nestjs/platform-express@"^11.1.19" from @crimson/api@0.1.0
+      apps/api
+        @crimson/api@0.1.0
+        node_modules/@crimson/api
+          workspace apps/api from the root project
+    @nestjs/common@"^11.1.19" from @crimson/api@0.1.0
+    apps/api
+      @crimson/api@0.1.0
+      node_modules/@crimson/api
+        workspace apps/api from the root project
+
+Fix the upstream dependency conflict, or retry
+this command with --force or --legacy-peer-deps
+to accept an incorrect (and potentially broken) dependency resolution.

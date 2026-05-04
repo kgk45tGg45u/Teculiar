@@ -1,0 +1,47 @@
+# Crimson Hosting SaaS Platform
+
+Production-grade SaaS foundation for a German hosting and IT services provider. The repo is structured as a monorepo with a public marketing site, customer portal, admin panel, NestJS API, Prisma/PostgreSQL data model, and shared domain contracts.
+
+## Systems
+
+- `apps/web` - Next.js app with localized public pages, `/client`, `/admin`, dark mode, and a crimson-led design system.
+- `apps/api` - NestJS REST API with auth, billing, products, tickets, CMS, users, and provider abstraction modules.
+- `prisma` - PostgreSQL schema covering accounts, teams, billing, products, services, domains, support, CMS, localization, permissions, and GDPR workflows.
+- `packages/shared` - shared enums and DTO-level contracts used by both web and API.
+
+## Architecture Principles
+
+- Modular boundaries: every backend domain owns its controller, service, and repository.
+- Provider isolation: Virtualmin, Resell.biz, and Hetzner integrations sit behind interfaces and do not leak into billing or product logic.
+- Billing is event-oriented: invoice generation, coupons, tax policy, transactions, and subscription renewals are separate concepts.
+- Localization is first-class: `/de/` and `/en/` content, localized prices, and German legal pages.
+- Security is layered: JWT access and refresh tokens, TOTP 2FA, role permissions, validation pipes, rate limiting, CSRF middleware, audit logs, GDPR export/deletion records.
+
+## Getting Started
+
+```bash
+npm install
+cp .env.example .env
+docker compose up -d
+npm run db:generate
+npm run db:migrate
+npm run dev:api
+npm run dev:web
+```
+
+## Key URLs
+
+- Public website: `http://localhost:3000/de`
+- Customer portal: `http://localhost:3000/client`
+- Admin panel: `http://localhost:3000/admin`
+- REST API: `http://localhost:4000/api/v1`
+
+## Design Direction
+
+The UI intentionally avoids cloning existing German providers. It uses a conversion-focused section flow, clean readable typography, crisp cards, and a small palette:
+
+- Crimson: primary actions and emphasis
+- Ink: text, borders, dark mode surfaces
+- White: page background and contrast
+
+Dark mode is supported with CSS variables and a persisted Zustand preference.

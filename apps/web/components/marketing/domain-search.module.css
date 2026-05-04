@@ -1,0 +1,42 @@
+.band {
+  background: var(--surface);
+  border-block: 1px solid var(--border);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 0.9fr);
+  gap: 42px;
+  align-items: end;
+}
+
+.inner h2 {
+  margin: 14px 0 10px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.04;
+}
+
+.inner p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.form {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+@media (max-width: 840px) {
+  .inner {
+    grid-template-columns: 1fr;
+  }
+
+  .form {
+    flex-direction: column;
+  }
+}

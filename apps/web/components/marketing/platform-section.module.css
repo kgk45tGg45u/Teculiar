@@ -1,0 +1,31 @@
+.header {
+  max-width: 780px;
+  margin-bottom: 34px;
+}
+
+.header h2 {
+  margin: 14px 0 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.item {
+  display: grid;
+  gap: 16px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.item svg {
+  color: var(--crimson);
+}
+
+.item h3 {
+  margin: 0;
+}
+
+.item p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}

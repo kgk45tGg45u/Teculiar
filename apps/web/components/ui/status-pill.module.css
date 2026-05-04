@@ -1,0 +1,29 @@
+.pill {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 740;
+}
+
+.good {
+  color: var(--ink);
+  background: rgba(17, 18, 23, 0.04);
+}
+
+.warn {
+  color: var(--crimson);
+  background: rgba(177, 18, 38, 0.08);
+  border-color: rgba(177, 18, 38, 0.25);
+}
+
+.neutral {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .good {
+  background: rgba(255, 255, 255, 0.08);
+}
