@@ -1,4 +1,13 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import {
+  credentialsFromEnv,
+  ResellBizClient,
+  type ResellBizDomainPrice,
+  type ResellBizDomainPriceAction
+} from "../resellbiz-client/resellbiz-api";
+import { PrismaService } from "../prisma/prisma.service";
 
 type PriceResult = {
   amountCents: number;
@@ -7,22 +16,22 @@ type PriceResult = {
   tld: string;
 };
 
-const PRICE_URL = "https://dezhost.supersite2.srsportal.com/domain-registration/domain-registration-price.php";
-const CACHE_TTL_MS = 1000 * 60 * 15;
-
 @Injectable()
 export class DomainPricingService {
-  private cache?: { fetchedAt: number; prices: Map<string, number> };
+  constructor(private readonly prisma?: PrismaService) {}
 
-  async priceFor(domainName: string, fallbackCents: number): Promise<PriceResult> {
+  async priceFor(
+    domainName: string,
+    fallbackCents: number,
+    action: ResellBizDomainPriceAction = "register"
+  ): Promise<PriceResult> {
     const tld = domainName.split(".").slice(1).join(".").toLowerCase();
     if (!tld) {
       return { amountCents: fallbackCents, error: "Missing domain TLD", source: "fallback", tld };
     }
 
     try {
-      const prices = await this.prices();
-      const amountCents = prices.get(tld);
+      const amountCents = await this.storedPrice(tld, action, 1);
       if (amountCents !== undefined) {
         return { amountCents, source: "live", tld };
       }
@@ -38,57 +47,117 @@ export class DomainPricingService {
     }
   }
 
-  private async prices() {
-    if (this.cache && Date.now() - this.cache.fetchedAt < CACHE_TTL_MS) {
-      return this.cache.prices;
+  async syncFromResellBiz(customerId?: number) {
+    const client = new ResellBizClient(
+      credentialsFromEnv({
+        ...process.env,
+        RESELLBIZ_API_BASE_URL: process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com"
+      })
+    );
+    const prices = await client.getCustomerDomainPrices(customerId);
+    await this.replaceStoredPrices(prices);
+
+    return { count: prices.length, updatedAt: new Date().toISOString() };
+  }
+
+  async upsertStoredPrice(input: {
+    action: string;
+    amountCents: number;
+    manual?: boolean;
+    suggested?: boolean;
+    tld: string;
+    years: number;
+  }) {
+    if (!this.prisma) {
+      return undefined;
+    }
+    const tld = normalizeTld(input.tld);
+
+    await this.prisma.$executeRaw`
+      INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
+      VALUES (${randomUUID()}, ${tld}, ${input.action}, ${input.years}, ${input.amountCents}, 'EUR', ${Boolean(input.manual)}, ${Boolean(input.suggested)}, NOW(), NOW())
+      ON CONFLICT ("tld", "action", "years") DO UPDATE SET
+        "amountCents" = EXCLUDED."amountCents",
+        "manual" = EXCLUDED."manual",
+        "suggested" = EXCLUDED."suggested",
+        "updatedAt" = NOW()
+    `;
+
+    return { ...input, tld };
+  }
+
+  async listStoredPrices() {
+    if (!this.prisma) {
+      return [];
     }
 
-    const response = await fetch(PRICE_URL);
-    if (!response.ok) {
-      throw new Error(`Domain price source returned HTTP ${response.status}`);
+    return this.prisma.$queryRaw`
+      SELECT "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "updatedAt"
+      FROM "DomainTldPrice"
+      ORDER BY "tld" ASC, "action" ASC, "years" ASC
+    `;
+  }
+
+  async listSuggestedTlds() {
+    if (!this.prisma) {
+      return ["com", "net", "org"];
     }
 
-    const prices = parseDomainPrices(await response.text());
-    if (prices.size === 0) {
-      throw new Error("Domain price source did not contain parseable prices");
+    const rows = await this.prisma.$queryRaw<Array<{ tld: string }>>`
+      SELECT DISTINCT "tld"
+      FROM "DomainTldPrice"
+      WHERE "suggested" = true
+      ORDER BY "tld" ASC
+    `;
+
+    return rows.length > 0 ? rows.map((row) => row.tld) : ["com", "net", "org"];
+  }
+
+  private async storedPrice(tld: string, action: ResellBizDomainPriceAction, years: number) {
+    if (!this.prisma) {
+      return undefined;
     }
 
-    this.cache = { fetchedAt: Date.now(), prices };
-    return prices;
+    const rows = await this.prisma.$queryRaw<Array<{ amountCents: number }>>`
+      SELECT "amountCents"
+      FROM "DomainTldPrice"
+      WHERE "tld" = ${tld} AND "action" = ${action} AND "years" = ${years}
+      LIMIT 1
+    `;
+
+    return rows[0]?.amountCents;
+  }
+
+  private async replaceStoredPrices(prices: ResellBizDomainPrice[]) {
+    if (!this.prisma) {
+      return;
+    }
+
+    await this.prisma.$executeRaw`DELETE FROM "DomainTldPrice" WHERE "manual" = false AND "suggested" = false AND "tld" <> 'de'`;
+    const syncedPrices = prices.filter((price) => price.tld !== "de");
+    for (let index = 0; index < syncedPrices.length; index += 400) {
+      const batch = syncedPrices.slice(index, index + 400);
+      await this.prisma.$executeRaw`
+          INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
+          VALUES ${Prisma.join(
+            batch.map((price) =>
+              Prisma.sql`(${randomUUID()}, ${price.tld}, ${price.action}, ${price.years}, ${price.amountCents}, 'EUR', false, false, NOW(), NOW())`
+            )
+          )}
+          ON CONFLICT ("tld", "action", "years") DO UPDATE SET
+            "amountCents" = EXCLUDED."amountCents",
+            "updatedAt" = NOW()
+          WHERE "DomainTldPrice"."manual" = false AND "DomainTldPrice"."tld" <> 'de'
+        `;
+    }
   }
 }
 
-function parseDomainPrices(html: string) {
-  const prices = new Map<string, number>();
-  const rowPattern = /<tr[\s\S]*?<\/tr>/gi;
-  const cellPattern = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-
-  for (const row of html.match(rowPattern) ?? []) {
-    const cells = [...row.matchAll(cellPattern)].map((match) => cleanCell(match[1] ?? ""));
-    const tld = cells.find((cell) => /^\.[a-z0-9.-]+$/i.test(cell))?.slice(1).toLowerCase();
-    const price = cells.map(parseEuroCents).find((value) => value !== undefined);
-
-    if (tld && price !== undefined) {
-      prices.set(tld, price);
-    }
+function normalizeTld(input: string) {
+  const tld = input.trim().toLowerCase().replace(/^\./, "");
+  if (!/^[a-z0-9-]{2,63}$/.test(tld)) {
+    throw new Error("Invalid TLD");
   }
 
-  return prices;
-}
-
-function cleanCell(value: string) {
-  return value
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function parseEuroCents(value: string) {
-  const match = value.match(/(?:€|EUR)?\s*(\d+(?:[.,]\d{1,2})?)/i);
-  if (!match?.[1]) {
-    return undefined;
-  }
-
-  return Math.round(Number(match[1].replace(",", ".")) * 100);
+  return tld;
 }

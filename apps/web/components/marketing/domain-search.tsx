@@ -18,8 +18,8 @@ export function DomainSearch({ locale }: { locale: Locale }) {
               : "Domain workflows connect to portal billing, contacts, and services."}
           </p>
         </div>
-        <form className={styles.form}>
-          <input className="input" defaultValue="meinefirma.de" aria-label="Domain" />
+        <form action={`/${locale}/domains/search`} className={styles.form}>
+          <input className="input" defaultValue="meinefirma.de" aria-label="Domain" name="domain" />
           <Button icon={Search} type="submit">
             {isDe ? "Prüfen" : "Check"}
           </Button>

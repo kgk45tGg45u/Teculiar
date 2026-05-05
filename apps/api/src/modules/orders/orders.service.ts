@@ -3,6 +3,7 @@ import { hash } from "bcryptjs";
 import { BillingService } from "../billing/billing.service";
 import { ExternalService } from "../external/external.service";
 import { UsersRepository } from "../users/users.repository";
+import { DomainAvailabilityService } from "./domain-availability.service";
 import { DomainPricingService } from "./domain-pricing.service";
 import type { CheckoutOrderDto, OrderItemDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
 import { OrdersRepository, type PricedOrderItem } from "./orders.repository";
@@ -14,7 +15,8 @@ export class OrdersService {
     private readonly billing: BillingService,
     private readonly external: ExternalService,
     private readonly users: UsersRepository,
-    private readonly domainPricing: DomainPricingService
+    private readonly domainPricing: DomainPricingService,
+    private readonly domainAvailability?: DomainAvailabilityService
   ) {}
 
   homepageProducts() {
@@ -23,6 +25,40 @@ export class OrdersService {
 
   listAdminOrders() {
     return this.orders.listOrders();
+  }
+
+  listDomainPrices() {
+    return this.domainPricing.listStoredPrices();
+  }
+
+  upsertDomainPrice(input: { action: string; amountCents: number; manual?: boolean; suggested?: boolean; tld: string; years: number }) {
+    return this.domainPricing.upsertStoredPrice(input);
+  }
+
+  syncDomainPrices(customerId?: number) {
+    return this.domainPricing.syncFromResellBiz(customerId);
+  }
+
+  async searchDomain(domain: string) {
+    if (!this.domainAvailability) {
+      throw new BadRequestException("Domain availability service is not configured");
+    }
+
+    const availability = await this.domainAvailability.check(domain);
+    const products = await this.orders.listHomepageProducts();
+    const domainProduct = products.find((product) => product.type === "DOMAIN");
+    const fallbackCents = domainProduct?.prices[0]?.amountCents ?? 0;
+    const price = await this.domainPricing.priceFor(domain, fallbackCents, availability.available ? "register" : "transfer");
+
+    const suggestions = await this.suggestedDomainResults(domain, availability.tld, domainProduct?.id, fallbackCents);
+
+    return {
+      ...availability,
+      action: availability.available ? "register" : "transfer",
+      price,
+      productId: domainProduct?.id,
+      suggestions
+    };
   }
 
   async getOrder(id: string) {
@@ -89,6 +125,7 @@ export class OrdersService {
         countryCode: dto.customer.countryCode ?? "DE",
         customerType: dto.customer.customerType ?? "INDIVIDUAL",
         email: dto.customer.email.toLowerCase(),
+        companyName: dto.customer.companyName,
         name: dto.customer.name,
         phone: dto.customer.phone,
         vatId: dto.customer.vatId
@@ -124,7 +161,7 @@ export class OrdersService {
 
     for (const item of order.items) {
       try {
-        await this.activateItem(order.userId, item);
+        await this.activateItem(order.userId, item, order.customerSnapshot);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Provisioning failed";
         failures.push(message);
@@ -174,9 +211,10 @@ export class OrdersService {
       if (!item.domainName) {
         throw new BadRequestException("Domain orders need a domain name");
       }
-      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents);
+      const action = domainAction(configuration) === "transfer" ? "transfer" : "register";
+      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action);
       unitAmountCents = livePrice.amountCents;
-      description = `${item.domainName} domain registration`;
+      description = `${item.domainName} domain ${action}`;
       configuration.domainPricing = livePrice;
     }
 
@@ -203,7 +241,7 @@ export class OrdersService {
     productId: string;
     productPriceId: string;
     type: string;
-  }) {
+  }, customerSnapshot?: unknown) {
     const service = await this.orders.createServiceForItem(
       item,
       userId,
@@ -227,12 +265,23 @@ export class OrdersService {
     }
 
     await this.orders.markItemProvisioning(item.id);
-    const provisioning = await this.external.resellBiz.register({
-      domain: item.domainName,
-      extraAttributes: domainExtraAttributes(item.configuration),
-      nameServers: domainNameServers(item.configuration),
-      years: yearsFromCycle(item.billingCycle)
-    });
+    const provisioning =
+      domainAction(item.configuration) === "transfer"
+        ? await this.external.resellBiz.transfer({
+            authCode: transferAuthCode(item.configuration),
+            customerContact: domainCustomerContact(customerSnapshot),
+            domain: item.domainName,
+            extraAttributes: domainExtraAttributes(item.configuration),
+            nameServers: domainNameServers(item.configuration),
+            years: yearsFromCycle(item.billingCycle)
+          })
+        : await this.external.resellBiz.register({
+            customerContact: domainCustomerContact(customerSnapshot),
+            domain: item.domainName,
+            extraAttributes: domainExtraAttributes(item.configuration),
+            nameServers: domainNameServers(item.configuration),
+            years: yearsFromCycle(item.billingCycle)
+          });
 
     await this.orders.createDomainRecord({
       domain: item.domainName,
@@ -248,6 +297,25 @@ export class OrdersService {
     }
 
     await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata);
+  }
+
+  private async suggestedDomainResults(domain: string, searchedTld: string, productId: string | undefined, fallbackCents: number) {
+    const label = domain.split(".").slice(0, -1).join(".");
+    const tlds = (await this.domainPricing.listSuggestedTlds()).filter((tld) => tld !== searchedTld);
+    const results = [];
+
+    for (const tld of tlds) {
+      const suggestedDomain = `${label}.${tld}`;
+      if (!this.domainAvailability) {
+        continue;
+      }
+      const availability = await this.domainAvailability.check(suggestedDomain);
+      const action = availability.available ? "register" : "transfer";
+      const price = await this.domainPricing.priceFor(suggestedDomain, fallbackCents, action);
+      results.push({ ...availability, action, price, productId });
+    }
+
+    return results;
   }
 }
 
@@ -284,6 +352,67 @@ function domainExtraAttributes(configuration: unknown) {
   }
 
   return { tnc: "Y", ...configuration.extraAttributes } as Record<string, boolean | number | string>;
+}
+
+function domainAction(configuration: unknown) {
+  if (!isRecord(configuration) || configuration.domainAction !== "transfer") {
+    return "register";
+  }
+
+  return "transfer";
+}
+
+function transferAuthCode(configuration: unknown) {
+  if (!isRecord(configuration) || typeof configuration.transferAuthCode !== "string" || !configuration.transferAuthCode) {
+    throw new BadRequestException("Transfer orders need an authorization code");
+  }
+
+  return configuration.transferAuthCode;
+}
+
+function domainCustomerContact(snapshot: unknown) {
+  if (!isRecord(snapshot)) {
+    throw new BadRequestException("Domain order is missing customer contact data");
+  }
+  const address = isRecord(snapshot.address) ? snapshot.address : {};
+  const phone = splitPhone(String(snapshot.phone ?? ""));
+
+  return {
+    addressLine1: requiredString(address.line1, "Address"),
+    city: requiredString(address.city, "City"),
+    company: optionalString(snapshot.companyName),
+    country: requiredString(snapshot.countryCode, "Country"),
+    email: requiredString(snapshot.email, "Email").toLowerCase(),
+    name: requiredString(snapshot.name, "Name"),
+    phone: phone.number,
+    phoneCountryCode: phone.countryCode,
+    state: optionalString(address.state),
+    vatId: optionalString(snapshot.vatId),
+    zipCode: requiredString(address.postalCode, "Zip")
+  };
+}
+
+function splitPhone(value: string) {
+  const match = value.trim().match(/^\+?(\d{1,3})\s*(.*)$/);
+  const countryCode = match?.[1] ?? "49";
+  const number = (match?.[2] ?? value).replace(/[^\d]/g, "");
+  if (!number) {
+    throw new BadRequestException("Phone number is required");
+  }
+
+  return { countryCode, number };
+}
+
+function requiredString(value: unknown, label: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new BadRequestException(`${label} is required for domain registration`);
+  }
+
+  return value.trim();
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

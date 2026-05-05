@@ -11,6 +11,10 @@ import type {
   FetchLike,
   ParamValue,
   ResellBizCredentials,
+  ResellBizContactInput,
+  ResellBizCustomerInput,
+  ResellBizDomainPrice,
+  ResellBizDomainPriceAction,
   ResellBizDomainSummary,
   ResellBizDomainTarget,
   ResellBizMethod,
@@ -31,6 +35,10 @@ export type {
   ParamPrimitive,
   ParamValue,
   ResellBizCredentials,
+  ResellBizContactInput,
+  ResellBizCustomerInput,
+  ResellBizDomainPrice,
+  ResellBizDomainPriceAction,
   ResellBizDomainSummary,
   ResellBizDomainTarget,
   ResellBizMethod,
@@ -110,6 +118,67 @@ export class ResellBizClient {
     return asBoolean(payload);
   }
 
+  async getCustomerDomainPrices(customerId?: number): Promise<ResellBizDomainPrice[]> {
+    const payload = await this.call<unknown>("GET", "/api/products/customer-price.json", {
+      "customer-id": customerId
+    });
+
+    return parseCustomerDomainPrices(payload);
+  }
+
+  async addCustomer(input: ResellBizCustomerInput): Promise<number> {
+    const payload = await this.call<unknown>("POST", "/api/customers/signup.json", {
+      "address-line-1": input.addressLine1,
+      "address-line-2": input.addressLine2,
+      city: input.city,
+      company: input.company,
+      country: input.country,
+      "lang-pref": "en",
+      name: input.name,
+      passwd: input.password,
+      phone: input.phone,
+      "phone-cc": input.phoneCountryCode,
+      state: input.state,
+      username: input.email,
+      "vat-id": input.vatId,
+      zipcode: input.zipCode
+    });
+
+    return asPositiveInteger(payload, "customer id");
+  }
+
+  async getCustomerIdByEmail(email: string): Promise<number | undefined> {
+    const payload = await this.call<unknown>("GET", "/api/customers/details.json", {
+      username: email
+    });
+    if (!isRecord(payload)) {
+      return undefined;
+    }
+
+    const id = payload.customerid ?? payload["customer-id"] ?? payload.entityid;
+    return typeof id === "number" || typeof id === "string" ? asPositiveInteger(id, "customer id") : undefined;
+  }
+
+  async addContact(input: ResellBizContactInput): Promise<number> {
+    const payload = await this.call<unknown>("POST", "/api/contacts/add.json", {
+      "address-line-1": input.addressLine1,
+      "address-line-2": input.addressLine2,
+      city: input.city,
+      company: input.company ?? "N/A",
+      country: input.country,
+      "customer-id": input.customerId,
+      email: input.email,
+      name: input.name,
+      phone: input.phone,
+      "phone-cc": input.phoneCountryCode,
+      state: input.state,
+      type: input.type ?? "Contact",
+      zipcode: input.zipCode
+    });
+
+    return asPositiveInteger(payload, "contact id");
+  }
+
   async registerDomain(input: RegisterDomainInput): Promise<unknown> {
     assertDomainName(input.domainName);
     assertNameServers(input.nameServers);
@@ -182,6 +251,84 @@ export class ResellBizClient {
   private call<T>(method: ResellBizMethod, path: string, params?: Record<string, ParamValue>): Promise<T> {
     return callResellBiz<T>(this.credentials, method, path, params, this.fetcher);
   }
+}
+
+export function parseCustomerDomainPrices(payload: unknown): ResellBizDomainPrice[] {
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  const prices: ResellBizDomainPrice[] = [];
+  for (const [productKey, value] of Object.entries(payload)) {
+    const tld = productKeyToTld(productKey);
+    if (!tld || !isRecord(value)) {
+      continue;
+    }
+
+    collectTenurePrices(prices, tld, "register", value.addnewdomain);
+    collectTenurePrices(prices, tld, "transfer", value.addtransferdomain);
+    collectTenurePrices(prices, tld, "renew", value.renewdomain);
+  }
+
+  return prices.sort(
+    (a, b) => a.tld.localeCompare(b.tld) || actionOrder(a.action) - actionOrder(b.action) || a.years - b.years
+  );
+}
+
+function collectTenurePrices(
+  prices: ResellBizDomainPrice[],
+  tld: string,
+  action: ResellBizDomainPriceAction,
+  value: unknown
+) {
+  if (!isRecord(value)) {
+    return;
+  }
+
+  for (const [years, amount] of Object.entries(value)) {
+    const parsedYears = Number.parseInt(years, 10);
+    const amountCents = moneyToCents(amount);
+    if (Number.isInteger(parsedYears) && parsedYears > 0 && amountCents !== undefined) {
+      prices.push({ action, amountCents, tld, years: parsedYears });
+    }
+  }
+}
+
+function productKeyToTld(productKey: string) {
+  const normalized = productKey.toLowerCase().trim();
+  const knownProductKeys: Record<string, string> = {
+    dombiz: "biz",
+    domcno: "com",
+    dominfo: "info",
+    domorg: "org",
+    domus: "us"
+  };
+  if (knownProductKeys[normalized]) {
+    return knownProductKeys[normalized];
+  }
+  if (/^dot[a-z0-9]+$/.test(normalized)) {
+    return normalized.slice(3);
+  }
+  if (/^\.[a-z0-9.-]+$/.test(normalized)) {
+    return normalized.slice(1);
+  }
+  if (
+    /^[a-z0-9-]{2,63}$/.test(normalized) &&
+    !["hosting", "email", "mail", "server", "websitebuilder"].some((word) => normalized.includes(word))
+  ) {
+    return normalized;
+  }
+
+  return undefined;
+}
+
+function moneyToCents(value: unknown) {
+  const amount = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(amount) ? Math.round(amount * 100) : undefined;
+}
+
+function actionOrder(action: ResellBizDomainPriceAction) {
+  return { register: 1, transfer: 2, renew: 3 }[action];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

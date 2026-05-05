@@ -33,6 +33,31 @@ export type ApiOrder = {
   }>;
 };
 
+export type ApiDomainSearch = {
+  action: "register" | "transfer";
+  available: boolean;
+  domain: string;
+  error?: string;
+  price: { amountCents: number; error?: string; source: string; tld: string };
+  productId?: string;
+  source: string;
+  suggestions: ApiDomainSearchResult[];
+  tld: string;
+};
+
+export type ApiDomainSearchResult = Omit<ApiDomainSearch, "suggestions">;
+
+export type ApiDomainPrice = {
+  action: string;
+  amountCents: number;
+  currency: string;
+  manual: boolean;
+  suggested: boolean;
+  tld: string;
+  updatedAt: string;
+  years: number;
+};
+
 export type ApiService = {
   id: string;
   status: string;

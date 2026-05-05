@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { ResellBizClient, credentialsFromEnv, ResellBizApiError } from "../resellbiz-client/resellbiz-api";
-import type { DomainProvider, DomainRegistrationRequest } from "./provider.types";
+import type {
+  DomainCustomerContactRequest,
+  DomainProvider,
+  DomainRegistrationRequest,
+  DomainTransferRequest
+} from "./provider.types";
 
 @Injectable()
 export class ResellBizProviderService implements DomainProvider {
@@ -13,13 +18,8 @@ export class ResellBizProviderService implements DomainProvider {
   }
 
   async register(request: DomainRegistrationRequest) {
-    const client = new ResellBizClient(
-      credentialsFromEnv({
-        ...process.env,
-        RESELLBIZ_API_BASE_URL: process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com"
-      })
-    );
-    const contacts = registrationContacts(request.contactId);
+    const client = resellBizClient();
+    const contacts = await registrationContacts(client, request);
     const payload = await client.registerDomain({
       ...contacts,
       autoRenew: request.autoRenew ?? true,
@@ -40,18 +40,63 @@ export class ResellBizProviderService implements DomainProvider {
     };
   }
 
-  async transfer(domain: string, authCode: string, contactId: string) {
+  async transfer(request: DomainTransferRequest) {
+    const client = resellBizClient();
+    const contacts = await registrationContacts(client, request);
+    const payload = await client.transferDomain({
+      ...contacts,
+      authCode: request.authCode,
+      autoRenew: request.autoRenew ?? true,
+      domainName: request.domain,
+      extraAttributes: request.extraAttributes,
+      invoiceOption: "NoInvoice",
+      nameServers: request.nameServers ?? defaultNameServers(),
+      protectPrivacy: false,
+      purchasePrivacy: false
+    });
+    const externalId = externalReference(payload) ?? `resellbiz_transfer_${request.domain}`;
+
     return {
-      externalId: `resellbiz_transfer_${domain}`,
-      status: "QUEUED" as const,
-      metadata: { authCodePresent: Boolean(authCode), contactId }
+      externalId,
+      status: mapDomainActionStatus(payload),
+      metadata: { authCodePresent: Boolean(request.authCode), raw: payload, testApi: true }
     };
+  }
+
+  async ensureCustomerContact(request: DomainCustomerContactRequest) {
+    const client = resellBizClient();
+    const customerId = await ensureCustomer(client, request);
+    const contactId = await client.addContact({
+      ...request,
+      company: request.company || "N/A",
+      customerId,
+      type: "Contact"
+    });
+
+    return { contactId, customerId, metadata: { createdContact: true } };
   }
 }
 
-function registrationContacts(contactId?: string) {
-  const fallbackContactId = numberFromEnv("RESELLBIZ_TEST_CONTACT_ID") ?? parsePositiveInteger(contactId, "contactId");
-  const customerId = numberFromEnv("RESELLBIZ_TEST_CUSTOMER_ID") ?? numberFromEnv("RESELLBIZ_CUSTOMER_ID");
+async function registrationContacts(client: ResellBizClient, request: DomainRegistrationRequest) {
+  if (request.customerContact) {
+    const ensured = await ensureCustomerContact(client, request.customerContact);
+    return {
+      adminContactId: ensured.contactId,
+      billingContactId: ensured.contactId,
+      customerId: ensured.customerId,
+      registrantContactId: ensured.contactId,
+      technicalContactId: ensured.contactId
+    };
+  }
+
+  const fallbackContactId =
+    numberFromEnv("RESELLBIZ_TEST_CONTACT_ID") ??
+    numberFromEnv("RESELLBIZ_CONTACT_ID") ??
+    parsePositiveInteger(request.contactId, "contactId");
+  const customerId =
+    numberFromEnv("RESELLBIZ_TEST_CUSTOMER_ID") ??
+    numberFromEnv("RESELLBIZ_CUSTOMER_ID") ??
+    parsePositiveInteger(request.customerId, "customerId");
 
   if (!customerId) {
     throw new ResellBizApiError("Missing RESELLBIZ_TEST_CUSTOMER_ID for test domain registrations.");
@@ -67,6 +112,44 @@ function registrationContacts(contactId?: string) {
     registrantContactId: numberFromEnv("RESELLBIZ_TEST_REG_CONTACT_ID") ?? fallbackContactId,
     technicalContactId: numberFromEnv("RESELLBIZ_TEST_TECH_CONTACT_ID") ?? fallbackContactId
   };
+}
+
+async function ensureCustomerContact(client: ResellBizClient, request: DomainCustomerContactRequest) {
+  const customerId = await ensureCustomer(client, request);
+  const contactId = await client.addContact({
+    ...request,
+    company: request.company || "N/A",
+    customerId,
+    type: "Contact"
+  });
+
+  return { contactId, customerId };
+}
+
+async function ensureCustomer(client: ResellBizClient, request: DomainCustomerContactRequest) {
+  const existingCustomerId = await client.getCustomerIdByEmail(request.email).catch(() => undefined);
+  if (existingCustomerId) {
+    return existingCustomerId;
+  }
+
+  return client.addCustomer({
+    ...request,
+    company: request.company || request.name,
+    password: temporaryCustomerPassword()
+  });
+}
+
+function resellBizClient() {
+  return new ResellBizClient(
+    credentialsFromEnv({
+      ...process.env,
+      RESELLBIZ_API_BASE_URL: process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com"
+    })
+  );
+}
+
+function temporaryCustomerPassword() {
+  return `Dz${Math.random().toString(36).slice(2, 8)}!9Aa`.slice(0, 16);
 }
 
 function defaultNameServers() {

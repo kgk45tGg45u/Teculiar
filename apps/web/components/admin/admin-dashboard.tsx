@@ -4,17 +4,28 @@ import {
   apiGet,
   money,
   type ApiInvoice,
+  type ApiDomainPrice,
   type ApiOrder,
   type ApiService,
   type ApiTicket
 } from "../../lib/api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
-import { AnnouncementForm, SettingsForm } from "./admin-forms";
+import { AnnouncementForm, DomainPriceForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
 import styles from "./admin-dashboard.module.css";
 
-type AdminView = "home" | "clients" | "orders" | "invoices" | "products" | "services" | "tickets" | "announcements" | "settings";
+type AdminView =
+  | "home"
+  | "clients"
+  | "orders"
+  | "domain-prices"
+  | "invoices"
+  | "products"
+  | "services"
+  | "tickets"
+  | "announcements"
+  | "settings";
 
 export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   await runMaintenance();
@@ -22,6 +33,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const orders = (await apiGet<ApiOrder[]>("/orders/admin")) ?? [];
   const services = (await apiGet<ApiService[]>("/admin/dev/services")) ?? [];
   const invoices = (await apiGet<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
+  const domainPrices = (await apiGet<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGet<ApiTicket[]>("/admin/dev/tickets")) ?? [];
   const stats = (await apiGet<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
@@ -35,6 +47,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
           <a href="/admin">Home</a>
           <a href="/admin/clients">Clients</a>
           <a href="/admin/orders">Orders</a>
+          <a href="/admin/domain-prices">Domain Prices</a>
           <a href="/admin/services">Services</a>
           <a href="/admin/products">Products/Services</a>
           <a href="/admin/invoices">Invoices</a>
@@ -76,6 +89,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
 
         {view === "home" ? <ModuleGrid /> : null}
         {view === "home" || view === "orders" ? <OrdersPanel orders={orders} /> : null}
+        {view === "domain-prices" ? <DomainPricesPanel prices={domainPrices} /> : null}
         {view === "clients" ? <Placeholder icon={UsersRound} title="Clients" body="Client list is ready for admin auth UI." /> : null}
         {view === "services" ? <ServicesPanel services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
@@ -85,6 +99,53 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "settings" ? <SettingsPanel /> : null}
       </main>
     </div>
+  );
+}
+
+function DomainPricesPanel({ prices }: { prices: ApiDomainPrice[] }) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Domains</span>
+          <h2>TLD Prices</h2>
+        </div>
+        <StatusPill label={`${prices.length} rows`} tone={prices.length > 0 ? "good" : "warn"} />
+      </div>
+      <DomainPriceForm />
+      <table className="table">
+        <thead>
+          <tr>
+            <th>TLD</th>
+            <th>Action</th>
+            <th>Years</th>
+            <th>Price</th>
+            <th>Manual</th>
+            <th>Suggested</th>
+            <th>Last update</th>
+          </tr>
+        </thead>
+        <tbody>
+          {prices.length ? (
+            prices.map((price) => (
+              <tr key={`${price.tld}-${price.action}-${price.years}`}>
+                <td>.{price.tld}</td>
+                <td>{price.action}</td>
+                <td>{price.years}</td>
+                <td>{money(price.amountCents, price.currency)}</td>
+                <td>{price.manual ? "yes" : "no"}</td>
+                <td>{price.suggested ? "yes" : "no"}</td>
+                <td>{dateLabel(price.updatedAt)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={7}>No domain prices synced yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
@@ -320,6 +381,7 @@ function adminTitle(view: AdminView) {
   return {
     announcements: "Announcements",
     clients: "Clients",
+    "domain-prices": "Domain Prices",
     home: "Operations Console",
     invoices: "Invoices",
     orders: "Orders",

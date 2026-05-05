@@ -45,7 +45,11 @@ Base URL: `/api/v1`
 - `POST /orders/checkout`
 - `POST /orders/:id/pay`
 - `GET /orders/:id`
+- `GET /domains/search?domain=example.com`
 - `GET /orders/admin` - temporary unguarded admin queue endpoint until the admin auth UI is wired.
+- `GET /orders/admin/domain-prices` - temporary unguarded Resell.biz TLD price table.
+- `POST /orders/admin/domain-prices` - temporary unguarded manual TLD price and suggested TLD update.
+- `POST /orders/admin/domain-prices/sync` - temporary unguarded Resell.biz pricing sync trigger for cron/admin use.
 
 ## Billing
 
@@ -85,6 +89,7 @@ Base URL: `/api/v1`
 
 - `POST /external/domains/search`
 - `POST /external/domains/register`
+- `POST /external/domains/transfer`
 - `POST /external/hosting/provision`
 - `POST /external/servers/provision`
 

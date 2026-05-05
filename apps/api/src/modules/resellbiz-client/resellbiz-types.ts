@@ -34,6 +34,36 @@ export type ResellBizDomainSummary = {
   transferCode?: string;
 };
 
+export type ResellBizDomainPriceAction = "register" | "transfer" | "renew";
+
+export type ResellBizDomainPrice = {
+  action: ResellBizDomainPriceAction;
+  amountCents: number;
+  tld: string;
+  years: number;
+};
+
+export type ResellBizCustomerInput = {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  company?: string;
+  country: string;
+  email: string;
+  name: string;
+  password: string;
+  phone: string;
+  phoneCountryCode: string;
+  state?: string;
+  vatId?: string;
+  zipCode: string;
+};
+
+export type ResellBizContactInput = Omit<ResellBizCustomerInput, "password" | "vatId"> & {
+  customerId: number;
+  type?: string;
+};
+
 export type TransferDomainInput = {
   adminContactId: number;
   authCode?: string;

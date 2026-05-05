@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { CheckoutOrderDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
 import { OrdersService } from "./orders.service";
 
@@ -9,6 +9,11 @@ export class OrdersController {
   @Get("storefront/products")
   homepageProducts() {
     return this.orders.homepageProducts();
+  }
+
+  @Get("domains/search")
+  searchDomain(@Query("domain") domain: string) {
+    return this.orders.searchDomain(domain);
   }
 
   @Post("orders/preview")
@@ -25,6 +30,23 @@ export class OrdersController {
   @Get("orders/admin")
   adminOrders() {
     return this.orders.listAdminOrders();
+  }
+
+  @Get("orders/admin/domain-prices")
+  adminDomainPrices() {
+    return this.orders.listDomainPrices();
+  }
+
+  @Post("orders/admin/domain-prices")
+  upsertDomainPrice(
+    @Body() body: { action: string; amountCents: number; manual?: boolean; suggested?: boolean; tld: string; years: number }
+  ) {
+    return this.orders.upsertDomainPrice(body);
+  }
+
+  @Post("orders/admin/domain-prices/sync")
+  syncDomainPrices(@Body("customerId") customerId?: number) {
+    return this.orders.syncDomainPrices(customerId);
   }
 
   @Post("orders/:id/pay")

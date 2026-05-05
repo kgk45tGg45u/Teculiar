@@ -6,6 +6,8 @@ import { Button } from "../ui/button";
 import styles from "./checkout-form.module.css";
 
 type CheckoutFormProps = {
+  initialDomain?: string;
+  initialDomainAction?: "register" | "transfer";
   locale: string;
   product: ApiProduct;
 };
@@ -16,9 +18,10 @@ type CheckoutState =
   | { status: "success"; message: string; orderId: string }
   | { status: "error"; message: string };
 
-export function CheckoutForm({ locale, product }: CheckoutFormProps) {
+export function CheckoutForm({ initialDomain = "", initialDomainAction = "register", locale, product }: CheckoutFormProps) {
   const [priceId, setPriceId] = useState(product.prices[0]?.id ?? "");
   const [paymentMethod, setPaymentMethod] = useState("CREDIT_CARD");
+  const [domainAction, setDomainAction] = useState<"register" | "transfer">(initialDomainAction);
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
   const selectedPrice = useMemo(
     () => product.prices.find((price) => price.id === priceId) ?? product.prices[0],
@@ -31,28 +34,48 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
       setState({ status: "error", message: "Kein Preis fuer dieses Produkt gefunden." });
       return;
     }
+    const password = String(formData.get("password") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+    if (password !== confirmPassword) {
+      setState({ status: "error", message: "Passwoerter stimmen nicht ueberein." });
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setState({ status: "error", message: "Passwort erfuellt die Regeln nicht." });
+      return;
+    }
 
     setState({ status: "loading", message: "Bestellung wird erstellt..." });
     const domainName = String(formData.get("domainName") ?? "").trim().toLowerCase();
+    const phone = `${String(formData.get("phoneCountryCode") ?? "").trim()} ${String(formData.get("phone") ?? "").trim()}`.trim();
     const body = {
       customer: {
         address: {
           city: formData.get("city"),
           line1: formData.get("address"),
-          postalCode: formData.get("postalCode")
+          postalCode: formData.get("postalCode"),
+          state: formData.get("state")
         },
         countryCode: String(formData.get("countryCode") ?? "DE"),
-        customerType: String(formData.get("customerType") ?? "INDIVIDUAL"),
+        customerType: String(formData.get("companyName") ?? "").trim() ? "BUSINESS" : "INDIVIDUAL",
         email: String(formData.get("email") ?? ""),
+        companyName: String(formData.get("companyName") ?? ""),
         name: String(formData.get("name") ?? ""),
-        password: String(formData.get("password") ?? ""),
-        phone: String(formData.get("phone") ?? ""),
+        password,
+        phone,
         vatId: String(formData.get("vatId") ?? "")
       },
       items: [
         {
-          configuration: needsDomain && formData.get("nameServers")
-            ? { nameServers: String(formData.get("nameServers")).split(",").map((value) => value.trim()).filter(Boolean) }
+          configuration: needsDomain
+            ? {
+                domainAction,
+                nameServers: String(formData.get("nameServers") ?? "")
+                  .split(",")
+                  .map((value) => value.trim())
+                  .filter(Boolean),
+                transferAuthCode: String(formData.get("transferAuthCode") ?? "")
+              }
             : {},
           domainName: needsDomain ? domainName : undefined,
           productId: product.id,
@@ -71,7 +94,7 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
       });
       setState({
         status: "success",
-        message: "Bezahlt. Domain-Registrierung wurde an ResellBiz Test API gesendet.",
+        message: "Bezahlt. Bestellung wurde an ResellBiz Test API gesendet.",
         orderId: checkoutResponse.order.id
       });
     } catch (error) {
@@ -107,8 +130,21 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
           <>
             <label>
               Domain
-              <input name="domainName" placeholder="example.de" required />
+              <input defaultValue={initialDomain} name="domainName" placeholder="example.de" required />
             </label>
+            <label>
+              Domain-Aktion
+              <select value={domainAction} onChange={(event) => setDomainAction(event.target.value as "register" | "transfer")}>
+                <option value="register">Registrieren</option>
+                <option value="transfer">Transfer</option>
+              </select>
+            </label>
+            {domainAction === "transfer" ? (
+              <label>
+                Auth-Code
+                <input name="transferAuthCode" required />
+              </label>
+            ) : null}
             <label>
               Nameserver
               <input name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
@@ -127,14 +163,20 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
           </label>
           <label>
             Passwort
-            <input name="password" required type="password" />
+            <input maxLength={16} minLength={9} name="password" required type="password" />
+            <span className={styles.hint}>9-16 Zeichen, Gross-/Kleinbuchstaben, Zahlen, Sonderzeichen</span>
           </label>
           <label>
-            Kundentyp
-            <select name="customerType">
-              <option value="INDIVIDUAL">Privat</option>
-              <option value="BUSINESS">Firma</option>
-            </select>
+            Passwort bestaetigen
+            <input maxLength={16} minLength={9} name="confirmPassword" required type="password" />
+          </label>
+          <label>
+            Firma
+            <input name="companyName" />
+          </label>
+          <label>
+            USt-Id
+            <input name="vatId" />
           </label>
           <label>
             Adresse
@@ -153,12 +195,16 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
             <input defaultValue="DE" name="countryCode" required />
           </label>
           <label>
-            USt-Id
-            <input name="vatId" />
+            Bundesland
+            <input name="state" required />
+          </label>
+          <label>
+            Landesvorwahl
+            <input defaultValue="+49" name="phoneCountryCode" required />
           </label>
           <label>
             Telefon
-            <input name="phone" />
+            <input name="phone" required />
           </label>
         </div>
 
@@ -185,6 +231,17 @@ export function CheckoutForm({ locale, product }: CheckoutFormProps) {
         ) : null}
       </form>
     </div>
+  );
+}
+
+function isStrongPassword(password: string) {
+  return (
+    password.length >= 9 &&
+    password.length <= 16 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password) &&
+    /[~*!@$#%_+.?:,{}]/.test(password)
   );
 }
 

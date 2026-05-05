@@ -40,6 +40,10 @@ export class OrderCustomerDto {
 
   @IsOptional()
   @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
   countryCode?: string;
 
   @IsOptional()

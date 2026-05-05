@@ -1,0 +1,43 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.available {
+  margin: 0;
+  color: #157f3b;
+  font-weight: 800;
+}
+
+.unavailable {
+  margin: 0;
+  color: var(--crimson);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.price {
+  font-size: 1.2rem;
+}
+
+.muted {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}

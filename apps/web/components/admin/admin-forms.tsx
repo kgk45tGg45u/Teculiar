@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CreditCard } from "lucide-react";
+import { Bell, CreditCard, Save } from "lucide-react";
 import { useState } from "react";
 import { API_BASE_URL } from "../../lib/api";
 import { Button } from "../ui/button";
@@ -62,6 +62,46 @@ export function SettingsForm() {
       <label>Close answered tickets after hours<input defaultValue="24" name="ticketAutoCloseHours" type="number" /></label>
       <p>Admin dashboard runs maintenance on open: close answered tickets, create upcoming invoices, mark overdue invoices, suspend services with overdue unpaid invoices.</p>
       <Button icon={CreditCard} type="submit">Save Settings</Button>
+      {message ? <p>{message}</p> : null}
+    </form>
+  );
+}
+
+export function DomainPriceForm() {
+  const [message, setMessage] = useState("");
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/orders/admin/domain-prices`, {
+      body: JSON.stringify({
+        action: String(formData.get("action") ?? "register"),
+        amountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
+        manual: formData.get("manual") === "on",
+        suggested: formData.get("suggested") === "on",
+        tld: String(formData.get("tld") ?? ""),
+        years: Number(formData.get("years") ?? 1)
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+
+    setMessage(response.ok ? "Domain price saved." : "Domain price failed.");
+  }
+
+  return (
+    <form action={submit} className={styles.form}>
+      <label>TLD<input name="tld" placeholder="de" required /></label>
+      <label>Action
+        <select name="action">
+          <option value="register">Register</option>
+          <option value="transfer">Transfer</option>
+          <option value="renew">Renew</option>
+        </select>
+      </label>
+      <label>Years<input defaultValue="1" min="1" name="years" type="number" /></label>
+      <label>Price EUR<input name="amount" placeholder="12.90" required step="0.01" type="number" /></label>
+      <label><input defaultChecked name="manual" type="checkbox" /> Manual price</label>
+      <label><input name="suggested" type="checkbox" /> Suggested TLD</label>
+      <Button icon={Save} type="submit">Save Price</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );

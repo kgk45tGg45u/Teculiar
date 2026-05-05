@@ -351,6 +351,22 @@ model ProductPrice {
   @@unique([productId, billingCycle])
 }
 
+model DomainTldPrice {
+  id          String   @id @default(cuid())
+  tld         String
+  action      String
+  years       Int
+  amountCents Int
+  currency    String   @default("EUR")
+  manual      Boolean  @default(false)
+  suggested   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tld, action, years])
+  @@index([tld])
+}
+
 model Order {
   id               String        @id @default(cuid())
   orderNumber      String        @unique @default(cuid())

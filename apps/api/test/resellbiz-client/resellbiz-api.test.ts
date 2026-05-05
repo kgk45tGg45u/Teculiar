@@ -4,6 +4,7 @@ import {
   ResellBizClient,
   buildResellBizRequest,
   credentialsFromEnv,
+  parseCustomerDomainPrices,
   type ResellBizCredentials
 } from "../../src/modules/resellbiz-client/resellbiz-api";
 
@@ -172,6 +173,94 @@ describe("Resell.biz client", () => {
     assert.deepEqual(body?.getAll("ns"), ["ns1.dezhost.test", "ns2.dezhost.test"]);
     assert.equal(body?.get("attr-name1"), "tnc");
     assert.equal(body?.get("attr-value1"), "Y");
+  });
+
+  it("fetches and normalizes customer domain prices", async () => {
+    const client = new ResellBizClient(credentials, async (url) => {
+      assert.equal(url.pathname, "/api/products/customer-price.json");
+      assert.equal(url.searchParams.get("customer-id"), "55");
+      return jsonResponse({
+        dotcom: {
+          addnewdomain: { "1": "10.50", "2": "20.00", "3": "29.99" },
+          addtransferdomain: { "1": "9.50" },
+          renewdomain: { "1": "11.50", "3": "31.00" }
+        },
+        hosting: { "0": { add: { "12": 1 } } }
+      });
+    });
+
+    const prices = await client.getCustomerDomainPrices(55);
+
+    assert.deepEqual(prices, [
+      { action: "register", amountCents: 1050, tld: "com", years: 1 },
+      { action: "register", amountCents: 2000, tld: "com", years: 2 },
+      { action: "register", amountCents: 2999, tld: "com", years: 3 },
+      { action: "transfer", amountCents: 950, tld: "com", years: 1 },
+      { action: "renew", amountCents: 1150, tld: "com", years: 1 },
+      { action: "renew", amountCents: 3100, tld: "com", years: 3 }
+    ]);
+  });
+
+  it("creates customers and contacts before domain provisioning", async () => {
+    const bodies: URLSearchParams[] = [];
+    const paths: string[] = [];
+    const client = new ResellBizClient(credentials, async (url, init) => {
+      paths.push(url.pathname);
+      bodies.push(new URLSearchParams(String(init?.body)));
+      return jsonResponse(url.pathname.includes("/customers/") ? 55 : 66);
+    });
+
+    const customerId = await client.addCustomer({
+      addressLine1: "Main 1",
+      city: "Berlin",
+      company: "Buyer GmbH",
+      country: "DE",
+      email: "buyer@example.com",
+      name: "Buyer Person",
+      password: "Strong!123",
+      phone: "30123456",
+      phoneCountryCode: "49",
+      state: "Berlin",
+      vatId: "DE123",
+      zipCode: "10115"
+    });
+    const contactId = await client.addContact({
+      addressLine1: "Main 1",
+      city: "Berlin",
+      company: "Buyer GmbH",
+      country: "DE",
+      customerId,
+      email: "buyer@example.com",
+      name: "Buyer Person",
+      phone: "30123456",
+      phoneCountryCode: "49",
+      state: "Berlin",
+      zipCode: "10115"
+    });
+
+    assert.equal(customerId, 55);
+    assert.equal(contactId, 66);
+    assert.deepEqual(paths, ["/api/customers/signup.json", "/api/contacts/add.json"]);
+    assert.equal(bodies[0]?.get("username"), "buyer@example.com");
+    assert.equal(bodies[0]?.get("passwd"), "Strong!123");
+    assert.equal(bodies[1]?.get("customer-id"), "55");
+    assert.equal(bodies[1]?.get("type"), "Contact");
+  });
+
+  it("ignores non-domain product pricing while parsing customer prices", () => {
+    assert.deepEqual(
+      parseCustomerDomainPrices({
+        com: { addnewdomain: { "1": "12.00" } },
+        domcno: { renewdomain: { "1": "12.82" } },
+        dotde: { renewdomain: { "1": 7.25 } },
+        dedicatedserverlinuxus: { plans: { "1": { renew: { "12": 20 } } } }
+      }),
+      [
+        { action: "register", amountCents: 1200, tld: "com", years: 1 },
+        { action: "renew", amountCents: 1282, tld: "com", years: 1 },
+        { action: "renew", amountCents: 725, tld: "de", years: 1 }
+      ]
+    );
   });
 });
 

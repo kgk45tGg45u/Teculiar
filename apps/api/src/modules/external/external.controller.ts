@@ -19,6 +19,16 @@ export class ExternalController {
     });
   }
 
+  @Post("domains/transfer")
+  transferDomain(@Body() body: { authCode: string; contactId: string; domain: string; years: number }) {
+    return this.external.resellBiz.transfer({
+      authCode: body.authCode,
+      contactId: body.contactId,
+      domain: body.domain,
+      years: body.years
+    });
+  }
+
   @Post("hosting/provision")
   provisionHosting(@Body() body: { serviceId: string; productType: string; options: Record<string, unknown> }) {
     return this.external.hostingProvider(body.productType).provision({
