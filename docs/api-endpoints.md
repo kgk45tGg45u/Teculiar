@@ -76,3 +76,8 @@ Base URL: `/api/v1`
 - `POST /external/domains/register`
 - `POST /external/hosting/provision`
 - `POST /external/servers/provision`
+
+## Temporary Tools
+
+- `GET /virtualmin-client`
+- `POST /virtualmin-client`

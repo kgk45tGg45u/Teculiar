@@ -3,10 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "prestart": "npm --workspace @crimson/shared run build",
     "start": "nest start",
+    "prestart:dev": "npm --workspace @crimson/shared run build",
     "start:dev": "nest start --watch",
+    "prebuild": "npm --workspace @crimson/shared run build",
     "build": "nest build",
     "lint": "tsc --noEmit",
+    "test": "node --test --require ./test/register.cjs test/virtualmin-client/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,7 +34,6 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@nestjs/cli": "^11.0.21",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.6",

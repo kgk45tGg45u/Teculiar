@@ -3,11 +3,16 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "rootDir": "./src",
     "outDir": "./dist",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strictPropertyInitialization": false,
-    "noEmit": false
+    "noEmit": false,
+    "paths": {
+      "@crimson/shared": ["packages/shared/dist/index.d.ts"],
+      "@crimson/shared/*": ["packages/shared/dist/*"]
+    }
   },
   "include": ["src/**/*.ts"]
 }

@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "description": "Production-grade SaaS platform foundation for a German hosting and IT services provider.",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "dev": "npm run dev:web",
@@ -14,6 +14,7 @@
     "dev:full": "concurrently -n web,api -c cyan,magenta \"npm:dev:web\" \"npm:dev:api\"",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
+    "test": "npm --workspace @crimson/api run test",
     "typecheck": "npm --workspaces run typecheck",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
@@ -21,6 +22,8 @@
     "db:studio": "prisma studio --schema prisma/schema.prisma"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.21",
+    "@nestjs/platform-express": "11.1.19",
     "concurrently": "^9.2.1",
     "prisma": "^6.19.3",
     "typescript": "^6.0.3"
