@@ -19,7 +19,16 @@ export class TicketsService {
     return this.tickets.listTickets(filters);
   }
 
-  async createReply(ticketId: string, userId: string, dto: CreateReplyDto) {
+  async getTicket(id: string) {
+    const ticket = await this.tickets.findTicket(id);
+    if (!ticket) {
+      throw new NotFoundException("Ticket not found");
+    }
+
+    return ticket;
+  }
+
+  async createReply(ticketId: string, userId: string, dto: CreateReplyDto, staff = false) {
     const ticket = await this.tickets.findTicket(ticketId);
     if (!ticket) {
       throw new NotFoundException("Ticket not found");
@@ -29,12 +38,15 @@ export class TicketsService {
       return this.tickets.createInternalNote({ ticketId, staffId: userId, body: dto.body });
     }
 
-    return this.tickets.createReply({
+    const reply = await this.tickets.createReply({
       ticketId,
       userId,
       body: dto.body,
       internal: false
     });
+
+    await this.tickets.touchTicket(ticketId, staff ? "WAITING_ON_CLIENT" : "WAITING_ON_STAFF");
+    return reply;
   }
 
   assignTicket(ticketId: string, staffId: string) {
@@ -47,5 +59,10 @@ export class TicketsService {
 
   listCannedReplies(department?: string) {
     return this.tickets.listCannedReplies(department);
+  }
+
+  closeAnsweredTickets(closeAfterHours: number, now = new Date()) {
+    const cutoff = new Date(now.getTime() - closeAfterHours * 60 * 60 * 1000);
+    return this.tickets.closeAnsweredOlderThan(cutoff);
   }
 }

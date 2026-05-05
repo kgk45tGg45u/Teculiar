@@ -21,6 +21,14 @@ export class CmsRepository {
     });
   }
 
+  listAnnouncements(locale: string) {
+    return this.prisma.content.findMany({
+      where: { type: "POST", locale: locale as Locale, slug: { startsWith: "announcement-" }, publishedAt: { not: null } },
+      orderBy: { publishedAt: "desc" },
+      take: 5
+    });
+  }
+
   createContent(dto: CreateContentDto, authorId: string) {
     return this.prisma.content.create({
       data: {
@@ -29,7 +37,26 @@ export class CmsRepository {
         locale: dto.locale as Locale,
         content: dto.content as Prisma.InputJsonValue,
         authorId,
-        publishedAt: dto.type === "LEGAL" ? new Date() : null
+        publishedAt: (dto.content as { published?: boolean }).published || dto.type === "LEGAL" ? new Date() : null
+      }
+    });
+  }
+
+  async createAnnouncement(dto: CreateContentDto) {
+    const author = await this.prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+    if (!author) {
+      throw new Error("Create one admin/user before writing announcements");
+    }
+
+    return this.prisma.content.create({
+      data: {
+        ...dto,
+        type: "POST",
+        locale: dto.locale as Locale,
+        slug: dto.slug.startsWith("announcement-") ? dto.slug : `announcement-${dto.slug}`,
+        content: dto.content as Prisma.InputJsonValue,
+        authorId: author.id,
+        publishedAt: new Date()
       }
     });
   }

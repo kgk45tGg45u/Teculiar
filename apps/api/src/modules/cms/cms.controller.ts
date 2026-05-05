@@ -25,6 +25,17 @@ export class CmsController {
     return this.cms.listPosts(locale);
   }
 
+  @Get("announcements")
+  listAnnouncements(@Query("locale") locale = "de") {
+    return this.cms.listAnnouncements(locale);
+  }
+
+  // Temporary dev endpoint until admin auth UI is wired.
+  @Post("admin/dev/announcements")
+  createAnnouncement(@Body() dto: CreateContentDto) {
+    return this.cms.createAnnouncement({ ...dto, type: "POST" });
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "editor")
   @Post("pages")

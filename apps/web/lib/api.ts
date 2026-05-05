@@ -33,6 +33,41 @@ export type ApiOrder = {
   }>;
 };
 
+export type ApiService = {
+  id: string;
+  status: string;
+  renewsAt?: string | null;
+  product: { name: string; type: string };
+  productPrice: { amountCents: number; billingCycle: string; currency: string };
+};
+
+export type ApiInvoice = {
+  id: string;
+  invoiceNumber: string;
+  status: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt?: string | null;
+  totalCents: number;
+  currency: string;
+};
+
+export type ApiTicket = {
+  id: string;
+  department: string;
+  subject: string;
+  status: string;
+  updatedAt: string;
+  service?: { product?: { name: string } } | null;
+};
+
+export type ApiAnnouncement = {
+  id: string;
+  title: string;
+  excerpt?: string | null;
+  createdAt: string;
+};
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
 
 export async function apiGet<T>(path: string): Promise<T | null> {

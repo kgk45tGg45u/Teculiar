@@ -22,6 +22,12 @@ export class ProductsController {
   }
 
   // Temporary dev endpoint until admin auth UI is wired.
+  @Get("admin/dev/services")
+  listServicesDev() {
+    return this.products.listServices();
+  }
+
+  // Temporary dev endpoint until admin auth UI is wired.
   @Patch("admin/dev/products/:id")
   updateProductDev(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);

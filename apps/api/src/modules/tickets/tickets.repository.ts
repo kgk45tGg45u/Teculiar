@@ -43,13 +43,20 @@ export class TicketsRepository {
   findTicket(id: string) {
     return this.prisma.ticket.findUnique({
       where: { id },
-      include: { replies: true, internalNotes: true, attachments: true, user: true }
+      include: { replies: { include: { user: true }, orderBy: { createdAt: "desc" } }, internalNotes: true, attachments: true, user: true, service: { include: { product: true } } }
     });
   }
 
   createReply(input: { ticketId: string; userId: string; body: string; internal: boolean }) {
     return this.prisma.ticketReply.create({
       data: input
+    });
+  }
+
+  touchTicket(ticketId: string, status: string) {
+    return this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: { status: status as TicketStatus }
     });
   }
 
@@ -75,6 +82,13 @@ export class TicketsRepository {
     return this.prisma.cannedReply.findMany({
       where: department ? { department: department as TicketDepartment } : undefined,
       orderBy: { title: "asc" }
+    });
+  }
+
+  closeAnsweredOlderThan(cutoff: Date) {
+    return this.prisma.ticket.updateMany({
+      where: { status: "WAITING_ON_CLIENT", updatedAt: { lte: cutoff } },
+      data: { status: "CLOSED" }
     });
   }
 }

@@ -19,8 +19,16 @@ export class CmsService {
     return this.cms.listPosts(locale);
   }
 
+  listAnnouncements(locale: string) {
+    return this.cms.listAnnouncements(locale);
+  }
+
   createContent(dto: CreateContentDto, authorId: string) {
     return this.cms.createContent(dto, authorId);
+  }
+
+  createAnnouncement(dto: CreateContentDto) {
+    return this.cms.createAnnouncement(dto);
   }
 
   updateContent(id: string, dto: Partial<CreateContentDto>) {

@@ -4,6 +4,7 @@ import { BillingRepository } from "./billing.repository";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { CreateSubscriptionDto } from "./dto/create-subscription.dto";
 import { PayInvoiceDto } from "./dto/pay-invoice.dto";
+import { addBillingCycle } from "./platform-rules";
 import { AbstractPaymentService } from "./processors/abstract-payment.service";
 
 @Injectable()
@@ -137,15 +138,12 @@ export class BillingService {
           unitAmountCents: subscription.productPrice.amountCents,
           serviceId: subscription.serviceId,
           servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
-          servicePeriodEnd: this.nextBillingDate(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
+          servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
         }
       ]
     });
 
-    await this.billing.advanceSubscription(
-      id,
-      this.nextBillingDate(subscription.nextInvoiceAt, subscription.billingCycle)
-    );
+    await this.billing.advanceSubscription(id, addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle));
 
     return invoice;
   }
@@ -154,18 +152,64 @@ export class BillingService {
     return this.billing.revenueReport();
   }
 
-  private nextBillingDate(date: Date, cycle: string) {
-    const next = new Date(date);
-    const months = {
-      MONTHLY: 1,
-      QUARTERLY: 3,
-      SEMI_ANNUAL: 6,
-      YEAR_1: 12,
-      YEAR_2: 24,
-      YEAR_3: 36,
-      YEAR_4: 48
-    }[cycle];
-    next.setMonth(next.getMonth() + (months ?? 1));
-    return next;
+  async adminDashboardStats() {
+    const [paid, activeServices, openTickets, failedPayments] = await this.billing.adminDashboardStats();
+
+    return {
+      mrrCents: paid._sum.totalCents ?? 0,
+      activeServices,
+      openTickets,
+      failedPayments
+    };
+  }
+
+  async runAdminMaintenance(now = new Date()) {
+    const [invoiceDaysAhead, ticketCloseHours] = await Promise.all([
+      this.billing.settingNumber("invoiceDaysAhead", 7),
+      this.billing.settingNumber("ticketAutoCloseHours", 24)
+    ]);
+    const dueSubscriptions = await this.billing.dueSubscriptions(invoiceDaysAhead, now);
+    let generatedInvoices = 0;
+
+    for (const subscription of dueSubscriptions) {
+      const latest = subscription.invoices[0];
+      if (latest && latest.dueAt >= subscription.nextInvoiceAt) {
+        continue;
+      }
+
+      await this.renewSubscription(subscription.id);
+      generatedInvoices += 1;
+    }
+
+    const overdueInvoices = await this.billing.overdueUnpaidInvoices(now);
+    const serviceIds = overdueInvoices.flatMap((invoice) =>
+      invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
+    );
+
+    await Promise.all(overdueInvoices.map((invoice) => this.billing.markInvoiceOverdue(invoice.id)));
+    const suspended = await this.billing.suspendServices([...new Set(serviceIds)]);
+
+    return {
+      generatedInvoices,
+      invoiceDaysAhead,
+      overdueInvoices: overdueInvoices.length,
+      suspendedServices: suspended.count,
+      ticketCloseHours
+    };
+  }
+
+  updateSettings(input: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number }) {
+    return Promise.all([
+      input.invoiceDaysAhead === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("invoiceDaysAhead", input.invoiceDaysAhead),
+      input.ticketAutoCloseHours === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("ticketAutoCloseHours", input.ticketAutoCloseHours)
+    ]);
+  }
+
+  updateServiceStatus(id: string, status: string) {
+    return this.billing.setServiceStatus(id, status);
   }
 }

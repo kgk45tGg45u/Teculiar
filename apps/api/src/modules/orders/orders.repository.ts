@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { BillingCycle, OrderItemStatus, PaymentMethodType, Prisma, ProductType, ServiceStatus } from "@prisma/client";
+import { addBillingCycle, formatOrderNumber } from "../billing/platform-rules";
 import { PrismaService } from "../prisma/prisma.service";
 
 export type PricedOrderItem = {
@@ -35,7 +36,7 @@ export class OrdersRepository {
     });
   }
 
-  createOrder(input: {
+  async createOrder(input: {
     customerSnapshot: Record<string, unknown>;
     invoiceId: string;
     items: PricedOrderItem[];
@@ -45,10 +46,13 @@ export class OrdersRepository {
     totalCents: number;
     userId: string;
   }) {
+    const orderNumber = formatOrderNumber((await this.prisma.order.count()) + 1);
+
     return this.prisma.order.create({
       data: {
         customerSnapshot: input.customerSnapshot as Prisma.InputJsonValue,
         invoiceId: input.invoiceId,
+        orderNumber,
         items: {
           create: input.items.map((item) => ({
             billingCycle: item.billingCycle as BillingCycle,
@@ -146,7 +150,7 @@ export class OrdersRepository {
         configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
         productId: item.productId,
         productPriceId: item.productPriceId,
-        renewsAt: nextBillingDate(new Date(), item.billingCycle),
+        renewsAt: addBillingCycle(new Date(), item.billingCycle),
         startedAt: status === "ACTIVE" ? new Date() : undefined,
         status: status as ServiceStatus,
         userId
@@ -224,19 +228,4 @@ export class OrdersRepository {
 
     return item;
   }
-}
-
-function nextBillingDate(date: Date, cycle: string) {
-  const next = new Date(date);
-  const months = {
-    MONTHLY: 1,
-    QUARTERLY: 3,
-    SEMI_ANNUAL: 6,
-    YEAR_1: 12,
-    YEAR_2: 24,
-    YEAR_3: 36,
-    YEAR_4: 48
-  }[cycle];
-  next.setMonth(next.getMonth() + (months ?? 12));
-  return next;
 }

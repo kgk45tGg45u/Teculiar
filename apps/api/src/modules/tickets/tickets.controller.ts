@@ -31,13 +31,24 @@ export class TicketsController {
     return this.tickets.createTicket(request.user.sub, dto);
   }
 
+  @Get("canned-replies")
+  cannedReplies(@Query("department") department?: string) {
+    return this.tickets.listCannedReplies(department);
+  }
+
+  @Get(":id")
+  getTicket(@Param("id") id: string) {
+    return this.tickets.getTicket(id);
+  }
+
   @Post(":id/replies")
   createReply(
     @Param("id") id: string,
-    @Req() request: Request & { user: { sub: string } },
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
     @Body() dto: CreateReplyDto
   ) {
-    return this.tickets.createReply(id, request.user.sub, dto);
+    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
+    return this.tickets.createReply(id, request.user.sub, dto, staff);
   }
 
   @Patch(":id/assign")
@@ -52,8 +63,19 @@ export class TicketsController {
     return this.tickets.updateStatus(id, status);
   }
 
-  @Get("canned-replies")
-  cannedReplies(@Query("department") department?: string) {
-    return this.tickets.listCannedReplies(department);
+}
+
+@Controller("admin/dev/tickets")
+export class TicketsDevController {
+  constructor(private readonly tickets: TicketsService) {}
+
+  @Get()
+  listTickets() {
+    return this.tickets.listTickets({});
+  }
+
+  @Post("maintenance")
+  closeAnswered(@Body("closeAfterHours") closeAfterHours = 24) {
+    return this.tickets.closeAnsweredTickets(Number(closeAfterHours));
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -49,5 +49,36 @@ export class BillingController {
   @Get("reports/revenue")
   revenueReport() {
     return this.billing.revenueReport();
+  }
+
+}
+
+@Controller("admin/dev")
+export class BillingDevController {
+  constructor(private readonly billing: BillingService) {}
+
+  @Get("billing/dashboard")
+  adminDashboardStats() {
+    return this.billing.adminDashboardStats();
+  }
+
+  @Get("billing/invoices")
+  listInvoices(@Query("userId") userId?: string) {
+    return this.billing.listInvoices({ userId });
+  }
+
+  @Post("billing/maintenance")
+  runAdminMaintenance() {
+    return this.billing.runAdminMaintenance();
+  }
+
+  @Patch("billing/settings")
+  updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number }) {
+    return this.billing.updateSettings(body);
+  }
+
+  @Patch("services/:id/status")
+  updateServiceStatus(@Param("id") id: string, @Body("status") status: string) {
+    return this.billing.updateServiceStatus(id, status);
   }
 }

@@ -12,13 +12,13 @@ export function AdminProductManager() {
 
   async function submit(formData: FormData) {
     setState({ kind: "loading", message: "Speichere Produkt..." });
-    const monthly = cents(formData.get("monthlyPrice"));
-    const yearly = cents(formData.get("yearlyPrice"));
     const setupFeeCents = cents(formData.get("setupFee"));
-    const prices = [
-      monthly !== undefined ? { amountCents: monthly, billingCycle: "MONTHLY", setupFeeCents } : undefined,
-      yearly !== undefined ? { amountCents: yearly, billingCycle: "YEAR_1", setupFeeCents } : undefined
-    ].filter(Boolean);
+    const prices = ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"]
+      .map((billingCycle) => {
+        const amountCents = cents(formData.get(`price_${billingCycle}`));
+        return amountCents === undefined ? undefined : { amountCents, billingCycle, setupFeeCents };
+      })
+      .filter(Boolean);
 
     try {
       const response = await fetch(`${API_BASE_URL}/admin/dev/products`, {
@@ -73,14 +73,12 @@ export function AdminProductManager() {
             <option value="none">Kein API</option>
           </select>
         </label>
-        <label>
-          Monatspreis EUR
-          <input name="monthlyPrice" placeholder="9.90" />
-        </label>
-        <label>
-          Jahrespreis EUR
-          <input name="yearlyPrice" placeholder="12.00" />
-        </label>
+        {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
+          <label key={cycle}>
+            {cycle} EUR
+            <input name={`price_${cycle}`} placeholder="9.90" />
+          </label>
+        ))}
         <label>
           Setup EUR
           <input name="setupFee" placeholder="0" />
