@@ -2,8 +2,9 @@ import { DomainSearch } from "../../../components/marketing/domain-search";
 import { getLocale } from "../../../lib/i18n";
 import styles from "../product-pages.module.css";
 
-export default function DomainsPage({ params }: { params: { locale: string } }) {
-  const locale = getLocale(params.locale);
+export default async function DomainsPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
   const isDe = locale === "de";
 
   return (

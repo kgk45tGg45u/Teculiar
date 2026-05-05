@@ -4,8 +4,9 @@ import { getCatalog } from "../../../lib/catalog";
 import { getLocale } from "../../../lib/i18n";
 import styles from "../product-pages.module.css";
 
-export default function PricingPage({ params }: { params: { locale: string } }) {
-  const locale = getLocale(params.locale);
+export default async function PricingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
   const isDe = locale === "de";
 
   return (

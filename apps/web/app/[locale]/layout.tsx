@@ -3,14 +3,15 @@ import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
 import { getLocale } from "../../lib/i18n";
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
   params
 }: Readonly<{
   children: ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }>) {
-  const locale = getLocale(params.locale);
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
 
   return (
     <div className="shell">

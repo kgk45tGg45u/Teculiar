@@ -25,8 +25,11 @@ Base URL: `/api/v1`
 
 ## Products and Services
 
+- `GET /storefront/products`
 - `GET /products`
 - `POST /products`
+- `POST /admin/dev/products` - temporary unguarded product create endpoint until admin auth UI is wired.
+- `PATCH /admin/dev/products/:id` - temporary unguarded product update endpoint until admin auth UI is wired.
 - `GET /products/:id`
 - `PATCH /products/:id`
 - `GET /services`
@@ -35,6 +38,14 @@ Base URL: `/api/v1`
 - `POST /services/:id/upgrade`
 - `POST /services/:id/cancel`
 - `POST /services/:id/restart`
+
+## Orders and Checkout
+
+- `POST /orders/preview`
+- `POST /orders/checkout`
+- `POST /orders/:id/pay`
+- `GET /orders/:id`
+- `GET /orders/admin` - temporary unguarded admin queue endpoint until the admin auth UI is wired.
 
 ## Billing
 
@@ -81,3 +92,7 @@ Base URL: `/api/v1`
 
 - `GET /virtualmin-client`
 - `POST /virtualmin-client`
+
+## Temporary Scripts
+
+- `npm --workspace @crimson/api run resellbiz` - Resell.biz domain status, auth code, nameserver, and transfer script. See `docs/resellbiz-client.md`.

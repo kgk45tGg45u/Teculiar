@@ -12,7 +12,11 @@ export class ExternalController {
 
   @Post("domains/register")
   registerDomain(@Body() body: { domain: string; years: number; contactId: string }) {
-    return this.external.resellBiz.register(body.domain, body.years, body.contactId);
+    return this.external.resellBiz.register({
+      contactId: body.contactId,
+      domain: body.domain,
+      years: body.years
+    });
   }
 
   @Post("hosting/provision")

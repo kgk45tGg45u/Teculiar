@@ -3,8 +3,9 @@ import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import styles from "../product-pages.module.css";
 
-export default function HostingPage({ params }: { params: { locale: string } }) {
-  const locale = getLocale(params.locale);
+export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
   const isDe = locale === "de";
 
   return (

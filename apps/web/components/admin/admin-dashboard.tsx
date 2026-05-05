@@ -1,4 +1,6 @@
 import { ChartNoAxesCombined, FileText, Settings, ShieldCheck, Ticket, UsersRound } from "lucide-react";
+import { apiGet, money, type ApiOrder } from "../../lib/api";
+import { AdminProductManager } from "./admin-product-manager";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import styles from "./admin-dashboard.module.css";
@@ -12,7 +14,9 @@ const modules = [
   { title: "Security", body: "Staff, roles, permissions, audit trail, 2FA policy.", icon: ShieldCheck }
 ];
 
-export function AdminDashboard() {
+export async function AdminDashboard() {
+  const orders = (await apiGet<ApiOrder[]>("/orders/admin")) ?? [];
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -53,6 +57,57 @@ export function AdminDashboard() {
             <p>{module.body}</p>
           </article>
         ))}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <span className="eyebrow">Orders</span>
+            <h2>Bestellqueue</h2>
+          </div>
+          <StatusPill label={`${orders.length} Orders`} tone={orders.length > 0 ? "good" : "neutral"} />
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Kunde</th>
+              <th>Status</th>
+              <th>Items</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.length > 0 ? (
+              orders.map((order) => (
+                <tr key={order.id}>
+                  <td>{order.orderNumber}</td>
+                  <td>{order.user?.email ?? "unknown"}</td>
+                  <td>
+                    <StatusPill label={order.status} tone={order.status === "COMPLETE" ? "good" : "warn"} />
+                  </td>
+                  <td>{order.items.map((item) => item.description).join(", ")}</td>
+                  <td>{money(order.totalCents, order.currency)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5}>Noch keine Bestellungen oder API nicht erreichbar.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <span className="eyebrow">Products</span>
+            <h2>Produkt anlegen</h2>
+          </div>
+          <StatusPill label="Dev endpoint" tone="warn" />
+        </div>
+        <AdminProductManager />
       </section>
 
       <section className={styles.panel}>

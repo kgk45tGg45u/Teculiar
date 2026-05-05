@@ -22,6 +22,21 @@ export const invoiceStatuses = [
 
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
 
+export const orderStatuses = [
+  "PENDING_PAYMENT",
+  "PAID",
+  "PROVISIONING",
+  "COMPLETE",
+  "FAILED",
+  "CANCELLED"
+] as const;
+
+export type OrderStatus = (typeof orderStatuses)[number];
+
+export const orderItemStatuses = ["PENDING", "PROVISIONING", "ACTIVE", "FAILED", "SKIPPED"] as const;
+
+export type OrderItemStatus = (typeof orderItemStatuses)[number];
+
 export const productTypes = [
   "SHARED_HOSTING",
   "DOMAIN",

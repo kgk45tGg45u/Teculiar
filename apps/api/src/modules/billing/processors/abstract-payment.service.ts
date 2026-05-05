@@ -8,9 +8,9 @@ class Processor implements PaymentProcessor {
   async charge(request: PaymentRequest) {
     return {
       providerReference: `${this.method.toLowerCase()}_${randomUUID()}`,
-      status: request.amountCents > 0 ? ("PENDING" as const) : ("FAILED" as const),
+      status: request.amountCents > 0 ? ("SUCCEEDED" as const) : ("FAILED" as const),
       raw: {
-        abstracted: true,
+        sandbox: true,
         invoiceId: request.invoiceId
       }
     };

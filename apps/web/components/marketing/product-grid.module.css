@@ -51,3 +51,7 @@
   color: var(--crimson);
   flex: 0 0 auto;
 }
+
+.actions {
+  margin-top: 4px;
+}

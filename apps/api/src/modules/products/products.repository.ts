@@ -22,23 +22,60 @@ export class ProductsRepository {
         slug: dto.slug,
         type: dto.type as ProductType,
         description: dto.description,
+        homepageVisible: dto.homepageVisible ?? true,
+        provisioningModule: dto.provisioningModule,
         prices: {
-          create: {
-            billingCycle: dto.billingCycle as BillingCycle,
-            amountCents: dto.amountCents,
-            setupFeeCents: dto.setupFeeCents,
+          create: productPrices(dto).map((price) => ({
+            billingCycle: price.billingCycle as BillingCycle,
+            amountCents: price.amountCents,
+            setupFeeCents: price.setupFeeCents ?? 0,
             currency: "EUR"
-          }
+          }))
         },
         configs: dto.configurableOptions
           ? {
               create: dto.configurableOptions.map((option) => ({
                 key: option.key,
                 label: option.label,
+                required: option.required ?? false,
                 values: option.values as Prisma.InputJsonValue
               }))
             }
           : undefined
+      },
+      include: { prices: true, configs: true }
+    });
+  }
+
+  async updateProduct(id: string, dto: CreateProductDto) {
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        active: true,
+        description: dto.description,
+        homepageVisible: dto.homepageVisible ?? true,
+        name: dto.name,
+        provisioningModule: dto.provisioningModule,
+        slug: dto.slug,
+        type: dto.type as ProductType,
+        configs: {
+          deleteMany: {},
+          create: (dto.configurableOptions ?? []).map((option) => ({
+            key: option.key,
+            label: option.label,
+            required: option.required ?? false,
+            values: option.values as Prisma.InputJsonValue
+          }))
+        },
+        prices: {
+          deleteMany: {},
+          create: productPrices(dto).map((price) => ({
+            billingCycle: price.billingCycle as BillingCycle,
+            amountCents: price.amountCents,
+            setupFeeCents: price.setupFeeCents ?? 0,
+            currency: "EUR"
+          }))
+        }
       },
       include: { prices: true, configs: true }
     });
@@ -99,4 +136,22 @@ export class ProductsRepository {
       data: { status: "PENDING_CANCEL", cancelAt }
     });
   }
+}
+
+function productPrices(dto: CreateProductDto) {
+  if (dto.prices?.length) {
+    return dto.prices;
+  }
+
+  if (!dto.billingCycle || dto.amountCents === undefined) {
+    throw new Error("At least one product price is required");
+  }
+
+  return [
+    {
+      amountCents: dto.amountCents,
+      billingCycle: dto.billingCycle,
+      setupFeeCents: dto.setupFeeCents ?? 0
+    }
+  ];
 }

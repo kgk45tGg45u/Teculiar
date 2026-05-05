@@ -19,7 +19,14 @@ export class UsersRepository {
     });
   }
 
-  createUser(input: { email: string; name: string; passwordHash: string }) {
+  createUser(input: {
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email: string;
+    name: string;
+    passwordHash: string;
+    vatId?: string;
+  }) {
     return this.prisma.user.create({
       data: {
         ...input,

@@ -18,6 +18,10 @@ export class ProductsService {
     return this.products.createProduct(dto);
   }
 
+  updateProduct(id: string, dto: CreateProductDto) {
+    return this.products.updateProduct(id, dto);
+  }
+
   async createService(input: {
     userId: string;
     productId: string;

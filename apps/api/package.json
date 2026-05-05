@@ -10,7 +10,8 @@
     "prebuild": "npm --workspace @crimson/shared run build",
     "build": "nest build",
     "lint": "tsc --noEmit",
-    "test": "node --test --require ./test/register.cjs test/virtualmin-client/*.test.ts",
+    "resellbiz": "node scripts/resellbiz.cjs",
+    "test": "node --test --require ./test/register.cjs test/virtualmin-client/*.test.ts test/resellbiz-client/*.test.ts test/orders/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

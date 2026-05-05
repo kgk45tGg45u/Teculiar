@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
 import styles from "./button.module.css";
@@ -32,7 +33,7 @@ export function Button({
 
   if (href) {
     return (
-      <Link className={className} href={href} title={title}>
+      <Link className={className} href={href as Route} title={title}>
         {content}
       </Link>
     );

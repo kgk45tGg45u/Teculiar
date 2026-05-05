@@ -10,6 +10,15 @@ export type ProvisioningResult = {
   metadata?: Record<string, unknown>;
 };
 
+export type DomainRegistrationRequest = {
+  autoRenew?: boolean;
+  contactId?: string;
+  domain: string;
+  extraAttributes?: Record<string, boolean | number | string>;
+  nameServers?: string[];
+  years: number;
+};
+
 export interface HostingProvider {
   provision(request: ProvisioningRequest): Promise<ProvisioningResult>;
   restart(serviceExternalId: string): Promise<{ accepted: boolean; operationId: string }>;
@@ -17,6 +26,6 @@ export interface HostingProvider {
 
 export interface DomainProvider {
   search(domain: string): Promise<{ domain: string; available: boolean; premium: boolean }>;
-  register(domain: string, years: number, contactId: string): Promise<ProvisioningResult>;
+  register(request: DomainRegistrationRequest): Promise<ProvisioningResult>;
   transfer(domain: string, authCode: string, contactId: string): Promise<ProvisioningResult>;
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { CreditCard, FileText, LifeBuoy, RotateCw, Server, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { API_BASE_URL, money, type ApiOrder } from "../../lib/api";
 import { usePortalStore, type ServiceStatus } from "../../store/use-portal-store";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
@@ -15,6 +17,19 @@ const statusTone: Record<ServiceStatus, "good" | "warn" | "neutral"> = {
 
 export function ClientDashboard() {
   const { services, restartService, cancelService } = usePortalStore();
+  const [order, setOrder] = useState<ApiOrder | null>(null);
+
+  useEffect(() => {
+    const orderId = new URLSearchParams(window.location.search).get("order");
+    if (!orderId) {
+      return;
+    }
+
+    fetch(`${API_BASE_URL}/orders/${orderId}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => setOrder(payload))
+      .catch(() => setOrder(null));
+  }, []);
 
   return (
     <div className={styles.page}>
@@ -62,6 +77,49 @@ export function ClientDashboard() {
             <span>Standardzahlung</span>
           </div>
         </section>
+
+        {order ? (
+          <section className={styles.block}>
+            <div className={styles.blockHeader}>
+              <div>
+                <span className="eyebrow">Neue Bestellung</span>
+                <h2>{order.orderNumber}</h2>
+              </div>
+              <StatusPill label={order.status} tone={order.status === "COMPLETE" ? "good" : "warn"} />
+            </div>
+            <div className={styles.tableWrap}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th>Typ</th>
+                    <th>Status</th>
+                    <th>Provider</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.description}</td>
+                      <td>{item.type}</td>
+                      <td>
+                        <StatusPill
+                          label={item.provisioningStatus}
+                          tone={item.provisioningStatus === "ACTIVE" ? "good" : "warn"}
+                        />
+                      </td>
+                      <td>{item.providerReference ?? "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Rechnung {order.invoice?.invoiceNumber ?? "-"}: {order.invoice?.status ?? "-"} ·{" "}
+              {money(order.totalCents, order.currency)}
+            </p>
+          </section>
+        ) : null}
 
         <section className={styles.block} id="services">
           <div className={styles.blockHeader}>

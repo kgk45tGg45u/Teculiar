@@ -87,6 +87,23 @@ enum TransactionStatus {
   REFUNDED
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROVISIONING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  PROVISIONING
+  ACTIVE
+  FAILED
+  SKIPPED
+}
+
 enum SubscriptionStatus {
   ACTIVE
   PAUSED
@@ -175,6 +192,7 @@ model User {
   contacts        Contact[]
   refreshSessions RefreshSession[]
   paymentMethods  PaymentMethod[]
+  orders          Order[]
   services        Service[]
   invoices        Invoice[]
   subscriptions   Subscription[]
@@ -305,12 +323,15 @@ model Product {
   type        ProductType
   description String
   active      Boolean         @default(true)
+  homepageVisible Boolean     @default(true)
+  provisioningModule String?
   sortOrder   Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   prices      ProductPrice[]
   configs     ProductConfig[]
   addOns      ProductAddOn[]
+  orderItems  OrderItem[]
   services    Service[]
 }
 
@@ -323,10 +344,63 @@ model ProductPrice {
   currency      String       @default("EUR")
   active        Boolean      @default(true)
   product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]
   services      Service[]
   subscriptions Subscription[]
 
   @@unique([productId, billingCycle])
+}
+
+model Order {
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique @default(cuid())
+  userId           String
+  invoiceId        String?       @unique
+  status           OrderStatus   @default(PENDING_PAYMENT)
+  subtotalCents    Int
+  setupFeeCents    Int           @default(0)
+  taxAmountCents   Int           @default(0)
+  totalCents       Int
+  currency         String        @default("EUR")
+  paymentMethod    PaymentMethodType?
+  customerSnapshot Json          @default("{}")
+  placedAt         DateTime      @default(now())
+  paidAt           DateTime?
+  completedAt      DateTime?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  invoice          Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  items            OrderItem[]
+}
+
+model OrderItem {
+  id                String          @id @default(cuid())
+  orderId           String
+  productId         String
+  productPriceId    String
+  serviceId         String?
+  type              ProductType
+  description       String
+  domainName        String?
+  billingCycle      BillingCycle
+  quantity          Int             @default(1)
+  unitAmountCents   Int
+  setupFeeCents     Int             @default(0)
+  totalCents        Int
+  configuration     Json            @default("{}")
+  provisioningStatus OrderItemStatus @default(PENDING)
+  provider          String?
+  providerReference String?
+  providerPayload   Json?
+  errorMessage      String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productPrice      ProductPrice    @relation(fields: [productPriceId], references: [id], onDelete: Restrict)
+  service           Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
 }
 
 model ProductConfig {
@@ -385,6 +459,7 @@ model Service {
   product        Product         @relation(fields: [productId], references: [id])
   productPrice   ProductPrice    @relation(fields: [productPriceId], references: [id])
   serviceAddOns  ServiceAddOn[]
+  orderItems     OrderItem[]
   subscriptions  Subscription[]
   invoiceItems   InvoiceItem[]
   tickets        Ticket[]
@@ -428,6 +503,7 @@ model Invoice {
   team            Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
   subscription    Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   coupon          Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  order           Order?
   items           InvoiceItem[]
   transactions    Transaction[]
 }

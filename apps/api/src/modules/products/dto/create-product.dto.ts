@@ -1,5 +1,11 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
 import { billingCycles, productTypes } from "@crimson/shared";
+
+type PriceInput = {
+  amountCents: number;
+  billingCycle?: string;
+  setupFeeCents?: number;
+};
 
 export class CreateProductDto {
   @IsString()
@@ -14,18 +20,33 @@ export class CreateProductDto {
   @IsString()
   description: string;
 
+  @IsOptional()
+  @IsBoolean()
+  homepageVisible?: boolean;
+
+  @IsOptional()
+  @IsString()
+  provisioningModule?: string;
+
+  @IsOptional()
+  @IsArray()
+  prices?: PriceInput[];
+
   @IsIn([...billingCycles])
+  @IsOptional()
   billingCycle: string;
 
   @IsInt()
   @Min(0)
-  amountCents: number;
+  @IsOptional()
+  amountCents?: number;
 
   @IsInt()
   @Min(0)
-  setupFeeCents: number;
+  @IsOptional()
+  setupFeeCents?: number;
 
   @IsOptional()
   @IsArray()
-  configurableOptions?: Array<{ key: string; label: string; values: unknown[] }>;
+  configurableOptions?: Array<{ key: string; label: string; required?: boolean; values: unknown[] }>;
 }

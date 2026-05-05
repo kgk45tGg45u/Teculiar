@@ -49,6 +49,7 @@ npm run dev:full
 - `npm run dev:full` - starts the website and API together; requires `DATABASE_URL`.
 - `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
+- `npm --workspace @crimson/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
 
 ## Design Direction
 

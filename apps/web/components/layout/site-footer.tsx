@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import type { Locale } from "../../lib/i18n";
 import styles from "./site-footer.module.css";
 
@@ -14,7 +15,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
         </div>
         <nav className={styles.links} aria-label="Legal">
           {legal.map((item) => (
-            <Link href={`/${locale}/legal/${item.toLowerCase()}`} key={item}>
+            <Link href={`/${locale}/legal/${item.toLowerCase()}` as Route} key={item}>
               {item}
             </Link>
           ))}

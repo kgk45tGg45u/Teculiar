@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { ArrowRight, Server } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
@@ -16,18 +17,18 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
   return (
     <header className={styles.header}>
       <div className={`container ${styles.inner}`}>
-        <Link className={styles.brand} href={base}>
+        <Link className={styles.brand} href={base as Route}>
           <Server aria-hidden size={21} />
           <span>CrimsonGrid</span>
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          <Link href={`${base}/hosting`}>{copy.nav.hosting}</Link>
-          <Link href={`${base}/vps`}>{copy.nav.vps}</Link>
-          <Link href={`${base}/domains`}>{copy.nav.domains}</Link>
-          <Link href={`${base}/pricing`}>{copy.nav.pricing}</Link>
-          <Link href={`${base}/blog`}>{copy.nav.blog}</Link>
-          <Link href={`${base}/contact`}>{copy.nav.contact}</Link>
+          <Link href={`${base}/hosting` as Route}>{copy.nav.hosting}</Link>
+          <Link href={`${base}/vps` as Route}>{copy.nav.vps}</Link>
+          <Link href={`${base}/domains` as Route}>{copy.nav.domains}</Link>
+          <Link href={`${base}/pricing` as Route}>{copy.nav.pricing}</Link>
+          <Link href={`${base}/blog` as Route}>{copy.nav.blog}</Link>
+          <Link href={`${base}/contact` as Route}>{copy.nav.contact}</Link>
         </nav>
 
         <div className={styles.actions}>

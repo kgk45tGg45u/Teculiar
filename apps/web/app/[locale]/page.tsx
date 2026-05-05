@@ -4,8 +4,9 @@ import { PlatformSection } from "../../components/marketing/platform-section";
 import { ProductGrid } from "../../components/marketing/product-grid";
 import { getLocale } from "../../lib/i18n";
 
-export default function HomePage({ params }: { params: { locale: string } }) {
-  const locale = getLocale(params.locale);
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
 
   return (
     <>

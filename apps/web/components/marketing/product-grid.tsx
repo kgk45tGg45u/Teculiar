@@ -1,6 +1,8 @@
 import { Check, Cpu, Database, HardDrive, LifeBuoy } from "lucide-react";
+import { apiGet, money, type ApiProduct } from "../../lib/api";
 import { getCatalog } from "../../lib/catalog";
 import type { Locale } from "../../lib/i18n";
+import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import styles from "./product-grid.module.css";
 
@@ -15,8 +17,9 @@ const icons = {
   Support: LifeBuoy
 };
 
-export function ProductGrid({ locale }: { locale: Locale }) {
-  const products = getCatalog(locale);
+export async function ProductGrid({ locale }: { locale: Locale }) {
+  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products");
+  const products = apiProducts?.length ? apiProducts.map(toProductCard) : getCatalog(locale);
 
   return (
     <section className="section">
@@ -49,6 +52,13 @@ export function ProductGrid({ locale }: { locale: Locale }) {
                     </li>
                   ))}
                 </ul>
+                {"id" in product ? (
+                  <div className={styles.actions}>
+                    <Button href={`/${locale}/order/${product.id}`} variant={index === 1 ? "primary" : "secondary"}>
+                      {locale === "de" ? "Bestellen" : "Order"}
+                    </Button>
+                  </div>
+                ) : null}
               </Card>
             );
           })}
@@ -56,4 +66,43 @@ export function ProductGrid({ locale }: { locale: Locale }) {
       </div>
     </section>
   );
+}
+
+function toProductCard(product: ApiProduct) {
+  const price = product.prices[0];
+
+  return {
+    id: product.id,
+    name: product.name,
+    type: productTypeLabel(product.type),
+    price: price ? `ab ${money(price.amountCents, price.currency)} / ${cycleLabel(price.billingCycle)}` : "Preis folgt",
+    setup: price?.setupFeeCents ? `${money(price.setupFeeCents, price.currency)} Setup` : "0,00 EUR Setup",
+    summary: product.description,
+    highlights: (product.configs ?? []).slice(0, 3).map((config) => config.label)
+  };
+}
+
+function productTypeLabel(type: string) {
+  if (type === "SHARED_HOSTING") {
+    return "Shared" as const;
+  }
+  if (type === "DOMAIN") {
+    return "Domain" as const;
+  }
+  if (type === "VPS") {
+    return "VPS" as const;
+  }
+
+  return "Managed" as const;
+}
+
+function cycleLabel(cycle: string) {
+  if (cycle === "MONTHLY") {
+    return "Monat";
+  }
+  if (cycle.startsWith("YEAR_")) {
+    return `${cycle.replace("YEAR_", "")} Jahr`;
+  }
+
+  return cycle.toLowerCase();
 }

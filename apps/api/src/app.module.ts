@@ -7,6 +7,7 @@ import { BillingModule } from "./modules/billing/billing.module";
 import { CmsModule } from "./modules/cms/cms.module";
 import { ExternalModule } from "./modules/external/external.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
+import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -19,6 +20,7 @@ import { VirtualminClientModule } from "./modules/virtualmin-client/virtualmin-c
     PrismaModule,
     AuthModule,
     UsersModule,
+    OrdersModule,
     ProductsModule,
     BillingModule,
     TicketsModule,
