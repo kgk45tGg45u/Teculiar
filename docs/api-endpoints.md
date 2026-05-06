@@ -45,6 +45,7 @@ Base URL: `/api/v1`
 - `POST /orders/checkout`
 - `POST /orders/:id/pay`
 - `GET /orders/:id`
+- `PATCH /orders/:id/status` - temporary admin order status update. Accepts `completed`, `in_progress`, or `canceled`.
 - `GET /domains/search?domain=example.com`
 - `GET /orders/admin` - temporary unguarded admin queue endpoint until the admin auth UI is wired.
 - `GET /orders/admin/domain-prices` - temporary unguarded Resell.biz TLD price table.
@@ -60,6 +61,10 @@ Base URL: `/api/v1`
 - `POST /billing/invoices/:id/pay`
 - `POST /billing/subscriptions`
 - `POST /billing/subscriptions/:id/renew`
+- `GET /admin/dev/billing/settings` - temporary admin billing settings, including VAT percent.
+- `PATCH /admin/dev/billing/settings` - temporary admin billing settings update.
+- `GET /admin/dev/virtualmin/templates` - temporary admin helper for Virtualmin plans/templates.
+- `DELETE /admin/dev/products/:id` - temporary admin helper to deactivate a product.
 - `GET /billing/transactions`
 - `POST /billing/coupons`
 - `GET /billing/reports/revenue`

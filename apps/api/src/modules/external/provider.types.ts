@@ -25,6 +25,15 @@ export type DomainTransferRequest = DomainRegistrationRequest & {
   authCode: string;
 };
 
+export type DomainRenewalRequest = {
+  autoRenew?: boolean;
+  domain?: string;
+  expDate: number;
+  extraAttributes?: Record<string, boolean | number | string>;
+  orderId: number;
+  years: number;
+};
+
 export type DomainCustomerContactRequest = {
   addressLine1: string;
   addressLine2?: string;
@@ -55,5 +64,6 @@ export interface DomainProvider {
   search(domain: string): Promise<{ domain: string; available: boolean; premium: boolean }>;
   ensureCustomerContact(request: DomainCustomerContactRequest): Promise<DomainCustomerContactResult>;
   register(request: DomainRegistrationRequest): Promise<ProvisioningResult>;
+  renew(request: DomainRenewalRequest): Promise<ProvisioningResult>;
   transfer(request: DomainTransferRequest): Promise<ProvisioningResult>;
 }

@@ -1,5 +1,5 @@
 import { Check, Cpu, Database, HardDrive, LifeBuoy } from "lucide-react";
-import { apiGet, money, type ApiProduct } from "../../lib/api";
+import { apiGet, cycleLabel, money, type ApiProduct } from "../../lib/api";
 import { getCatalog } from "../../lib/catalog";
 import type { Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
@@ -70,12 +70,13 @@ export async function ProductGrid({ locale }: { locale: Locale }) {
 
 function toProductCard(product: ApiProduct) {
   const price = product.prices[0];
+  const amountCents = product.type === "DOMAIN" ? product.minimumPriceCents ?? price?.amountCents : price?.amountCents;
 
   return {
     id: product.id,
     name: product.name,
     type: productTypeLabel(product.type),
-    price: price ? `ab ${money(price.amountCents, price.currency)} / ${cycleLabel(price.billingCycle)}` : "Preis folgt",
+    price: amountCents !== undefined ? `from ${money(amountCents, price?.currency ?? "EUR")} / ${product.type === "DOMAIN" ? "yearly" : cycleLabel(price?.billingCycle ?? "")}` : "Preis folgt",
     setup: price?.setupFeeCents ? `${money(price.setupFeeCents, price.currency)} Setup` : "0,00 EUR Setup",
     summary: product.description,
     highlights: (product.configs ?? []).slice(0, 3).map((config) => config.label)
@@ -94,15 +95,4 @@ function productTypeLabel(type: string) {
   }
 
   return "Managed" as const;
-}
-
-function cycleLabel(cycle: string) {
-  if (cycle === "MONTHLY") {
-    return "Monat";
-  }
-  if (cycle.startsWith("YEAR_")) {
-    return `${cycle.replace("YEAR_", "")} Jahr`;
-  }
-
-  return cycle.toLowerCase();
 }

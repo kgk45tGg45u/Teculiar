@@ -22,6 +22,14 @@ export class ProductsService {
     return this.products.updateProduct(id, dto);
   }
 
+  deleteProduct(id: string) {
+    return this.products.deleteProduct(id);
+  }
+
+  listVirtualminTemplates() {
+    return this.external.virtualmin.listHostingTemplates();
+  }
+
   async createService(input: {
     userId: string;
     productId: string;

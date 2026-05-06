@@ -133,6 +133,33 @@
   background: var(--paper);
 }
 
+.inlineForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.inlineForm select {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.orderDetails {
+  display: grid;
+  gap: 10px;
+  min-width: 420px;
+  padding: 12px 0;
+}
+
+.orderDetails p {
+  margin: 0;
+}
+
 @media (max-width: 720px) {
   .page {
     grid-template-columns: 1fr;

@@ -31,6 +31,10 @@ References:
 - `create-database` to add databases.
 - `delete-database` to remove databases.
 - `modify-database-pass` to change the domain database password.
+- `list-plans` and `list-templates` to load hosting package choices in the admin product form.
+- `create-domain` to create a new Virtualmin virtual server for paid shared-hosting orders.
+
+If `GET /api/v1/admin/dev/virtualmin/templates` returns `Virtualmin admin credentials are not configured.`, the API cannot load templates or run hosting provisioning tests yet.
 
 ## Secure Admin Proxy Mode
 
@@ -71,6 +75,8 @@ Then the page works like this:
 
 - Store the admin credential in a secret manager.
 - Link a client service record to the Virtualmin domain.
+- Shared hosting checkout now provisions only new Virtualmin virtual servers. It does not edit existing virtual servers.
+- Admin products can select the `virtualmin` module, plan, and template; limits returned by Virtualmin are shown next to the product setup.
 - Replace this HTML page with authenticated dashboard API endpoints.
 - Add CSRF/session protection and rate limits for all mailbox and database mutations.
 - Add audit logs for every Virtualmin action.

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`npm --workspace @crimson/api run resellbiz` is a temporary admin script for Resell.biz domain work.
+`npm --workspace @crimson/api run resellbiz` is a temporary admin script for direct Resell.biz domain work.
 
-It is not wired into the website or API controllers yet.
+Checkout provisioning now also uses the same Resell.biz client through the API.
 
 ## Credentials
 
@@ -105,11 +105,16 @@ Docs checked:
 - `RESELLBIZ_TEST_CUSTOMER_ID` and `RESELLBIZ_TEST_CONTACT_ID` are required for test registration/transfer. Specific contact overrides are also supported:
   `RESELLBIZ_TEST_REG_CONTACT_ID`, `RESELLBIZ_TEST_ADMIN_CONTACT_ID`, `RESELLBIZ_TEST_TECH_CONTACT_ID`, `RESELLBIZ_TEST_BILLING_CONTACT_ID`.
 - For production, checkout provisioning now creates/finds the Resell.biz customer, creates a matching `Contact`, then passes those real IDs to domain registration or transfer.
+- Domain renewal support calls `POST /api/domains/renew.json` with `order-id`, `exp-date`, `years`, `auto-renew`, and `invoice-option=NoInvoice`; `.de` renewals should stay manual.
 - Domain pricing sync uses `GET /api/products/customer-price.json` and stores register, transfer, and renew prices per TLD/year in `DomainTldPrice`.
+- Domain products do not use fixed product prices. Storefront cards show the lowest positive annual register price in `DomainTldPrice`, and checkout prices the selected TLD/cycle from that table.
 - `.de` is treated as manual pricing. Sync skips `.de` rows, so the admin-entered `.de` prices are not overwritten.
+- `.de` registration/transfer is also manual. Paid `.de` orders create a pending domain record for admin completion and do not call Resell.biz.
 - Suggested TLDs are controlled with the `suggested` flag in `/admin/domain-prices`.
 - `.com` pricing comes from the LogicBoxes `domcno` product key.
 - Public availability search uses RDAP via the IANA bootstrap list, with a direct DENIC RDAP fallback for `.de`. RDAP is the open WHOIS replacement; ICANN notes it became the definitive gTLD registration data source on 2025-01-28.
+- Checkout no longer asks for repeat password. The browser validates the single password live and can generate a compliant 9-16 character password.
+- Resell.biz customer creation uses a generated compliant reseller-side password; the Dezhost login password is only stored as a local hash.
 
 ## Temporary App Endpoints
 
@@ -118,6 +123,18 @@ Docs checked:
 - `POST /api/v1/orders/admin/domain-prices` - add/update a manual price and suggested TLD flag.
 - `POST /api/v1/orders/admin/domain-prices/sync` - fetch Resell.biz customer pricing and replace stored TLD prices.
 - `POST /api/v1/orders/checkout` - domain item `configuration.domainAction` may be `register` or `transfer`; transfer also needs `configuration.transferAuthCode`.
+- `PATCH /api/v1/orders/:id/status` - temporary admin status update. External labels are `completed`, `in_progress`, and `canceled`.
+
+## Test Registrations
+
+On 2026-05-06, two registrations were sent to `https://test.httpapi.com` using the configured reseller ID/API key:
+
+- `dezhost-api-mou6451k.com` - `ACTIVE`, external ID `125418508`
+- `dezhost-api-mou6451k.net` - `ACTIVE`, external ID `125418510`
+- `dezhost-codex-182235.com` - checkout payment/provision flow, `ACTIVE`, external ID `125419869`
+
+## Security Notes
+
 - Store credentials in a secret manager.
 - Require an admin role for all mutating actions.
 - Add audit logs for `transfer`, `change-ns`, and auth-code views.

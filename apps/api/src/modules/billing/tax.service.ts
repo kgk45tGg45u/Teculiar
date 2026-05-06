@@ -33,7 +33,15 @@ const euCountries = new Set([
 
 @Injectable()
 export class TaxService {
-  resolveVat(context: TaxContext) {
+  resolveVat(context: TaxContext, overrideRate?: number) {
+    if (overrideRate !== undefined) {
+      return {
+        rate: Math.max(0, overrideRate),
+        reverseCharge: false,
+        reason: overrideRate > 0 ? "Admin VAT" : "No VAT"
+      };
+    }
+
     const buyer = context.buyerCountryCode.toUpperCase();
 
     if (buyer === "DE") {

@@ -62,6 +62,11 @@ export class BillingDevController {
     return this.billing.adminDashboardStats();
   }
 
+  @Get("billing/settings")
+  settings() {
+    return this.billing.settings();
+  }
+
   @Get("billing/invoices")
   listInvoices(@Query("userId") userId?: string) {
     return this.billing.listInvoices({ userId });
@@ -73,7 +78,7 @@ export class BillingDevController {
   }
 
   @Patch("billing/settings")
-  updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number }) {
+  updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
     return this.billing.updateSettings(body);
   }
 

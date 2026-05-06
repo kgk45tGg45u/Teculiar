@@ -19,8 +19,12 @@ export class OrdersService {
     private readonly domainAvailability?: DomainAvailabilityService
   ) {}
 
-  homepageProducts() {
-    return this.orders.listHomepageProducts();
+  async homepageProducts() {
+    const products = await this.orders.listHomepageProducts();
+    const minimumDomainPrice = await this.domainPricing.minimumRegisterPrice();
+    return products.map((product) =>
+      product.type === "DOMAIN" && minimumDomainPrice !== undefined ? { ...product, minimumPriceCents: minimumDomainPrice } : product
+    );
   }
 
   listAdminOrders() {
@@ -46,7 +50,7 @@ export class OrdersService {
 
     const availability = await this.domainAvailability.check(domain);
     const products = await this.orders.listHomepageProducts();
-    const domainProduct = products.find((product) => product.type === "DOMAIN");
+    const domainProduct = products.find((product) => product.type === "DOMAIN") ?? (await this.orders.findProductByType("DOMAIN"));
     const fallbackCents = domainProduct?.prices[0]?.amountCents ?? 0;
     const price = await this.domainPricing.priceFor(domain, fallbackCents, availability.available ? "register" : "transfer");
 
@@ -70,12 +74,17 @@ export class OrdersService {
     return order;
   }
 
+  updateOrderStatus(id: string, status: string) {
+    return this.orders.updateOrderStatus(id, orderStatusFromAdmin(status));
+  }
+
   async previewOrder(dto: PreviewOrderDto) {
     const items = await this.priceItems(dto.items);
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
-    const taxAmountCents = Math.round(taxableCents * 0.19);
+    const vatPercent = await this.billing.vatPercent();
+    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
 
     return {
       currency: "EUR",
@@ -83,7 +92,8 @@ export class OrdersService {
       setupFeeCents,
       subtotalCents,
       taxAmountCents,
-      totalCents: taxableCents + taxAmountCents
+      totalCents: taxableCents + taxAmountCents,
+      vatPercent
     };
   }
 
@@ -157,22 +167,33 @@ export class OrdersService {
     }
 
     await this.orders.markOrderPaid(id, dto.method);
-    const failures: string[] = [];
 
-    for (const item of order.items) {
+    const serviceByBundledDomain = new Map<string, string>();
+    const activationItems = [...order.items].sort((a, b) => activationPriority(a) - activationPriority(b));
+    let allAutomatic = true;
+
+    for (const item of activationItems) {
       try {
-        await this.activateItem(order.userId, item, order.customerSnapshot);
+        const linkedServiceId = item.type === "DOMAIN" && item.domainName ? serviceByBundledDomain.get(item.domainName) : undefined;
+        const result = await this.activateItem(order.userId, item, order.customerSnapshot, linkedServiceId);
+        const bundledDomain = bundledDomainName(item.configuration);
+        if (item.type === "SHARED_HOSTING" && bundledDomain && result.service?.id) {
+          serviceByBundledDomain.set(bundledDomain, result.service.id);
+        }
+        if (result.outcome !== "active") {
+          allAutomatic = false;
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Provisioning failed";
-        failures.push(message);
         await this.orders.markItemFailed(item.id, message);
+        allAutomatic = false;
       }
     }
 
-    if (failures.length > 0) {
-      await this.orders.markOrderFailed(id, failures.join("; "));
-    } else {
+    if (allAutomatic) {
       await this.orders.markOrderComplete(id);
+    } else {
+      await this.orders.markOrderInProgress(id, "At least one item needs manual action or failed automatic provisioning.");
     }
 
     return {
@@ -186,7 +207,8 @@ export class OrdersService {
       throw new BadRequestException("Order needs at least one item");
     }
 
-    return Promise.all(items.map((item) => this.priceItem(item)));
+    const pricedItems = await Promise.all(items.map((item) => this.priceItem(item)));
+    return applyFreeDomainDiscount(pricedItems);
   }
 
   private async priceItem(item: OrderItemDto): Promise<PricedOrderItem> {
@@ -212,7 +234,7 @@ export class OrdersService {
         throw new BadRequestException("Domain orders need a domain name");
       }
       const action = domainAction(configuration) === "transfer" ? "transfer" : "register";
-      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action);
+      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action, yearsFromCycle(price.billingCycle));
       unitAmountCents = livePrice.amountCents;
       description = `${item.domainName} domain ${action}`;
       configuration.domainPricing = livePrice;
@@ -241,23 +263,41 @@ export class OrdersService {
     productId: string;
     productPriceId: string;
     type: string;
-  }, customerSnapshot?: unknown) {
-    const service = await this.orders.createServiceForItem(
-      item,
-      userId,
-      item.type === "DOMAIN" ? "PROVISIONING" : "ACTIVE"
-    );
-    await this.billing.createSubscription({
-      billingCycle: item.billingCycle,
-      nextInvoiceAt: nextBillingDate(new Date(), item.billingCycle).toISOString(),
-      productPriceId: item.productPriceId,
-      serviceId: service.id,
-      userId
-    });
+  }, customerSnapshot?: unknown, linkedServiceId?: string) {
+    const service = linkedServiceId
+      ? { id: linkedServiceId }
+      : await this.orders.createServiceForItem(
+          item,
+          userId,
+          item.type === "DOMAIN" ? "PROVISIONING" : "ACTIVE"
+        );
+    if (!linkedServiceId) {
+      await this.billing.createSubscription({
+        billingCycle: item.billingCycle,
+        nextInvoiceAt: nextBillingDate(new Date(), item.billingCycle).toISOString(),
+        productPriceId: item.productPriceId,
+        serviceId: service.id,
+        userId
+      });
+    }
+
+    if (item.type === "SHARED_HOSTING") {
+      await this.orders.markItemProvisioning(item.id);
+      const provisioning = await this.external.virtualmin.provision({
+        options: hostingOptions(item.configuration, customerSnapshot),
+        productType: item.type,
+        serviceId: service.id
+      });
+      if (provisioning.status === "FAILED") {
+        throw new BadRequestException("Virtualmin hosting provisioning failed");
+      }
+      await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "virtualmin");
+      return { outcome: "active" as const, service };
+    }
 
     if (item.type !== "DOMAIN") {
       await this.orders.markItemActive(item.id);
-      return;
+      return { outcome: "active" as const, service };
     }
 
     if (!item.domainName) {
@@ -265,6 +305,23 @@ export class OrdersService {
     }
 
     await this.orders.markItemProvisioning(item.id);
+    if (domainTld(item.domainName) === "de") {
+      const metadata = {
+        manual: true,
+        provider: "admin",
+        reason: ".de domains are handled manually outside Resell.biz"
+      };
+      await this.orders.createDomainRecord({
+        domain: item.domainName,
+        raw: metadata,
+        serviceId: service.id,
+        status: "PENDING",
+        userId
+      });
+      await this.orders.markItemSkipped(item.id, "Manual .de registration required", metadata);
+      return { outcome: "pending" as const, service };
+    }
+
     const provisioning =
       domainAction(item.configuration) === "transfer"
         ? await this.external.resellBiz.transfer({
@@ -296,7 +353,8 @@ export class OrdersService {
       throw new BadRequestException("ResellBiz domain registration failed");
     }
 
-    await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata);
+    await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "resellbiz");
+    return { outcome: provisioning.status === "ACTIVE" ? ("active" as const) : ("pending" as const), service };
   }
 
   private async suggestedDomainResults(domain: string, searchedTld: string, productId: string | undefined, fallbackCents: number) {
@@ -317,6 +375,77 @@ export class OrdersService {
 
     return results;
   }
+}
+
+function applyFreeDomainDiscount(items: PricedOrderItem[]) {
+  const hasAnnualHosting = items.some((item) => item.type === "SHARED_HOSTING" && item.billingCycle.startsWith("YEAR_"));
+  if (!hasAnnualHosting) {
+    return items;
+  }
+
+  return items.map((item) => {
+    if (item.type !== "DOMAIN") {
+      return item;
+    }
+    if (item.unitAmountCents > 1500) {
+      return {
+        ...item,
+        configuration: {
+          ...item.configuration,
+          freeDomainEligible: false,
+          freeDomainReason: "Domain price is above 15 EUR."
+        }
+      };
+    }
+
+    return {
+      ...item,
+      configuration: {
+        ...item.configuration,
+        freeDomainApplied: true
+      },
+      description: `${item.description} (free with annual hosting)`,
+      totalCents: item.setupFeeCents,
+      unitAmountCents: 0
+    };
+  });
+}
+
+function hostingOptions(configuration: unknown, customerSnapshot?: unknown) {
+  const config = isRecord(configuration) ? configuration : {};
+  const customer = isRecord(customerSnapshot) ? customerSnapshot : {};
+  return {
+    ...config,
+    contactEmail: typeof customer.email === "string" ? customer.email : undefined,
+    description: typeof customer.name === "string" ? customer.name : undefined,
+    domainName: typeof config.domainName === "string" ? config.domainName : undefined
+  };
+}
+
+function activationPriority(item: { configuration: unknown; type: string }) {
+  return item.type === "SHARED_HOSTING" && bundledDomainName(item.configuration) ? 0 : 1;
+}
+
+function bundledDomainName(configuration: unknown) {
+  if (!isRecord(configuration) || configuration.bundledDomain !== true || typeof configuration.domainName !== "string") {
+    return undefined;
+  }
+
+  return configuration.domainName.trim().toLowerCase();
+}
+
+function orderStatusFromAdmin(status: string) {
+  const normalized = status.trim().toLowerCase();
+  if (["completed", "complete"].includes(normalized)) {
+    return "COMPLETE";
+  }
+  if (["in_progress", "in-progress", "progress", "provisioning", "paid", "pending_payment"].includes(normalized)) {
+    return "PROVISIONING";
+  }
+  if (["canceled", "cancelled", "cancel"].includes(normalized)) {
+    return "CANCELLED";
+  }
+  throw new BadRequestException("Unknown order status");
 }
 
 function yearsFromCycle(cycle: string) {
@@ -360,6 +489,10 @@ function domainAction(configuration: unknown) {
   }
 
   return "transfer";
+}
+
+function domainTld(domainName: string) {
+  return domainName.split(".").at(-1)?.toLowerCase();
 }
 
 function transferAuthCode(configuration: unknown) {

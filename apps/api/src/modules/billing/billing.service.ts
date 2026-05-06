@@ -17,6 +17,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
+    const vatRate = await this.vatPercent();
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: 0 })),
       coupon: coupon
@@ -29,7 +30,8 @@ export class BillingService {
         buyerCountryCode: dto.buyerCountryCode,
         buyerVatId: dto.buyerVatId,
         isBusinessCustomer: Boolean(dto.isBusinessCustomer)
-      }
+      },
+      vatRate
     });
 
     return this.billing.createInvoice({
@@ -198,14 +200,29 @@ export class BillingService {
     };
   }
 
-  updateSettings(input: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number }) {
+  vatPercent() {
+    return this.billing.settingNumber("vatPercent", 19);
+  }
+
+  async settings() {
+    const [invoiceDaysAhead, ticketAutoCloseHours, vatPercent] = await Promise.all([
+      this.billing.settingNumber("invoiceDaysAhead", 7),
+      this.billing.settingNumber("ticketAutoCloseHours", 24),
+      this.vatPercent()
+    ]);
+
+    return { invoiceDaysAhead, ticketAutoCloseHours, vatPercent };
+  }
+
+  updateSettings(input: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
     return Promise.all([
       input.invoiceDaysAhead === undefined
         ? undefined
         : this.billing.upsertSettingNumber("invoiceDaysAhead", input.invoiceDaysAhead),
       input.ticketAutoCloseHours === undefined
         ? undefined
-        : this.billing.upsertSettingNumber("ticketAutoCloseHours", input.ticketAutoCloseHours)
+        : this.billing.upsertSettingNumber("ticketAutoCloseHours", input.ticketAutoCloseHours),
+      input.vatPercent === undefined ? undefined : this.billing.upsertSettingNumber("vatPercent", Math.max(0, input.vatPercent))
     ]);
   }
 

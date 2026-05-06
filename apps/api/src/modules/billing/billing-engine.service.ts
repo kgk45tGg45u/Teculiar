@@ -10,6 +10,7 @@ type InvoiceDraftInput = {
   lines: InvoiceLineInput[];
   coupon?: Coupon;
   taxContext: TaxContext;
+  vatRate?: number;
 };
 
 @Injectable()
@@ -17,7 +18,7 @@ export class BillingEngineService {
   constructor(private readonly taxes: TaxService) {}
 
   createDraft(input: InvoiceDraftInput) {
-    const vat = this.taxes.resolveVat(input.taxContext);
+    const vat = this.taxes.resolveVat(input.taxContext, input.vatRate);
     const subtotalCents = input.lines.reduce(
       (sum, line) => sum + line.quantity * line.unitAmountCents,
       0

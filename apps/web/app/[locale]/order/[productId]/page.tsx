@@ -13,8 +13,10 @@ export default async function OrderPage({
   const { locale: rawLocale, productId } = await params;
   const query = await searchParams;
   const locale = getLocale(rawLocale);
-  const products = await apiGet<ApiProduct[]>("/storefront/products");
+  const products = await apiGet<ApiProduct[]>("/products");
   const product = products?.find((item) => item.id === productId);
+  const hostingProducts = products?.filter((item) => item.type === "SHARED_HOSTING" && item.id !== productId) ?? [];
+  const domainProduct = products?.find((item) => item.type === "DOMAIN");
 
   if (!product) {
     notFound();
@@ -25,6 +27,8 @@ export default async function OrderPage({
       initialDomain={query.domain}
       initialDomainAction={query.domainAction === "transfer" ? "transfer" : "register"}
       locale={locale}
+      domainProduct={domainProduct}
+      hostingProducts={hostingProducts}
       product={product}
     />
   );

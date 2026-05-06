@@ -175,6 +175,38 @@ describe("Resell.biz client", () => {
     assert.equal(body?.get("attr-value1"), "Y");
   });
 
+  it("submits domain renewal requests with order id, expiry, and years", async () => {
+    let body: URLSearchParams | undefined;
+    let path = "";
+    const client = new ResellBizClient(credentials, async (url, init) => {
+      path = url.pathname;
+      body = new URLSearchParams(String(init?.body));
+      return jsonResponse({ actionstatus: "Success", entityid: 123 });
+    });
+
+    await client.renewDomain({
+      autoRenew: true,
+      discountAmount: 0,
+      expDate: 1893456000,
+      extraAttributes: { premium: true },
+      invoiceOption: "NoInvoice",
+      orderId: 123,
+      purchasePremiumDns: false,
+      purchasePrivacy: false,
+      years: 1
+    });
+
+    assert.equal(path, "/api/domains/renew.json");
+    assert.equal(body?.get("order-id"), "123");
+    assert.equal(body?.get("exp-date"), "1893456000");
+    assert.equal(body?.get("years"), "1");
+    assert.equal(body?.get("invoice-option"), "NoInvoice");
+    assert.equal(body?.get("auto-renew"), "true");
+    assert.equal(body?.get("discount-amount"), "0");
+    assert.equal(body?.get("attr-name1"), "premium");
+    assert.equal(body?.get("attr-value1"), "true");
+  });
+
   it("fetches and normalizes customer domain prices", async () => {
     const client = new ResellBizClient(credentials, async (url) => {
       assert.equal(url.pathname, "/api/products/customer-price.json");

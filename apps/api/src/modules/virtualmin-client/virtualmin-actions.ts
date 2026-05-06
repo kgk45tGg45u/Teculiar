@@ -5,6 +5,35 @@ export type VirtualminAction = {
   program: string;
 };
 
+export type VirtualminCreateDomainInput = {
+  contactEmail?: string;
+  description?: string;
+  domainName: string;
+  password: string;
+  plan?: string;
+  template?: string;
+};
+
+export function createDomainAction(input: VirtualminCreateDomainInput): {
+  params: Record<string, boolean | string | undefined>;
+  program: string;
+} {
+  return {
+    params: {
+      desc: input.description,
+      domain: input.domainName,
+      email: input.contactEmail,
+      "features-from-plan": true,
+      "limits-from-plan": true,
+      pass: input.password,
+      plan: input.plan,
+      "skip-warnings": true,
+      template: input.template
+    },
+    program: "create-domain"
+  };
+}
+
 export function actionFromBody(body: Record<string, string | undefined>): VirtualminAction | undefined {
   const domain = body.domain?.trim();
 

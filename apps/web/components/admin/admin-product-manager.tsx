@@ -1,14 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { API_BASE_URL } from "../../lib/api";
+import { useEffect, useState } from "react";
+import { API_BASE_URL, money, type ApiProduct } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-product-manager.module.css";
 
 type FormState = { kind: "idle" | "loading" | "ok" | "error"; message?: string };
+type VirtualminOption = { id: string; limits?: { bandwidth?: string; databases?: string; disk?: string; mailboxes?: string }; name: string };
 
 export function AdminProductManager() {
   const [state, setState] = useState<FormState>({ kind: "idle" });
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [editing, setEditing] = useState<ApiProduct | undefined>();
+  const [virtualmin, setVirtualmin] = useState<{ plans: VirtualminOption[]; templates: VirtualminOption[] }>({ plans: [], templates: [] });
+  const [module, setModule] = useState("resellbiz");
+  const [type, setType] = useState("DOMAIN");
+  const [selectedPlan, setSelectedPlan] = useState("");
+
+  useEffect(() => {
+    void refreshProducts();
+    void fetch(`${API_BASE_URL}/admin/dev/virtualmin/templates`)
+      .then((response) => response.json())
+      .then((payload) => setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] }))
+      .catch(() => setVirtualmin({ plans: [], templates: [] }));
+  }, []);
 
   async function submit(formData: FormData) {
     setState({ kind: "loading", message: "Speichere Produkt..." });
@@ -21,9 +36,13 @@ export function AdminProductManager() {
       .filter(Boolean);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/dev/products`, {
+      const productId = String(formData.get("productId") ?? "");
+      const response = await fetch(`${API_BASE_URL}/admin/dev/products${productId ? `/${productId}` : ""}`, {
         body: JSON.stringify({
-          configurableOptions: customFields(formData.get("customFields")),
+          configurableOptions: [
+            ...customFields(formData.get("customFields")),
+            ...virtualminFields(formData)
+          ],
           description: String(formData.get("description") ?? ""),
           homepageVisible: formData.get("homepageVisible") === "on",
           name: String(formData.get("name") ?? ""),
@@ -33,7 +52,7 @@ export function AdminProductManager() {
           type: String(formData.get("type") ?? "DOMAIN")
         }),
         headers: { "Content-Type": "application/json" },
-        method: "POST"
+        method: productId ? "PATCH" : "POST"
       });
       const payload = await response.json().catch(() => ({}));
 
@@ -41,26 +60,85 @@ export function AdminProductManager() {
         throw new Error(typeof payload.message === "string" ? payload.message : "Produkt konnte nicht gespeichert werden.");
       }
 
-      setState({ kind: "ok", message: "Produkt gespeichert. Es erscheint auf der Homepage." });
+      setState({ kind: "ok", message: "Produkt gespeichert." });
+      setEditing(undefined);
+      await refreshProducts();
     } catch (error) {
       setState({ kind: "error", message: error instanceof Error ? error.message : "Produkt fehlgeschlagen." });
     }
   }
 
+  async function removeProduct(product: ApiProduct) {
+    setState({ kind: "loading", message: "Entferne Produkt..." });
+    const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setState({ kind: "error", message: "Produkt konnte nicht entfernt werden." });
+      return;
+    }
+    setState({ kind: "ok", message: "Produkt entfernt." });
+    await refreshProducts();
+  }
+
+  async function refreshProducts() {
+    const response = await fetch(`${API_BASE_URL}/products`);
+    const payload = await response.json().catch(() => []);
+    setProducts(Array.isArray(payload) ? payload : []);
+  }
+
+  const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
+
   return (
-    <form action={submit} className={styles.form}>
+    <div className={styles.stack}>
+      <section className={styles.products}>
+        <h2>Existing products</h2>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Typ</th>
+                <th>Modul</th>
+                <th>Preise</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr key={product.id}>
+                  <td>{product.name}</td>
+                  <td>{product.type}</td>
+                  <td>{product.provisioningModule ?? "none"}</td>
+                  <td>{product.prices.map((price) => `${price.billingCycle} ${money(price.amountCents, price.currency)}`).join(", ")}</td>
+                  <td className={styles.actions}>
+                    <Button type="button" variant="secondary" onClick={() => {
+                      setEditing(product);
+                      setModule(product.provisioningModule ?? "none");
+                      setType(product.type);
+                      setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
+                    }}>Edit</Button>
+                    <Button type="button" variant="ghost" onClick={() => removeProduct(product)}>Remove</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    <form action={submit} className={styles.form} key={editing?.id ?? "new"}>
+      <input name="productId" type="hidden" value={editing?.id ?? ""} />
       <div className={styles.grid}>
         <label>
           Name
-          <input name="name" required placeholder="Domain .de" />
+          <input defaultValue={editing?.name ?? ""} name="name" required placeholder="Domain .de" />
         </label>
         <label>
           Slug
-          <input name="slug" required placeholder="domain-de" />
+          <input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="domain-de" />
         </label>
         <label>
           Typ
-          <select name="type">
+          <select defaultValue={editing?.type ?? "DOMAIN"} name="type" onChange={(event) => setType(event.target.value)}>
             <option value="DOMAIN">Domain</option>
             <option value="SHARED_HOSTING">Web Hosting</option>
             <option value="VPS">VPS</option>
@@ -68,17 +146,22 @@ export function AdminProductManager() {
         </label>
         <label>
           Modul
-          <select name="provisioningModule">
+          <select defaultValue={editing?.provisioningModule ?? "resellbiz"} name="provisioningModule" onChange={(event) => setModule(event.target.value)}>
             <option value="resellbiz">ResellBiz</option>
+            <option value="virtualmin">Virtualmin</option>
             <option value="none">Kein API</option>
           </select>
         </label>
-        {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
-          <label key={cycle}>
-            {cycle} EUR
-            <input name={`price_${cycle}`} placeholder="9.90" />
-          </label>
-        ))}
+        {type === "DOMAIN" ? (
+          <p className={styles.note}>Domain pricing comes from Admin / Domain Prices. Product pricing is only shown as "from" the cheapest TLD.</p>
+        ) : (
+          ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
+            <label key={cycle}>
+              {cycle} EUR
+              <input defaultValue={priceValue(editing, cycle)} name={`price_${cycle}`} placeholder="9.90" />
+            </label>
+          ))
+        )}
         <label>
           Setup EUR
           <input name="setupFee" placeholder="0" />
@@ -90,15 +173,42 @@ export function AdminProductManager() {
       </div>
       <label>
         Beschreibung
-        <textarea name="description" required rows={3} />
+        <textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} />
       </label>
+      {module === "virtualmin" ? (
+        <section className={styles.virtualminBox}>
+          <label>
+            Virtualmin Plan
+            <select defaultValue={String(editing?.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(event) => setSelectedPlan(event.target.value)}>
+              <option value="">Select plan</option>
+              {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+            </select>
+          </label>
+          <label>
+            Virtualmin Template
+            <select defaultValue={String(editing?.configs?.find((config) => config.key === "virtualmin_template")?.values?.[0] ?? "")} name="virtualminTemplate">
+              <option value="">Select template</option>
+              {virtualmin.templates.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+            </select>
+          </label>
+          {plan ? (
+            <div className={styles.limits}>
+              <span>Disk: {plan.limits?.disk ?? "Unknown"}</span>
+              <span>Bandwidth: {plan.limits?.bandwidth ?? "Unknown"}</span>
+              <span>Email accounts: {plan.limits?.mailboxes ?? "Unknown"}</span>
+              <span>Databases: {plan.limits?.databases ?? "Unknown"}</span>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
       <label className={styles.check}>
-        <input defaultChecked name="homepageVisible" type="checkbox" />
+        <input defaultChecked={editing?.homepageVisible ?? true} name="homepageVisible" type="checkbox" />
         Auf Homepage zeigen
       </label>
       <Button type="submit">Produkt speichern</Button>
       {state.message ? <p className={styles[state.kind]}>{state.message}</p> : null}
     </form>
+    </div>
   );
 }
 
@@ -122,4 +232,20 @@ function customFields(value: FormDataEntryValue | null) {
       required: false,
       values: []
     }));
+}
+
+function virtualminFields(formData: FormData) {
+  if (String(formData.get("provisioningModule") ?? "") !== "virtualmin") {
+    return [];
+  }
+
+  return [
+    { key: "virtualmin_plan", label: "Virtualmin Plan", required: true, values: [String(formData.get("virtualminPlan") ?? "")] },
+    { key: "virtualmin_template", label: "Virtualmin Template", required: true, values: [String(formData.get("virtualminTemplate") ?? "")] }
+  ];
+}
+
+function priceValue(product: ApiProduct | undefined, cycle: string) {
+  const price = product?.prices.find((item) => item.billingCycle === cycle);
+  return price ? String(price.amountCents / 100).replace(".", ",") : "";
 }

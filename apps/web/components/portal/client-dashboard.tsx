@@ -4,6 +4,7 @@ import { CreditCard, FileText, LifeBuoy, Send, Server, UserRound, Wallet } from 
 import { useEffect, useState } from "react";
 import {
   API_BASE_URL,
+  cycleLabel,
   money,
   type ApiAnnouncement,
   type ApiInvoice,
@@ -204,10 +205,6 @@ function titleFor(view: ClientView) {
     services: "Services",
     tickets: "My Support Tickets"
   }[view];
-}
-
-function cycleLabel(cycle: string) {
-  return cycle.replace("_", " ").toLowerCase();
 }
 
 function dateLabel(value?: string | null) {

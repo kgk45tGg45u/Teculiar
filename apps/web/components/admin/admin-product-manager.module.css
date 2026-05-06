@@ -1,6 +1,32 @@
+.stack,
 .form {
   display: grid;
   gap: 16px;
+}
+
+.products,
+.virtualminBox {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.products h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .grid {
@@ -32,6 +58,20 @@
   padding-top: 10px;
 }
 
+.limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .check {
   display: flex !important;
   align-items: center;
@@ -58,6 +98,10 @@
 
 @media (max-width: 760px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .limits {
     grid-template-columns: 1fr;
   }
 }

@@ -48,36 +48,57 @@ export class ProductsRepository {
   }
 
   async updateProduct(id: string, dto: CreateProductDto) {
-    return this.prisma.product.update({
-      where: { id },
-      data: {
-        active: true,
-        description: dto.description,
-        homepageVisible: dto.homepageVisible ?? true,
-        name: dto.name,
-        provisioningModule: dto.provisioningModule,
-        slug: dto.slug,
-        type: dto.type as ProductType,
-        configs: {
-          deleteMany: {},
-          create: (dto.configurableOptions ?? []).map((option) => ({
-            key: option.key,
-            label: option.label,
-            required: option.required ?? false,
-            values: option.values as Prisma.InputJsonValue
-          }))
-        },
-        prices: {
-          deleteMany: {},
-          create: productPrices(dto).map((price) => ({
+    const prices = productPrices(dto);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: {
+          active: true,
+          description: dto.description,
+          homepageVisible: dto.homepageVisible ?? true,
+          name: dto.name,
+          provisioningModule: dto.provisioningModule,
+          slug: dto.slug,
+          type: dto.type as ProductType,
+          configs: {
+            deleteMany: {},
+            create: (dto.configurableOptions ?? []).map((option) => ({
+              key: option.key,
+              label: option.label,
+              required: option.required ?? false,
+              values: option.values as Prisma.InputJsonValue
+            }))
+          }
+        }
+      });
+      await tx.productPrice.updateMany({ where: { productId: id }, data: { active: false } });
+      for (const price of prices) {
+        await tx.productPrice.upsert({
+          where: { productId_billingCycle: { billingCycle: price.billingCycle as BillingCycle, productId: id } },
+          create: {
+            productId: id,
             billingCycle: price.billingCycle as BillingCycle,
             amountCents: price.amountCents,
             setupFeeCents: price.setupFeeCents ?? 0,
-            currency: "EUR"
-          }))
-        }
-      },
-      include: { prices: true, configs: true }
+            currency: "EUR",
+            active: true
+          },
+          update: {
+            active: true,
+            amountCents: price.amountCents,
+            setupFeeCents: price.setupFeeCents ?? 0
+          }
+        });
+      }
+    });
+
+    return this.findProduct(id);
+  }
+
+  deleteProduct(id: string) {
+    return this.prisma.product.update({
+      where: { id },
+      data: { active: false }
     });
   }
 
@@ -141,6 +162,14 @@ export class ProductsRepository {
 function productPrices(dto: CreateProductDto) {
   if (dto.prices?.length) {
     return dto.prices;
+  }
+
+  if (dto.type === "DOMAIN") {
+    return [
+      { amountCents: 0, billingCycle: "YEAR_1", setupFeeCents: 0 },
+      { amountCents: 0, billingCycle: "YEAR_2", setupFeeCents: 0 },
+      { amountCents: 0, billingCycle: "YEAR_3", setupFeeCents: 0 }
+    ];
   }
 
   if (!dto.billingCycle || dto.amountCents === undefined) {

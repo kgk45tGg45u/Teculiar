@@ -19,6 +19,7 @@ import type {
   ResellBizDomainTarget,
   ResellBizMethod,
   RegisterDomainInput,
+  RenewDomainInput,
   TransferDomainInput
 } from "./resellbiz-types";
 import { DEFAULT_DETAIL_OPTIONS } from "./resellbiz-types";
@@ -44,6 +45,7 @@ export type {
   ResellBizMethod,
   ResellBizRequest,
   RegisterDomainInput,
+  RenewDomainInput,
   TransferDomainInput
 } from "./resellbiz-types";
 
@@ -238,6 +240,28 @@ export class ResellBizClient {
     }
 
     return this.call("POST", "/api/domains/transfer.json", params);
+  }
+
+  async renewDomain(input: RenewDomainInput): Promise<unknown> {
+    const params: Record<string, ParamValue> = {
+      "auto-renew": input.autoRenew,
+      "discount-amount": input.discountAmount,
+      "exp-date": assertOrderId(input.expDate),
+      "invoice-option": input.invoiceOption,
+      "order-id": assertOrderId(input.orderId),
+      "purchase-premium-dns": input.purchasePremiumDns,
+      "purchase-privacy": input.purchasePrivacy,
+      years: assertOrderId(input.years)
+    };
+
+    let attrIndex = 1;
+    for (const [name, value] of Object.entries(input.extraAttributes ?? {})) {
+      params[`attr-name${attrIndex}`] = name;
+      params[`attr-value${attrIndex}`] = value;
+      attrIndex += 1;
+    }
+
+    return this.call("POST", "/api/domains/renew.json", params);
   }
 
   private async resolveOrderId(target: ResellBizDomainTarget): Promise<number> {

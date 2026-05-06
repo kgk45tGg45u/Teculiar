@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CreditCard, Save } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-dashboard.module.css";
@@ -42,12 +42,25 @@ export function AnnouncementForm() {
 
 export function SettingsForm() {
   const [message, setMessage] = useState("");
+  const [settings, setSettings] = useState({ invoiceDaysAhead: 7, ticketAutoCloseHours: 24, vatPercent: 19 });
+
+  useEffect(() => {
+    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`)
+      .then((response) => response.json())
+      .then((payload) => setSettings({
+        invoiceDaysAhead: payload.invoiceDaysAhead ?? 7,
+        ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
+        vatPercent: payload.vatPercent ?? 19
+      }))
+      .catch(() => undefined);
+  }, []);
 
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
         invoiceDaysAhead: Number(formData.get("invoiceDaysAhead") ?? 7),
-        ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24)
+        ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
+        vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
       headers: { "Content-Type": "application/json" },
       method: "PATCH"
@@ -58,8 +71,9 @@ export function SettingsForm() {
 
   return (
     <form action={submit} className={styles.form}>
-      <label>Generate invoices days before due date<input defaultValue="7" name="invoiceDaysAhead" type="number" /></label>
-      <label>Close answered tickets after hours<input defaultValue="24" name="ticketAutoCloseHours" type="number" /></label>
+      <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
+      <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
+      <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
       <p>Admin dashboard runs maintenance on open: close answered tickets, create upcoming invoices, mark overdue invoices, suspend services with overdue unpaid invoices.</p>
       <Button icon={CreditCard} type="submit">Save Settings</Button>
       {message ? <p>{message}</p> : null}
@@ -105,4 +119,41 @@ export function DomainPriceForm() {
       {message ? <p>{message}</p> : null}
     </form>
   );
+}
+
+export function OrderStatusForm({ orderId, status }: { orderId: string; status: string }) {
+  const [message, setMessage] = useState("");
+  const [value, setValue] = useState(statusLabelValue(status));
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+      body: JSON.stringify({ status: String(formData.get("status") ?? value) }),
+      headers: { "Content-Type": "application/json" },
+      method: "PATCH"
+    });
+
+    setMessage(response.ok ? "Order status saved." : "Order status failed.");
+  }
+
+  return (
+    <form action={submit} className={styles.inlineForm}>
+      <select name="status" value={value} onChange={(event) => setValue(event.target.value)}>
+        <option value="completed">completed</option>
+        <option value="in_progress">In Progress</option>
+        <option value="canceled">Canceled</option>
+      </select>
+      <Button type="submit" variant="secondary">Save</Button>
+      {message ? <span>{message}</span> : null}
+    </form>
+  );
+}
+
+function statusLabelValue(status: string) {
+  if (status === "COMPLETE") {
+    return "completed";
+  }
+  if (status === "CANCELLED") {
+    return "canceled";
+  }
+  return "in_progress";
 }

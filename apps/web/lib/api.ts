@@ -4,6 +4,9 @@ export type ApiProduct = {
   slug: string;
   type: "DOMAIN" | "SHARED_HOSTING" | "VPS" | string;
   description: string;
+  homepageVisible?: boolean;
+  minimumPriceCents?: number;
+  provisioningModule?: string | null;
   prices: Array<{
     id: string;
     billingCycle: string;
@@ -110,4 +113,16 @@ export async function apiGet<T>(path: string): Promise<T | null> {
 
 export function money(cents: number, currency = "EUR") {
   return new Intl.NumberFormat("de-DE", { currency, style: "currency" }).format(cents / 100);
+}
+
+export function cycleLabel(cycle: string) {
+  return {
+    MONTHLY: "monthly",
+    QUARTERLY: "3 months",
+    SEMI_ANNUAL: "6 months",
+    YEAR_1: "yearly",
+    YEAR_2: "2 years",
+    YEAR_3: "3 years",
+    YEAR_4: "4 years"
+  }[cycle] ?? cycle.toLowerCase();
 }

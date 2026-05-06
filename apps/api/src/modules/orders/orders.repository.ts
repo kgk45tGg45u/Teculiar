@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BillingCycle, OrderItemStatus, PaymentMethodType, Prisma, ProductType, ServiceStatus } from "@prisma/client";
+import { BillingCycle, OrderItemStatus, OrderStatus, PaymentMethodType, Prisma, ProductType, ServiceStatus } from "@prisma/client";
 import { addBillingCycle, formatOrderNumber } from "../billing/platform-rules";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -25,6 +25,14 @@ export class OrdersRepository {
     return this.prisma.product.findFirst({
       where: { id: productId, active: true },
       include: { prices: { where: { active: true } }, configs: true }
+    });
+  }
+
+  findProductByType(type: string) {
+    return this.prisma.product.findFirst({
+      where: { active: true, type: type as ProductType },
+      include: { prices: { where: { active: true } }, configs: true },
+      orderBy: { sortOrder: "asc" }
     });
   }
 
@@ -133,10 +141,32 @@ export class OrdersRepository {
     });
   }
 
+  markOrderInProgress(id: string, message?: string) {
+    return this.prisma.order.update({
+      where: { id },
+      data: { notes: message, status: "PROVISIONING" }
+    });
+  }
+
   markOrderFailed(id: string, message?: string) {
     return this.prisma.order.update({
       where: { id },
       data: { notes: message, status: "FAILED" }
+    });
+  }
+
+  updateOrderStatus(id: string, status: string) {
+    return this.prisma.order.update({
+      where: { id },
+      data: {
+        completedAt: status === "COMPLETE" ? new Date() : undefined,
+        status: status as OrderStatus
+      },
+      include: {
+        invoice: true,
+        items: { include: { product: true, service: true } },
+        user: true
+      }
     });
   }
 
@@ -192,11 +222,11 @@ export class OrdersRepository {
     });
   }
 
-  async markItemActive(id: string, providerReference?: string, payload?: Record<string, unknown>) {
+  async markItemActive(id: string, providerReference?: string, payload?: Record<string, unknown>, provider?: string) {
     const item = await this.prisma.orderItem.update({
       where: { id },
       data: {
-        provider: providerReference ? "resellbiz" : undefined,
+        provider: providerReference ? provider ?? "resellbiz" : undefined,
         providerPayload: payload as Prisma.InputJsonValue,
         providerReference,
         provisioningStatus: "ACTIVE"
@@ -209,6 +239,20 @@ export class OrdersRepository {
         data: { externalId: providerReference, startedAt: new Date(), status: "ACTIVE" }
       });
     }
+
+    return item;
+  }
+
+  async markItemSkipped(id: string, message: string, payload?: Record<string, unknown>) {
+    const item = await this.prisma.orderItem.update({
+      where: { id },
+      data: {
+        errorMessage: message,
+        provider: payload ? "manual" : undefined,
+        providerPayload: payload as Prisma.InputJsonValue,
+        provisioningStatus: "SKIPPED" as OrderItemStatus
+      }
+    });
 
     return item;
   }

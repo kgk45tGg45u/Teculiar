@@ -23,7 +23,8 @@ export class DomainPricingService {
   async priceFor(
     domainName: string,
     fallbackCents: number,
-    action: ResellBizDomainPriceAction = "register"
+    action: ResellBizDomainPriceAction = "register",
+    years = 1
   ): Promise<PriceResult> {
     const tld = domainName.split(".").slice(1).join(".").toLowerCase();
     if (!tld) {
@@ -31,7 +32,7 @@ export class DomainPricingService {
     }
 
     try {
-      const amountCents = await this.storedPrice(tld, action, 1);
+      const amountCents = await this.storedPrice(tld, action, years);
       if (amountCents !== undefined) {
         return { amountCents, source: "live", tld };
       }
@@ -111,6 +112,20 @@ export class DomainPricingService {
     `;
 
     return rows.length > 0 ? rows.map((row) => row.tld) : ["com", "net", "org"];
+  }
+
+  async minimumRegisterPrice() {
+    if (!this.prisma) {
+      return undefined;
+    }
+
+    const rows = await this.prisma.$queryRaw<Array<{ amountCents: number }>>`
+      SELECT MIN("amountCents")::int AS "amountCents"
+      FROM "DomainTldPrice"
+      WHERE "action" = 'register' AND "years" = 1 AND "amountCents" > 0
+    `;
+
+    return rows[0]?.amountCents;
   }
 
   private async storedPrice(tld: string, action: ResellBizDomainPriceAction, years: number) {

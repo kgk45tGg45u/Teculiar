@@ -3,6 +3,7 @@ import { ResellBizClient, credentialsFromEnv, ResellBizApiError } from "../resel
 import type {
   DomainCustomerContactRequest,
   DomainProvider,
+  DomainRenewalRequest,
   DomainRegistrationRequest,
   DomainTransferRequest
 } from "./provider.types";
@@ -60,6 +61,27 @@ export class ResellBizProviderService implements DomainProvider {
       externalId,
       status: mapDomainActionStatus(payload),
       metadata: { authCodePresent: Boolean(request.authCode), raw: payload, testApi: true }
+    };
+  }
+
+  async renew(request: DomainRenewalRequest) {
+    const client = resellBizClient();
+    const payload = await client.renewDomain({
+      autoRenew: request.autoRenew ?? true,
+      expDate: request.expDate,
+      extraAttributes: request.extraAttributes,
+      invoiceOption: "NoInvoice",
+      orderId: request.orderId,
+      purchasePremiumDns: false,
+      purchasePrivacy: false,
+      years: request.years
+    });
+    const externalId = externalReference(payload) ?? `resellbiz_renew_${request.orderId}`;
+
+    return {
+      externalId,
+      status: mapDomainActionStatus(payload),
+      metadata: { domain: request.domain, raw: payload, testApi: true }
     };
   }
 

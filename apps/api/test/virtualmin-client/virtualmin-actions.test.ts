@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { actionFromBody } from "../../src/modules/virtualmin-client/virtualmin-actions";
+import { actionFromBody, createDomainAction } from "../../src/modules/virtualmin-client/virtualmin-actions";
 
 describe("Virtualmin actions", () => {
   it("maps mailbox creation to create-user params", () => {
@@ -69,6 +69,33 @@ describe("Virtualmin actions", () => {
       {
         params: { domain: "example.com", pass: "new-secret", type: "mysql" },
         program: "modify-database-pass"
+      }
+    );
+  });
+
+  it("maps hosting provisioning to create-domain with plan limits", () => {
+    assert.deepEqual(
+      createDomainAction({
+        contactEmail: "buyer@example.com",
+        description: "Buyer",
+        domainName: "example.com",
+        password: "Strong!123",
+        plan: "Silber",
+        template: "Hosting Template"
+      }),
+      {
+        params: {
+          desc: "Buyer",
+          domain: "example.com",
+          email: "buyer@example.com",
+          "features-from-plan": true,
+          "limits-from-plan": true,
+          pass: "Strong!123",
+          plan: "Silber",
+          "skip-warnings": true,
+          template: "Hosting Template"
+        },
+        program: "create-domain"
       }
     );
   });

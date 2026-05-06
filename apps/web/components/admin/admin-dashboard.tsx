@@ -11,7 +11,7 @@ import {
 } from "../../lib/api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
-import { AnnouncementForm, DomainPriceForm, SettingsForm } from "./admin-forms";
+import { AnnouncementForm, DomainPriceForm, OrderStatusForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
 import styles from "./admin-dashboard.module.css";
 
@@ -196,10 +196,30 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
           {orders.length ? (
             orders.map((order) => (
               <tr key={order.id}>
-                <td>{order.orderNumber}</td>
+                <td>
+                  <details>
+                    <summary>{order.orderNumber}</summary>
+                    <div className={styles.orderDetails}>
+                      <p><strong>Invoice:</strong> {order.invoice?.invoiceNumber ?? "-"} ({order.invoice?.status ?? "no invoice"})</p>
+                      <p><strong>Status:</strong> {orderLabel(order.status)}</p>
+                      <OrderStatusForm orderId={order.id} status={order.status} />
+                      <table className="table">
+                        <tbody>
+                          {order.items.map((item) => (
+                            <tr key={item.id}>
+                              <td>{item.description}</td>
+                              <td>{item.domainName ?? "-"}</td>
+                              <td>{item.provisioningStatus}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </td>
                 <td>{order.user?.email ?? "unknown"}</td>
                 <td>
-                  <StatusPill label={order.status} tone={order.status === "COMPLETE" ? "good" : "warn"} />
+                  <StatusPill label={orderLabel(order.status)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
                 </td>
                 <td>{order.items.map((item) => item.description).join(", ")}</td>
                 <td>{money(order.totalCents, order.currency)}</td>
@@ -390,6 +410,16 @@ function adminTitle(view: AdminView) {
     settings: "Automation Settings",
     tickets: "Support Tickets"
   }[view];
+}
+
+function orderLabel(status: string) {
+  if (status === "COMPLETE") {
+    return "completed";
+  }
+  if (status === "CANCELLED") {
+    return "Canceled";
+  }
+  return "In Progress";
 }
 
 function ticketLabel(status: string) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -28,9 +28,21 @@ export class ProductsController {
   }
 
   // Temporary dev endpoint until admin auth UI is wired.
+  @Get("admin/dev/virtualmin/templates")
+  listVirtualminTemplatesDev() {
+    return this.products.listVirtualminTemplates();
+  }
+
+  // Temporary dev endpoint until admin auth UI is wired.
   @Patch("admin/dev/products/:id")
   updateProductDev(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
+  }
+
+  // Temporary dev endpoint until admin auth UI is wired.
+  @Delete("admin/dev/products/:id")
+  deleteProductDev(@Param("id") id: string) {
+    return this.products.deleteProduct(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,6 +57,13 @@ export class ProductsController {
   @Patch("products/:id")
   updateProduct(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Delete("products/:id")
+  deleteProduct(@Param("id") id: string) {
+    return this.products.deleteProduct(id);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -45,6 +45,32 @@
   color: var(--muted);
 }
 
+.orderSummary {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.summaryLine,
+.summaryTotal {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.summaryLine span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.summaryTotal {
+  border-bottom: 0;
+  padding-top: 6px;
+  font-size: 1.15rem;
+}
+
 .form {
   display: grid;
   gap: 18px;
@@ -69,6 +95,47 @@
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.passwordControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.generateButton {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.passwordRules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.passwordRules span {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.rulePassed {
+  color: #157f3b;
+  background: rgba(21, 127, 59, 0.1);
+}
+
+.ruleMissing {
+  color: var(--crimson);
+  background: rgba(177, 18, 38, 0.1);
 }
 
 .form input,
@@ -100,9 +167,86 @@
   color: var(--muted);
 }
 
+.domainPanel,
+.hostingModal {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--paper);
+}
+
+.domainPanel h2,
+.hostingModal h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+
+.available {
+  margin: 0;
+  color: #157f3b;
+  font-weight: 800;
+}
+
+.unavailable {
+  margin: 0;
+  color: var(--crimson);
+  font-weight: 800;
+}
+
+.choiceGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.choiceGrid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.choiceGrid input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(17, 18, 23, 0.45);
+}
+
+.hostingModal {
+  width: min(520px, 100%);
+  background: var(--surface);
+  box-shadow: 0 20px 70px rgba(17, 18, 23, 0.25);
+}
+
+.hostingModal p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.modalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 820px) {
   .shell,
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .passwordControl {
     grid-template-columns: 1fr;
   }
 }

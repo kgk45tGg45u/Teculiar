@@ -96,3 +96,15 @@ export type RegisterDomainInput = {
   technicalContactId: number;
   years: number;
 };
+
+export type RenewDomainInput = {
+  autoRenew: boolean;
+  discountAmount?: number;
+  expDate: number;
+  extraAttributes?: Record<string, ParamPrimitive>;
+  invoiceOption: "KeepInvoice" | "NoInvoice" | "OnlyAdd" | "PayInvoice";
+  orderId: number;
+  purchasePremiumDns?: boolean;
+  purchasePrivacy?: boolean;
+  years: number;
+};
