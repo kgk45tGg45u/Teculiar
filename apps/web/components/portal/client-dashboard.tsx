@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, FileText, LifeBuoy, Send, Server, UserRound, Wallet } from "lucide-react";
+import { BarChart3, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Send, Server, UserRound, UsersRound, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   API_BASE_URL,
@@ -17,6 +17,27 @@ import { StatusPill } from "../ui/status-pill";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
+type HostingPanel = {
+  bandwidth: Array<{ fields: Record<string, string>; name: string }>;
+  bandwidthUsage?: Usage;
+  controlPanelUrl: string;
+  databases: Array<{ fields: Record<string, string>; name: string }>;
+  diskUsage?: Usage;
+  domain: string;
+  emailInstructions: {
+    imap: { encryption: string; port: number; server: string };
+    pop3: { encryption: string; port: number; server: string };
+    smtp: { encryption: string; port: number; server: string };
+    username: string;
+  };
+  errors: string[];
+  ftpUsers: PanelEntry[];
+  mailboxes: PanelEntry[];
+  subdomains: Array<{ fields: Record<string, string>; name: string }>;
+  webmailUrl: string;
+};
+type Usage = { limit: string; percent: number; used: string };
+type PanelEntry = { address?: string; fields: Record<string, string>; name: string; usage?: Usage };
 
 const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   ACTIVE: "good",
@@ -106,7 +127,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         <header className={styles.header}>
           <div>
             <span className="eyebrow">Client Portal</span>
-            <h1>{titleFor(view)}</h1>
+            <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view)}</h1>
           </div>
           <Button href="/de/pricing" icon={CreditCard}>
             Neuer Service
@@ -209,6 +230,17 @@ function ServicesTable({ services }: { services: ApiService[] }) {
 }
 
 function ServiceDetail({ service }: { service?: ApiService }) {
+  const [panel, setPanel] = useState<HostingPanel>();
+  const [modal, setModal] = useState<"admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains" | undefined>();
+  const isActiveHosting = service?.product.type === "SHARED_HOSTING" && service.status === "ACTIVE";
+
+  useEffect(() => {
+    if (!service || !isActiveHosting) {
+      return;
+    }
+    loadHostingPanel(service.id, setPanel);
+  }, [isActiveHosting, service]);
+
   if (!service) {
     return <section className={styles.module}><h2>Service</h2><p>Loading...</p></section>;
   }
@@ -238,12 +270,252 @@ function ServiceDetail({ service }: { service?: ApiService }) {
         </div>
       </div>
       {service.product.type === "DOMAIN" ? <DomainRenewal service={service} /> : <PlanChange service={service} />}
+      {isActiveHosting ? <HostingControlPanel modal={modal} panel={panel} refresh={() => loadHostingPanel(service.id, setPanel)} service={service} setModal={setModal} /> : null}
     </section>
   );
 }
 
+function HostingControlPanel({
+  modal,
+  panel,
+  refresh,
+  service,
+  setModal
+}: {
+  modal?: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains";
+  panel?: HostingPanel;
+  refresh: () => void;
+  service: ApiService;
+  setModal: (modal?: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains") => void;
+}) {
+  return (
+    <div className={styles.controlPanel}>
+      <div className={styles.panelTitle}>
+        <div>
+          <span className="eyebrow">Hosting Control Panel</span>
+          <h3>{panel?.domain ?? serviceName(service)}</h3>
+        </div>
+      </div>
+      <div className={styles.usageGrid}>
+        <UsageGraph icon="disk" label="Disk space" usage={panel?.diskUsage} />
+        <UsageGraph icon="bandwidth" label="Bandwidth" usage={panel?.bandwidthUsage} />
+      </div>
+      <div className={styles.controlGrid}>
+        <a href={panel?.controlPanelUrl || "#"} target="_blank" rel="noreferrer"><ExternalLink aria-hidden />Control panel</a>
+        <a href={panel?.webmailUrl || "#"} target="_blank" rel="noreferrer"><Mail aria-hidden />Webmail</a>
+        <button type="button" onClick={() => setModal("email")}><Mail aria-hidden />Mail boxes</button>
+        <button type="button" onClick={() => setModal("databases")}><Database aria-hidden />Databases</button>
+        <button type="button" onClick={() => setModal("subdomains")}><Globe aria-hidden />Subdomains</button>
+        <button type="button" onClick={() => setModal("ftp")}><UsersRound aria-hidden />FTP users</button>
+        <button type="button" onClick={() => setModal("admin")}><KeyRound aria-hidden />Admin password</button>
+        <button type="button" onClick={() => setModal("instructions")}><FileText aria-hidden />Email clients</button>
+      </div>
+      {panel?.errors.length ? <p className={styles.warn}>{panel.errors.join(" ")}</p> : null}
+      {modal ? <HostingModal modal={modal} panel={panel} refresh={refresh} service={service} setModal={setModal} /> : null}
+    </div>
+  );
+}
+
+function UsageGraph({ icon, label, usage }: { icon: "bandwidth" | "disk"; label: string; usage?: Usage }) {
+  const Icon = icon === "disk" ? HardDrive : BarChart3;
+  return (
+    <div>
+      <Icon aria-hidden />
+      <span>{label}</span>
+      <strong>{usage ? `${usage.used} / ${usage.limit}` : "Loading"}</strong>
+      <div className={styles.usageTrack}><span style={{ width: `${usage?.percent ?? 0}%` }} /></div>
+    </div>
+  );
+}
+
+function HostingModal({
+  modal,
+  panel,
+  refresh,
+  service,
+  setModal
+}: {
+  modal: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains";
+  panel?: HostingPanel;
+  refresh: () => void;
+  service: ApiService;
+  setModal: (modal?: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains") => void;
+}) {
+  const domain = panel?.domain ?? serviceName(service);
+  return (
+    <div className={styles.modalBackdrop}>
+      <section className={styles.modal}>
+        <button className={styles.closeButton} type="button" onClick={() => setModal(undefined)}>Close</button>
+        {modal === "email" ? <EntryManager entries={panel?.mailboxes ?? []} refresh={refresh} service={service} title="Mail boxes" addIntent="add-email" removeIntent="remove-email" changeIntent="change-email-password" quotaIntent="edit-email-quota" nameField="mailUser" passField="mailPassword" quotaField="mailQuotaMb" suffix={`@${domain}`} /> : null}
+        {modal === "databases" ? <EntryManager entries={panel?.databases ?? []} refresh={refresh} service={service} title="Databases" addIntent="add-database" removeIntent="remove-database" changeIntent="change-database-password" nameField="databaseName" passField="databasePassword" extraField={["databaseType", "mysql"]} /> : null}
+        {modal === "ftp" ? <EntryManager entries={panel?.ftpUsers ?? []} refresh={refresh} service={service} title="FTP users" addIntent="add-ftp" removeIntent="remove-ftp" changeIntent="change-ftp-password" quotaIntent="edit-ftp-quota" nameField="ftpUser" passField="ftpPassword" quotaField="ftpQuotaMb" suffix={`@${domain}`} /> : null}
+        {modal === "subdomains" ? <EntryManager entries={(panel?.subdomains ?? []).map((entry) => ({ ...entry, address: entry.name }))} refresh={refresh} service={service} title="Subdomains" addIntent="add-subdomain" removeIntent="remove-subdomain" nameField="subdomain" suffix={`.${domain}`} /> : null}
+        {modal === "admin" ? <PasswordAction refresh={refresh} service={service} /> : null}
+        {modal === "instructions" && panel ? <EmailInstructions panel={panel} /> : null}
+      </section>
+    </div>
+  );
+}
+
+function EntryManager({
+  addIntent,
+  changeIntent,
+  entries,
+  extraField,
+  nameField,
+  passField,
+  quotaField,
+  quotaIntent,
+  refresh,
+  removeIntent,
+  service,
+  suffix,
+  title
+}: {
+  addIntent: string;
+  changeIntent?: string;
+  entries: PanelEntry[];
+  extraField?: [string, string];
+  nameField: string;
+  passField?: string;
+  quotaField?: string;
+  quotaIntent?: string;
+  refresh: () => void;
+  removeIntent: string;
+  service: ApiService;
+  suffix?: string;
+  title: string;
+}) {
+  return (
+    <>
+      <div className={styles.modalHeader}><h3>{title}</h3></div>
+      <details className={styles.actionDetails}>
+        <summary>Add {title.toLowerCase().replace(/s$/, "")}</summary>
+        <ActionForm intent={addIntent} refresh={refresh} service={service} fields={[[nameField, "Name"], ...(passField ? [[passField, "Password"] as [string, string]] : []), ...(extraField ? [extraField] : [])]} suffixFor={nameField} suffix={suffix} button="Add" />
+      </details>
+      <div className={styles.rowList}>
+        {entries.map((entry) => (
+          <article className={styles.entryRow} key={entry.name}>
+            <div>
+              <strong>{entry.address ?? entry.name}</strong>
+              {entry.usage ? <UsageGraph icon="disk" label="Usage" usage={entry.usage} /> : <span>{entry.fields["Size"] ?? ""}</span>}
+            </div>
+            {changeIntent && passField ? <details>
+              <summary>Change password</summary>
+              <ActionForm intent={changeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[passField, "New password"]]} button="Save" />
+            </details> : null}
+            {quotaIntent && quotaField ? (
+              <details>
+                <summary>Edit quota</summary>
+                <ActionForm intent={quotaIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[quotaField, "Quota MB"]]} button="Save quota" />
+              </details>
+            ) : null}
+            <ActionForm intent={removeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[]} button="Delete" />
+          </article>
+        ))}
+        {!entries.length ? <span>No items found.</span> : null}
+      </div>
+    </>
+  );
+}
+
+function PasswordAction({ refresh, service }: { refresh: () => void; service: ApiService }) {
+  return (
+    <div className={styles.subdomainBox}>
+      <h3><KeyRound aria-hidden size={18} /> Admin password</h3>
+      <p>This is different from the client dashboard password.</p>
+      <ActionForm intent="change-admin-password" refresh={refresh} service={service} fields={[["adminPassword", "New hosting admin password"]]} button="Change admin password" />
+    </div>
+  );
+}
+
+function EmailInstructions({ panel }: { panel: HostingPanel }) {
+  return (
+    <>
+      <h3>Email client settings</h3>
+      <table className="table">
+        <tbody>
+          <tr><td>IMAP</td><td>{panel.emailInstructions.imap.server}:{panel.emailInstructions.imap.port}</td><td>{panel.emailInstructions.imap.encryption}</td></tr>
+          <tr><td>POP3</td><td>{panel.emailInstructions.pop3.server}:{panel.emailInstructions.pop3.port}</td><td>{panel.emailInstructions.pop3.encryption}</td></tr>
+          <tr><td>SMTP</td><td>{panel.emailInstructions.smtp.server}:{panel.emailInstructions.smtp.port}</td><td>{panel.emailInstructions.smtp.encryption}</td></tr>
+        </tbody>
+      </table>
+      <p>{panel.emailInstructions.username}</p>
+    </>
+  );
+}
+
+function ActionForm({
+  button,
+  fields,
+  hiddenFields = [],
+  intent,
+  refresh,
+  service,
+  suffix,
+  suffixFor
+}: {
+  button: string;
+  fields: Array<[string, string]>;
+  hiddenFields?: Array<[string, string]>;
+  intent: string;
+  refresh: () => void;
+  service: ApiService;
+  suffix?: string;
+  suffixFor?: string;
+}) {
+  const [message, setMessage] = useState("");
+  async function submit(formData: FormData) {
+    const body = Object.fromEntries([...hiddenFields, ...fields.map(([name]) => [name, String(formData.get(name) ?? "")] as [string, string])]);
+    const response = await fetch(`${API_BASE_URL}/services/${service.id}/hosting-panel`, {
+      body: JSON.stringify({ ...body, intent }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(response.ok ? "Sent." : "Failed.");
+    if (response.ok) {
+      refresh();
+    }
+  }
+  return <form action={submit} className={styles.inlineForm}>{fields.map(([name, placeholder]) => (
+    <label className={styles.suffixField} key={name}>
+      <input className="input" name={name} placeholder={placeholder} type={/password/i.test(name) ? "password" : "text"} />
+      {suffixFor === name && suffix ? <span>{suffix}</span> : null}
+    </label>
+  ))}<Button type="submit" variant="secondary">{button}</Button>{message ? <span>{message}</span> : null}</form>;
+}
+
+function localPart(value: string, suffix?: string) {
+  if (!suffix) {
+    return value;
+  }
+  return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
+function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => void) {
+  fetch(`${API_BASE_URL}/services/${serviceId}/hosting-panel`, { headers: authHeaders() })
+    .then(json)
+    .then((payload) => payload && setPanel(payload))
+    .catch(() => undefined);
+}
+
 function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
-  return <section className={styles.block}><div className={styles.tableWrap}><table className="table"><thead><tr><th>Invoice #</th><th>Invoice Date</th><th>Due Date</th><th>Total</th><th>Status</th><th>PDF</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><a href={`/client/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></td><td>{dateLabel(invoice.issuedAt)}</td><td>{dateLabel(invoice.dueAt)}</td><td>{money(invoice.totalCents, invoice.currency)}</td><td><StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} /></td><td><a href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>Download PDF</a></td></tr>)}</tbody></table></div></section>;
+  return (
+    <section className={styles.invoiceCards}>
+      {invoices.map((invoice) => (
+        <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
+          <div>
+            <span>Invoice</span>
+            <strong>{invoice.invoiceNumber}</strong>
+          </div>
+          <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
+          <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+          <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
+          <StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} />
+        </a>
+      ))}
+    </section>
+  );
 }
 
 function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
@@ -273,10 +545,30 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
         {showVat ? <span>USt. {money(invoice.taxAmountCents ?? 0, invoice.currency)}</span> : null}
         <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
       </div>
-      <a className={styles.pdfLink} href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>Download PDF</a>
+      <PdfDownloadButton invoice={invoice} />
       <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
     </section>
   );
+}
+
+function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
+  const [message, setMessage] = useState("");
+  async function download() {
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders() });
+    if (!response.ok) {
+      setMessage("PDF failed.");
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `invoice-${invoice.invoiceNumber}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setMessage("");
+  }
+  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={download}>Download PDF</Button>{message ? <span>{message}</span> : null}</div>;
 }
 
 function DomainRenewal({ service }: { service: ApiService }) {

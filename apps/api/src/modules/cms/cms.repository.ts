@@ -21,6 +21,13 @@ export class CmsRepository {
     });
   }
 
+  listAdminPosts() {
+    return this.prisma.content.findMany({
+      where: { type: "POST" },
+      orderBy: { updatedAt: "desc" }
+    });
+  }
+
   listAnnouncements(locale: string) {
     return this.prisma.content.findMany({
       where: { type: "POST", locale: locale as Locale, slug: { startsWith: "announcement-" }, publishedAt: { not: null } },
@@ -68,9 +75,14 @@ export class CmsRepository {
         ...dto,
         type: dto.type ? (dto.type as ContentType) : undefined,
         locale: dto.locale ? (dto.locale as Locale) : undefined,
-        content: dto.content ? (dto.content as Prisma.InputJsonValue) : undefined
+        content: dto.content ? (dto.content as Prisma.InputJsonValue) : undefined,
+        publishedAt: dto.content && "published" in dto.content ? (dto.content.published ? new Date() : null) : undefined
       }
     });
+  }
+
+  deleteContent(id: string) {
+    return this.prisma.content.delete({ where: { id } });
   }
 
   findContent(id: string) {

@@ -38,6 +38,20 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff")
+  @Get("admin/dev/virtualmin/plans/detect")
+  detectVirtualminPlansDev() {
+    return this.products.detectVirtualminHostingPlans();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Post("admin/dev/virtualmin/plans/sync")
+  syncVirtualminPlansDev(@Body("plans") plans?: Array<{ id: string; limits?: Record<string, string | undefined>; name: string }>) {
+    return this.products.syncVirtualminHostingPlans(plans);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Patch("admin/dev/products/:id")
   updateProductDev(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
@@ -82,6 +96,22 @@ export class ProductsController {
   @Get("services/:id")
   getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
     return this.products.getService(id, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("services/:id/hosting-panel")
+  hostingControlPanel(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    return this.products.hostingControlPanel(id, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("services/:id/hosting-panel")
+  hostingControlAction(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Body() body: Record<string, string | undefined>
+  ) {
+    return this.products.hostingControlAction(id, body, request.user);
   }
 
   @UseGuards(JwtAuthGuard)

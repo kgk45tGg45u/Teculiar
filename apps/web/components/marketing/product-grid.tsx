@@ -79,7 +79,10 @@ function toProductCard(product: ApiProduct) {
     price: amountCents !== undefined ? `from ${money(amountCents, price?.currency ?? "EUR")} / ${product.type === "DOMAIN" ? "yearly" : cycleLabel(price?.billingCycle ?? "")}` : "Preis folgt",
     setup: price?.setupFeeCents ? `${money(price.setupFeeCents, price.currency)} Setup` : "0,00 EUR Setup",
     summary: product.description,
-    highlights: (product.configs ?? []).slice(0, 3).map((config) => config.label)
+    highlights: (product.configs ?? [])
+      .filter((config) => !config.key.startsWith("virtualmin_"))
+      .slice(0, 3)
+      .map((config) => `${config.label}${config.values[0] ? `: ${String(config.values[0])}` : ""}`)
   };
 }
 

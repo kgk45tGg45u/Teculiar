@@ -19,6 +19,10 @@ export class CmsService {
     return this.cms.listPosts(locale);
   }
 
+  listAdminPosts() {
+    return this.cms.listAdminPosts();
+  }
+
   listAnnouncements(locale: string) {
     return this.cms.listAnnouncements(locale);
   }
@@ -33,6 +37,10 @@ export class CmsService {
 
   updateContent(id: string, dto: Partial<CreateContentDto>) {
     return this.cms.updateContent(id, dto);
+  }
+
+  deleteContent(id: string) {
+    return this.cms.deleteContent(id);
   }
 
   async autoTranslate(dto: AutoTranslateDto) {

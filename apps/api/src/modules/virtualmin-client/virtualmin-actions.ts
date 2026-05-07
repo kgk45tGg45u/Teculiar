@@ -71,6 +71,17 @@ export function actionFromBody(body: Record<string, string | undefined>): Virtua
     };
   }
 
+  if (body.intent === "edit-email-quota") {
+    return {
+      params: {
+        domain,
+        quota: quotaBlocksFromMb(body.mailQuotaMb ?? ""),
+        user: normalizeMailboxUser(body.mailUser ?? "", domain)
+      },
+      program: "modify-user"
+    };
+  }
+
   if (body.intent === "add-database") {
     return {
       params: { domain, name: body.databaseName, type: body.databaseType || "mysql" },
@@ -92,5 +103,62 @@ export function actionFromBody(body: Record<string, string | undefined>): Virtua
     };
   }
 
+  if (body.intent === "add-subdomain") {
+    return {
+      params: { domain: subdomainName(body.subdomain ?? "", domain), parent: domain, "skip-warnings": "true" },
+      program: "create-domain"
+    };
+  }
+
+  if (body.intent === "remove-subdomain") {
+    return {
+      params: { domain: subdomainName(body.subdomain ?? "", domain) },
+      program: "delete-domain"
+    };
+  }
+
+  if (body.intent === "add-ftp") {
+    return {
+      params: { domain, ftp: "true", pass: body.ftpPassword, user: body.ftpUser },
+      program: "create-user"
+    };
+  }
+
+  if (body.intent === "remove-ftp") {
+    return {
+      params: { domain, user: body.ftpUser },
+      program: "delete-user"
+    };
+  }
+
+  if (body.intent === "change-ftp-password") {
+    return {
+      params: { domain, pass: body.ftpPassword, user: body.ftpUser },
+      program: "modify-user"
+    };
+  }
+
+  if (body.intent === "edit-ftp-quota") {
+    return {
+      params: { domain, quota: quotaBlocksFromMb(body.ftpQuotaMb ?? ""), user: body.ftpUser },
+      program: "modify-user"
+    };
+  }
+
+  if (body.intent === "change-admin-password") {
+    return {
+      params: { domain, pass: body.adminPassword },
+      program: "modify-domain"
+    };
+  }
+
   return undefined;
+}
+
+function subdomainName(value: string, domain: string) {
+  const clean = value.trim().toLowerCase();
+  if (clean.endsWith(`.${domain.toLowerCase()}`)) {
+    return clean;
+  }
+  return `${clean}.${domain.toLowerCase()}`;
 }

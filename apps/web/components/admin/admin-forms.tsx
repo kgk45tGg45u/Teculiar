@@ -2,7 +2,7 @@
 
 import { Bell, CreditCard, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiBlogPost } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-dashboard.module.css";
 
@@ -97,6 +97,195 @@ export function SettingsForm() {
   );
 }
 
+type Gateway = { config?: Record<string, unknown>; enabled: boolean; method: string };
+
+export function PaymentGatewayForm() {
+  const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    void fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, { headers: authHeaders() })
+      .then((response) => response.json())
+      .then((payload) => setGateways(Array.isArray(payload) ? payload : []))
+      .catch(() => undefined);
+  }, []);
+
+  async function submit(formData: FormData) {
+    const next = gateways.map((gateway) => ({
+      config: {
+        apiKey: String(formData.get(`${gateway.method}_apiKey`) ?? ""),
+        provider: String(formData.get(`${gateway.method}_provider`) ?? "")
+      },
+      enabled: formData.get(`${gateway.method}_enabled`) === "on",
+      method: gateway.method
+    }));
+    const response = await fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, {
+      body: JSON.stringify({ gateways: next }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+
+    setMessage(response.ok ? "Payment gateways saved." : "Payment gateways failed.");
+  }
+
+  return (
+    <form action={submit} className={styles.form}>
+      {gateways.map((gateway) => (
+        <fieldset className={styles.form} key={gateway.method}>
+          <label><input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" /> {gatewayTitle(gateway.method)}</label>
+          <label>Gateway/provider<input defaultValue={String(gateway.config?.provider ?? "")} name={`${gateway.method}_provider`} placeholder="stripe, paypal, sepa-provider" /></label>
+          <label>API key / config token<input defaultValue={String(gateway.config?.apiKey ?? "")} name={`${gateway.method}_apiKey`} /></label>
+        </fieldset>
+      ))}
+      <Button icon={CreditCard} type="submit">Save Payment Gateways</Button>
+      {message ? <p>{message}</p> : null}
+    </form>
+  );
+}
+
+export function BlogManager() {
+  const [editing, setEditing] = useState<ApiBlogPost>();
+  const [message, setMessage] = useState("");
+  const [posts, setPosts] = useState<ApiBlogPost[]>([]);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function refresh() {
+    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/posts`, { headers: authHeaders() });
+    const payload = await response.json().catch(() => []);
+    setPosts(Array.isArray(payload) ? payload : []);
+  }
+
+  async function submit(formData: FormData) {
+    const title = String(formData.get("title") ?? "");
+    const body = String(formData.get("content") ?? "");
+    const content = {
+      aiBrief: {
+        audience: String(formData.get("aiAudience") ?? ""),
+        goal: String(formData.get("aiGoal") ?? ""),
+        internalLinks: String(formData.get("aiInternalLinks") ?? ""),
+        tone: String(formData.get("aiTone") ?? ""),
+        topics: String(formData.get("aiTopics") ?? "")
+      },
+      body,
+      images: splitLines(formData.get("images")),
+      keywords: splitComma(formData.get("keywords")),
+      published: formData.get("published") === "on"
+    };
+    const response = await fetch(`${API_BASE_URL}/cms/${editing ? `pages/${editing.id}` : "posts"}`, {
+      body: JSON.stringify({
+        content,
+        excerpt: String(formData.get("excerpt") ?? ""),
+        locale: String(formData.get("locale") ?? "de"),
+        seoDescription: String(formData.get("seoDescription") ?? ""),
+        seoTitle: String(formData.get("seoTitle") ?? title),
+        slug: String(formData.get("slug") ?? slugify(title)),
+        title,
+        type: "POST"
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: editing ? "PATCH" : "POST"
+    });
+
+    setMessage(response.ok ? "Blog article saved." : "Blog article failed.");
+    if (response.ok) {
+      setEditing(undefined);
+      await refresh();
+    }
+  }
+
+  async function remove(post: ApiBlogPost) {
+    const response = await fetch(`${API_BASE_URL}/cms/pages/${post.id}`, { headers: authHeaders(), method: "DELETE" });
+    setMessage(response.ok ? "Blog article deleted." : "Delete failed.");
+    if (response.ok) {
+      await refresh();
+    }
+  }
+
+  return (
+    <div className={styles.form}>
+      <div className={styles.blogList}>
+        {posts.map((post) => (
+          <article key={post.id}>
+            <div>
+              <strong>{post.title}</strong>
+              <span>{post.locale} / {post.slug} / {post.publishedAt ? "published" : "draft"}</span>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => setEditing(post)}>Edit</Button>
+            <Button type="button" variant="ghost" onClick={() => remove(post)}>Delete</Button>
+          </article>
+        ))}
+      </div>
+      <form action={submit} className={styles.form} key={editing?.id ?? "new-blog"}>
+        <label>Title<input defaultValue={editing?.title ?? ""} name="title" required /></label>
+        <label>Slug<input defaultValue={editing?.slug ?? ""} name="slug" placeholder="managed-hosting-security" /></label>
+        <label>Locale<select defaultValue={editing?.locale ?? "de"} name="locale"><option value="de">German</option><option value="en">English</option></select></label>
+        <label>Keywords<input defaultValue={editing?.content?.keywords?.join(", ") ?? ""} name="keywords" placeholder="hosting, email, security" /></label>
+        <label><input defaultChecked={Boolean(editing?.publishedAt ?? editing?.content?.published)} name="published" type="checkbox" /> Published</label>
+        <label>Excerpt<input defaultValue={editing?.excerpt ?? ""} name="excerpt" /></label>
+        <label>Images<textarea defaultValue={editing?.content?.images?.join("\n") ?? ""} name="images" placeholder="https://..." rows={3} /></label>
+        <RichTextEditor initialValue={editing?.content?.body ?? ""} />
+        <section className={styles.aiBox}>
+          <h3>AI article brief</h3>
+          <p>Planned AI fields for automatic articles: target area, audience, tone, SEO keywords, internal links, article length, publishing status, image direction, review owner, and schedule.</p>
+          <label>Topics / areas<input defaultValue={String(editing?.content?.aiBrief?.topics ?? "")} name="aiTopics" placeholder="hosting security, email setup, domains" /></label>
+          <label>Goal<input defaultValue={String(editing?.content?.aiBrief?.goal ?? "")} name="aiGoal" placeholder="educate, sell, compare, announce" /></label>
+          <label>Audience<input defaultValue={String(editing?.content?.aiBrief?.audience ?? "")} name="aiAudience" placeholder="small business owners" /></label>
+          <label>Tone<input defaultValue={String(editing?.content?.aiBrief?.tone ?? "")} name="aiTone" placeholder="clear, expert, friendly" /></label>
+          <label>Internal links<input defaultValue={String(editing?.content?.aiBrief?.internalLinks ?? "")} name="aiInternalLinks" placeholder="/de/hosting, /de/domains" /></label>
+        </section>
+        <Button icon={Save} type="submit">{editing ? "Update Article" : "Create Article"}</Button>
+        {message ? <p>{message}</p> : null}
+      </form>
+    </div>
+  );
+}
+
+function RichTextEditor({ initialValue }: { initialValue: string }) {
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  function command(name: string, argument?: string) {
+    document.execCommand(name, false, argument);
+    const editor = document.querySelector<HTMLElement>("[data-blog-editor]");
+    setValue(editor?.innerHTML ?? "");
+  }
+
+  return (
+    <label>
+      Content
+      <input name="content" type="hidden" value={value} />
+      <div className={styles.editorShell}>
+        <div className={styles.editorToolbar}>
+          <button type="button" onClick={() => command("formatBlock", "h2")}>H2</button>
+          <button type="button" onClick={() => command("bold")}>Bold</button>
+          <button type="button" onClick={() => command("italic")}>Italic</button>
+          <button type="button" onClick={() => command("insertUnorderedList")}>List</button>
+          <button type="button" onClick={() => {
+            const url = window.prompt("Link URL");
+            if (url) {
+              command("createLink", url);
+            }
+          }}>Link</button>
+        </div>
+        <div
+          className={styles.editor}
+          contentEditable
+          data-blog-editor
+          dangerouslySetInnerHTML={{ __html: value }}
+          onInput={(event) => setValue(event.currentTarget.innerHTML)}
+          suppressContentEditableWarning
+        />
+      </div>
+    </label>
+  );
+}
+
 export function DomainPriceForm() {
   const [message, setMessage] = useState("");
 
@@ -172,4 +361,24 @@ function statusLabelValue(status: string) {
     return "canceled";
   }
   return "in_progress";
+}
+
+function gatewayTitle(method: string) {
+  return {
+    CREDIT_CARD: "Credit/debit card",
+    PAYPAL: "Paypal",
+    SEPA: "SEPA Lastschrift"
+  }[method] ?? method;
+}
+
+function splitComma(value: FormDataEntryValue | null) {
+  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function splitLines(value: FormDataEntryValue | null) {
+  return String(value ?? "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

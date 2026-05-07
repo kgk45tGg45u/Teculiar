@@ -30,6 +30,39 @@ export class ProductsService {
     return this.external.virtualmin.listHostingTemplates();
   }
 
+  async detectVirtualminHostingPlans() {
+    const payload = await this.external.virtualmin.listHostingTemplates();
+    const plans = detectPlanDifferences((payload.plans ?? []).map(normalizeVirtualminPlan));
+
+    return {
+      plans,
+      templates: (payload.templates ?? []).map(normalizeVirtualminPlan),
+      warning: payload.warning
+    };
+  }
+
+  async syncVirtualminHostingPlans(confirmedPlans?: Array<{ id: string; limits?: Record<string, string | undefined>; name: string }>) {
+    const detected = confirmedPlans ? { plans: confirmedPlans, templates: [], warning: undefined } : await this.detectVirtualminHostingPlans();
+    const products = await Promise.all(
+      detected.plans.map((plan) =>
+        this.products.syncHostingPlanProduct({
+          configs: customerPlanConfigs(plan),
+          description: `Hosting package synced from Virtualmin plan ${plan.name}.`,
+          name: plan.name,
+          planId: plan.id,
+          slug: `hosting-${slugify(plan.name || plan.id)}`
+        })
+      )
+    );
+
+    return {
+      plans: detected.plans,
+      products,
+      templates: detected.templates,
+      warning: detected.warning
+    };
+  }
+
   async createService(input: {
     userId: string;
     productId: string;
@@ -76,6 +109,36 @@ export class ProductsService {
       throw new NotFoundException("Service not found");
     }
     return service;
+  }
+
+  async hostingControlPanel(id: string, user?: { roles?: string[]; sub: string }) {
+    const service = await this.getService(id, user);
+    if (service.product.type !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
+      throw new BadRequestException("Hosting control panel is only available for active hosting services");
+    }
+    const domainName = service.externalId ?? domainFromConfiguration(service.configuration);
+    if (!domainName) {
+      throw new BadRequestException("Hosting domain not found");
+    }
+
+    return this.external.virtualmin.hostingControlPanel(domainName);
+  }
+
+  async hostingControlAction(
+    id: string,
+    body: Record<string, string | undefined>,
+    user?: { roles?: string[]; sub: string }
+  ) {
+    const service = await this.getService(id, user);
+    if (service.product.type !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
+      throw new BadRequestException("Hosting control panel is only available for active hosting services");
+    }
+    const domainName = service.externalId ?? domainFromConfiguration(service.configuration);
+    if (!domainName) {
+      throw new BadRequestException("Hosting domain not found");
+    }
+
+    return this.external.virtualmin.hostingControlAction(domainName, body);
   }
 
   async refreshService(id: string, userId?: string) {
@@ -183,4 +246,81 @@ function domainFromConfiguration(configuration: unknown) {
   }
   const value = (configuration as Record<string, unknown>).domainName;
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function customerPlanConfigs(plan: { id: string; limits?: Record<string, string | undefined> }) {
+  const limits = plan.limits ?? {};
+  return [
+    config("disk_space", "Storage", limits.disk),
+    config("bandwidth", "Bandwidth", limits.bandwidth),
+    config("databases", "Databases", limits.databases),
+    config("mailboxes", "Email accounts", limits.mailboxes),
+    config("subdomains", "Subdomains", limits.subServers),
+    { key: "virtualmin_plan", label: "Virtualmin Plan", required: true, values: [plan.id] }
+  ].filter((item): item is { key: string; label: string; required: boolean; values: string[] } => Boolean(item));
+}
+
+function config(key: string, label: string, value?: string) {
+  return value ? { key, label, required: false, values: [value] } : undefined;
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "plan";
+}
+
+function normalizeVirtualminPlan(plan: { id: string; limits?: Record<string, string | undefined>; name: string; raw?: Record<string, unknown> }) {
+  const values = virtualminValues(plan.raw?.values);
+  const value = (key: string) => values[key]?.[0];
+  return {
+    ...plan,
+    name: value("name") ?? plan.name,
+    limits: {
+      bandwidth: humanBandwidth(value("maximum_bw") ?? plan.limits?.bandwidth),
+      databases: value("maximum_dbs") ?? plan.limits?.databases,
+      disk: value("server_quota") ?? value("administrator_quota") ?? plan.limits?.disk,
+      mailboxes: value("maximum_mailbox") ?? plan.limits?.mailboxes,
+      subServers: value("maximum_doms") ?? plan.limits?.subServers
+    }
+  };
+}
+
+function detectPlanDifferences(plans: Array<{ id: string; limits?: Record<string, string | undefined>; name: string }>) {
+  const keys = [
+    ["disk", "Storage"],
+    ["bandwidth", "Bandwidth"],
+    ["databases", "Databases"],
+    ["mailboxes", "Email accounts"],
+    ["subServers", "Subdomains"]
+  ] as const;
+
+  return plans.map((plan) => ({
+    ...plan,
+    differences: keys
+      .filter(([key]) => new Set(plans.map((item) => item.limits?.[key]).filter(Boolean)).size > 1)
+      .map(([key, label]) => ({ key, label, value: plan.limits?.[key] ?? "Unknown" }))
+  }));
+}
+
+function virtualminValues(value: unknown): Record<string, string[]> {
+  if (typeof value !== "string") {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed as Record<string, string[]>;
+  } catch {
+    return {};
+  }
+}
+
+function humanBandwidth(value?: string) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return value;
+  }
+  const gib = bytes / 1024 / 1024 / 1024;
+  return gib >= 1024 ? `${Math.round(gib / 1024)} TiB` : `${Math.round(gib)} GiB`;
 }

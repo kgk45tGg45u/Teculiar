@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, money, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiProduct } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-product-manager.module.css";
 
 type FormState = { kind: "idle" | "loading" | "ok" | "error"; message?: string };
-type VirtualminOption = { id: string; limits?: { bandwidth?: string; databases?: string; disk?: string; mailboxes?: string }; name: string };
+type VirtualminOption = {
+  differences?: Array<{ key: string; label: string; value: string }>;
+  id: string;
+  limits?: { bandwidth?: string; databases?: string; disk?: string; mailboxes?: string; subServers?: string };
+  name: string;
+};
 
 export function AdminProductManager() {
   const [state, setState] = useState<FormState>({ kind: "idle" });
@@ -16,13 +21,11 @@ export function AdminProductManager() {
   const [module, setModule] = useState("resellbiz");
   const [type, setType] = useState("DOMAIN");
   const [selectedPlan, setSelectedPlan] = useState("");
+  const [detectedPlans, setDetectedPlans] = useState<VirtualminOption[]>([]);
 
   useEffect(() => {
     void refreshProducts();
-    void fetch(`${API_BASE_URL}/admin/dev/virtualmin/templates`, { headers: authHeaders() })
-      .then((response) => response.json())
-      .then((payload) => setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] }))
-      .catch(() => setVirtualmin({ plans: [], templates: [] }));
+    void detectVirtualminPlans();
   }, []);
 
   async function submit(formData: FormData) {
@@ -40,6 +43,7 @@ export function AdminProductManager() {
       const response = await fetch(`${API_BASE_URL}/admin/dev/products${productId ? `/${productId}` : ""}`, {
         body: JSON.stringify({
           configurableOptions: [
+            ...preservedConfigs(editing),
             ...customFields(formData.get("customFields")),
             ...virtualminFields(formData)
           ],
@@ -85,12 +89,48 @@ export function AdminProductManager() {
     setProducts(Array.isArray(payload) ? payload : []);
   }
 
+  async function detectVirtualminPlans() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/virtualmin/plans/detect`, { headers: authHeaders() });
+    const payload = await response.json().catch(() => ({}));
+    setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
+    setDetectedPlans(payload.plans ?? []);
+  }
+
+  async function syncVirtualminPlans() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/virtualmin/plans/sync`, {
+      body: JSON.stringify({ plans: detectedPlans }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    const payload = await response.json().catch(() => ({}));
+    setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
+    setDetectedPlans(payload.plans ?? []);
+    await refreshProducts();
+  }
+
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
 
   return (
     <div className={styles.stack}>
       <section className={styles.products}>
         <h2>Existing products</h2>
+        <div className={styles.actions}>
+          <Button type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect Virtualmin plans</Button>
+          <Button type="button" onClick={syncVirtualminPlans}>Confirm and save plans</Button>
+        </div>
+        {detectedPlans.length ? (
+          <div className={styles.planReview}>
+            {detectedPlans.map((plan) => (
+              <article key={plan.id}>
+                <strong>{plan.name}</strong>
+                <span>Virtualmin ID {plan.id}</span>
+                <ul>
+                  {(plan.differences ?? []).map((item) => <li key={item.key}>{item.label}: {item.value}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+        ) : null}
         <div className={styles.tableWrap}>
           <table>
             <thead>
@@ -98,7 +138,6 @@ export function AdminProductManager() {
                 <th>Name</th>
                 <th>Typ</th>
                 <th>Modul</th>
-                <th>Preise</th>
                 <th>Aktion</th>
               </tr>
             </thead>
@@ -106,9 +145,8 @@ export function AdminProductManager() {
               {products.map((product) => (
                 <tr key={product.id}>
                   <td>{product.name}</td>
-                  <td>{product.type}</td>
+                  <td>{typeLabel(product.type)}</td>
                   <td>{product.provisioningModule ?? "none"}</td>
-                  <td>{product.prices.map((price) => `${price.billingCycle} ${money(price.amountCents, price.currency)}`).join(", ")}</td>
                   <td className={styles.actions}>
                     <Button type="button" variant="secondary" onClick={() => {
                       setEditing(product);
@@ -184,19 +222,13 @@ export function AdminProductManager() {
               {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
             </select>
           </label>
-          <label>
-            Virtualmin Template
-            <select defaultValue={String(editing?.configs?.find((config) => config.key === "virtualmin_template")?.values?.[0] ?? "")} name="virtualminTemplate">
-              <option value="">Select template</option>
-              {virtualmin.templates.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-            </select>
-          </label>
           {plan ? (
             <div className={styles.limits}>
               <span>Disk: {plan.limits?.disk ?? "Unknown"}</span>
               <span>Bandwidth: {plan.limits?.bandwidth ?? "Unknown"}</span>
               <span>Email accounts: {plan.limits?.mailboxes ?? "Unknown"}</span>
               <span>Databases: {plan.limits?.databases ?? "Unknown"}</span>
+              <span>Subdomains: {plan.limits?.subServers ?? "Unknown"}</span>
             </div>
           ) : null}
         </section>
@@ -241,11 +273,22 @@ function virtualminFields(formData: FormData) {
 
   return [
     { key: "virtualmin_plan", label: "Virtualmin Plan", required: true, values: [String(formData.get("virtualminPlan") ?? "")] },
-    { key: "virtualmin_template", label: "Virtualmin Template", required: true, values: [String(formData.get("virtualminTemplate") ?? "")] }
   ];
+}
+
+function preservedConfigs(product?: ApiProduct) {
+  return (product?.configs ?? []).filter((config) => !["virtualmin_plan", "virtualmin_template"].includes(config.key));
 }
 
 function priceValue(product: ApiProduct | undefined, cycle: string) {
   const price = product?.prices.find((item) => item.billingCycle === cycle);
   return price ? String(price.amountCents / 100).replace(".", ",") : "";
+}
+
+function typeLabel(type: string) {
+  return {
+    DOMAIN: "Domain",
+    SHARED_HOSTING: "Web hosting",
+    VPS: "VPS"
+  }[type] ?? type.toLowerCase().replace(/_/g, " ");
 }

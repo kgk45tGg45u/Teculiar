@@ -17,6 +17,11 @@ export type ApiProduct = {
   configs?: Array<{ key: string; label: string; values: unknown[]; required: boolean }>;
 };
 
+export type ApiPaymentGateway = {
+  method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | string;
+  title: string;
+};
+
 export type ApiOrder = {
   id: string;
   orderNumber: string;
@@ -120,6 +125,23 @@ export type ApiAnnouncement = {
   title: string;
   excerpt?: string | null;
   createdAt: string;
+};
+
+export type ApiBlogPost = {
+  content?: {
+    aiBrief?: Record<string, unknown>;
+    body?: string;
+    images?: string[];
+    keywords?: string[];
+    published?: boolean;
+  };
+  excerpt?: string | null;
+  id: string;
+  locale: string;
+  publishedAt?: string | null;
+  slug: string;
+  title: string;
+  updatedAt?: string;
 };
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";

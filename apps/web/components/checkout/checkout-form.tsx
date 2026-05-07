@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiProduct, type AuthPayload } from "../../lib/api";
+import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
+import { countriesForLocale } from "../../lib/countries";
 import { Button } from "../ui/button";
 import styles from "./checkout-form.module.css";
 
@@ -66,12 +67,15 @@ export function CheckoutForm({
   const [loggedInPassword, setLoggedInPassword] = useState("");
   const [profile, setProfile] = useState<ClientProfile>();
   const [loginOpen, setLoginOpen] = useState(false);
-  const [showHostingOffer, setShowHostingOffer] = useState(product.type === "DOMAIN" && hostingProducts.length > 0);
+  const [showHostingOffer, setShowHostingOffer] = useState(false);
   const [addHosting, setAddHosting] = useState(false);
+  const [showNameServers, setShowNameServers] = useState(false);
   const [domainNameInput, setDomainNameInput] = useState(initialDomain);
   const [hostingDomain, setHostingDomain] = useState(initialDomain);
   const [selectedHostingId, setSelectedHostingId] = useState(hostingProducts[0]?.id ?? "");
   const [selectedHostingPriceId, setSelectedHostingPriceId] = useState(hostingProducts[0]?.prices[0]?.id ?? "");
+  const [phoneCountryCode, setPhoneCountryCode] = useState(splitProfilePhone().countryCode);
+  const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(defaultPaymentGateways);
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: "idle" });
   const [vatPercent, setVatPercent] = useState(0);
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
@@ -92,6 +96,7 @@ export function CheckoutForm({
   const freeDomainEligible = Boolean(
     selectedHostingPrice?.billingCycle.startsWith("YEAR_") && domainCheck.status === "ok" && domainCheck.priceCents <= 1500
   );
+  const countries = useMemo(() => countriesForLocale(locale), [locale]);
   const summary = orderSummary({
     addHosting,
     domainCheck,
@@ -109,9 +114,18 @@ export function CheckoutForm({
   });
 
   useEffect(() => {
-    void getJson<{ vatPercent: number }>("/storefront/settings")
-      .then((settings) => setVatPercent(settings.vatPercent ?? 0))
-      .catch(() => setVatPercent(0));
+    void Promise.all([
+      getJson<{ vatPercent: number }>("/storefront/settings")
+        .then((settings) => setVatPercent(settings.vatPercent ?? 0))
+        .catch(() => setVatPercent(0)),
+      getJson<ApiPaymentGateway[]>("/storefront/payment-gateways")
+        .then((gateways) => {
+          const next = gateways.length ? gateways : defaultPaymentGateways;
+          setPaymentGateways(next);
+          setPaymentMethod(next[0]?.method ?? "CREDIT_CARD");
+        })
+        .catch(() => undefined)
+    ]);
   }, []);
 
   useEffect(() => {
@@ -272,6 +286,7 @@ export function CheckoutForm({
       const me = await getJson<ClientProfile>("/users/me", auth.accessToken);
       setProfile(me);
       setLoggedInPassword(loginPassword);
+      setPhoneCountryCode(splitProfilePhone(me.phone).countryCode);
       setPassword("");
       setLoginOpen(false);
       setState({ status: "idle" });
@@ -284,12 +299,11 @@ export function CheckoutForm({
     <div className={styles.shell}>
       <section className={styles.summary}>
         <span className="eyebrow">Checkout</span>
-        <h1>{product.name}</h1>
-        <p>{product.description}</p>
+        <h1>Order details</h1>
         <div className={styles.orderSummary}>
           {summary.lines.map((line) => (
             <div className={styles.summaryLine} key={line.id}>
-              <span>{line.label}</span>
+              <span>{line.label}{line.detail ? <small>{line.detail}</small> : null}</span>
               <div className={styles.cartControls}>
                 <strong>{money(line.amountCents)}</strong>
                 {line.kind === "domain" ? (
@@ -332,6 +346,11 @@ export function CheckoutForm({
             <strong>{money(summary.totalCents)}</strong>
           </div>
         </div>
+        {needsDomain && hostingProducts.length > 0 ? (
+          <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(true)}>
+            Add hosting
+          </Button>
+        ) : null}
       </section>
 
       <form action={submit} className={styles.form}>
@@ -401,10 +420,19 @@ export function CheckoutForm({
                 <input name="transferAuthCode" required />
               </label>
             ) : null}
-            <label>
-              Nameserver optional
-              <input name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
-            </label>
+            {showNameServers ? (
+              <label>
+                Name servers
+                <input name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
+                <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(false)}>
+                  Hide custom name servers
+                </button>
+              </label>
+            ) : (
+              <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(true)}>
+                Add custom name servers
+              </button>
+            )}
           </>
         ) : null}
 
@@ -462,33 +490,39 @@ export function CheckoutForm({
             <section className={styles.hostingModal}>
               <h2>Website braucht Hosting</h2>
               <p>Eine Domain allein zeigt noch keine Website. Du kannst optional direkt ein Hosting-Paket dazubuchen.</p>
-              <label>
-                Hosting Paket
-                <select
-                  value={selectedHostingId}
-                  onChange={(event) => {
-                    const next = hostingProducts.find((item) => item.id === event.target.value);
-                    setSelectedHostingId(event.target.value);
-                    setSelectedHostingPriceId(next?.prices[0]?.id ?? "");
-                  }}
-                >
-                  {hostingProducts.map((hosting) => (
-                    <option key={hosting.id} value={hosting.id}>
-                      {hosting.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Laufzeit
-                <select value={selectedHostingPriceId} onChange={(event) => setSelectedHostingPriceId(event.target.value)}>
-                  {selectedHosting?.prices.map((price) => (
-                    <option key={price.id} value={price.id}>
-                      {cycleLabel(price.billingCycle)} - {money(price.amountCents, price.currency)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className={styles.hostingCards}>
+                {hostingProducts.map((hosting) => (
+                  <label className={selectedHostingId === hosting.id ? styles.hostingCardSelected : styles.hostingCard} key={hosting.id}>
+                    <input
+                      checked={selectedHostingId === hosting.id}
+                      name="hostingPackage"
+                      onChange={() => {
+                        setSelectedHostingId(hosting.id);
+                        setSelectedHostingPriceId(hosting.prices[0]?.id ?? "");
+                      }}
+                      type="radio"
+                    />
+                    <strong>{hosting.name}</strong>
+                    <span>{hosting.description}</span>
+                    <ul>
+                      {productHighlights(hosting).map((highlight) => <li key={highlight}>{highlight}</li>)}
+                    </ul>
+                    <select
+                      value={selectedHostingId === hosting.id ? selectedHostingPriceId : hosting.prices[0]?.id ?? ""}
+                      onChange={(event) => {
+                        setSelectedHostingId(hosting.id);
+                        setSelectedHostingPriceId(event.target.value);
+                      }}
+                    >
+                      {hosting.prices.map((price) => (
+                        <option key={price.id} value={price.id}>
+                          {cycleLabel(price.billingCycle)} - {money(price.amountCents, price.currency)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
               {selectedHostingPrice?.billingCycle.startsWith("YEAR_") ? (
                 <p className={styles.available}>Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR.</p>
               ) : null}
@@ -537,7 +571,7 @@ export function CheckoutForm({
             </label>
           ) : null}
           <label>
-            Firma optional
+            Organization
             <input name="companyName" />
           </label>
           <label>
@@ -558,30 +592,60 @@ export function CheckoutForm({
           </label>
           <label>
             Land *
-            <input defaultValue={profile?.countryCode ?? "DE"} name="countryCode" required />
+            <select
+              defaultValue={profile?.countryCode ?? "DE"}
+              name="countryCode"
+              onChange={(event) => {
+                const country = countries.find((item) => item.code === event.target.value);
+                if (country) {
+                  setPhoneCountryCode(country.phone);
+                }
+              }}
+              required
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Bundesland *
             <input defaultValue={profileAddress(profile).state} name="state" required />
           </label>
           <label>
-            Landesvorwahl *
-            <input defaultValue={splitProfilePhone(profile?.phone).countryCode} name="phoneCountryCode" required />
-          </label>
-          <label>
             Telefon *
-            <input defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
+            <div className={styles.phoneField}>
+              <input
+                aria-label="Country calling code"
+                name="phoneCountryCode"
+                onChange={(event) => setPhoneCountryCode(event.target.value)}
+                required
+                value={phoneCountryCode}
+              />
+              <input defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
+            </div>
           </label>
         </div>
 
-        <label>
+        <fieldset className={styles.paymentMethods}>
           Zahlung
-          <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
-            <option value="CREDIT_CARD">Sandbox Kreditkarte</option>
-            <option value="PAYPAL">Sandbox PayPal</option>
-            <option value="SEPA">Sandbox SEPA</option>
-          </select>
-        </label>
+          <div className={styles.paymentGrid}>
+            {paymentGateways.map((gateway) => (
+              <label className={paymentMethod === gateway.method ? styles.paymentSelected : styles.paymentCard} key={gateway.method}>
+                <input
+                  checked={paymentMethod === gateway.method}
+                  onChange={() => setPaymentMethod(gateway.method)}
+                  type="radio"
+                  value={gateway.method}
+                />
+                <span className={styles.paymentImage}>{paymentMark(gateway.method)}</span>
+                <strong>{gateway.title}</strong>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <Button type="submit">Kostenpflichtig bestellen</Button>
         {state.status !== "idle" ? (
@@ -681,6 +745,29 @@ function splitProfilePhone(phone?: string) {
   };
 }
 
+const defaultPaymentGateways: ApiPaymentGateway[] = [
+  { method: "CREDIT_CARD", title: "Credit/debit card" },
+  { method: "PAYPAL", title: "Paypal" },
+  { method: "SEPA", title: "SEPA Lastschrift" }
+];
+
+function paymentMark(method: string) {
+  if (method === "PAYPAL") {
+    return "PayPal";
+  }
+  if (method === "SEPA") {
+    return "SEPA";
+  }
+  return "VISA MC";
+}
+
+function productHighlights(product: ApiProduct) {
+  const highlights = (product.configs ?? [])
+    .filter((config) => !config.key.startsWith("virtualmin_"))
+    .map((config) => `${config.label}${config.values[0] ? `: ${String(config.values[0])}` : ""}`);
+  return highlights.length ? highlights.slice(0, 4) : ["Managed hosting", "SSL ready", "Support included"];
+}
+
 function isStrongPassword(password: string) {
   return (
     password.length >= 9 &&
@@ -707,7 +794,7 @@ function orderSummary(input: {
   selectedPrice?: ApiProduct["prices"][number];
   vatPercent: number;
 }) {
-  const lines: Array<{ amountCents: number; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
+  const lines: Array<{ amountCents: number; detail?: string; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
 
   if (input.needsDomain) {
     const domainPrice =
@@ -718,6 +805,7 @@ function orderSummary(input: {
       amountCents: domainPrice,
       id: "domain",
       kind: "domain",
+      detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} year${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "s"}`,
       label: `${input.domainName || "Domain"} ${input.domainCheck.status === "ok" ? input.domainCheck.action : "registration"}`
     });
     if (input.addHosting && input.selectedHosting && input.selectedHostingPrice) {
@@ -725,6 +813,7 @@ function orderSummary(input: {
         amountCents: input.selectedHostingPrice.amountCents,
         id: "hosting-addon",
         kind: "hostingAddon",
+        detail: productDetails(input.selectedHosting),
         label: `${input.selectedHosting.name} ${cycleLabel(input.selectedHostingPrice.billingCycle)}`,
         removable: true
       });
@@ -732,6 +821,7 @@ function orderSummary(input: {
   } else {
     lines.push({
       amountCents: input.selectedPrice?.amountCents ?? 0,
+      detail: productDetails(input.product),
       id: "hosting",
       kind: "hosting",
       label: `${input.product.name} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
@@ -744,6 +834,7 @@ function orderSummary(input: {
         amountCents: free ? 0 : domainPrice,
         id: "domain-addon",
         kind: "domainAddon",
+        detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} year${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "s"}`,
         label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (free)" : ""}`,
         removable: true
       });
@@ -759,6 +850,18 @@ function orderSummary(input: {
     totalCents: subtotalCents + vatCents,
     vatCents
   };
+}
+
+function productDetails(product?: ApiProduct) {
+  return (product?.configs ?? [])
+    .filter((config) => !config.key.startsWith("virtualmin_"))
+    .map((config) => `${config.label}${config.values[0] ? `: ${String(config.values[0])}` : ""}`)
+    .join(" · ");
+}
+
+function yearsFromCycle(cycle?: string) {
+  const match = cycle?.match(/^YEAR_(\d+)$/);
+  return match ? Number(match[1]) : 1;
 }
 
 function hostingDomainUse(domainUse: "external" | "register" | "transfer", domainCheck: DomainCheck, hostingDomain: string) {

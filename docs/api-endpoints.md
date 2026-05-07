@@ -28,6 +28,7 @@ Base URL: `/api/v1`
 
 - `GET /storefront/products`
 - `GET /storefront/settings` - public checkout settings, including VAT percent.
+- `GET /storefront/payment-gateways` - public enabled payment methods for checkout. API credentials are not exposed.
 - `GET /products`
 - `POST /products`
 - `POST /admin/dev/products` - temporary unguarded product create endpoint until admin auth UI is wired.
@@ -65,8 +66,14 @@ Base URL: `/api/v1`
 - `POST /billing/subscriptions/:id/renew`
 - `GET /admin/dev/billing/settings` - temporary admin billing settings, including VAT percent.
 - `PATCH /admin/dev/billing/settings` - temporary admin billing settings update.
+- `GET /admin/dev/billing/payment-gateways` - temporary admin payment gateway settings. Stores provider/API config in `PaymentProcessorConfig`.
+- `PATCH /admin/dev/billing/payment-gateways` - temporary admin payment gateway update. Checkout uses only enabled method names/titles.
 - `GET /admin/dev/virtualmin/templates` - temporary admin helper for Virtualmin plans/templates.
+- `GET /admin/dev/virtualmin/plans/detect` - temporary admin helper that fetches Virtualmin plans server-side and shows real names/options for confirmation.
+- `POST /admin/dev/virtualmin/plans/sync` - temporary admin helper that saves confirmed Virtualmin hosting package names/options into products. Admin still sets billing-cycle prices.
 - `DELETE /admin/dev/products/:id` - temporary admin helper to deactivate a product.
+- `GET /services/:id/hosting-panel` - active shared-hosting controls, usage, links, mailboxes, databases, FTP users, subdomains, and email-client instructions.
+- `POST /services/:id/hosting-panel` - active shared-hosting control action endpoint for add/remove/password actions.
 - `GET /billing/transactions`
 - `POST /billing/coupons`
 - `GET /billing/reports/revenue`

@@ -149,6 +149,79 @@
   color: var(--ink);
 }
 
+.blogList,
+.aiBox {
+  display: grid;
+  gap: 12px;
+}
+
+.blogList article,
+.aiBox {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--surface);
+}
+
+.blogList article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.blogList article div {
+  display: grid;
+  gap: 4px;
+}
+
+.blogList span,
+.aiBox p {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.aiBox h3,
+.aiBox p {
+  margin: 0;
+}
+
+.editorShell {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.editorToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+  background: var(--surface);
+}
+
+.editorToolbar button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.editor {
+  min-height: 260px;
+  padding: 14px;
+  color: var(--ink);
+  line-height: 1.6;
+  outline: 0;
+}
+
 .orderDetails {
   display: grid;
   gap: 10px;
@@ -158,6 +231,34 @@
 
 .orderDetails p {
   margin: 0;
+}
+
+.invoiceCards {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.invoiceCard {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.invoiceCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.invoiceCard span {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 @media (max-width: 720px) {
@@ -179,5 +280,9 @@
   .header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .invoiceCard {
+    grid-template-columns: 1fr;
   }
 }

@@ -13,16 +13,18 @@ import {
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
-import { AnnouncementForm, DomainPriceForm, OrderStatusForm, SettingsForm } from "./admin-forms";
+import { AnnouncementForm, BlogManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
 import styles from "./admin-dashboard.module.css";
 
 type AdminView =
   | "home"
+  | "blog"
   | "clients"
   | "orders"
   | "domain-prices"
   | "invoices"
+  | "payment-gateways"
   | "products"
   | "services"
   | "tickets"
@@ -57,8 +59,10 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
           <a href="/admin/domain-prices">Domain Prices</a>
           <a href="/admin/services">Services</a>
           <a href="/admin/products">Products/Services</a>
+          <a href="/admin/payment-gateways">Payment Gateways</a>
           <a href="/admin/invoices">Invoices</a>
           <a href="/admin/tickets">Support Tickets</a>
+          <a href="/admin/blog">Blog</a>
           <a href="/admin/announcements">Announcements</a>
           <a href="/admin/settings">Automation Settings</a>
         </nav>
@@ -101,7 +105,9 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "services" ? <ServicesPanel services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
         {view === "tickets" ? <TicketsPanel tickets={tickets} /> : null}
+        {view === "blog" ? <BlogPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
+        {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
       </main>
@@ -162,6 +168,7 @@ function ModuleGrid() {
     { title: "Orders", body: "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
     { title: "Billing", body: "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
     { title: "Support", body: "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
+    { title: "Blog", body: "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
     { title: "Products", body: "Products, services, pricing cycles.", href: "/admin/products", icon: Settings },
     { title: "Announcements", body: "Write client portal announcements.", href: "/admin/announcements", icon: Bell }
   ];
@@ -175,6 +182,34 @@ function ModuleGrid() {
           <p>{module.body}</p>
         </a>
       ))}
+    </section>
+  );
+}
+
+function PaymentGatewaysPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Billing</span>
+          <h2>Payment Gateways</h2>
+        </div>
+      </div>
+      <PaymentGatewayForm />
+    </section>
+  );
+}
+
+function BlogPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">CMS</span>
+          <h2>Blog Articles</h2>
+        </div>
+      </div>
+      <BlogManager />
     </section>
   );
 }
@@ -288,30 +323,17 @@ function InvoicesPanel({ invoices }: { invoices: ApiInvoice[] }) {
         </div>
         <StatusPill label="7 digit numbers" tone="good" />
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Invoice</th>
-            <th>Issued</th>
-            <th>Due</th>
-            <th>Total</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoices.map((invoice) => (
-            <tr key={invoice.id}>
-              <td>{invoice.invoiceNumber}</td>
-              <td>{dateLabel(invoice.issuedAt)}</td>
-              <td>{dateLabel(invoice.dueAt)}</td>
-              <td>{money(invoice.totalCents, invoice.currency)}</td>
-              <td>
-                <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className={styles.invoiceCards}>
+        {invoices.map((invoice) => (
+          <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
+            <div><span>Invoice</span><strong>{invoice.invoiceNumber}</strong></div>
+            <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
+            <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+            <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
+            <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
+          </a>
+        ))}
+      </div>
     </section>
   );
 }
@@ -407,6 +429,7 @@ function Placeholder({ icon: Icon, title, body }: { icon: typeof UsersRound; tit
 function adminTitle(view: AdminView) {
   return {
     announcements: "Announcements",
+    blog: "Blog",
     clients: "Clients",
     "domain-prices": "Domain Prices",
     home: "Operations Console",
@@ -415,6 +438,7 @@ function adminTitle(view: AdminView) {
     products: "Products/Services",
     services: "Services",
     settings: "Automation Settings",
+    "payment-gateways": "Payment Gateways",
     tickets: "Support Tickets"
   }[view];
 }

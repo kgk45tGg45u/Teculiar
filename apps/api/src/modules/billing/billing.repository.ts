@@ -247,6 +247,25 @@ export class BillingRepository {
       update: { value }
     });
   }
+
+  listPaymentGateways() {
+    return this.prisma.paymentProcessorConfig.findMany({ orderBy: { method: "asc" } });
+  }
+
+  upsertPaymentGateway(input: { config: Record<string, unknown>; enabled: boolean; method: string }) {
+    return this.prisma.paymentProcessorConfig.upsert({
+      where: { method: input.method as PaymentMethodType },
+      create: {
+        config: input.config as Prisma.InputJsonValue,
+        enabled: input.enabled,
+        method: input.method as PaymentMethodType
+      },
+      update: {
+        config: input.config as Prisma.InputJsonValue,
+        enabled: input.enabled
+      }
+    });
+  }
 }
 
 const publicUserSelect = {

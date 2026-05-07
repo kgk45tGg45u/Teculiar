@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { apiGet, type ApiBlogPost } from "../../../lib/api";
 import { getLocale } from "../../../lib/i18n";
 import styles from "../product-pages.module.css";
 
@@ -7,11 +8,7 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
-  const posts = [
-    isDe ? "EU-Reverse-Charge in Hosting-Rechnungen" : "EU reverse charge in hosting invoices",
-    isDe ? "Warum Provider-Adapter technische Schulden reduzieren" : "Why provider adapters reduce technical debt",
-    isDe ? "TOTP als Standard für Kundenportale" : "TOTP as a default for customer portals"
-  ];
+  const posts = (await apiGet<ApiBlogPost[]>(`/cms/posts?locale=${locale}`)) ?? [];
 
   return (
     <section className={styles.hero}>
@@ -20,11 +17,12 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
         <h1>{isDe ? "Blog und Landingpages mit Übersetzungen." : "Blog and landing pages with translations."}</h1>
         <div className={styles.pricingGrid}>
           {posts.map((post) => (
-            <Link className={styles.price} href={`/${locale}/blog/${post.toLowerCase().replaceAll(" ", "-")}` as Route} key={post}>
-              <h2>{post}</h2>
-              <p>{isDe ? "SEO-Metadaten, Slug-Routing und manuelle Überschreibungen." : "SEO metadata, slug routing, and manual overrides."}</p>
+            <Link className={styles.price} href={`/${locale}/blog/${post.slug}` as Route} key={post.id}>
+              <h2>{post.title}</h2>
+              <p>{post.excerpt ?? (isDe ? "Artikel lesen." : "Read article.")}</p>
             </Link>
           ))}
+          {!posts.length ? <p>{isDe ? "Noch keine Artikel." : "No articles yet."}</p> : null}
         </div>
       </div>
     </section>

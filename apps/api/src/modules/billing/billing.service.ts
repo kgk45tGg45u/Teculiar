@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import type { PaymentMethodType } from "@prisma/client";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
@@ -254,6 +255,35 @@ export class BillingService {
     return { invoiceDaysAhead, invoiceFooterLine1, invoiceFooterLine2, invoiceFooterLine3, ticketAutoCloseHours, vatPercent };
   }
 
+  async storefrontPaymentGateways() {
+    const gateways = await this.billing.listPaymentGateways();
+    const enabled = gateways.filter((gateway) => gateway.enabled);
+    const source = gateways.length ? enabled : defaultPaymentGateways();
+
+    return source.map((gateway) => ({
+      method: gateway.method,
+      title: gatewayTitle(gateway.method)
+    }));
+  }
+
+  async adminPaymentGateways() {
+    const gateways = await this.billing.listPaymentGateways();
+    const byMethod = new Map(gateways.map((gateway) => [gateway.method, gateway]));
+    return defaultPaymentGateways().map((gateway) => byMethod.get(gateway.method) ?? gateway);
+  }
+
+  updatePaymentGateways(input: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }>) {
+    return Promise.all(
+      input.map((gateway) =>
+        this.billing.upsertPaymentGateway({
+          config: gateway.config ?? {},
+          enabled: Boolean(gateway.enabled),
+          method: gateway.method
+        })
+      )
+    );
+  }
+
   updateSettings(input: {
     invoiceDaysAhead?: number;
     invoiceFooterLine1?: string;
@@ -318,4 +348,20 @@ function createSimplePdf(lines: string[]) {
 
 function pdfEscape(value: string) {
   return value.replace(/[\\()]/g, "\\$&");
+}
+
+function defaultPaymentGateways(): Array<{ config: Record<string, unknown>; enabled: boolean; method: PaymentMethodType }> {
+  return [
+    { config: {}, enabled: true, method: "CREDIT_CARD" },
+    { config: {}, enabled: true, method: "PAYPAL" },
+    { config: {}, enabled: true, method: "SEPA" }
+  ];
+}
+
+function gatewayTitle(method: string) {
+  return {
+    CREDIT_CARD: "Credit/debit card",
+    PAYPAL: "Paypal",
+    SEPA: "SEPA Lastschrift"
+  }[method] ?? method;
 }

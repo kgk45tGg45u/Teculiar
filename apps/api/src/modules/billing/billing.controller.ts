@@ -85,6 +85,11 @@ export class BillingStorefrontController {
   settings() {
     return this.billing.settings();
   }
+
+  @Get("payment-gateways")
+  paymentGateways() {
+    return this.billing.storefrontPaymentGateways();
+  }
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -103,6 +108,11 @@ export class BillingDevController {
     return this.billing.settings();
   }
 
+  @Get("billing/payment-gateways")
+  paymentGateways() {
+    return this.billing.adminPaymentGateways();
+  }
+
   @Get("billing/invoices")
   listInvoices(@Query("userId") userId?: string) {
     return this.billing.listInvoices({ userId });
@@ -116,6 +126,13 @@ export class BillingDevController {
   @Patch("billing/settings")
   updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
     return this.billing.updateSettings(body);
+  }
+
+  @Patch("billing/payment-gateways")
+  updatePaymentGateways(
+    @Body() body: { gateways?: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }> }
+  ) {
+    return this.billing.updatePaymentGateways(body.gateways ?? []);
   }
 
   @Patch("services/:id/status")

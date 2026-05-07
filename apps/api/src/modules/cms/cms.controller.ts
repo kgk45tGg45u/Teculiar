@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -23,6 +23,13 @@ export class CmsController {
   @Get("posts")
   listPosts(@Query("locale") locale = "de") {
     return this.cms.listPosts(locale);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Get("admin/dev/posts")
+  listAdminPosts() {
+    return this.cms.listAdminPosts();
   }
 
   @Get("announcements")
@@ -56,6 +63,13 @@ export class CmsController {
   @Patch("pages/:id")
   updateContent(@Param("id") id: string, @Body() dto: Partial<CreateContentDto>) {
     return this.cms.updateContent(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Delete("pages/:id")
+  deleteContent(@Param("id") id: string) {
+    return this.cms.deleteContent(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

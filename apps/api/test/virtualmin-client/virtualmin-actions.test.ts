@@ -99,4 +99,18 @@ describe("Virtualmin actions", () => {
       }
     );
   });
+
+  it("maps local subdomain names to Virtualmin sub-server creation", () => {
+    assert.deepEqual(
+      actionFromBody({
+        domain: "example.com",
+        intent: "add-subdomain",
+        subdomain: "shop"
+      }),
+      {
+        params: { domain: "shop.example.com", parent: "example.com", "skip-warnings": "true" },
+        program: "create-domain"
+      }
+    );
+  });
 });

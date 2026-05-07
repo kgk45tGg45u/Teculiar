@@ -102,6 +102,60 @@ export class ProductsRepository {
     });
   }
 
+  async syncHostingPlanProduct(input: {
+    configs: Array<{ key: string; label: string; required?: boolean; values: unknown[] }>;
+    description: string;
+    name: string;
+    planId: string;
+    slug: string;
+  }) {
+    const existing = await this.prisma.product.findUnique({ where: { slug: input.slug } });
+    if (!existing) {
+      return this.prisma.product.create({
+        data: {
+          active: true,
+          description: input.description,
+          homepageVisible: true,
+          name: input.name,
+          provisioningModule: "virtualmin",
+          slug: input.slug,
+          type: "SHARED_HOSTING",
+          configs: {
+            create: input.configs.map((option) => ({
+              key: option.key,
+              label: option.label,
+              required: option.required ?? false,
+              values: option.values as Prisma.InputJsonValue
+            }))
+          }
+        },
+        include: { prices: true, configs: true }
+      });
+    }
+
+    await this.prisma.product.update({
+      where: { id: existing.id },
+      data: {
+        active: true,
+        description: input.description,
+        name: input.name,
+        provisioningModule: "virtualmin",
+        type: "SHARED_HOSTING",
+        configs: {
+          deleteMany: {},
+          create: input.configs.map((option) => ({
+            key: option.key,
+            label: option.label,
+            required: option.required ?? false,
+            values: option.values as Prisma.InputJsonValue
+          }))
+        }
+      }
+    });
+
+    return this.findProduct(existing.id);
+  }
+
   findProduct(id: string) {
     return this.prisma.product.findUnique({
       where: { id },

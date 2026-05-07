@@ -142,6 +142,173 @@
   gap: 12px;
 }
 
+.controlPanel,
+.subdomainBox {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.panelTitle,
+.subdomainBox h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+}
+
+.usageGrid,
+.controlGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.usageGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.usageGrid div,
+.controlGrid a,
+.controlGrid button {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.usageGrid span {
+  color: var(--muted);
+}
+
+.usageTrack {
+  overflow: hidden;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.usageTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--crimson);
+}
+
+.controlGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.controlGrid button {
+  cursor: pointer;
+  text-align: left;
+}
+
+.rowList {
+  display: grid;
+  gap: 8px;
+}
+
+.rowList span {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--paper);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.entryRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--paper);
+}
+
+.entryRow div {
+  display: grid;
+  gap: 4px;
+}
+
+.entryRow .usageGrid,
+.entryRow .usageGrid div {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.entryRow details summary,
+.actionDetails summary {
+  cursor: pointer;
+  color: var(--crimson);
+  font-weight: 800;
+}
+
+.modalHeader h3 {
+  margin: 0;
+}
+
+.suffixField {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.suffixField span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.warn {
+  color: var(--crimson) !important;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--paper);
+}
+
+.modal {
+  display: grid;
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  gap: 16px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 22px;
+  background: var(--surface);
+  box-shadow: 0 12px 40px rgba(17, 18, 23, 0.12);
+}
+
+.closeButton {
+  justify-self: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
 .invoice {
   display: grid;
   gap: 22px;
@@ -149,6 +316,33 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.invoiceCards {
+  display: grid;
+  gap: 12px;
+}
+
+.invoiceCard {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.invoiceCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.invoiceCard span {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .invoiceTop,
@@ -172,6 +366,12 @@
 .pdfLink {
   justify-self: end;
   font-weight: 800;
+}
+
+.pdfAction {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .invoiceFooter {
@@ -204,12 +404,17 @@
     padding: 24px 16px;
   }
 
-  .detailGrid {
+  .detailGrid,
+  .entryRow,
+  .usageGrid,
+  .controlGrid {
     grid-template-columns: 1fr;
   }
 
+  .invoiceCard,
   .invoiceTop,
   .invoiceMeta {
     display: grid;
+    grid-template-columns: 1fr;
   }
 }
