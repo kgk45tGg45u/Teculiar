@@ -62,6 +62,9 @@ export type ApiDomainPrice = {
 };
 
 export type ApiService = {
+  configuration?: Record<string, unknown>;
+  domainRecords?: Array<{ domain: string; status: string; externalId?: string | null }>;
+  externalId?: string | null;
   id: string;
   status: string;
   renewsAt?: string | null;
@@ -70,12 +73,35 @@ export type ApiService = {
 };
 
 export type ApiInvoice = {
+  customerSnapshot?: {
+    address?: { city?: string; line1?: string; postalCode?: string; state?: string };
+    companyName?: string;
+    countryCode?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+    vatId?: string;
+  };
+  discountCents?: number;
+  footerLines?: string[];
   id: string;
   invoiceNumber: string;
+  items?: Array<{
+    description: string;
+    discountCents: number;
+    quantity: number;
+    subtotalCents: number;
+    taxAmountCents: number;
+    taxRate: number;
+    totalCents: number;
+    unitAmountCents: number;
+  }>;
   status: string;
   issuedAt: string;
   dueAt: string;
   paidAt?: string | null;
+  subtotalCents?: number;
+  taxAmountCents?: number;
   totalCents: number;
   currency: string;
 };
@@ -97,6 +123,8 @@ export type ApiAnnouncement = {
 };
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
+const AUTH_COOKIE = "dezhost_access_token";
+const REFRESH_COOKIE = "dezhost_refresh_token";
 
 export async function apiGet<T>(path: string): Promise<T | null> {
   try {
@@ -125,4 +153,65 @@ export function cycleLabel(cycle: string) {
     YEAR_3: "3 years",
     YEAR_4: "4 years"
   }[cycle] ?? cycle.toLowerCase();
+}
+
+export type AuthUser = {
+  email: string;
+  id: string;
+  roles: string[];
+};
+
+export type AuthPayload = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: "Bearer";
+  user: AuthUser;
+};
+
+export function authHeaders(): Record<string, string> {
+  const token = browserToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function storeAuth(payload: AuthPayload) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_COOKIE, payload.accessToken);
+  window.localStorage.setItem(REFRESH_COOKIE, payload.refreshToken);
+  window.localStorage.setItem("dezhost_roles", payload.user.roles.join(","));
+  setCookie(AUTH_COOKIE, payload.accessToken);
+  setCookie(REFRESH_COOKIE, payload.refreshToken);
+}
+
+export function clearAuth() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(AUTH_COOKIE);
+  window.localStorage.removeItem(REFRESH_COOKIE);
+  window.localStorage.removeItem("dezhost_roles");
+  expireCookie(AUTH_COOKIE);
+  expireCookie(REFRESH_COOKIE);
+}
+
+function browserToken() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return window.localStorage.getItem(AUTH_COOKIE) ?? readCookie(AUTH_COOKIE);
+}
+
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=2592000; samesite=lax`;
+}
+
+function expireCookie(name: string) {
+  document.cookie = `${name}=; path=/; max-age=0; samesite=lax`;
+}
+
+function readCookie(name: string) {
+  const part = document.cookie.split("; ").find((entry) => entry.startsWith(`${name}=`));
+  return part ? decodeURIComponent(part.slice(name.length + 1)) : undefined;
 }

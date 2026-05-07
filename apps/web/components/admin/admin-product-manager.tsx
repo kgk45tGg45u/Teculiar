@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, money, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, money, type ApiProduct } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-product-manager.module.css";
 
@@ -19,7 +19,7 @@ export function AdminProductManager() {
 
   useEffect(() => {
     void refreshProducts();
-    void fetch(`${API_BASE_URL}/admin/dev/virtualmin/templates`)
+    void fetch(`${API_BASE_URL}/admin/dev/virtualmin/templates`, { headers: authHeaders() })
       .then((response) => response.json())
       .then((payload) => setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] }))
       .catch(() => setVirtualmin({ plans: [], templates: [] }));
@@ -51,7 +51,7 @@ export function AdminProductManager() {
           slug: String(formData.get("slug") ?? ""),
           type: String(formData.get("type") ?? "DOMAIN")
         }),
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         method: productId ? "PATCH" : "POST"
       });
       const payload = await response.json().catch(() => ({}));
@@ -70,7 +70,7 @@ export function AdminProductManager() {
 
   async function removeProduct(product: ApiProduct) {
     setState({ kind: "loading", message: "Entferne Produkt..." });
-    const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { method: "DELETE" });
+    const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
       setState({ kind: "error", message: "Produkt konnte nicht entfernt werden." });
       return;

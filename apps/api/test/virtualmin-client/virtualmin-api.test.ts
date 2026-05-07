@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildVirtualminRequest, resolveVirtualminEndpoint } from "../../src/modules/virtualmin-client/virtualmin-api";
+import { buildVirtualminRequest, resolveVirtualminEndpoint, VIRTUALMIN_REQUEST_TIMEOUT_MS } from "../../src/modules/virtualmin-client/virtualmin-api";
 
 describe("Virtualmin API request helpers", () => {
   it("normalizes a host into the remote CGI endpoint", () => {
@@ -43,5 +43,9 @@ describe("Virtualmin API request helpers", () => {
     );
 
     assert.equal(request.body.has("multiline"), false);
+  });
+
+  it("allows long-running provisioning commands to finish", () => {
+    assert.equal(VIRTUALMIN_REQUEST_TIMEOUT_MS, 180_000);
   });
 });

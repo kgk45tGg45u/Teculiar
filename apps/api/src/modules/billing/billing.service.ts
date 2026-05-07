@@ -17,7 +17,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const vatRate = await this.vatPercent();
+    const [vatRate, footerLines] = await Promise.all([this.vatPercent(), this.invoiceFooterLines()]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: 0 })),
       coupon: coupon
@@ -46,6 +46,9 @@ export class BillingService {
       totalCents: draft.totalCents,
       reverseCharge: draft.reverseCharge,
       taxReason: draft.taxReason,
+      customerSnapshot: dto.customerSnapshot,
+      footerLines,
+      orderSnapshot: dto.orderSnapshot,
       couponId: coupon?.id,
       lines: draft.lines.map((line) => ({
         ...line,
@@ -56,6 +59,40 @@ export class BillingService {
 
   listInvoices(filters: { status?: string; userId?: string }) {
     return this.billing.listInvoices(filters);
+  }
+
+  async getInvoice(id: string, user?: { roles?: string[]; sub: string }) {
+    const invoice = await this.billing.findInvoice(id);
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    if (user && !staff && invoice.userId !== user.sub) {
+      throw new NotFoundException("Invoice not found");
+    }
+
+    return invoice;
+  }
+
+  async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
+    const invoice = await this.getInvoice(id, user);
+    const lines = [
+      "Dezhost",
+      `Rechnung ${invoice.invoiceNumber}`,
+      `Status: ${invoice.status}`,
+      `Datum: ${invoice.issuedAt.toISOString().slice(0, 10)}`,
+      `Faellig: ${invoice.dueAt.toISOString().slice(0, 10)}`,
+      "",
+      ...invoice.items.map((item) => `${item.description}  ${item.quantity} x ${formatEuro(item.unitAmountCents)} = ${formatEuro(item.totalCents)}`),
+      "",
+      `Zwischensumme: ${formatEuro(invoice.subtotalCents)}`,
+      invoice.taxAmountCents > 0 ? `USt.: ${formatEuro(invoice.taxAmountCents)}` : "",
+      `Gesamt: ${formatEuro(invoice.totalCents)}`,
+      "",
+      ...(Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string") : [])
+    ].filter(Boolean);
+
+    return createSimplePdf(lines);
   }
 
   async sendInvoice(id: string) {
@@ -205,16 +242,26 @@ export class BillingService {
   }
 
   async settings() {
-    const [invoiceDaysAhead, ticketAutoCloseHours, vatPercent] = await Promise.all([
+    const [invoiceDaysAhead, ticketAutoCloseHours, vatPercent, invoiceFooterLine1, invoiceFooterLine2, invoiceFooterLine3] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
-      this.vatPercent()
+      this.vatPercent(),
+      this.billing.settingString("invoiceFooterLine1"),
+      this.billing.settingString("invoiceFooterLine2"),
+      this.billing.settingString("invoiceFooterLine3")
     ]);
 
-    return { invoiceDaysAhead, ticketAutoCloseHours, vatPercent };
+    return { invoiceDaysAhead, invoiceFooterLine1, invoiceFooterLine2, invoiceFooterLine3, ticketAutoCloseHours, vatPercent };
   }
 
-  updateSettings(input: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
+  updateSettings(input: {
+    invoiceDaysAhead?: number;
+    invoiceFooterLine1?: string;
+    invoiceFooterLine2?: string;
+    invoiceFooterLine3?: string;
+    ticketAutoCloseHours?: number;
+    vatPercent?: number;
+  }) {
     return Promise.all([
       input.invoiceDaysAhead === undefined
         ? undefined
@@ -222,11 +269,53 @@ export class BillingService {
       input.ticketAutoCloseHours === undefined
         ? undefined
         : this.billing.upsertSettingNumber("ticketAutoCloseHours", input.ticketAutoCloseHours),
-      input.vatPercent === undefined ? undefined : this.billing.upsertSettingNumber("vatPercent", Math.max(0, input.vatPercent))
+      input.vatPercent === undefined ? undefined : this.billing.upsertSettingNumber("vatPercent", Math.max(0, input.vatPercent)),
+      input.invoiceFooterLine1 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine1", input.invoiceFooterLine1),
+      input.invoiceFooterLine2 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine2", input.invoiceFooterLine2),
+      input.invoiceFooterLine3 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine3", input.invoiceFooterLine3)
     ]);
   }
 
   updateServiceStatus(id: string, status: string) {
     return this.billing.setServiceStatus(id, status);
   }
+
+  private async invoiceFooterLines() {
+    const settings = await Promise.all([
+      this.billing.settingString("invoiceFooterLine1"),
+      this.billing.settingString("invoiceFooterLine2"),
+      this.billing.settingString("invoiceFooterLine3")
+    ]);
+
+    return settings.filter((line) => line.trim().length > 0);
+  }
+}
+
+function formatEuro(cents: number) {
+  return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+function createSimplePdf(lines: string[]) {
+  const escaped = lines.map((line, index) => `BT /F1 10 Tf 50 ${780 - index * 16} Td (${pdfEscape(line)}) Tj ET`).join("\n");
+  const objects = [
+    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
+    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+    `5 0 obj << /Length ${Buffer.byteLength(escaped)} >> stream\n${escaped}\nendstream endobj`
+  ];
+  let offset = "%PDF-1.4\n".length;
+  const xref = ["0000000000 65535 f "];
+  const body = objects.map((object) => {
+    xref.push(`${String(offset).padStart(10, "0")} 00000 n `);
+    offset += Buffer.byteLength(`${object}\n`);
+    return object;
+  }).join("\n");
+  const start = Buffer.byteLength(`%PDF-1.4\n${body}\n`);
+  const pdf = `%PDF-1.4\n${body}\nxref\n0 ${xref.length}\n${xref.join("\n")}\ntrailer << /Root 1 0 R /Size ${xref.length} >>\nstartxref\n${start}\n%%EOF`;
+  return Buffer.from(pdf);
+}
+
+function pdfEscape(value: string) {
+  return value.replace(/[\\()]/g, "\\$&");
 }

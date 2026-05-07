@@ -15,31 +15,36 @@ export class ProductsController {
     return this.products.listProducts();
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Post("admin/dev/products")
   createProductDev(@Body() dto: CreateProductDto) {
     return this.products.createProduct(dto);
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Get("admin/dev/services")
   listServicesDev() {
     return this.products.listServices();
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Get("admin/dev/virtualmin/templates")
   listVirtualminTemplatesDev() {
     return this.products.listVirtualminTemplates();
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Patch("admin/dev/products/:id")
   updateProductDev(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
   @Delete("admin/dev/products/:id")
   deleteProductDev(@Param("id") id: string) {
     return this.products.deleteProduct(id);
@@ -70,7 +75,13 @@ export class ProductsController {
   @Get("services")
   listServices(@Req() request: Request & { user: { sub: string; roles?: string[] } }) {
     const canSeeAll = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.products.listServices(canSeeAll ? undefined : request.user.sub);
+    return this.products.listServicesFresh(canSeeAll ? undefined : request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("services/:id")
+  getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    return this.products.getService(id, request.user);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -91,6 +102,26 @@ export class ProductsController {
   @Post("services/:id/restart")
   restartService(@Param("id") id: string) {
     return this.products.restartService(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("services/:id/change-plan")
+  changeServicePlan(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Body() body: { productPriceId?: string }
+  ) {
+    return this.products.changeServicePlan(id, body, request.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("services/:id/renew-domain")
+  renewDomain(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Body("years") years: number
+  ) {
+    return this.products.renewDomain(id, Number(years), request.user);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -30,10 +30,11 @@ export class CmsController {
     return this.cms.listAnnouncements(locale);
   }
 
-  // Temporary dev endpoint until admin auth UI is wired.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
   @Post("admin/dev/announcements")
-  createAnnouncement(@Body() dto: CreateContentDto) {
-    return this.cms.createAnnouncement({ ...dto, type: "POST" });
+  createAnnouncement(@Req() request: Request & { user: { sub: string } }, @Body() dto: CreateContentDto) {
+    return this.cms.createContent({ ...dto, type: "POST" }, request.user.sub);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

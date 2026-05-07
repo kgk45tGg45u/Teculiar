@@ -2,7 +2,7 @@
 
 import { Bell, CreditCard, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "../../lib/api";
+import { API_BASE_URL, authHeaders } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./admin-dashboard.module.css";
 
@@ -21,7 +21,7 @@ export function AnnouncementForm() {
         title,
         type: "POST"
       }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
 
@@ -42,13 +42,23 @@ export function AnnouncementForm() {
 
 export function SettingsForm() {
   const [message, setMessage] = useState("");
-  const [settings, setSettings] = useState({ invoiceDaysAhead: 7, ticketAutoCloseHours: 24, vatPercent: 19 });
+  const [settings, setSettings] = useState({
+    invoiceDaysAhead: 7,
+    invoiceFooterLine1: "",
+    invoiceFooterLine2: "",
+    invoiceFooterLine3: "",
+    ticketAutoCloseHours: 24,
+    vatPercent: 19
+  });
 
   useEffect(() => {
-    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`)
+    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
       .then((response) => response.json())
       .then((payload) => setSettings({
         invoiceDaysAhead: payload.invoiceDaysAhead ?? 7,
+        invoiceFooterLine1: payload.invoiceFooterLine1 ?? "",
+        invoiceFooterLine2: payload.invoiceFooterLine2 ?? "",
+        invoiceFooterLine3: payload.invoiceFooterLine3 ?? "",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
         vatPercent: payload.vatPercent ?? 19
       }))
@@ -59,10 +69,13 @@ export function SettingsForm() {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
         invoiceDaysAhead: Number(formData.get("invoiceDaysAhead") ?? 7),
+        invoiceFooterLine1: String(formData.get("invoiceFooterLine1") ?? ""),
+        invoiceFooterLine2: String(formData.get("invoiceFooterLine2") ?? ""),
+        invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
         vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
 
@@ -74,6 +87,9 @@ export function SettingsForm() {
       <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
       <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
       <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
+      <label>Invoice footer line 1<input value={settings.invoiceFooterLine1} onChange={(event) => setSettings({ ...settings, invoiceFooterLine1: event.target.value })} name="invoiceFooterLine1" /></label>
+      <label>Invoice footer line 2<input value={settings.invoiceFooterLine2} onChange={(event) => setSettings({ ...settings, invoiceFooterLine2: event.target.value })} name="invoiceFooterLine2" /></label>
+      <label>Invoice footer line 3<input value={settings.invoiceFooterLine3} onChange={(event) => setSettings({ ...settings, invoiceFooterLine3: event.target.value })} name="invoiceFooterLine3" /></label>
       <p>Admin dashboard runs maintenance on open: close answered tickets, create upcoming invoices, mark overdue invoices, suspend services with overdue unpaid invoices.</p>
       <Button icon={CreditCard} type="submit">Save Settings</Button>
       {message ? <p>{message}</p> : null}
@@ -94,7 +110,7 @@ export function DomainPriceForm() {
         tld: String(formData.get("tld") ?? ""),
         years: Number(formData.get("years") ?? 1)
       }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
 
@@ -128,7 +144,7 @@ export function OrderStatusForm({ orderId, status }: { orderId: string; status: 
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
       body: JSON.stringify({ status: String(formData.get("status") ?? value) }),
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
 

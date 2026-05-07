@@ -26,6 +26,9 @@ export class BillingRepository {
     totalCents: number;
     reverseCharge: boolean;
     taxReason: string;
+    customerSnapshot?: Record<string, unknown>;
+    footerLines?: string[];
+    orderSnapshot?: Record<string, unknown>;
     couponId?: string;
     lines: Array<{
       description: string;
@@ -57,6 +60,9 @@ export class BillingRepository {
         totalCents: input.totalCents,
         reverseCharge: input.reverseCharge,
         taxReason: input.taxReason,
+        customerSnapshot: (input.customerSnapshot ?? {}) as Prisma.InputJsonValue,
+        footerLines: (input.footerLines ?? []) as Prisma.InputJsonValue,
+        orderSnapshot: (input.orderSnapshot ?? {}) as Prisma.InputJsonValue,
         couponId: input.couponId,
         items: {
           create: input.lines.map((line) => ({
@@ -76,7 +82,7 @@ export class BillingRepository {
         ...filters,
         status: filters.status ? (filters.status as InvoiceStatus) : undefined
       },
-      include: { items: true, user: true, transactions: true },
+      include: { items: true, user: { select: publicUserSelect }, transactions: true },
       orderBy: { issuedAt: "desc" }
     });
   }
@@ -84,7 +90,7 @@ export class BillingRepository {
   findInvoice(id: string) {
     return this.prisma.invoice.findUnique({
       where: { id },
-      include: { items: true, transactions: true }
+      include: { items: true, order: { include: { items: true } }, transactions: true, user: { select: publicUserSelect } }
     });
   }
 
@@ -131,7 +137,7 @@ export class BillingRepository {
     return this.prisma.subscription.findUnique({
       where: { id },
       include: {
-        user: true,
+        user: { select: publicUserSelect },
         service: { include: { product: true } },
         productPrice: true,
         coupon: true
@@ -169,7 +175,7 @@ export class BillingRepository {
     return this.prisma.subscription.findMany({
       where: { status: "ACTIVE", nextInvoiceAt: { lte: until } },
       include: {
-        user: true,
+        user: { select: publicUserSelect },
         service: { include: { product: true } },
         productPrice: true,
         coupon: true,
@@ -226,4 +232,30 @@ export class BillingRepository {
       update: { value }
     });
   }
+
+  settingString(key: string, fallback = "") {
+    return this.prisma.systemSetting.findUnique({ where: { key } }).then((setting) => {
+      const value = setting?.value;
+      return typeof value === "string" ? value : fallback;
+    });
+  }
+
+  upsertSettingString(key: string, value: string) {
+    return this.prisma.systemSetting.upsert({
+      where: { key },
+      create: { key, value },
+      update: { value }
+    });
+  }
 }
+
+const publicUserSelect = {
+  countryCode: true,
+  customerType: true,
+  email: true,
+  id: true,
+  locale: true,
+  name: true,
+  segment: true,
+  vatId: true
+} satisfies Prisma.UserSelect;

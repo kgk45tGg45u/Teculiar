@@ -190,6 +190,7 @@ export class ResellBizClient {
       "auto-renew": input.autoRenew,
       "billing-contact-id": assertOrderId(input.billingContactId),
       "customer-id": assertOrderId(input.customerId),
+      "discount-amount": input.discountAmount ?? 0,
       "domain-name": input.domainName,
       "invoice-option": input.invoiceOption,
       ns: input.nameServers,

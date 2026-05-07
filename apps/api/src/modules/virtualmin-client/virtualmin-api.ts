@@ -6,6 +6,8 @@ import type { VirtualminCommandResult, VirtualminCredentials } from "./virtualmi
 
 type ParamValue = boolean | number | string | undefined;
 
+export const VIRTUALMIN_REQUEST_TIMEOUT_MS = 180_000;
+
 export function resolveVirtualminEndpoint(input: string): string {
   const withProtocol = /^https?:\/\//i.test(input.trim()) ? input.trim() : `https://${input.trim()}`;
   const url = new URL(withProtocol);
@@ -101,7 +103,7 @@ async function postForm(request: ReturnType<typeof buildVirtualminRequest>): Pro
       }
     );
 
-    req.setTimeout(15_000, () => req.destroy(new Error("Virtualmin request timed out")));
+    req.setTimeout(VIRTUALMIN_REQUEST_TIMEOUT_MS, () => req.destroy(new Error("Virtualmin request timed out")));
     req.on("error", reject);
     req.write(payload);
     req.end();

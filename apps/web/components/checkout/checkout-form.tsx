@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { API_BASE_URL, cycleLabel, money, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { Button } from "../ui/button";
 import styles from "./checkout-form.module.css";
 
@@ -34,6 +34,17 @@ type CheckoutItem = {
   quantity: number;
 };
 
+type ClientProfile = {
+  address?: { city?: string; line1?: string; postalCode?: string; state?: string };
+  countryCode?: string;
+  customerType?: string;
+  email: string;
+  id: string;
+  name: string;
+  phone?: string;
+  vatId?: string;
+};
+
 export function CheckoutForm({
   domainProduct,
   hostingProducts = [],
@@ -42,11 +53,19 @@ export function CheckoutForm({
   locale,
   product
 }: CheckoutFormProps) {
-  const [priceId, setPriceId] = useState(product.prices[0]?.id ?? "");
+  const selectablePrices = useMemo(
+    () => (product.type === "DOMAIN" ? product.prices.filter((price) => price.billingCycle.startsWith("YEAR_")) : product.prices),
+    [product.prices, product.type]
+  );
+  const [priceId, setPriceId] = useState(selectablePrices[0]?.id ?? "");
   const [paymentMethod, setPaymentMethod] = useState("CREDIT_CARD");
-  const [domainAction, setDomainAction] = useState<"register" | "transfer">(initialDomainAction);
   const [domainUse, setDomainUse] = useState<"register" | "transfer" | "external">(initialDomainAction);
   const [password, setPassword] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loggedInPassword, setLoggedInPassword] = useState("");
+  const [profile, setProfile] = useState<ClientProfile>();
+  const [loginOpen, setLoginOpen] = useState(false);
   const [showHostingOffer, setShowHostingOffer] = useState(product.type === "DOMAIN" && hostingProducts.length > 0);
   const [addHosting, setAddHosting] = useState(false);
   const [domainNameInput, setDomainNameInput] = useState(initialDomain);
@@ -57,8 +76,8 @@ export function CheckoutForm({
   const [vatPercent, setVatPercent] = useState(0);
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
   const selectedPrice = useMemo(
-    () => product.prices.find((price) => price.id === priceId) ?? product.prices[0],
-    [priceId, product.prices]
+    () => selectablePrices.find((price) => price.id === priceId) ?? selectablePrices[0],
+    [priceId, selectablePrices]
   );
   const selectedHosting = useMemo(
     () => hostingProducts.find((candidate) => candidate.id === selectedHostingId) ?? hostingProducts[0],
@@ -90,10 +109,16 @@ export function CheckoutForm({
   });
 
   useEffect(() => {
-    void getJson<{ vatPercent: number }>("/admin/dev/billing/settings")
+    void getJson<{ vatPercent: number }>("/storefront/settings")
       .then((settings) => setVatPercent(settings.vatPercent ?? 0))
       .catch(() => setVatPercent(0));
   }, []);
+
+  useEffect(() => {
+    if (!selectablePrices.some((price) => price.id === priceId)) {
+      setPriceId(selectablePrices[0]?.id ?? "");
+    }
+  }, [priceId, selectablePrices]);
 
   useEffect(() => {
     if (initialDomain) {
@@ -106,8 +131,8 @@ export function CheckoutForm({
       setState({ status: "error", message: "Kein Preis fuer dieses Produkt gefunden." });
       return;
     }
-    const submittedPassword = String(formData.get("password") ?? "");
-    if (!isStrongPassword(submittedPassword)) {
+    const submittedPassword = loggedInPassword || String(formData.get("password") ?? "");
+    if (!profile && !isStrongPassword(submittedPassword)) {
       setState({ status: "error", message: "Passwort erfuellt die Regeln nicht." });
       return;
     }
@@ -116,11 +141,13 @@ export function CheckoutForm({
     const domainName = String(formData.get("domainName") ?? "").trim().toLowerCase();
     const hostingDomainName = String(formData.get("hostingDomainName") ?? domainName).trim().toLowerCase();
     const phone = `${String(formData.get("phoneCountryCode") ?? "").trim()} ${String(formData.get("phone") ?? "").trim()}`.trim();
+    const resolvedDomainAction = domainCheck.status === "ok" ? domainCheck.action : initialDomainAction;
     const items: CheckoutItem[] = [
       {
         configuration: needsDomain
           ? {
-              domainAction,
+              billingCycle: selectedPrice.billingCycle,
+              domainAction: resolvedDomainAction,
               nameServers: String(formData.get("nameServers") ?? "")
                 .split(",")
                 .map((value) => value.trim())
@@ -155,15 +182,17 @@ export function CheckoutForm({
       });
     }
 
-    if (needsHostingDomain && domainProduct && domainUse !== "external" && hostingDomainName) {
+    const resolvedHostingDomainUse = hostingDomainUse(domainUse, domainCheck, hostingDomainName);
+    if (needsHostingDomain && domainProduct && resolvedHostingDomainUse !== "external" && hostingDomainName) {
+      const domainPrice = yearlyPrice(domainProduct);
       items.push({
         configuration: {
-          domainAction: domainUse,
+          domainAction: resolvedHostingDomainUse,
           transferAuthCode: String(formData.get("hostingTransferAuthCode") ?? "")
         },
         domainName: hostingDomainName,
         productId: domainProduct.id,
-        productPriceId: domainProduct.prices[0]?.id ?? "",
+        productPriceId: domainPrice?.id ?? "",
         quantity: 1
       });
     }
@@ -190,6 +219,11 @@ export function CheckoutForm({
 
     try {
       const checkoutResponse = await postJson<{ order: { id: string } }>("/orders/checkout", body);
+      const auth = await postJson<AuthPayload>("/auth/login", {
+        email: body.customer.email,
+        password: submittedPassword
+      });
+      storeAuth(auth);
       setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
       await postJson(`/orders/${checkoutResponse.order.id}/pay`, {
         method: paymentMethod,
@@ -218,7 +252,6 @@ export function CheckoutForm({
         `/domains/search?domain=${encodeURIComponent(clean)}`
       );
       setDomainUse(result.available ? "register" : "transfer");
-      setDomainAction(result.available ? "register" : "transfer");
       setDomainCheck({
         status: "ok",
         action: result.available ? "register" : "transfer",
@@ -231,6 +264,22 @@ export function CheckoutForm({
     }
   }
 
+  async function loginClient() {
+    setState({ status: "loading", message: "Login laeuft..." });
+    try {
+      const auth = await postJson<AuthPayload>("/auth/login", { email: loginEmail, password: loginPassword });
+      storeAuth(auth);
+      const me = await getJson<ClientProfile>("/users/me", auth.accessToken);
+      setProfile(me);
+      setLoggedInPassword(loginPassword);
+      setPassword("");
+      setLoginOpen(false);
+      setState({ status: "idle" });
+    } catch (error) {
+      setState({ status: "error", message: error instanceof Error ? error.message : "Login fehlgeschlagen." });
+    }
+  }
+
   return (
     <div className={styles.shell}>
       <section className={styles.summary}>
@@ -239,9 +288,37 @@ export function CheckoutForm({
         <p>{product.description}</p>
         <div className={styles.orderSummary}>
           {summary.lines.map((line) => (
-            <div className={styles.summaryLine} key={line.label}>
+            <div className={styles.summaryLine} key={line.id}>
               <span>{line.label}</span>
-              <strong>{money(line.amountCents)}</strong>
+              <div className={styles.cartControls}>
+                <strong>{money(line.amountCents)}</strong>
+                {line.kind === "domain" ? (
+                  <button type="button" onClick={() => focusByName(needsDomain ? "domainName" : "hostingDomainName")} title="Domain bearbeiten">
+                    edit
+                  </button>
+                ) : null}
+                {line.kind === "hostingAddon" ? (
+                  <button type="button" onClick={() => setShowHostingOffer(true)} title="Hosting bearbeiten">
+                    edit
+                  </button>
+                ) : null}
+                {line.removable ? (
+                  <button
+                    aria-label={`${line.label} entfernen`}
+                    type="button"
+                    onClick={() => {
+                      if (line.kind === "hostingAddon") {
+                        setAddHosting(false);
+                      }
+                      if (line.kind === "domainAddon") {
+                        setDomainUse("external");
+                      }
+                    }}
+                  >
+                    -
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
           {summary.vatCents > 0 ? (
@@ -258,10 +335,37 @@ export function CheckoutForm({
       </section>
 
       <form action={submit} className={styles.form}>
+        <section className={styles.loginPanel}>
+          {profile ? (
+            <p className={styles.message}>Eingeloggt als {profile.email}</p>
+          ) : (
+            <>
+              <Button type="button" variant="secondary" onClick={() => setLoginOpen(!loginOpen)}>
+                Kundenlogin
+              </Button>
+              {loginOpen ? (
+                <div className={styles.loginGrid}>
+                  <label>
+                    E-Mail
+                    <input name="loginEmail" onChange={(event) => setLoginEmail(event.target.value)} type="email" value={loginEmail} />
+                  </label>
+                  <label>
+                    Passwort
+                    <input name="loginPassword" onChange={(event) => setLoginPassword(event.target.value)} type="password" value={loginPassword} />
+                  </label>
+                  <Button type="button" onClick={loginClient}>
+                    Einloggen
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </section>
+
         <label>
           Abrechnung
           <select value={priceId} onChange={(event) => setPriceId(event.target.value)}>
-            {product.prices.map((price) => (
+            {selectablePrices.map((price) => (
               <option key={price.id} value={price.id}>
                 {cycleLabel(price.billingCycle)}
                 {product.type === "DOMAIN" ? "" : ` - ${money(price.amountCents, price.currency)}`}
@@ -286,21 +390,19 @@ export function CheckoutForm({
                 value={domainNameInput}
               />
             </label>
-            <label>
-              Domain-Aktion
-              <select value={domainAction} onChange={(event) => setDomainAction(event.target.value as "register" | "transfer")}>
-                <option value="register">Registrieren</option>
-                <option value="transfer">Transfer</option>
-              </select>
-            </label>
-            {domainAction === "transfer" ? (
+            {domainCheck.status === "ok" ? (
+              <p className={domainCheck.available ? styles.available : styles.unavailable}>
+                {domainCheck.domain} wird {domainCheck.action === "register" ? "registriert" : "transferiert"}.
+              </p>
+            ) : null}
+            {(domainCheck.status === "ok" ? domainCheck.action : initialDomainAction) === "transfer" ? (
               <label>
-                Auth-Code
+                Auth-Code *
                 <input name="transferAuthCode" required />
               </label>
             ) : null}
             <label>
-              Nameserver
+              Nameserver optional
               <input name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
             </label>
           </>
@@ -313,7 +415,10 @@ export function CheckoutForm({
               Domain
               <input
                 name="hostingDomainName"
-                onChange={(event) => setHostingDomain(event.target.value)}
+                onChange={(event) => {
+                  setHostingDomain(event.target.value);
+                  setDomainCheck({ status: "idle" });
+                }}
                 placeholder="example.de"
                 required
                 value={hostingDomain}
@@ -341,8 +446,8 @@ export function CheckoutForm({
             ) : null}
             {domainUse === "transfer" ? (
               <label>
-                Auth-Code
-                <input name="hostingTransferAuthCode" />
+                Auth-Code *
+                <input name="hostingTransferAuthCode" required />
               </label>
             ) : null}
             {freeDomainEligible ? <p className={styles.available}>Diese Domain ist mit dieser Jahreslaufzeit kostenlos.</p> : null}
@@ -402,68 +507,70 @@ export function CheckoutForm({
           </div>
         ) : null}
 
-        <div className={styles.grid}>
+        <div className={styles.grid} key={profile?.id ?? "guest"}>
           <label>
-            Name
-            <input name="name" required />
+            Name *
+            <input defaultValue={profile?.name ?? ""} name="name" required />
           </label>
           <label>
-            E-Mail
-            <input name="email" required type="email" />
+            E-Mail *
+            <input defaultValue={profile?.email ?? ""} name="email" required type="email" />
           </label>
+          {!profile ? (
+            <label>
+              Passwort *
+              <div className={styles.passwordControl}>
+                <input
+                  maxLength={16}
+                  minLength={9}
+                  name="password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type="password"
+                  value={password}
+                />
+                <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
+                  Generieren
+                </button>
+              </div>
+              <PasswordRules password={password} />
+            </label>
+          ) : null}
           <label>
-            Passwort
-            <div className={styles.passwordControl}>
-              <input
-                maxLength={16}
-                minLength={9}
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                type="password"
-                value={password}
-              />
-              <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
-                Generieren
-              </button>
-            </div>
-            <PasswordRules password={password} />
-          </label>
-          <label>
-            Firma
+            Firma optional
             <input name="companyName" />
           </label>
           <label>
-            USt-Id
-            <input name="vatId" />
+            USt-Id optional
+            <input defaultValue={profile?.vatId ?? ""} name="vatId" />
           </label>
           <label>
-            Adresse
-            <input name="address" required />
+            Adresse *
+            <input defaultValue={profileAddress(profile).line1} name="address" required />
           </label>
           <label>
-            PLZ
-            <input name="postalCode" required />
+            PLZ *
+            <input defaultValue={profileAddress(profile).postalCode} name="postalCode" required />
           </label>
           <label>
-            Stadt
-            <input name="city" required />
+            Stadt *
+            <input defaultValue={profileAddress(profile).city} name="city" required />
           </label>
           <label>
-            Land
-            <input defaultValue="DE" name="countryCode" required />
+            Land *
+            <input defaultValue={profile?.countryCode ?? "DE"} name="countryCode" required />
           </label>
           <label>
-            Bundesland
-            <input name="state" required />
+            Bundesland *
+            <input defaultValue={profileAddress(profile).state} name="state" required />
           </label>
           <label>
-            Landesvorwahl
-            <input defaultValue="+49" name="phoneCountryCode" required />
+            Landesvorwahl *
+            <input defaultValue={splitProfilePhone(profile?.phone).countryCode} name="phoneCountryCode" required />
           </label>
           <label>
-            Telefon
-            <input name="phone" required />
+            Telefon *
+            <input defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
           </label>
         </div>
 
@@ -547,6 +654,33 @@ function shuffle(values: string[]) {
     .map((item) => item.value);
 }
 
+function yearlyPrice(product: ApiProduct) {
+  return product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0];
+}
+
+function focusByName(name: string) {
+  const field = document.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`);
+  field?.focus();
+}
+
+function profileAddress(profile?: ClientProfile) {
+  return {
+    city: profile?.address?.city ?? "",
+    line1: profile?.address?.line1 ?? "",
+    postalCode: profile?.address?.postalCode ?? "",
+    state: profile?.address?.state ?? ""
+  };
+}
+
+function splitProfilePhone(phone?: string) {
+  const clean = phone?.trim() ?? "";
+  const match = clean.match(/^(\+\d{1,3})\s+(.*)$/);
+  return {
+    countryCode: match?.[1] ?? "+49",
+    number: match?.[2] ?? clean.replace(/^\+\d{1,3}/, "").trim()
+  };
+}
+
 function isStrongPassword(password: string) {
   return (
     password.length >= 9 &&
@@ -573,7 +707,7 @@ function orderSummary(input: {
   selectedPrice?: ApiProduct["prices"][number];
   vatPercent: number;
 }) {
-  const lines: Array<{ amountCents: number; label: string }> = [];
+  const lines: Array<{ amountCents: number; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
 
   if (input.needsDomain) {
     const domainPrice =
@@ -582,25 +716,36 @@ function orderSummary(input: {
         : input.product.minimumPriceCents ?? input.selectedPrice?.amountCents ?? 0;
     lines.push({
       amountCents: domainPrice,
+      id: "domain",
+      kind: "domain",
       label: `${input.domainName || "Domain"} ${input.domainCheck.status === "ok" ? input.domainCheck.action : "registration"}`
     });
     if (input.addHosting && input.selectedHosting && input.selectedHostingPrice) {
       lines.push({
         amountCents: input.selectedHostingPrice.amountCents,
-        label: `${input.selectedHosting.name} ${cycleLabel(input.selectedHostingPrice.billingCycle)}`
+        id: "hosting-addon",
+        kind: "hostingAddon",
+        label: `${input.selectedHosting.name} ${cycleLabel(input.selectedHostingPrice.billingCycle)}`,
+        removable: true
       });
     }
   } else {
     lines.push({
       amountCents: input.selectedPrice?.amountCents ?? 0,
+      id: "hosting",
+      kind: "hosting",
       label: `${input.product.name} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
     });
-    if (input.needsHostingDomain && input.domainUse !== "external" && input.domainProduct) {
+    const domainUse = hostingDomainUse(input.domainUse, input.domainCheck, input.hostingDomain);
+    if (input.needsHostingDomain && domainUse !== "external" && input.domainProduct) {
       const domainPrice = input.domainCheck.status === "ok" ? input.domainCheck.priceCents : input.domainProduct.minimumPriceCents ?? 0;
       const free = input.selectedPrice?.billingCycle.startsWith("YEAR_") && domainPrice <= 1500;
       lines.push({
         amountCents: free ? 0 : domainPrice,
-        label: `${input.hostingDomain || "Domain"} ${input.domainUse}${free ? " (free)" : ""}`
+        id: "domain-addon",
+        kind: "domainAddon",
+        label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (free)" : ""}`,
+        removable: true
       });
     }
   }
@@ -614,6 +759,14 @@ function orderSummary(input: {
     totalCents: subtotalCents + vatCents,
     vatCents
   };
+}
+
+function hostingDomainUse(domainUse: "external" | "register" | "transfer", domainCheck: DomainCheck, hostingDomain: string) {
+  if (domainCheck.status === "ok" && domainCheck.available && domainCheck.domain === hostingDomain.trim().toLowerCase()) {
+    return domainCheck.action;
+  }
+
+  return domainUse;
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -631,8 +784,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+async function getJson<T>(path: string, token?: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : authHeaders()
+  });
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {

@@ -58,6 +58,7 @@ export type DomainCustomerContactResult = {
 export interface HostingProvider {
   provision(request: ProvisioningRequest): Promise<ProvisioningResult>;
   restart(serviceExternalId: string): Promise<{ accepted: boolean; operationId: string }>;
+  status?(serviceExternalId: string): Promise<ProvisioningResult>;
 }
 
 export interface DomainProvider {
@@ -65,5 +66,6 @@ export interface DomainProvider {
   ensureCustomerContact(request: DomainCustomerContactRequest): Promise<DomainCustomerContactResult>;
   register(request: DomainRegistrationRequest): Promise<ProvisioningResult>;
   renew(request: DomainRenewalRequest): Promise<ProvisioningResult>;
+  status?(domain: string): Promise<ProvisioningResult>;
   transfer(request: DomainTransferRequest): Promise<ProvisioningResult>;
 }

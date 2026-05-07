@@ -65,6 +65,27 @@
   font-weight: 700;
 }
 
+.cartControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cartControls button {
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .summaryTotal {
   border-bottom: 0;
   padding-top: 6px;
@@ -75,6 +96,22 @@
   display: grid;
   gap: 18px;
   padding: 28px;
+}
+
+.loginPanel,
+.loginGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.loginPanel {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+}
+
+.loginGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
 }
 
 .grid {
@@ -247,6 +284,10 @@
   }
 
   .passwordControl {
+    grid-template-columns: 1fr;
+  }
+
+  .loginGrid {
     grid-template-columns: 1fr;
   }
 }

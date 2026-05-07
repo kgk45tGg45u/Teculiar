@@ -162,6 +162,7 @@ describe("Resell.biz client", () => {
 
     assert.equal(path, "/api/domains/register.json");
     assert.equal(body?.get("domain-name"), "new-example.com");
+    assert.equal(body?.get("discount-amount"), "0");
     assert.equal(body?.get("years"), "1");
     assert.equal(body?.get("customer-id"), "55");
     assert.equal(body?.get("reg-contact-id"), "11");

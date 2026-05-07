@@ -4,6 +4,7 @@ import { CreditCard, FileText, LifeBuoy, Send, Server, UserRound, Wallet } from 
 import { useEffect, useState } from "react";
 import {
   API_BASE_URL,
+  authHeaders,
   cycleLabel,
   money,
   type ApiAnnouncement,
@@ -22,6 +23,8 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   ORDERED: "warn",
   PROVISIONING: "warn",
   SUSPENDED: "warn",
+  FAILED: "neutral",
+  PENDING_CANCEL: "warn",
   TERMINATED: "neutral",
   CANCELLED: "neutral",
   PAID: "good",
@@ -34,16 +37,49 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   CLOSED: "neutral"
 };
 
-export function ClientDashboard({ view = "dashboard" }: { view?: ClientView }) {
+export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; view?: ClientView }) {
   const [services, setServices] = useState<ApiService[]>(sampleServices);
+  const [selectedService, setSelectedService] = useState<ApiService>();
   const [invoices, setInvoices] = useState<ApiInvoice[]>(sampleInvoices);
+  const [selectedInvoice, setSelectedInvoice] = useState<ApiInvoice>();
   const [tickets, setTickets] = useState<ApiTicket[]>(sampleTickets);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/admin/dev/services`).then(json).then((payload) => payload?.length && setServices(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/admin/dev/billing/invoices`).then(json).then((payload) => payload?.length && setInvoices(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/admin/dev/tickets`).then(json).then((payload) => payload?.length && setTickets(payload)).catch(() => undefined);
+    const headers = authHeaders();
+    const loadServices = () => {
+      fetch(`${API_BASE_URL}/services`, { headers }).then(json).then((payload) => payload?.length && setServices(payload)).catch(() => undefined);
+    };
+    loadServices();
+    const timer = window.setInterval(loadServices, 20_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!serviceId) {
+      return;
+    }
+    const headers = authHeaders();
+    const loadService = () => {
+      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then((payload) => payload && setSelectedService(payload)).catch(() => undefined);
+    };
+    loadService();
+    const timer = window.setInterval(loadService, 20_000);
+    return () => window.clearInterval(timer);
+  }, [serviceId]);
+
+  useEffect(() => {
+    if (!invoiceId) {
+      return;
+    }
+    const headers = authHeaders();
+    fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers }).then(json).then((payload) => payload && setSelectedInvoice(payload)).catch(() => undefined);
+  }, [invoiceId]);
+
+  useEffect(() => {
+    const headers = authHeaders();
+    fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => payload?.length && setInvoices(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => payload?.length && setTickets(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/cms/announcements`).then(json).then((payload) => payload?.length && setAnnouncements(payload)).catch(() => undefined);
   }, []);
 
@@ -58,8 +94,8 @@ export function ClientDashboard({ view = "dashboard" }: { view?: ClientView }) {
         <nav aria-label="Client">
           <a href="/client/services">Services</a>
           <a href="/client/invoices">Rechnungen</a>
-          <a href="/client/tickets">Tickets</a>
-          <a href="/client/tickets/new">Neues Ticket</a>
+          <a href="/client/tickets">Support Tickets</a>
+          <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
           <a href="/client/billing/add-funds">Add Funds</a>
           <a href="/client/billing/payment">Zahlung</a>
           <a href="/client/profile">Profile</a>
@@ -100,9 +136,11 @@ export function ClientDashboard({ view = "dashboard" }: { view?: ClientView }) {
           </a>
         </section>
 
-        {view === "dashboard" || view === "services" ? <Announcements announcements={announcements} /> : null}
-        {view === "dashboard" || view === "services" ? <ServicesTable services={services} /> : null}
-        {view === "invoices" ? <InvoicesTable invoices={invoices} /> : null}
+        {(view === "dashboard" || view === "services") && !serviceId ? <Announcements announcements={announcements} /> : null}
+        {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={services} /> : null}
+        {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
+        {view === "invoices" && !invoiceId ? <InvoicesTable invoices={invoices} /> : null}
+        {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} /> : null}
         {view === "tickets" ? <TicketsTable tickets={tickets} /> : null}
         {view === "new-ticket" ? <NewTicket services={services} /> : null}
         {view === "add-funds" ? <AddFunds activeServices={activeServices} /> : null}
@@ -155,11 +193,11 @@ function ServicesTable({ services }: { services: ApiService[] }) {
               <tbody>
                 {services.map((service) => (
                   <tr key={service.id}>
-                    <td><strong>{service.product.name}</strong><br />{service.product.type}</td>
+                    <td><a href={`/client/services/${service.id}`}><strong>{serviceName(service)}</strong></a><br />{service.product.type}</td>
                     <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
-                      <StatusPill label={service.status.toLowerCase()} tone={statusTone[service.status] ?? "neutral"} />
+                      <StatusPill label={serviceStatusLabel(service.status)} tone={statusTone[service.status] ?? "neutral"} />
                     </td>
                   </tr>
                 ))}
@@ -170,8 +208,101 @@ function ServicesTable({ services }: { services: ApiService[] }) {
   );
 }
 
+function ServiceDetail({ service }: { service?: ApiService }) {
+  if (!service) {
+    return <section className={styles.module}><h2>Service</h2><p>Loading...</p></section>;
+  }
+
+  return (
+    <section className={styles.module}>
+      <div className={styles.detailHeader}>
+        <div>
+          <span className="eyebrow">Service</span>
+          <h2>{serviceName(service)}</h2>
+        </div>
+        <StatusPill label={serviceStatusLabel(service.status)} tone={statusTone[service.status] ?? "neutral"} />
+      </div>
+      <p>{serviceKind(service)}</p>
+      <div className={styles.detailGrid}>
+        <div>
+          <span>Pricing</span>
+          <strong>{money(service.productPrice.amountCents, service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</strong>
+        </div>
+        <div>
+          <span>Next Due Date</span>
+          <strong>{dateLabel(service.renewsAt)}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{serviceStatusLabel(service.status)}</strong>
+        </div>
+      </div>
+      {service.product.type === "DOMAIN" ? <DomainRenewal service={service} /> : <PlanChange service={service} />}
+    </section>
+  );
+}
+
 function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
-  return <section className={styles.block}><div className={styles.tableWrap}><table className="table"><thead><tr><th>Invoice #</th><th>Invoice Date</th><th>Due Date</th><th>Total</th><th>Status</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td>{invoice.invoiceNumber}</td><td>{dateLabel(invoice.issuedAt)}</td><td>{dateLabel(invoice.dueAt)}</td><td>{money(invoice.totalCents, invoice.currency)}</td><td><StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} /></td></tr>)}</tbody></table></div></section>;
+  return <section className={styles.block}><div className={styles.tableWrap}><table className="table"><thead><tr><th>Invoice #</th><th>Invoice Date</th><th>Due Date</th><th>Total</th><th>Status</th><th>PDF</th></tr></thead><tbody>{invoices.map((invoice) => <tr key={invoice.id}><td><a href={`/client/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></td><td>{dateLabel(invoice.issuedAt)}</td><td>{dateLabel(invoice.dueAt)}</td><td>{money(invoice.totalCents, invoice.currency)}</td><td><StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} /></td><td><a href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>Download PDF</a></td></tr>)}</tbody></table></div></section>;
+}
+
+function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
+  if (!invoice) {
+    return <section className={styles.module}><h2>Invoice</h2><p>Loading...</p></section>;
+  }
+  const customer = invoice.customerSnapshot ?? {};
+  const address = customer.address ?? {};
+  const showVat = (invoice.taxAmountCents ?? 0) > 0;
+
+  return (
+    <section className={styles.invoice}>
+      <div className={styles.invoiceTop}>
+        <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoice.invoiceNumber}</h2></div>
+        <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
+      </div>
+      <div className={styles.invoiceMeta}>
+        <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
+        <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />E-Mail: {customer.email}</div>
+      </div>
+      <table className="table">
+        <thead><tr><th>Beschreibung</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
+        <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
+      </table>
+      <div className={styles.invoiceTotals}>
+        <span>Zwischensumme {money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</span>
+        {showVat ? <span>USt. {money(invoice.taxAmountCents ?? 0, invoice.currency)}</span> : null}
+        <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
+      </div>
+      <a className={styles.pdfLink} href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>Download PDF</a>
+      <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
+    </section>
+  );
+}
+
+function DomainRenewal({ service }: { service: ApiService }) {
+  const [message, setMessage] = useState("");
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/services/${service.id}/renew-domain`, {
+      body: JSON.stringify({ years: Number(formData.get("years") ?? 1) }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(response.ok ? "Renewal sent." : "Renewal failed.");
+  }
+  return <form action={submit} className={styles.inlineForm}><label>Renew for years<select name="years"><option>1</option><option>2</option><option>3</option><option>5</option></select></label><Button type="submit">Renew domain</Button>{message ? <p>{message}</p> : null}</form>;
+}
+
+function PlanChange({ service }: { service: ApiService }) {
+  const [message, setMessage] = useState("");
+  async function submit() {
+    const response = await fetch(`${API_BASE_URL}/services/${service.id}/change-plan`, {
+      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(response.ok ? "Upgrade/downgrade request sent." : "Request failed.");
+  }
+  return <div className={styles.inlineForm}><Button type="button" onClick={submit}>Upgrade/Downgrade</Button>{message ? <p>{message}</p> : null}</div>;
 }
 
 function TicketsTable({ tickets }: { tickets: ApiTicket[] }) {
@@ -191,7 +322,28 @@ function PaymentInfo() {
 }
 
 function ProfileForm() {
-  return <section className={styles.module}><UserRound aria-hidden /><h2>Profile</h2><label>Name<input className="input" defaultValue="Client Name" /></label><label>Email<input className="input" defaultValue="client@example.com" /></label><label>Country<input className="input" defaultValue="DE" /></label><label>VAT ID<input className="input" /></label><Button icon={FileText}>Save Profile</Button></section>;
+  const [message, setMessage] = useState("");
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/users/me`, {
+      body: JSON.stringify({
+        address: {
+          city: formData.get("city"),
+          line1: formData.get("address"),
+          postalCode: formData.get("postalCode"),
+          state: formData.get("state")
+        },
+        countryCode: formData.get("countryCode"),
+        email: formData.get("email"),
+        name: formData.get("name"),
+        phone: formData.get("phone"),
+        vatId: formData.get("vatId")
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setMessage(response.ok ? "Profile saved." : "Profile failed.");
+  }
+  return <form action={submit} className={styles.module}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" name="name" /></label><label>Email<input className="input" name="email" type="email" /></label><label>Address<input className="input" name="address" /></label><label>Postal code<input className="input" name="postalCode" /></label><label>City<input className="input" name="city" /></label><label>State<input className="input" name="state" /></label><label>Country<input className="input" defaultValue="DE" name="countryCode" /></label><label>Phone<input className="input" name="phone" /></label><label>VAT ID<input className="input" name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
 function titleFor(view: ClientView) {
@@ -211,11 +363,44 @@ function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
 }
 
+function serviceName(service: ApiService) {
+  return service.domainRecords?.[0]?.domain ?? stringConfig(service.configuration, "domainName") ?? service.product.name;
+}
+
+function serviceKind(service: ApiService) {
+  if (service.product.type === "DOMAIN") {
+    return "Domain service";
+  }
+  if (service.product.type === "SHARED_HOSTING") {
+    return `Hosting package: ${service.product.name}`;
+  }
+  if (service.product.type === "VPS") {
+    return `VPS hosting: ${service.product.name}`;
+  }
+  return service.product.type;
+}
+
+function stringConfig(configuration: unknown, key: string) {
+  if (typeof configuration !== "object" || configuration === null || Array.isArray(configuration)) {
+    return undefined;
+  }
+  const value = (configuration as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function ticketLabel(status: string) {
   return { WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
 }
 
+function serviceStatusLabel(status: string) {
+  return { ORDERED: "inactive", PROVISIONING: "inactive" }[status] ?? status.toLowerCase();
+}
+
 async function json(response: Response) {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+    return null;
+  }
   return response.ok ? response.json() : null;
 }
 

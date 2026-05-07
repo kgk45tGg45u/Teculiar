@@ -39,6 +39,27 @@ export class AuthService {
     );
   }
 
+  async bootstrapAdmin(dto: RegisterDto, ipAddress?: string, userAgent?: string) {
+    if (await this.users.adminExists()) {
+      throw new BadRequestException("Admin already exists");
+    }
+    const existing = await this.users.findByEmail(dto.email.toLowerCase());
+    if (existing) {
+      throw new BadRequestException("Email is already registered");
+    }
+
+    const user = await this.users.createUserWithRole(
+      {
+        email: dto.email.toLowerCase(),
+        name: dto.name,
+        passwordHash: await hash(dto.password, 12)
+      },
+      "admin"
+    );
+
+    return this.issueTokens({ id: user.id, email: user.email, roles: ["admin"] }, ipAddress, userAgent);
+  }
+
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
     const user = await this.users.findByEmail(dto.email.toLowerCase());
     if (!user || !(await compare(dto.password, user.passwordHash))) {
@@ -123,7 +144,8 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      tokenType: "Bearer"
+      tokenType: "Bearer",
+      user
     };
   }
 

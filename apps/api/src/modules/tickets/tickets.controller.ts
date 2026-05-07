@@ -65,6 +65,8 @@ export class TicketsController {
 
 }
 
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("admin", "staff")
 @Controller("admin/dev/tickets")
 export class TicketsDevController {
   constructor(private readonly tickets: TicketsService) {}

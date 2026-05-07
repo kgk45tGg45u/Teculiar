@@ -100,7 +100,7 @@ Docs checked:
 ## Later Admin Panel Notes
 
 - Checkout domain registration and transfer use the LogicBoxes/Resell.biz test host by default when `RESELLBIZ_API_BASE_URL` is not set.
-- Domain checkout sends `invoice-option=NoInvoice`; Dezhost invoice/payment state is kept in the local billing tables.
+- Domain checkout sends `invoice-option=NoInvoice` and `discount-amount=0`; Dezhost invoice/payment state is kept in the local billing tables.
 - `customer-id` and contact IDs are real LogicBoxes/Resell.biz API fields. The test env names below only mean this repo currently uses pre-created test customer/contact records until customer/contact creation is wired.
 - `RESELLBIZ_TEST_CUSTOMER_ID` and `RESELLBIZ_TEST_CONTACT_ID` are required for test registration/transfer. Specific contact overrides are also supported:
   `RESELLBIZ_TEST_REG_CONTACT_ID`, `RESELLBIZ_TEST_ADMIN_CONTACT_ID`, `RESELLBIZ_TEST_TECH_CONTACT_ID`, `RESELLBIZ_TEST_BILLING_CONTACT_ID`.
@@ -132,6 +132,7 @@ On 2026-05-06, two registrations were sent to `https://test.httpapi.com` using t
 - `dezhost-api-mou6451k.com` - `ACTIVE`, external ID `125418508`
 - `dezhost-api-mou6451k.net` - `ACTIVE`, external ID `125418510`
 - `dezhost-codex-182235.com` - checkout payment/provision flow, `ACTIVE`, external ID `125419869`
+- 2026-05-07 retests through checkout created and paid orders, but Resell.biz test API returned `Error checking domain availability`; the local order stayed `PROVISIONING` with the paid invoice, as designed for provider failure.
 
 ## Security Notes
 

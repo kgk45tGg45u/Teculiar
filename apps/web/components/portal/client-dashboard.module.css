@@ -32,6 +32,11 @@
   font-weight: 680;
 }
 
+.subNav {
+  padding-left: 18px !important;
+  font-size: 0.9rem;
+}
+
 .main {
   display: grid;
   gap: 28px;
@@ -103,6 +108,81 @@
   line-height: 1.6;
 }
 
+.detailHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detailGrid div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.detailGrid span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.inlineForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.invoice {
+  display: grid;
+  gap: 22px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.invoiceTop,
+.invoiceMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.invoiceTop h2 {
+  margin: 8px 0 0;
+}
+
+.invoiceTotals {
+  display: grid;
+  justify-content: end;
+  gap: 8px;
+  text-align: right;
+}
+
+.pdfLink {
+  justify-self: end;
+  font-weight: 800;
+}
+
+.invoiceFooter {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 @media (max-width: 920px) {
   .page {
     grid-template-columns: 1fr;
@@ -122,5 +202,14 @@
 
   .main {
     padding: 24px 16px;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoiceTop,
+  .invoiceMeta {
+    display: grid;
   }
 }

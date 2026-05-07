@@ -512,6 +512,9 @@ model Invoice {
   currency        String        @default("EUR")
   reverseCharge   Boolean       @default(false)
   taxReason       String?
+  customerSnapshot Json         @default("{}")
+  footerLines     Json          @default("[]")
+  orderSnapshot   Json          @default("{}")
   couponId        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

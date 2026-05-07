@@ -5,6 +5,7 @@ Base URL: `/api/v1`
 ## Auth
 
 - `POST /auth/register`
+- `POST /auth/bootstrap-admin` - creates the first admin only while no admin exists.
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `POST /auth/logout`
@@ -26,6 +27,7 @@ Base URL: `/api/v1`
 ## Products and Services
 
 - `GET /storefront/products`
+- `GET /storefront/settings` - public checkout settings, including VAT percent.
 - `GET /products`
 - `POST /products`
 - `POST /admin/dev/products` - temporary unguarded product create endpoint until admin auth UI is wired.

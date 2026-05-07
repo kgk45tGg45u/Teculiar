@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Min,
@@ -58,6 +59,14 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @IsOptional()
+  @IsObject()
+  customerSnapshot?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  orderSnapshot?: Record<string, unknown>;
 
   @IsString()
   buyerCountryCode: string;

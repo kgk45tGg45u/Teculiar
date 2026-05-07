@@ -36,6 +36,16 @@ export class OrdersRepository {
     });
   }
 
+  findDomainProductPrice(productId: string, billingCycle: string) {
+    return this.prisma.productPrice.findFirst({
+      where: {
+        billingCycle: billingCycle as BillingCycle,
+        product: { active: true, id: productId, type: "DOMAIN" }
+      },
+      orderBy: { active: "desc" }
+    });
+  }
+
   listHomepageProducts() {
     return this.prisma.product.findMany({
       where: { active: true, homepageVisible: true },
@@ -82,7 +92,7 @@ export class OrdersRepository {
         totalCents: input.totalCents,
         userId: input.userId
       },
-      include: { invoice: true, items: true, user: true }
+      include: { invoice: true, items: true, user: { select: publicUserSelect } }
     });
   }
 
@@ -91,7 +101,7 @@ export class OrdersRepository {
       include: {
         invoice: true,
         items: { include: { product: true, service: true } },
-        user: true
+        user: { select: publicUserSelect }
       },
       orderBy: { createdAt: "desc" }
     });
@@ -103,7 +113,7 @@ export class OrdersRepository {
       include: {
         invoice: { include: { items: true, transactions: true } },
         items: { include: { product: true, service: true } },
-        user: true
+        user: { select: publicUserSelect }
       }
     });
   }
@@ -114,7 +124,7 @@ export class OrdersRepository {
       include: {
         invoice: true,
         items: { orderBy: { createdAt: "asc" } },
-        user: true
+        user: { select: publicUserSelect }
       }
     });
   }
@@ -165,7 +175,7 @@ export class OrdersRepository {
       include: {
         invoice: true,
         items: { include: { product: true, service: true } },
-        user: true
+        user: { select: publicUserSelect }
       }
     });
   }
@@ -273,3 +283,14 @@ export class OrdersRepository {
     return item;
   }
 }
+
+const publicUserSelect = {
+  countryCode: true,
+  customerType: true,
+  email: true,
+  id: true,
+  locale: true,
+  name: true,
+  segment: true,
+  vatId: true
+} satisfies Prisma.UserSelect;

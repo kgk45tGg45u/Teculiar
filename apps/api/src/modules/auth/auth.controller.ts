@@ -16,6 +16,11 @@ export class AuthController {
     return this.auth.register(dto, request.ip);
   }
 
+  @Post("bootstrap-admin")
+  bootstrapAdmin(@Body() dto: RegisterDto, @Req() request: Request) {
+    return this.auth.bootstrapAdmin(dto, request.ip, request.header("user-agent"));
+  }
+
   @Post("login")
   login(@Body() dto: LoginDto, @Req() request: Request) {
     return this.auth.login(dto, request.ip, request.header("user-agent"));

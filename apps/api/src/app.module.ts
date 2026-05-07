@@ -12,10 +12,11 @@ import { ProductsModule } from "./modules/products/products.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VirtualminClientModule } from "./modules/virtualmin-client/virtualmin-client.module";
+import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ envFilePath: findDotEnv(), isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     AuthModule,

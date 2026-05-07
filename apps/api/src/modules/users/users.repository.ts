@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -15,7 +16,7 @@ export class UsersRepository {
   findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { userRoles: { include: { role: true } } }
+      include: { contacts: { orderBy: { createdAt: "desc" }, take: 1 }, userRoles: { include: { role: true } } }
     });
   }
 
@@ -44,6 +45,41 @@ export class UsersRepository {
     });
   }
 
+  async adminExists() {
+    const count = await this.prisma.user.count({
+      where: { userRoles: { some: { role: { slug: "admin" } } } }
+    });
+    return count > 0;
+  }
+
+  createUserWithRole(
+    input: {
+      countryCode?: string;
+      customerType?: "INDIVIDUAL" | "BUSINESS";
+      email: string;
+      name: string;
+      passwordHash: string;
+      vatId?: string;
+    },
+    roleSlug: string
+  ) {
+    return this.prisma.user.create({
+      data: {
+        ...input,
+        userRoles: {
+          create: {
+            role: {
+              connectOrCreate: {
+                where: { slug: roleSlug },
+                create: { slug: roleSlug, name: roleSlug === "admin" ? "Admin" : roleSlug }
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   listClients() {
     return this.prisma.user.findMany({
       where: { userRoles: { some: { role: { slug: "client" } } } },
@@ -54,6 +90,49 @@ export class UsersRepository {
 
   updateSegment(userId: string, segment: string) {
     return this.prisma.user.update({ where: { id: userId }, data: { segment } });
+  }
+
+  async updateProfile(userId: string, input: {
+    address?: Record<string, unknown>;
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email?: string;
+    name?: string;
+    phone?: string;
+    vatId?: string;
+  }) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        countryCode: input.countryCode,
+        customerType: input.customerType,
+        email: input.email,
+        name: input.name,
+        vatId: input.vatId
+      }
+    });
+
+    if (input.phone !== undefined || input.address !== undefined) {
+      await this.prisma.contact.upsert({
+        where: { id: (await this.prisma.contact.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }))?.id ?? "" },
+        create: {
+          address: input.address as Prisma.InputJsonValue,
+          email: input.email ?? user.email,
+          name: input.name ?? user.name,
+          phone: input.phone,
+          type: "BILLING",
+          userId
+        },
+        update: {
+          address: input.address as Prisma.InputJsonValue,
+          email: input.email ?? user.email,
+          name: input.name ?? user.name,
+          phone: input.phone
+        }
+      });
+    }
+
+    return this.findById(userId);
   }
 
   setTotpSecret(userId: string, secret: string) {

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { hash } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { BillingService } from "../billing/billing.service";
 import { ExternalService } from "../external/external.service";
 import { UsersRepository } from "../users/users.repository";
@@ -65,9 +65,13 @@ export class OrdersService {
     };
   }
 
-  async getOrder(id: string) {
+  async getOrder(id: string, user?: { roles?: string[]; sub: string }) {
     const order = await this.orders.findOrder(id);
     if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    if (user && !staff && order.userId !== user.sub) {
       throw new NotFoundException("Order not found");
     }
 
@@ -102,23 +106,27 @@ export class OrdersService {
       throw new BadRequestException("Password is required");
     }
 
-    const existing = await this.users.findByEmail(dto.customer.email.toLowerCase());
-    if (existing) {
+    const email = dto.customer.email.toLowerCase();
+    const existing = await this.users.findByEmail(email);
+    if (existing && !(await compare(dto.customer.password, existing.passwordHash))) {
       throw new BadRequestException("Email is already registered. Please log in before ordering.");
     }
 
     const preview = await this.previewOrder(dto);
-    const user = await this.users.createUser({
-      countryCode: dto.customer.countryCode ?? "DE",
-      customerType: dto.customer.customerType ?? "INDIVIDUAL",
-      email: dto.customer.email.toLowerCase(),
-      name: dto.customer.name,
-      passwordHash: await hash(dto.customer.password, 12),
-      vatId: dto.customer.vatId
-    });
+    const user =
+      existing ??
+      (await this.users.createUser({
+        countryCode: dto.customer.countryCode ?? "DE",
+        customerType: dto.customer.customerType ?? "INDIVIDUAL",
+        email,
+        name: dto.customer.name,
+        passwordHash: await hash(dto.customer.password, 12),
+        vatId: dto.customer.vatId
+      }));
     const invoice = await this.billing.createInvoice({
       buyerCountryCode: dto.customer.countryCode ?? "DE",
       buyerVatId: dto.customer.vatId,
+      customerSnapshot: customerSnapshot(dto.customer, email),
       dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
       isBusinessCustomer: dto.customer.customerType === "BUSINESS",
       lines: preview.items.map((item) => ({
@@ -126,20 +134,18 @@ export class OrdersService {
         quantity: 1,
         unitAmountCents: item.totalCents
       })),
+      orderSnapshot: {
+        items: preview.items,
+        setupFeeCents: preview.setupFeeCents,
+        subtotalCents: preview.subtotalCents,
+        taxAmountCents: preview.taxAmountCents,
+        totalCents: preview.totalCents
+      },
       status: "UNPAID",
       userId: user.id
     });
     const order = await this.orders.createOrder({
-      customerSnapshot: {
-        address: dto.customer.address,
-        countryCode: dto.customer.countryCode ?? "DE",
-        customerType: dto.customer.customerType ?? "INDIVIDUAL",
-        email: dto.customer.email.toLowerCase(),
-        companyName: dto.customer.companyName,
-        name: dto.customer.name,
-        phone: dto.customer.phone,
-        vatId: dto.customer.vatId
-      },
+      customerSnapshot: customerSnapshot(dto.customer, email),
       invoiceId: invoice.id,
       items: preview.items,
       setupFeeCents: preview.setupFeeCents,
@@ -217,9 +223,14 @@ export class OrdersService {
       throw new NotFoundException("Product not found");
     }
 
-    const price = item.productPriceId
+    const configuredPrice = item.productPriceId
       ? product.prices.find((candidate) => candidate.id === item.productPriceId)
       : product.prices[0];
+    const price =
+      configuredPrice ??
+      (product.type === "DOMAIN"
+        ? await this.orders.findDomainProductPrice(product.id, requestedDomainCycle(item.configuration) ?? "YEAR_1")
+        : undefined);
     if (!price) {
       throw new BadRequestException(`No active price for ${product.name}`);
     }
@@ -269,7 +280,7 @@ export class OrdersService {
       : await this.orders.createServiceForItem(
           item,
           userId,
-          item.type === "DOMAIN" ? "PROVISIONING" : "ACTIVE"
+          ["DOMAIN", "SHARED_HOSTING"].includes(item.type) ? "PROVISIONING" : "ACTIVE"
         );
     if (!linkedServiceId) {
       await this.billing.createSubscription({
@@ -283,16 +294,8 @@ export class OrdersService {
 
     if (item.type === "SHARED_HOSTING") {
       await this.orders.markItemProvisioning(item.id);
-      const provisioning = await this.external.virtualmin.provision({
-        options: hostingOptions(item.configuration, customerSnapshot),
-        productType: item.type,
-        serviceId: service.id
-      });
-      if (provisioning.status === "FAILED") {
-        throw new BadRequestException("Virtualmin hosting provisioning failed");
-      }
-      await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "virtualmin");
-      return { outcome: "active" as const, service };
+      void this.finishHostingProvisioning(item, service.id, customerSnapshot);
+      return { outcome: "pending" as const, service };
     }
 
     if (item.type !== "DOMAIN") {
@@ -353,8 +356,12 @@ export class OrdersService {
       throw new BadRequestException("ResellBiz domain registration failed");
     }
 
-    await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "resellbiz");
-    return { outcome: provisioning.status === "ACTIVE" ? ("active" as const) : ("pending" as const), service };
+    if (provisioning.status === "ACTIVE") {
+      await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "resellbiz");
+      return { outcome: "active" as const, service };
+    }
+
+    return { outcome: "pending" as const, service };
   }
 
   private async suggestedDomainResults(domain: string, searchedTld: string, productId: string | undefined, fallbackCents: number) {
@@ -375,6 +382,47 @@ export class OrdersService {
 
     return results;
   }
+
+  private async finishHostingProvisioning(
+    item: {
+      configuration: unknown;
+      id: string;
+      type: string;
+    },
+    serviceId: string,
+    customerSnapshot?: unknown
+  ) {
+    try {
+      const provisioning = await this.external.virtualmin.provision({
+        options: hostingOptions(item.configuration, customerSnapshot),
+        productType: item.type,
+        serviceId
+      });
+      if (provisioning.status === "ACTIVE") {
+        await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "virtualmin");
+        return;
+      }
+      if (provisioning.status === "FAILED") {
+        await this.orders.markItemFailed(item.id, "Virtualmin hosting provisioning failed");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Virtualmin hosting provisioning failed";
+      await this.orders.markItemFailed(item.id, message);
+    }
+  }
+}
+
+function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string) {
+  return {
+    address: customer.address,
+    countryCode: customer.countryCode ?? "DE",
+    customerType: customer.customerType ?? "INDIVIDUAL",
+    email,
+    companyName: customer.companyName,
+    name: customer.name,
+    phone: customer.phone,
+    vatId: customer.vatId
+  };
 }
 
 function applyFreeDomainDiscount(items: PricedOrderItem[]) {
@@ -491,6 +539,14 @@ function domainAction(configuration: unknown) {
   return "transfer";
 }
 
+function requestedDomainCycle(configuration: unknown) {
+  if (!isRecord(configuration) || typeof configuration.billingCycle !== "string" || !configuration.billingCycle.startsWith("YEAR_")) {
+    return undefined;
+  }
+
+  return configuration.billingCycle;
+}
+
 function domainTld(domainName: string) {
   return domainName.split(".").at(-1)?.toLowerCase();
 }
@@ -519,7 +575,7 @@ function domainCustomerContact(snapshot: unknown) {
     name: requiredString(snapshot.name, "Name"),
     phone: phone.number,
     phoneCountryCode: phone.countryCode,
-    state: optionalString(address.state),
+    state: requiredString(address.state, "State"),
     vatId: optionalString(snapshot.vatId),
     zipCode: requiredString(address.postalCode, "Zip")
   };

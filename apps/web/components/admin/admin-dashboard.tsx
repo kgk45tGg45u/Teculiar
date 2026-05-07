@@ -1,14 +1,16 @@
 import { Bell, FileText, Package, Settings, Ticket, UsersRound } from "lucide-react";
+import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
-  apiGet,
   money,
   type ApiInvoice,
   type ApiDomainPrice,
   type ApiOrder,
   type ApiService,
-  type ApiTicket
+  type ApiTicket,
+  type AuthUser
 } from "../../lib/api";
+import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import { AnnouncementForm, DomainPriceForm, OrderStatusForm, SettingsForm } from "./admin-forms";
@@ -28,14 +30,19 @@ type AdminView =
   | "settings";
 
 export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
+  const user = await apiGetAuth<AuthUser>("/users/me");
+  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+    redirect("/admin/login" as never);
+  }
+
   await runMaintenance();
 
-  const orders = (await apiGet<ApiOrder[]>("/orders/admin")) ?? [];
-  const services = (await apiGet<ApiService[]>("/admin/dev/services")) ?? [];
-  const invoices = (await apiGet<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
-  const domainPrices = (await apiGet<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
-  const tickets = (await apiGet<ApiTicket[]>("/admin/dev/tickets")) ?? [];
-  const stats = (await apiGet<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
+  const orders = (await apiGetAuth<ApiOrder[]>("/orders/admin")) ?? [];
+  const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
+  const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
+  const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
+  const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
+  const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
 
@@ -431,13 +438,16 @@ function dateLabel(value?: string | null) {
 }
 
 async function runMaintenance() {
-  const billing = await fetch(`${API_BASE_URL}/admin/dev/billing/maintenance`, { method: "POST", cache: "no-store" })
+  const { cookies } = await import("next/headers");
+  const token = (await cookies()).get("dezhost_access_token")?.value;
+  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+  const billing = await fetch(`${API_BASE_URL}/admin/dev/billing/maintenance`, { method: "POST", cache: "no-store", headers })
     .then((response) => (response.ok ? response.json() : null))
     .catch(() => null);
   await fetch(`${API_BASE_URL}/admin/dev/tickets/maintenance`, {
       body: JSON.stringify({ closeAfterHours: billing?.ticketCloseHours ?? 24 }),
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(headers ?? {}) },
       method: "POST"
     }).catch(() => null);
 }

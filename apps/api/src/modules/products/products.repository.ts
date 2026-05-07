@@ -132,7 +132,7 @@ export class ProductsRepository {
   listServices(userId?: string) {
     return this.prisma.service.findMany({
       where: userId ? { userId } : undefined,
-      include: { product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } },
+      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } },
       orderBy: { createdAt: "desc" }
     });
   }
@@ -140,14 +140,19 @@ export class ProductsRepository {
   findService(id: string) {
     return this.prisma.service.findUnique({
       where: { id },
-      include: { product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
     });
   }
 
   updateServiceStatus(id: string, status: string, externalId?: string) {
     return this.prisma.service.update({
       where: { id },
-      data: { status: status as ServiceStatus, externalId }
+      data: {
+        externalId,
+        startedAt: status === "ACTIVE" ? new Date() : undefined,
+        status: status as ServiceStatus
+      },
+      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
     });
   }
 

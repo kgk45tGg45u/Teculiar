@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { TicketDepartment, TicketPriority, TicketStatus } from "@prisma/client";
+import { Prisma, TicketDepartment, TicketPriority, TicketStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
 
@@ -35,7 +35,7 @@ export class TicketsRepository {
         department: filters.department ? (filters.department as TicketDepartment) : undefined,
         status: filters.status ? (filters.status as TicketStatus) : undefined
       },
-      include: { assignee: true, user: true, service: true },
+      include: { assignee: { select: publicUserSelect }, user: { select: publicUserSelect }, service: true },
       orderBy: [{ priority: "desc" }, { updatedAt: "desc" }]
     });
   }
@@ -43,7 +43,13 @@ export class TicketsRepository {
   findTicket(id: string) {
     return this.prisma.ticket.findUnique({
       where: { id },
-      include: { replies: { include: { user: true }, orderBy: { createdAt: "desc" } }, internalNotes: true, attachments: true, user: true, service: { include: { product: true } } }
+      include: {
+        attachments: true,
+        internalNotes: true,
+        replies: { include: { user: { select: publicUserSelect } }, orderBy: { createdAt: "desc" } },
+        service: { include: { product: true } },
+        user: { select: publicUserSelect }
+      }
     });
   }
 
@@ -92,3 +98,14 @@ export class TicketsRepository {
     });
   }
 }
+
+const publicUserSelect = {
+  countryCode: true,
+  customerType: true,
+  email: true,
+  id: true,
+  locale: true,
+  name: true,
+  segment: true,
+  vatId: true
+} satisfies Prisma.UserSelect;

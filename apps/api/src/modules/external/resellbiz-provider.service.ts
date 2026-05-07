@@ -24,6 +24,7 @@ export class ResellBizProviderService implements DomainProvider {
     const payload = await client.registerDomain({
       ...contacts,
       autoRenew: request.autoRenew ?? true,
+      discountAmount: 0,
       domainName: request.domain,
       extraAttributes: request.extraAttributes,
       invoiceOption: "NoInvoice",
@@ -85,6 +86,17 @@ export class ResellBizProviderService implements DomainProvider {
     };
   }
 
+  async renewDomain(domain: string, years: number) {
+    const client = resellBizClient();
+    const summary = await client.getDomainSummary(domain);
+    return this.renew({
+      domain,
+      expDate: expiryAsUnix(summary.expiresAt),
+      orderId: summary.orderId,
+      years
+    });
+  }
+
   async ensureCustomerContact(request: DomainCustomerContactRequest) {
     const client = resellBizClient();
     const customerId = await ensureCustomer(client, request);
@@ -97,6 +109,23 @@ export class ResellBizProviderService implements DomainProvider {
 
     return { contactId, customerId, metadata: { createdContact: true } };
   }
+
+  async status(domain: string) {
+    const client = resellBizClient();
+    const summary = await client.getDomainSummary(domain);
+    const statusText = [summary.currentStatus, ...summary.domainStatus, ...summary.orderStatus].join(" ").toLowerCase();
+
+    return {
+      externalId: String(summary.orderId),
+      status: /active|invoicepaid|transfer complete/.test(statusText) ? ("ACTIVE" as const) : /failed|deleted|expired/.test(statusText) ? ("FAILED" as const) : ("QUEUED" as const),
+      metadata: { raw: summary.raw, status: statusText }
+    };
+  }
+}
+
+function expiryAsUnix(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  return Math.floor(date.getTime() / 1000);
 }
 
 async function registrationContacts(client: ResellBizClient, request: DomainRegistrationRequest) {

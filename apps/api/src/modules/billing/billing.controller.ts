@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import type { Request, Response } from "express";
+import { Res } from "@nestjs/common";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -13,8 +15,30 @@ export class BillingController {
   constructor(private readonly billing: BillingService) {}
 
   @Get("invoices")
-  listInvoices(@Query("status") status?: string, @Query("userId") userId?: string) {
-    return this.billing.listInvoices({ status, userId });
+  listInvoices(
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Query("status") status?: string,
+    @Query("userId") userId?: string
+  ) {
+    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
+    return this.billing.listInvoices({ status, userId: staff ? userId : request.user.sub });
+  }
+
+  @Get("invoices/:id")
+  getInvoice(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    return this.billing.getInvoice(id, request.user);
+  }
+
+  @Get("invoices/:id/pdf")
+  async invoicePdf(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Res() response: Response
+  ) {
+    const pdf = await this.billing.invoicePdf(id, request.user);
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `attachment; filename="invoice-${id}.pdf"`);
+    response.send(pdf);
   }
 
   @Roles("admin", "staff")
@@ -53,6 +77,18 @@ export class BillingController {
 
 }
 
+@Controller("storefront")
+export class BillingStorefrontController {
+  constructor(private readonly billing: BillingService) {}
+
+  @Get("settings")
+  settings() {
+    return this.billing.settings();
+  }
+}
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("admin", "staff")
 @Controller("admin/dev")
 export class BillingDevController {
   constructor(private readonly billing: BillingService) {}

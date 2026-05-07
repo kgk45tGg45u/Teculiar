@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { hash } from "bcryptjs";
 import { OrdersService } from "../../src/modules/orders/orders.service";
 
 describe("OrdersService", () => {
-  it("activates paid orders, registers domains, and skips hosting/VPS provider calls", async () => {
+  it("activates paid orders, registers domains, and queues hosting provider calls", async () => {
     const events: string[] = [];
     const order = {
       id: "ord_1",
@@ -44,10 +45,7 @@ describe("OrdersService", () => {
         }
       },
       virtualmin: {
-        provision: async () => {
-          events.push("virtualmin");
-          return { externalId: "vm_123", status: "ACTIVE", metadata: { panel: "virtualmin" } };
-        }
+        provision: async () => new Promise(() => undefined)
       },
       hetzner: {
         provision: async () => events.push("hetzner")
@@ -67,11 +65,9 @@ describe("OrdersService", () => {
       "item:item_domain:active:rb_123",
       "service:SHARED_HOSTING",
       "item:item_hosting:provisioning",
-      "virtualmin",
-      "item:item_hosting:active:vm_123",
       "service:VPS",
       "item:item_vps:active:none",
-      "order:complete"
+      "order:in-progress"
     ]);
   });
 
@@ -125,7 +121,6 @@ describe("OrdersService", () => {
       "item:item_transfer:provisioning",
       "transfer:transfer-test.com:secret-code",
       "domain-record:PENDING",
-      "item:item_transfer:active:rb_transfer",
       "order:in-progress"
     ]);
   });
@@ -176,6 +171,44 @@ describe("OrdersService", () => {
       "item:item_domain:active:rb_123",
       "order:complete"
     ]);
+  });
+
+  it("sends state as required domain contact data", async () => {
+    const events: string[] = [];
+    const order = {
+      id: "ord_contact_state",
+      userId: "user_1",
+      invoiceId: "inv_1",
+      customerSnapshot: customerSnapshot(),
+      items: [domainItem("item_domain", "state-test.com")]
+    };
+    const orders = {
+      findOrderForActivation: async () => order,
+      markOrderPaid: async () => events.push("order:paid"),
+      createServiceForItem: async () => ({ id: "svc_domain" }),
+      createDomainRecord: async () => events.push("domain-record"),
+      markItemProvisioning: async () => events.push("item:provisioning"),
+      markItemActive: async () => events.push("item:active"),
+      markItemFailed: async (_id: string, message: string) => events.push(`item:failed:${message}`),
+      markOrderComplete: async () => events.push("order:complete")
+    };
+    const billing = {
+      payInvoice: async () => ({ status: "PAID" }),
+      createSubscription: async () => ({ id: "sub_1" })
+    };
+    const external = {
+      resellBiz: {
+        register: async (request: { customerContact?: { state?: string } }) => {
+          events.push(`state:${request.customerContact?.state}`);
+          return { externalId: "rb_123", status: "ACTIVE", metadata: {} };
+        }
+      }
+    };
+    const service = new OrdersService(orders as never, billing as never, external as never, {} as never, {} as never);
+
+    await service.payOrder("ord_contact_state", { method: "CREDIT_CARD", paymentMethodId: "sandbox" });
+
+    assert.deepEqual(events, ["order:paid", "item:provisioning", "state:Berlin", "domain-record", "item:active", "order:complete"]);
   });
 
   it("keeps .de domains manual and does not call Resell.biz", async () => {
@@ -294,6 +327,39 @@ describe("OrdersService", () => {
     assert.equal(preview.totalCents, 1200);
   });
 
+  it("can price a domain from TLD prices when the product has no active price", async () => {
+    const orders = {
+      findDomainProductPrice: async (_productId: string, billingCycle: string) => ({
+        amountCents: 0,
+        billingCycle,
+        id: "price_domain_year_1",
+        setupFeeCents: 0
+      }),
+      findProduct: async () => ({
+        id: "prod_domain",
+        name: "Domains",
+        prices: [],
+        type: "DOMAIN"
+      })
+    };
+    const domainPricing = {
+      priceFor: async (_domain: string, fallback: number, action: string, years: number) => ({
+        amountCents: fallback + years + (action === "register" ? 1199 : 899),
+        source: "live",
+        tld: "com"
+      })
+    };
+    const service = new OrdersService(orders as never, { vatPercent: async () => 0 } as never, {} as never, {} as never, domainPricing as never);
+
+    const preview = await service.previewOrder({
+      items: [{ domainName: "priced-example.com", productId: "prod_domain", quantity: 1 }]
+    });
+
+    assert.equal(preview.items[0]?.billingCycle, "YEAR_1");
+    assert.equal(preview.items[0]?.productPriceId, "price_domain_year_1");
+    assert.equal(preview.items[0]?.unitAmountCents, 1200);
+  });
+
   it("uses admin VAT setting for order preview", async () => {
     const orders = {
       findProduct: async () => product("prod_hosting", "SHARED_HOSTING", 1000, "MONTHLY")
@@ -375,6 +441,7 @@ describe("OrdersService", () => {
 
   it("provisions shared hosting through Virtualmin using the selected domain", async () => {
     const events: string[] = [];
+    const provisioning = deferred<{ externalId: string; status: "ACTIVE"; metadata: { panel: string } }>();
     const order = {
       id: "ord_hosting",
       userId: "user_1",
@@ -390,6 +457,7 @@ describe("OrdersService", () => {
       markItemFailed: async (id: string, message: string) => events.push(`item:${id}:failed:${message}`),
       markItemProvisioning: async (id: string) => events.push(`item:${id}:provisioning`),
       markOrderComplete: async () => events.push("order:complete"),
+      markOrderInProgress: async () => events.push("order:in-progress"),
       markOrderFailed: async () => events.push("order:failed")
     };
     const billing = {
@@ -400,7 +468,7 @@ describe("OrdersService", () => {
       virtualmin: {
         provision: async (request: { options: { domainName?: string } }) => {
           events.push(`virtualmin:${request.options.domainName}`);
-          return { externalId: "vm_123", status: "ACTIVE", metadata: { panel: "virtualmin" } };
+          return provisioning.promise;
         }
       }
     };
@@ -412,13 +480,59 @@ describe("OrdersService", () => {
       "order:paid",
       "item:item_hosting:provisioning",
       "virtualmin:hosted-example.com",
-      "item:item_hosting:active:vm_123",
-      "order:complete"
+      "order:in-progress"
     ]);
+
+    provisioning.resolve({ externalId: "vm_123", status: "ACTIVE", metadata: { panel: "virtualmin" } });
+    await flushPromises();
+
+    assert.deepEqual(events, [
+      "order:paid",
+      "item:item_hosting:provisioning",
+      "virtualmin:hosted-example.com",
+      "order:in-progress",
+      "item:item_hosting:active:vm_123"
+    ]);
+  });
+
+  it("keeps slow Virtualmin hosting orders in provisioning instead of failing them", async () => {
+    const events: string[] = [];
+    const order = {
+      id: "ord_hosting_queued",
+      userId: "user_1",
+      invoiceId: "inv_1",
+      customerSnapshot: customerSnapshot(),
+      items: [{ ...serviceItem("item_hosting", "SHARED_HOSTING"), configuration: { domainName: "slow-example.com" } }]
+    };
+    const orders = {
+      findOrderForActivation: async () => order,
+      markOrderPaid: async () => events.push("order:paid"),
+      createServiceForItem: async () => ({ id: "svc_hosting" }),
+      markItemActive: async () => events.push("item:active"),
+      markItemFailed: async (_id: string, message: string) => events.push(`item:failed:${message}`),
+      markItemProvisioning: async () => events.push("item:provisioning"),
+      markOrderComplete: async () => events.push("order:complete"),
+      markOrderInProgress: async () => events.push("order:in-progress")
+    };
+    const billing = {
+      payInvoice: async () => ({ status: "PAID" }),
+      createSubscription: async () => ({ id: "sub_1" })
+    };
+    const external = {
+      virtualmin: {
+        provision: async () => ({ externalId: "slow-example.com", status: "QUEUED", metadata: { reason: "timeout" } })
+      }
+    };
+    const service = new OrdersService(orders as never, billing as never, external as never, {} as never, {} as never);
+
+    await service.payOrder("ord_hosting_queued", { method: "CREDIT_CARD", paymentMethodId: "sandbox" });
+
+    assert.deepEqual(events, ["order:paid", "item:provisioning", "order:in-progress"]);
   });
 
   it("uses one hosting service for a bundled hosting plus domain order", async () => {
     const events: string[] = [];
+    const provisioning = deferred<{ externalId: string; status: "ACTIVE"; metadata: Record<string, unknown> }>();
     const order = {
       id: "ord_bundle",
       userId: "user_1",
@@ -441,6 +555,7 @@ describe("OrdersService", () => {
       markItemActive: async (id: string, providerReference?: string) => events.push(`item:${id}:active:${providerReference ?? "none"}`),
       markItemFailed: async (id: string, message: string) => events.push(`item:${id}:failed:${message}`),
       markOrderComplete: async () => events.push("order:complete"),
+      markOrderInProgress: async () => events.push("order:in-progress"),
       markOrderFailed: async () => events.push("order:failed")
     };
     const billing = {
@@ -452,7 +567,7 @@ describe("OrdersService", () => {
         register: async () => ({ externalId: "rb_123", status: "ACTIVE", metadata: {} })
       },
       virtualmin: {
-        provision: async () => ({ externalId: "vm_123", status: "ACTIVE", metadata: {} })
+        provision: async () => provisioning.promise
       }
     };
     const service = new OrdersService(orders as never, billing as never, external as never, {} as never, {} as never);
@@ -463,12 +578,47 @@ describe("OrdersService", () => {
       "order:paid",
       "service:item_hosting:SHARED_HOSTING",
       "item:item_hosting:provisioning",
-      "item:item_hosting:active:vm_123",
       "item:item_domain:provisioning",
       "domain-record:svc_item_hosting",
       "item:item_domain:active:rb_123",
-      "order:complete"
+      "order:in-progress"
     ]);
+
+    provisioning.resolve({ externalId: "vm_123", status: "ACTIVE", metadata: {} });
+    await flushPromises();
+
+    assert.equal(events.at(-1), "item:item_hosting:active:vm_123");
+  });
+
+  it("lets an existing client order when their password is correct", async () => {
+    const events: string[] = [];
+    const passwordHash = await hash("StrongPass1!", 4);
+    const orders = {
+      createOrder: async (input: { userId: string }) => {
+        events.push(`order:${input.userId}`);
+        return { id: "ord_existing" };
+      },
+      findProduct: async () => product("prod_hosting", "SHARED_HOSTING", 1000, "MONTHLY")
+    };
+    const billing = {
+      createInvoice: async (input: { userId: string }) => {
+        events.push(`invoice:${input.userId}`);
+        return { id: "inv_existing", subtotalCents: 1000, taxAmountCents: 0, totalCents: 1000 };
+      },
+      vatPercent: async () => 0
+    };
+    const users = {
+      createUser: async () => events.push("create-user"),
+      findByEmail: async () => ({ email: "client@example.com", id: "user_existing", passwordHash })
+    };
+    const service = new OrdersService(orders as never, billing as never, {} as never, users as never, {} as never);
+
+    await service.checkout({
+      customer: { email: "client@example.com", name: "Client", password: "StrongPass1!" },
+      items: [{ productId: "prod_hosting", quantity: 1 }]
+    });
+
+    assert.deepEqual(events, ["invoice:user_existing", "order:user_existing"]);
   });
 });
 
@@ -522,4 +672,17 @@ function product(id: string, type: string, amountCents: number, billingCycle: st
     prices: [{ amountCents, billingCycle, id: `price_${id}`, setupFeeCents: 0 }],
     type
   };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+
+  return { promise, resolve };
+}
+
+function flushPromises() {
+  return new Promise((resolve) => setImmediate(resolve));
 }

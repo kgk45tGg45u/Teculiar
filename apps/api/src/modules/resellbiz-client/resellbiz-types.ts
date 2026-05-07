@@ -87,6 +87,7 @@ export type RegisterDomainInput = {
   billingContactId: number;
   customerId: number;
   domainName: string;
+  discountAmount?: number;
   extraAttributes?: Record<string, ParamPrimitive>;
   invoiceOption: "KeepInvoice" | "NoInvoice" | "OnlyAdd" | "PayInvoice";
   nameServers: string[];

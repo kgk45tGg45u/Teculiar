@@ -32,11 +32,24 @@ export class VirtualminProviderService implements HostingProvider {
       plan: stringOption(request.options, "virtualminPlan"),
       template: stringOption(request.options, "virtualminTemplate")
     });
-    const result = await callVirtualmin(credentials, action.program, action.params);
+    const result = await callVirtualmin(credentials, action.program, action.params).catch((error: unknown) => {
+      if (error instanceof Error && /timed out/i.test(error.message)) {
+        return {
+          entries: [],
+          json: undefined,
+          message: error.message,
+          ok: false,
+          program: action.program,
+          text: ""
+        };
+      }
+
+      throw error;
+    });
 
     return {
       externalId: domainName,
-      status: result.ok ? ("ACTIVE" as const) : ("FAILED" as const),
+      status: result.ok ? ("ACTIVE" as const) : result.message === "Virtualmin request timed out" ? ("QUEUED" as const) : ("FAILED" as const),
       metadata: {
         panel: "virtualmin",
         program: result.program,
@@ -68,6 +81,38 @@ export class VirtualminProviderService implements HostingProvider {
     return {
       accepted: true,
       operationId: `vm-restart-${serviceExternalId}-${randomUUID()}`
+    };
+  }
+
+  async status(serviceExternalId: string) {
+    const credentials = credentialsFromEnv();
+    if (!credentials) {
+      return {
+        externalId: serviceExternalId,
+        status: "QUEUED" as const,
+        metadata: { panel: "virtualmin", reason: "Virtualmin admin credentials are not configured." }
+      };
+    }
+
+    const domainName = assertSafeDomain(serviceExternalId);
+    const result = await callVirtualmin(credentials, "list-domains", { domain: domainName, multiline: true }).catch((error: unknown) => ({
+      entries: [],
+      json: undefined,
+      message: error instanceof Error ? error.message : "Virtualmin status check failed",
+      ok: false,
+      program: "list-domains",
+      text: ""
+    }));
+    const found = result.entries.some((entry) => entry.name === domainName || entry.name.endsWith(` ${domainName}`)) || result.text.includes(domainName);
+
+    return {
+      externalId: domainName,
+      status: found ? ("ACTIVE" as const) : result.ok ? ("PROVISIONING" as const) : ("QUEUED" as const),
+      metadata: {
+        panel: "virtualmin",
+        program: result.program,
+        result: result.message ?? result.text.slice(0, 500)
+      }
     };
   }
 }
