@@ -513,6 +513,7 @@ model Invoice {
   reverseCharge   Boolean       @default(false)
   taxReason       String?
   customerSnapshot Json         @default("{}")
+  sellerSnapshot  Json          @default("{}")
   footerLines     Json          @default("[]")
   orderSnapshot   Json          @default("{}")
   couponId        String?

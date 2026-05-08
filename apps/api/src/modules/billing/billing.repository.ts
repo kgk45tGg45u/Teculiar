@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BillingCycle, InvoiceStatus, PaymentMethodType, Prisma, ServiceStatus, TransactionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import { formatInvoiceNumber } from "./platform-rules";
+import { formatPaidInvoiceNumber, formatUnpaidInvoiceNumber } from "./platform-rules";
 
 @Injectable()
 export class BillingRepository {
@@ -27,6 +27,7 @@ export class BillingRepository {
     reverseCharge: boolean;
     taxReason: string;
     customerSnapshot?: Record<string, unknown>;
+    sellerSnapshot?: Record<string, unknown>;
     footerLines?: string[];
     orderSnapshot?: Record<string, unknown>;
     couponId?: string;
@@ -44,7 +45,11 @@ export class BillingRepository {
       serviceId?: string;
     }>;
   }) {
-    const invoiceNumber = formatInvoiceNumber((await this.prisma.invoice.count()) + 1);
+    // Unpaid invoices get N-XXXXXX; paid invoices get plain XXXXXX
+    const isPaid = input.status === "PAID";
+    const seqKey = isPaid ? "invoiceSeqPaid" : "invoiceSeqUnpaid";
+    const seq = await this.nextSequence(seqKey);
+    const invoiceNumber = isPaid ? formatPaidInvoiceNumber(seq) : formatUnpaidInvoiceNumber(seq);
 
     return this.prisma.invoice.create({
       data: {
@@ -61,6 +66,7 @@ export class BillingRepository {
         reverseCharge: input.reverseCharge,
         taxReason: input.taxReason,
         customerSnapshot: (input.customerSnapshot ?? {}) as Prisma.InputJsonValue,
+        sellerSnapshot: (input.sellerSnapshot ?? {}) as Prisma.InputJsonValue,
         footerLines: (input.footerLines ?? []) as Prisma.InputJsonValue,
         orderSnapshot: (input.orderSnapshot ?? {}) as Prisma.InputJsonValue,
         couponId: input.couponId,
@@ -90,12 +96,49 @@ export class BillingRepository {
   findInvoice(id: string) {
     return this.prisma.invoice.findUnique({
       where: { id },
-      include: { items: true, order: { include: { items: true } }, transactions: true, user: { select: publicUserSelect } }
+      include: {
+        items: true,
+        order: { include: { items: true } },
+        transactions: true,
+        user: {
+          select: {
+            ...publicUserSelect,
+            services: { select: { id: true, status: true, product: { select: { name: true, type: true } } } },
+            domainRecords: { select: { id: true, domain: true, status: true } }
+          }
+        }
+      }
     });
   }
 
-  updateInvoiceStatus(id: string, status: string) {
-    return this.prisma.invoice.update({ where: { id }, data: { status: status as InvoiceStatus } });
+  updateInvoiceStatus(id: string, status: string, paidAt?: Date) {
+    return this.prisma.invoice.update({
+      where: { id },
+      data: {
+        status: status as InvoiceStatus,
+        paidAt: status === "PAID" ? (paidAt ?? new Date()) : undefined
+      }
+    });
+  }
+
+  /**
+   * When an invoice transitions to PAID we assign it a permanent paid invoice number.
+   * The old N-XXXXXX number is replaced with a plain XXXXXX number.
+   */
+  async markInvoicePaid(id: string) {
+    const seq = await this.nextSequence("invoiceSeqPaid");
+    const invoiceNumber = formatPaidInvoiceNumber(seq);
+    return this.prisma.invoice.update({
+      where: { id },
+      data: { status: "PAID", paidAt: new Date(), invoiceNumber }
+    });
+  }
+
+  markInvoiceUnpaid(id: string) {
+    return this.prisma.invoice.update({
+      where: { id },
+      data: { status: "UNPAID", paidAt: null }
+    });
   }
 
   createTransaction(input: {
@@ -206,6 +249,13 @@ export class BillingRepository {
     });
   }
 
+  activateService(id: string) {
+    return this.prisma.service.update({
+      where: { id },
+      data: { status: "ACTIVE", startedAt: new Date(), suspendedAt: null }
+    });
+  }
+
   setServiceStatus(id: string, status: string) {
     return this.prisma.service.update({
       where: { id },
@@ -214,6 +264,54 @@ export class BillingRepository {
         startedAt: status === "ACTIVE" ? new Date() : undefined,
         suspendedAt: status === "SUSPENDED" ? new Date() : undefined,
         cancelledAt: ["CANCELLED", "TERMINATED"].includes(status) ? new Date() : undefined
+      }
+    });
+  }
+
+  /** Find all services linked to invoice items (for activation on payment) */
+  findInvoiceServices(invoiceId: string) {
+    return this.prisma.invoiceItem.findMany({
+      where: { invoiceId, serviceId: { not: null } },
+      include: {
+        service: {
+          include: {
+            product: true,
+            domainRecords: true,
+            orderItems: { orderBy: { createdAt: "desc" }, take: 1 }
+          }
+        }
+      }
+    });
+  }
+
+  /** Find all clients (users with client role) */
+  listClients() {
+    return this.prisma.user.findMany({
+      where: { userRoles: { some: { role: { slug: "client" } } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        countryCode: true,
+        customerType: true,
+        vatId: true,
+        createdAt: true,
+        services: { select: { id: true, status: true } },
+        domainRecords: { select: { id: true, domain: true } },
+        invoices: { select: { id: true, status: true, totalCents: true }, orderBy: { issuedAt: "desc" }, take: 5 }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  findClient(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        services: { include: { product: true, productPrice: true, domainRecords: true } },
+        domainRecords: true,
+        invoices: { include: { items: true }, orderBy: { issuedAt: "desc" } },
+        contacts: true
       }
     });
   }
@@ -265,6 +363,18 @@ export class BillingRepository {
         enabled: input.enabled
       }
     });
+  }
+
+  /** Atomic sequence counter stored in SystemSetting */
+  private async nextSequence(key: string): Promise<number> {
+    // Use a raw upsert+increment to avoid race conditions
+    await this.prisma.systemSetting.upsert({
+      where: { key },
+      create: { key, value: 1 },
+      update: { value: { increment: 1 } as unknown as Prisma.InputJsonValue }
+    });
+    const row = await this.prisma.systemSetting.findUnique({ where: { key } });
+    return typeof row?.value === "number" ? row.value : 1;
   }
 }
 

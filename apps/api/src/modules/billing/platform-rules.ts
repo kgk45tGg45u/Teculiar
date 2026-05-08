@@ -2,8 +2,19 @@ export function formatOrderNumber(next: number) {
   return fixedNumber(next, 6, "Order number");
 }
 
+/** Unpaid invoices: N-XXXXXX  (draft prefix, no permanent number yet) */
+export function formatUnpaidInvoiceNumber(next: number) {
+  return `N-${fixedNumber(next, 6, "Invoice number")}`;
+}
+
+/** Paid invoices: plain 6-digit number */
+export function formatPaidInvoiceNumber(next: number) {
+  return fixedNumber(next, 6, "Invoice number");
+}
+
+/** @deprecated use formatUnpaidInvoiceNumber / formatPaidInvoiceNumber */
 export function formatInvoiceNumber(next: number) {
-  return fixedNumber(next, 7, "Invoice number");
+  return formatUnpaidInvoiceNumber(next);
 }
 
 export function addBillingCycle(date: Date, cycle: string) {

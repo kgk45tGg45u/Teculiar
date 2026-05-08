@@ -48,7 +48,15 @@ export function SettingsForm() {
     invoiceFooterLine2: "",
     invoiceFooterLine3: "",
     ticketAutoCloseHours: 24,
-    vatPercent: 19
+    vatPercent: 19,
+    sellerName: "",
+    sellerAddressLine1: "",
+    sellerPostalCode: "",
+    sellerCity: "",
+    sellerCountryCode: "DE",
+    sellerVatId: "",
+    sellerEmail: "",
+    sellerPhone: ""
   });
 
   useEffect(() => {
@@ -60,10 +68,22 @@ export function SettingsForm() {
         invoiceFooterLine2: payload.invoiceFooterLine2 ?? "",
         invoiceFooterLine3: payload.invoiceFooterLine3 ?? "",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
-        vatPercent: payload.vatPercent ?? 19
+        vatPercent: payload.vatPercent ?? 19,
+        sellerName: payload.sellerName ?? "",
+        sellerAddressLine1: payload.sellerAddressLine1 ?? "",
+        sellerPostalCode: payload.sellerPostalCode ?? "",
+        sellerCity: payload.sellerCity ?? "",
+        sellerCountryCode: payload.sellerCountryCode ?? "DE",
+        sellerVatId: payload.sellerVatId ?? "",
+        sellerEmail: payload.sellerEmail ?? "",
+        sellerPhone: payload.sellerPhone ?? ""
       }))
       .catch(() => undefined);
   }, []);
+
+  function set(key: keyof typeof settings, value: string | number) {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
@@ -73,7 +93,15 @@ export function SettingsForm() {
         invoiceFooterLine2: String(formData.get("invoiceFooterLine2") ?? ""),
         invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
-        vatPercent: Number(formData.get("vatPercent") ?? 19)
+        vatPercent: Number(formData.get("vatPercent") ?? 19),
+        sellerName: String(formData.get("sellerName") ?? ""),
+        sellerAddressLine1: String(formData.get("sellerAddressLine1") ?? ""),
+        sellerPostalCode: String(formData.get("sellerPostalCode") ?? ""),
+        sellerCity: String(formData.get("sellerCity") ?? ""),
+        sellerCountryCode: String(formData.get("sellerCountryCode") ?? "DE"),
+        sellerVatId: String(formData.get("sellerVatId") ?? ""),
+        sellerEmail: String(formData.get("sellerEmail") ?? ""),
+        sellerPhone: String(formData.get("sellerPhone") ?? "")
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
@@ -84,12 +112,28 @@ export function SettingsForm() {
 
   return (
     <form action={submit} className={styles.form}>
-      <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
-      <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
-      <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
-      <label>Invoice footer line 1<input value={settings.invoiceFooterLine1} onChange={(event) => setSettings({ ...settings, invoiceFooterLine1: event.target.value })} name="invoiceFooterLine1" /></label>
-      <label>Invoice footer line 2<input value={settings.invoiceFooterLine2} onChange={(event) => setSettings({ ...settings, invoiceFooterLine2: event.target.value })} name="invoiceFooterLine2" /></label>
-      <label>Invoice footer line 3<input value={settings.invoiceFooterLine3} onChange={(event) => setSettings({ ...settings, invoiceFooterLine3: event.target.value })} name="invoiceFooterLine3" /></label>
+      <h3 style={{ margin: "0 0 4px" }}>Seller / Dezhost address (shown on invoices)</h3>
+      <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: "0.9rem" }}>
+        This information is frozen into each invoice at creation time (German standard: seller address top-left).
+      </p>
+      <label>Company name<input value={settings.sellerName} onChange={(e) => set("sellerName", e.target.value)} name="sellerName" placeholder="Dezhost GmbH" /></label>
+      <label>Address line 1<input value={settings.sellerAddressLine1} onChange={(e) => set("sellerAddressLine1", e.target.value)} name="sellerAddressLine1" placeholder="Musterstraße 1" /></label>
+      <label>Postal code<input value={settings.sellerPostalCode} onChange={(e) => set("sellerPostalCode", e.target.value)} name="sellerPostalCode" placeholder="10115" /></label>
+      <label>City<input value={settings.sellerCity} onChange={(e) => set("sellerCity", e.target.value)} name="sellerCity" placeholder="Berlin" /></label>
+      <label>Country code<input value={settings.sellerCountryCode} onChange={(e) => set("sellerCountryCode", e.target.value)} name="sellerCountryCode" placeholder="DE" /></label>
+      <label>VAT ID (USt-IdNr.)<input value={settings.sellerVatId} onChange={(e) => set("sellerVatId", e.target.value)} name="sellerVatId" placeholder="DE123456789" /></label>
+      <label>Contact email<input value={settings.sellerEmail} onChange={(e) => set("sellerEmail", e.target.value)} name="sellerEmail" placeholder="billing@dezhost.de" /></label>
+      <label>Phone<input value={settings.sellerPhone} onChange={(e) => set("sellerPhone", e.target.value)} name="sellerPhone" placeholder="+49 30 12345678" /></label>
+
+      <h3 style={{ margin: "16px 0 4px" }}>Billing automation</h3>
+      <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => set("invoiceDaysAhead", Number(event.target.value))} name="invoiceDaysAhead" type="number" /></label>
+      <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => set("ticketAutoCloseHours", Number(event.target.value))} name="ticketAutoCloseHours" type="number" /></label>
+      <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => set("vatPercent", Number(event.target.value))} name="vatPercent" type="number" /></label>
+
+      <h3 style={{ margin: "16px 0 4px" }}>Invoice footer</h3>
+      <label>Footer line 1<input value={settings.invoiceFooterLine1} onChange={(event) => set("invoiceFooterLine1", event.target.value)} name="invoiceFooterLine1" /></label>
+      <label>Footer line 2<input value={settings.invoiceFooterLine2} onChange={(event) => set("invoiceFooterLine2", event.target.value)} name="invoiceFooterLine2" /></label>
+      <label>Footer line 3<input value={settings.invoiceFooterLine3} onChange={(event) => set("invoiceFooterLine3", event.target.value)} name="invoiceFooterLine3" /></label>
       <p>Admin dashboard runs maintenance on open: close answered tickets, create upcoming invoices, mark overdue invoices, suspend services with overdue unpaid invoices.</p>
       <Button icon={CreditCard} type="submit">Save Settings</Button>
       {message ? <p>{message}</p> : null}

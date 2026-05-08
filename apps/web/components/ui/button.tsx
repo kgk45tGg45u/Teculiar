@@ -6,6 +6,7 @@ import styles from "./button.module.css";
 
 type ButtonProps = {
   children: ReactNode;
+  disabled?: boolean;
   href?: string;
   icon?: ComponentType<LucideProps>;
   variant?: "primary" | "secondary" | "ghost";
@@ -16,6 +17,7 @@ type ButtonProps = {
 
 export function Button({
   children,
+  disabled,
   href,
   icon: Icon,
   variant = "primary",
@@ -40,7 +42,7 @@ export function Button({
   }
 
   return (
-    <button className={className} type={type} onClick={onClick} title={title}>
+    <button className={className} disabled={disabled} type={type} onClick={onClick} title={title}>
       {content}
     </button>
   );

@@ -4,6 +4,8 @@ import {
   addBillingCycle,
   formatInvoiceNumber,
   formatOrderNumber,
+  formatPaidInvoiceNumber,
+  formatUnpaidInvoiceNumber,
   shouldCloseAnsweredTicket
 } from "../../src/modules/billing/platform-rules";
 
@@ -14,10 +16,22 @@ describe("platform billing and support rules", () => {
     assert.throws(() => formatOrderNumber(1_000_000), /6 digits/);
   });
 
-  it("formats invoice numbers as 7 digits", () => {
-    assert.equal(formatInvoiceNumber(1), "0000001");
-    assert.equal(formatInvoiceNumber(1_234_567), "1234567");
-    assert.throws(() => formatInvoiceNumber(10_000_000), /7 digits/);
+  it("formatInvoiceNumber (deprecated) returns N-XXXXXX unpaid format", () => {
+    // formatInvoiceNumber is now an alias for formatUnpaidInvoiceNumber
+    assert.equal(formatInvoiceNumber(1), "N-000001");
+    assert.equal(formatInvoiceNumber(123456), "N-123456");
+    assert.throws(() => formatInvoiceNumber(1_000_000));
+  });
+
+  it("formatUnpaidInvoiceNumber returns N-XXXXXX", () => {
+    assert.equal(formatUnpaidInvoiceNumber(1), "N-000001");
+    assert.equal(formatUnpaidInvoiceNumber(123456), "N-123456");
+  });
+
+  it("formatPaidInvoiceNumber returns plain 6-digit number", () => {
+    assert.equal(formatPaidInvoiceNumber(1), "000001");
+    assert.equal(formatPaidInvoiceNumber(999999), "999999");
+    assert.throws(() => formatPaidInvoiceNumber(1_000_000));
   });
 
   it("calculates next due date from the prior due date and billing cycle", () => {

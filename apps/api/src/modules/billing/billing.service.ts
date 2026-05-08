@@ -18,7 +18,11 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const [vatRate, footerLines] = await Promise.all([this.vatPercent(), this.invoiceFooterLines()]);
+    const [vatRate, footerLines, sellerSnapshot] = await Promise.all([
+      this.vatPercent(),
+      this.invoiceFooterLines(),
+      this.sellerSnapshot()
+    ]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: 0 })),
       coupon: coupon
@@ -48,6 +52,7 @@ export class BillingService {
       reverseCharge: draft.reverseCharge,
       taxReason: draft.taxReason,
       customerSnapshot: dto.customerSnapshot,
+      sellerSnapshot,
       footerLines,
       orderSnapshot: dto.orderSnapshot,
       couponId: coupon?.id,
@@ -77,8 +82,29 @@ export class BillingService {
 
   async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
+    const seller = (invoice.sellerSnapshot ?? {}) as Record<string, unknown>;
+    const customer = (invoice.customerSnapshot ?? {}) as Record<string, unknown>;
+    const customerAddress = (customer.address ?? {}) as Record<string, unknown>;
+
+    const sellerLines = [
+      typeof seller.name === "string" ? seller.name : "Dezhost",
+      typeof seller.addressLine1 === "string" ? seller.addressLine1 : "",
+      [seller.postalCode, seller.city].filter(Boolean).join(" "),
+      typeof seller.countryCode === "string" ? seller.countryCode : ""
+    ].filter(Boolean);
+
+    const buyerLines = [
+      (customer.companyName as string) || (customer.name as string) || "",
+      (customerAddress.line1 as string) || "",
+      [customerAddress.postalCode, customerAddress.city].filter(Boolean).join(" "),
+      (customer.countryCode as string) || ""
+    ].filter(Boolean);
+
     const lines = [
-      "Dezhost",
+      ...sellerLines,
+      "",
+      ...buyerLines,
+      "",
       `Rechnung ${invoice.invoiceNumber}`,
       `Status: ${invoice.status}`,
       `Datum: ${invoice.issuedAt.toISOString().slice(0, 10)}`,
@@ -135,7 +161,9 @@ export class BillingService {
     });
 
     if (result.status === "SUCCEEDED") {
-      return this.billing.updateInvoiceStatus(id, "PAID");
+      const paid = await this.billing.markInvoicePaid(id);
+      await this.activateInvoiceServices(id);
+      return paid;
     }
 
     if (result.status === "FAILED") {
@@ -143,6 +171,88 @@ export class BillingService {
     }
 
     return this.billing.updateInvoiceStatus(id, "PENDING");
+  }
+
+  /** Admin: mark invoice as paid and trigger service activation */
+  async adminMarkPaid(id: string) {
+    const invoice = await this.billing.findInvoice(id);
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+    const paid = await this.billing.markInvoicePaid(id);
+    await this.activateInvoiceServices(id);
+    return paid;
+  }
+
+  /** Admin: mark invoice as unpaid (even if previously paid via gateway) */
+  async adminMarkUnpaid(id: string) {
+    const invoice = await this.billing.findInvoice(id);
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+    return this.billing.markInvoiceUnpaid(id);
+  }
+
+  /** Admin: create a custom invoice for a client with arbitrary line items */
+  async adminCreateCustomInvoice(dto: {
+    userId: string;
+    dueAt: string;
+    lines: Array<{ description: string; quantity: number; unitAmountCents: number }>;
+    notes?: string;
+  }) {
+    const user = await this.billing.findClient(dto.userId);
+    if (!user) {
+      throw new NotFoundException("Client not found");
+    }
+    const [vatRate, footerLines, sellerSnapshot] = await Promise.all([
+      this.vatPercent(),
+      this.invoiceFooterLines(),
+      this.sellerSnapshot()
+    ]);
+    const draft = this.engine.createDraft({
+      lines: dto.lines.map((line) => ({ ...line, taxRate: 0 })),
+      taxContext: {
+        sellerCountryCode: "DE",
+        buyerCountryCode: user.countryCode,
+        buyerVatId: user.vatId ?? undefined,
+        isBusinessCustomer: user.customerType === "BUSINESS"
+      },
+      vatRate
+    });
+
+    const customerSnapshot = {
+      countryCode: user.countryCode,
+      customerType: user.customerType,
+      email: user.email,
+      name: user.name,
+      vatId: user.vatId
+    };
+
+    return this.billing.createInvoice({
+      userId: dto.userId,
+      status: "UNPAID",
+      issuedAt: new Date(),
+      dueAt: new Date(dto.dueAt),
+      subtotalCents: draft.subtotalCents,
+      discountCents: draft.discountCents,
+      taxAmountCents: draft.taxAmountCents,
+      totalCents: draft.totalCents,
+      reverseCharge: draft.reverseCharge,
+      taxReason: draft.taxReason,
+      customerSnapshot,
+      sellerSnapshot,
+      footerLines,
+      orderSnapshot: dto.notes ? { notes: dto.notes } : {},
+      lines: draft.lines
+    });
+  }
+
+  listClients() {
+    return this.billing.listClients();
+  }
+
+  getClient(id: string) {
+    return this.billing.findClient(id);
   }
 
   async createSubscription(dto: CreateSubscriptionDto) {
@@ -243,16 +353,54 @@ export class BillingService {
   }
 
   async settings() {
-    const [invoiceDaysAhead, ticketAutoCloseHours, vatPercent, invoiceFooterLine1, invoiceFooterLine2, invoiceFooterLine3] = await Promise.all([
+    const [
+      invoiceDaysAhead,
+      ticketAutoCloseHours,
+      vatPercent,
+      invoiceFooterLine1,
+      invoiceFooterLine2,
+      invoiceFooterLine3,
+      sellerName,
+      sellerAddressLine1,
+      sellerPostalCode,
+      sellerCity,
+      sellerCountryCode,
+      sellerVatId,
+      sellerEmail,
+      sellerPhone
+    ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
       this.vatPercent(),
       this.billing.settingString("invoiceFooterLine1"),
       this.billing.settingString("invoiceFooterLine2"),
-      this.billing.settingString("invoiceFooterLine3")
+      this.billing.settingString("invoiceFooterLine3"),
+      this.billing.settingString("sellerName"),
+      this.billing.settingString("sellerAddressLine1"),
+      this.billing.settingString("sellerPostalCode"),
+      this.billing.settingString("sellerCity"),
+      this.billing.settingString("sellerCountryCode", "DE"),
+      this.billing.settingString("sellerVatId"),
+      this.billing.settingString("sellerEmail"),
+      this.billing.settingString("sellerPhone")
     ]);
 
-    return { invoiceDaysAhead, invoiceFooterLine1, invoiceFooterLine2, invoiceFooterLine3, ticketAutoCloseHours, vatPercent };
+    return {
+      invoiceDaysAhead,
+      invoiceFooterLine1,
+      invoiceFooterLine2,
+      invoiceFooterLine3,
+      ticketAutoCloseHours,
+      vatPercent,
+      sellerName,
+      sellerAddressLine1,
+      sellerPostalCode,
+      sellerCity,
+      sellerCountryCode,
+      sellerVatId,
+      sellerEmail,
+      sellerPhone
+    };
   }
 
   async storefrontPaymentGateways() {
@@ -291,8 +439,16 @@ export class BillingService {
     invoiceFooterLine3?: string;
     ticketAutoCloseHours?: number;
     vatPercent?: number;
+    sellerName?: string;
+    sellerAddressLine1?: string;
+    sellerPostalCode?: string;
+    sellerCity?: string;
+    sellerCountryCode?: string;
+    sellerVatId?: string;
+    sellerEmail?: string;
+    sellerPhone?: string;
   }) {
-    return Promise.all([
+    const ops: Array<Promise<unknown> | undefined> = [
       input.invoiceDaysAhead === undefined
         ? undefined
         : this.billing.upsertSettingNumber("invoiceDaysAhead", input.invoiceDaysAhead),
@@ -302,12 +458,35 @@ export class BillingService {
       input.vatPercent === undefined ? undefined : this.billing.upsertSettingNumber("vatPercent", Math.max(0, input.vatPercent)),
       input.invoiceFooterLine1 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine1", input.invoiceFooterLine1),
       input.invoiceFooterLine2 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine2", input.invoiceFooterLine2),
-      input.invoiceFooterLine3 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine3", input.invoiceFooterLine3)
-    ]);
+      input.invoiceFooterLine3 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine3", input.invoiceFooterLine3),
+      input.sellerName === undefined ? undefined : this.billing.upsertSettingString("sellerName", input.sellerName),
+      input.sellerAddressLine1 === undefined ? undefined : this.billing.upsertSettingString("sellerAddressLine1", input.sellerAddressLine1),
+      input.sellerPostalCode === undefined ? undefined : this.billing.upsertSettingString("sellerPostalCode", input.sellerPostalCode),
+      input.sellerCity === undefined ? undefined : this.billing.upsertSettingString("sellerCity", input.sellerCity),
+      input.sellerCountryCode === undefined ? undefined : this.billing.upsertSettingString("sellerCountryCode", input.sellerCountryCode),
+      input.sellerVatId === undefined ? undefined : this.billing.upsertSettingString("sellerVatId", input.sellerVatId),
+      input.sellerEmail === undefined ? undefined : this.billing.upsertSettingString("sellerEmail", input.sellerEmail),
+      input.sellerPhone === undefined ? undefined : this.billing.upsertSettingString("sellerPhone", input.sellerPhone)
+    ];
+    return Promise.all(ops);
   }
 
   updateServiceStatus(id: string, status: string) {
     return this.billing.setServiceStatus(id, status);
+  }
+
+  /** Activate services linked to invoice items after payment */
+  private async activateInvoiceServices(invoiceId: string) {
+    const invoiceItems = await this.billing.findInvoiceServices(invoiceId);
+    for (const item of invoiceItems) {
+      if (!item.service) {
+        continue;
+      }
+      const { service } = item;
+      if (["SUSPENDED", "ORDERED", "PROVISIONING"].includes(service.status)) {
+        await this.billing.activateService(service.id);
+      }
+    }
   }
 
   private async invoiceFooterLines() {
@@ -318,6 +497,22 @@ export class BillingService {
     ]);
 
     return settings.filter((line) => line.trim().length > 0);
+  }
+
+  /** Build frozen seller snapshot from system settings */
+  private async sellerSnapshot(): Promise<Record<string, unknown>> {
+    const [name, addressLine1, postalCode, city, countryCode, vatId, email, phone] = await Promise.all([
+      this.billing.settingString("sellerName"),
+      this.billing.settingString("sellerAddressLine1"),
+      this.billing.settingString("sellerPostalCode"),
+      this.billing.settingString("sellerCity"),
+      this.billing.settingString("sellerCountryCode", "DE"),
+      this.billing.settingString("sellerVatId"),
+      this.billing.settingString("sellerEmail"),
+      this.billing.settingString("sellerPhone")
+    ]);
+
+    return { name, addressLine1, postalCode, city, countryCode, vatId, email, phone };
   }
 }
 

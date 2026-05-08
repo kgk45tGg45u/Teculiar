@@ -503,18 +503,54 @@ function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
   return (
     <section className={styles.invoiceCards}>
       {invoices.map((invoice) => (
-        <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
-          <div>
-            <span>Invoice</span>
-            <strong>{invoice.invoiceNumber}</strong>
-          </div>
-          <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
-          <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
-          <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-          <StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} />
-        </a>
+        <div className={styles.invoiceCardRow} key={invoice.id}>
+          <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`}>
+            <div>
+              <span>Invoice</span>
+              <strong>{invoice.invoiceNumber}</strong>
+            </div>
+            <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
+            <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+            <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
+            <StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} />
+          </a>
+          {["UNPAID", "OVERDUE", "FAILED"].includes(invoice.status) ? (
+            <PayNowButton invoice={invoice} />
+          ) : null}
+        </div>
       ))}
     </section>
+  );
+}
+
+function PayNowButton({ invoice }: { invoice: ApiInvoice }) {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function pay() {
+    setLoading(true);
+    setMessage("");
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pay`, {
+      body: JSON.stringify({ method: "SEPA" }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setLoading(false);
+    if (response.ok) {
+      const data = await response.json().catch(() => null);
+      setMessage(data?.status === "PAID" ? "Paid!" : "Payment pending.");
+    } else {
+      setMessage("Payment failed.");
+    }
+  }
+
+  return (
+    <div className={styles.payNowWrap}>
+      <Button type="button" variant="secondary" onClick={pay} disabled={loading}>
+        {loading ? "..." : "Pay now"}
+      </Button>
+      {message ? <span>{message}</span> : null}
+    </div>
   );
 }
 

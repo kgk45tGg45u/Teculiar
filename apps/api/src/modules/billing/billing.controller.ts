@@ -74,7 +74,6 @@ export class BillingController {
   revenueReport() {
     return this.billing.revenueReport();
   }
-
 }
 
 @Controller("storefront")
@@ -118,13 +117,69 @@ export class BillingDevController {
     return this.billing.listInvoices({ userId });
   }
 
+  /** Admin: view a single invoice (stays in admin panel) */
+  @Get("billing/invoices/:id")
+  getInvoice(@Param("id") id: string) {
+    return this.billing.getInvoice(id);
+  }
+
+  /** Admin: mark invoice as paid, triggers service activation */
+  @Post("billing/invoices/:id/mark-paid")
+  markPaid(@Param("id") id: string) {
+    return this.billing.adminMarkPaid(id);
+  }
+
+  /** Admin: mark invoice as unpaid (reverses payment status) */
+  @Post("billing/invoices/:id/mark-unpaid")
+  markUnpaid(@Param("id") id: string) {
+    return this.billing.adminMarkUnpaid(id);
+  }
+
+  /** Admin: create a custom invoice for a client */
+  @Post("billing/clients/:clientId/invoices")
+  createCustomInvoice(
+    @Param("clientId") clientId: string,
+    @Body() body: { dueAt: string; lines: Array<{ description: string; quantity: number; unitAmountCents: number }>; notes?: string }
+  ) {
+    return this.billing.adminCreateCustomInvoice({ userId: clientId, ...body });
+  }
+
+  /** Admin: list all clients */
+  @Get("clients")
+  listClients() {
+    return this.billing.listClients();
+  }
+
+  /** Admin: get a single client with their services, domains, invoices */
+  @Get("clients/:id")
+  getClient(@Param("id") id: string) {
+    return this.billing.getClient(id);
+  }
+
   @Post("billing/maintenance")
   runAdminMaintenance() {
     return this.billing.runAdminMaintenance();
   }
 
   @Patch("billing/settings")
-  updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
+  updateSettings(
+    @Body() body: {
+      invoiceDaysAhead?: number;
+      ticketAutoCloseHours?: number;
+      vatPercent?: number;
+      sellerName?: string;
+      sellerAddressLine1?: string;
+      sellerPostalCode?: string;
+      sellerCity?: string;
+      sellerCountryCode?: string;
+      sellerVatId?: string;
+      sellerEmail?: string;
+      sellerPhone?: string;
+      invoiceFooterLine1?: string;
+      invoiceFooterLine2?: string;
+      invoiceFooterLine3?: string;
+    }
+  ) {
     return this.billing.updateSettings(body);
   }
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
   money,
+  type ApiClient,
   type ApiInvoice,
   type ApiDomainPrice,
   type ApiOrder,
@@ -42,6 +43,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const orders = (await apiGetAuth<ApiOrder[]>("/orders/admin")) ?? [];
   const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
   const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
+  const clients = (await apiGetAuth<ApiClient[]>("/admin/dev/clients")) ?? [];
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
@@ -101,7 +103,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "home" ? <ModuleGrid /> : null}
         {view === "home" || view === "orders" ? <OrdersPanel orders={orders} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel prices={domainPrices} /> : null}
-        {view === "clients" ? <Placeholder icon={UsersRound} title="Clients" body="Client list is ready for admin auth UI." /> : null}
+        {view === "clients" ? <ClientsPanel clients={clients} /> : null}
         {view === "services" ? <ServicesPanel services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
         {view === "tickets" ? <TicketsPanel tickets={tickets} /> : null}
@@ -321,19 +323,76 @@ function InvoicesPanel({ invoices }: { invoices: ApiInvoice[] }) {
           <span className="eyebrow">Billing</span>
           <h2>Invoices</h2>
         </div>
-        <StatusPill label="7 digit numbers" tone="good" />
+        <StatusPill label={`${invoices.length} invoices`} tone="good" />
       </div>
-      <div className={styles.invoiceCards}>
-        {invoices.map((invoice) => (
-          <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
-            <div><span>Invoice</span><strong>{invoice.invoiceNumber}</strong></div>
-            <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
-            <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
-            <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-            <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
-          </a>
-        ))}
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Invoice #</th>
+            <th>Client</th>
+            <th>Issued</th>
+            <th>Due</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoices.length ? invoices.map((invoice) => (
+            <tr key={invoice.id}>
+              <td><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></td>
+              <td>{invoice.user?.email ?? invoice.user?.name ?? "-"}</td>
+              <td>{dateLabel(invoice.issuedAt)}</td>
+              <td>{dateLabel(invoice.dueAt)}</td>
+              <td>{money(invoice.totalCents, invoice.currency)}</td>
+              <td><StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} /></td>
+            </tr>
+          )) : (
+            <tr><td colSpan={6}>No invoices yet.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function ClientsPanel({ clients }: { clients: ApiClient[] }) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Clients</span>
+          <h2>All Clients</h2>
+        </div>
+        <StatusPill label={`${clients.length} clients`} tone={clients.length > 0 ? "good" : "neutral"} />
       </div>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Country</th>
+            <th>Services</th>
+            <th>Domains</th>
+            <th>Invoices</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          {clients.length ? clients.map((client) => (
+            <tr key={client.id}>
+              <td><a href={`/admin/clients/${client.id}`}>{client.name}</a></td>
+              <td>{client.email}</td>
+              <td>{client.countryCode}</td>
+              <td>{client.services.length} ({client.services.filter((s) => s.status === "ACTIVE").length} active)</td>
+              <td>{client.domainRecords.length}</td>
+              <td>{client.invoices.length} ({client.invoices.filter((i) => i.status !== "PAID").length} unpaid)</td>
+              <td>{dateLabel(client.createdAt)}</td>
+            </tr>
+          )) : (
+            <tr><td colSpan={7}>No clients yet.</td></tr>
+          )}
+        </tbody>
+      </table>
     </section>
   );
 }
