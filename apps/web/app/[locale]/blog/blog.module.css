@@ -1,0 +1,167 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Categories */
+.categoriesSection {
+  border-bottom: 1px solid var(--border);
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.categoryBtn {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.categoryBtn:hover {
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+/* Post grid */
+.postGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.postCard {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+  align-content: start;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+a.postCard:hover {
+  border-color: var(--crimson);
+}
+
+.postMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.postCategory {
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--crimson);
+}
+
+.postDate {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.postCard h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+}
+
+.postCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.readMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--crimson);
+  margin-top: 4px;
+}
+
+/* Newsletter */
+.newsletterSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.newsletter {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.newsletter svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+}
+
+.newsletter div {
+  flex: 1;
+}
+
+.newsletter h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.newsletter p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 860px) {
+  .postGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .newsletter {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .postGrid {
+    grid-template-columns: 1fr;
+  }
+}

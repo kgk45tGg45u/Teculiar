@@ -1,0 +1,254 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0 0 32px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 14px 0 40px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+
+/* Target groups */
+.targetGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.targetItem {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 24px;
+  background: var(--paper);
+}
+
+.targetItem svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.targetItem div {
+  display: grid;
+  gap: 4px;
+}
+
+.targetItem strong {
+  font-size: 0.98rem;
+}
+
+.targetItem span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+/* Process */
+.processSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.process {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.processStep {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.processNum {
+  display: inline-block;
+  font-size: 2rem;
+  font-weight: 820;
+  line-height: 1;
+  color: var(--crimson);
+  opacity: 0.3;
+}
+
+.processStep h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.processStep p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* Feature cards */
+.featureCard {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  align-content: start;
+}
+
+.featureCard svg {
+  color: var(--crimson);
+}
+
+.featureCard h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.featureCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+/* Portfolio */
+.portfolioSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.portfolioGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.portfolioItem {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.portfolioPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 180px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.portfolioPlaceholder svg {
+  color: var(--border);
+}
+
+.portfolioInfo {
+  display: grid;
+  gap: 6px;
+  padding: 20px;
+}
+
+.portfolioType {
+  font-size: 0.75rem;
+  font-weight: 760;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--crimson);
+}
+
+.portfolioInfo strong {
+  font-size: 1rem;
+}
+
+.portfolioInfo p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* CTA */
+.ctaSection {
+  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+}
+
+.ctaInner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: center;
+  padding: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.ctaInner h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  line-height: 1.15;
+}
+
+.ctaInner p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+@media (max-width: 1000px) {
+  .process {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .targetGrid,
+  .portfolioGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ctaInner {
+    grid-template-columns: 1fr;
+    padding: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .targetGrid,
+  .portfolioGrid,
+  .process {
+    grid-template-columns: 1fr;
+  }
+}

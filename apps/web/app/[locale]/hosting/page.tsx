@@ -1,53 +1,263 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
-import styles from "../product-pages.module.css";
+import styles from "./hosting.module.css";
 
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
 
+  const features = isDe
+    ? [
+        { icon: HardDrive, title: "NVMe SSD Speicher", body: "Schnelle NVMe-Festplatten sorgen dafür, dass deine Website zügig lädt – auch bei vielen Besuchern." },
+        { icon: RefreshCw, title: "Tägliche Backups", body: "Wir sichern deine Daten täglich. Falls etwas schiefgeht, stellen wir alles wieder her." },
+        { icon: Lock, title: "SSL-Zertifikat inklusive", body: "Das Schloss in der Browserzeile ist bei uns immer dabei – kostenlos und automatisch erneuert." },
+        { icon: Mail, title: "E-Mail-Postfächer", body: "Professionelle E-Mail-Adressen mit deiner Domain. Einfach einrichten, zuverlässig nutzen." },
+        { icon: Zap, title: "PHP 8.1 – 8.4", body: "Aktuelle PHP-Versionen für WordPress, Joomla und andere CMS. Wir halten alles aktuell." },
+        { icon: ShieldCheck, title: "DSGVO-konform", body: "Alle Server stehen in Deutschland. Deine Daten bleiben in der EU – ohne Ausnahme." }
+      ]
+    : [
+        { icon: HardDrive, title: "NVMe SSD storage", body: "Fast NVMe drives ensure your website loads quickly – even with many visitors." },
+        { icon: RefreshCw, title: "Daily backups", body: "We back up your data daily. If something goes wrong, we restore everything." },
+        { icon: Lock, title: "SSL certificate included", body: "The padlock in the browser bar is always included – free and automatically renewed." },
+        { icon: Mail, title: "Email mailboxes", body: "Professional email addresses with your domain. Easy to set up, reliable to use." },
+        { icon: Zap, title: "PHP 8.1 – 8.4", body: "Current PHP versions for WordPress, Joomla and other CMS. We keep everything up to date." },
+        { icon: ShieldCheck, title: "GDPR-compliant", body: "All servers are located in Germany. Your data stays in the EU – without exception." }
+      ];
+
+  const useCases = isDe
+    ? [
+        { label: "Vereine & NGOs", desc: "Einfache Website, professionelle E-Mail, faire Preise." },
+        { label: "WordPress", desc: "Optimiert für WordPress – schnell, sicher, einfach zu verwalten." },
+        { label: "Nextcloud", desc: "Datenschutzfreundliche Cloud-Lösung auf deinem eigenen Hosting." },
+        { label: "Kleine Unternehmen", desc: "Professioneller Auftritt ohne IT-Abteilung." },
+        { label: "Community-Projekte", desc: "Günstig starten, bei Bedarf wachsen." },
+        { label: "Agenturen", desc: "Mehrere Projekte, klare Verwaltung, skalierbare Pakete." }
+      ]
+    : [
+        { label: "Associations & NGOs", desc: "Simple website, professional email, fair prices." },
+        { label: "WordPress", desc: "Optimised for WordPress – fast, secure, easy to manage." },
+        { label: "Nextcloud", desc: "Privacy-friendly cloud solution on your own hosting." },
+        { label: "Small businesses", desc: "Professional presence without an IT department." },
+        { label: "Community projects", desc: "Start cheap, grow when needed." },
+        { label: "Agencies", desc: "Multiple projects, clear management, scalable packages." }
+      ];
+
+  const faqs = isDe
+    ? [
+        {
+          q: "Was ist Webhosting genau?",
+          a: "Webhosting bedeutet, dass deine Website auf einem Computer (Server) gespeichert wird, der rund um die Uhr mit dem Internet verbunden ist. Wenn jemand deine Adresse eingibt, wird deine Website von diesem Server geladen."
+        },
+        {
+          q: "Brauche ich technisches Wissen?",
+          a: "Nein. Wir richten alles für dich ein und erklären jeden Schritt. Du musst keine Kommandozeile kennen oder Code schreiben."
+        },
+        {
+          q: "Was passiert, wenn meine Website wächst?",
+          a: "Kein Problem. Wir können dein Paket jederzeit upgraden – ohne Datenverlust und ohne Ausfallzeit."
+        },
+        {
+          q: "Ist WordPress inklusive?",
+          a: "WordPress ist kostenlos und kann auf deinem Hosting installiert werden. Wir helfen dir dabei, wenn du möchtest."
+        },
+        {
+          q: "Wie lange dauert die Einrichtung?",
+          a: "In der Regel ist dein Hosting innerhalb weniger Stunden aktiv. Bei komplexeren Projekten sprechen wir vorher alles durch."
+        }
+      ]
+    : [
+        {
+          q: "What exactly is web hosting?",
+          a: "Web hosting means your website is stored on a computer (server) that is connected to the internet around the clock. When someone types your address, your website is loaded from that server."
+        },
+        {
+          q: "Do I need technical knowledge?",
+          a: "No. We set everything up for you and explain every step. You don't need to know the command line or write code."
+        },
+        {
+          q: "What happens when my website grows?",
+          a: "No problem. We can upgrade your package at any time – without data loss and without downtime."
+        },
+        {
+          q: "Is WordPress included?",
+          a: "WordPress is free and can be installed on your hosting. We'll help you with that if you'd like."
+        },
+        {
+          q: "How long does setup take?",
+          a: "Usually your hosting is active within a few hours. For more complex projects, we discuss everything beforehand."
+        }
+      ];
+
   return (
     <>
+      {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">{isDe ? "Shared Hosting" : "Shared hosting"}</span>
-          <h1>{isDe ? "Webhosting mit sauberer Verwaltung und planbaren Upgrades." : "Web hosting with clean management and predictable upgrades."}</h1>
+          <span className="eyebrow">
+            <Server aria-hidden size={15} />
+            {isDe ? "Webhosting Deutschland" : "Web hosting Germany"}
+          </span>
+          <h1>
+            {isDe
+              ? "Webhosting, das du wirklich verstehst."
+              : "Web hosting you actually understand."}
+          </h1>
           <p>
             {isDe
-              ? "Pakete mit Mail, Backups, PHP-Versionen, Add-ons und Upgrade-Pfaden. Ideal für Websites, Agenturen und kleine Commerce-Projekte."
-              : "Packages with mail, backups, PHP versions, add-ons, and upgrade paths. Built for websites, agencies, and small commerce projects."}
+              ? "Schnell, sicher und persönlich betreut. Für Vereine, NGOs, WordPress-Projekte und kleine Unternehmen – ohne technischen Stress."
+              : "Fast, secure and personally supported. For associations, NGOs, WordPress projects and small businesses – without technical stress."}
           </p>
-          <Button href={`/${locale}/pricing`} icon={ArrowRight}>
-            {isDe ? "Hosting vergleichen" : "Compare hosting"}
-          </Button>
+          <div className={styles.heroActions}>
+            <Button href={`/${locale}/pricing`} icon={ArrowRight}>
+              {isDe ? "Pakete ansehen" : "View packages"}
+            </Button>
+            <Button href={`/${locale}/contact`} variant="secondary">
+              {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+            </Button>
+          </div>
+          <div className={styles.trustBar}>
+            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Tägliche Backups" : "Daily backups"}</span>
+            <span><CheckCircle aria-hidden size={15} /> {isDe ? "SSL inklusive" : "SSL included"}</span>
+            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Server in Deutschland" : "Servers in Germany"}</span>
+            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Persönlicher Support" : "Personal support"}</span>
+          </div>
         </div>
       </section>
+
+      {/* What is hosting */}
       <section className="section tight">
-        <div className={`container ${styles.row}`}>
-          <div>
-            <span className="eyebrow">{isDe ? "Konfiguration" : "Configuration"}</span>
-            <h2>{isDe ? "Optionen statt starre Pakete." : "Options without rigid packages."}</h2>
+        <div className="container">
+          <div className={styles.explainRow}>
+            <div>
+              <span className="eyebrow">{isDe ? "Für Einsteiger" : "For beginners"}</span>
+              <h2>{isDe ? "Was ist Webhosting?" : "What is web hosting?"}</h2>
+              <p>
+                {isDe
+                  ? "Stell dir das Internet wie eine riesige Stadt vor. Deine Domain ist deine Adresse – und dein Hosting ist das Gebäude, in dem deine Website wohnt. Ohne Hosting ist deine Website nirgendwo gespeichert und niemand kann sie aufrufen."
+                  : "Think of the internet like a huge city. Your domain is your address – and your hosting is the building where your website lives. Without hosting, your website isn't stored anywhere and nobody can access it."}
+              </p>
+              <p>
+                {isDe
+                  ? "Bei Dezhost kümmern wir uns um alles Technische. Du musst nur wissen, was du online stellen möchtest."
+                  : "At Dezhost, we take care of everything technical. You just need to know what you want to put online."}
+              </p>
+            </div>
+            <div className={styles.specTable}>
+              <div className={styles.specRow}>
+                <span>{isDe ? "Speicher" : "Storage"}</span>
+                <strong>10 GB – 500 GB NVMe</strong>
+              </div>
+              <div className={styles.specRow}>
+                <span>PHP</span>
+                <strong>8.1 – 8.4</strong>
+              </div>
+              <div className={styles.specRow}>
+                <span>{isDe ? "Backups" : "Backups"}</span>
+                <strong>{isDe ? "Täglich, 30 Tage" : "Daily, 30 days"}</strong>
+              </div>
+              <div className={styles.specRow}>
+                <span>SSL</span>
+                <strong>{isDe ? "Kostenlos inklusive" : "Free included"}</strong>
+              </div>
+              <div className={styles.specRow}>
+                <span>{isDe ? "E-Mail" : "Email"}</span>
+                <strong>{isDe ? "Inklusive" : "Included"}</strong>
+              </div>
+              <div className={styles.specRow}>
+                <span>{isDe ? "Standort" : "Location"}</span>
+                <strong>{isDe ? "Deutschland" : "Germany"}</strong>
+              </div>
+            </div>
           </div>
-          <ul className={styles.featureList}>
-            <li>
-              <strong>NVMe</strong>
-              <span>10 GB - 500 GB</span>
-            </li>
-            <li>
-              <strong>PHP</strong>
-              <span>8.1 - 8.4</span>
-            </li>
-            <li>
-              <strong>{isDe ? "Backups" : "Backups"}</strong>
-              <span>{isDe ? "Täglich, 30 Tage" : "Daily, 30 days"}</span>
-            </li>
-            <li>
-              <strong>{isDe ? "Add-ons" : "Add-ons"}</strong>
-              <span>Mailboxes, SSL, staging</span>
-            </li>
-          </ul>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="section">
+        <div className="container">
+          <span className="eyebrow">{isDe ? "Was dabei ist" : "What's included"}</span>
+          <h2 className={styles.sectionTitle}>
+            {isDe ? "Alles, was du brauchst – nichts, was du nicht brauchst." : "Everything you need – nothing you don't."}
+          </h2>
+          <div className="grid three">
+            {features.map((f) => (
+              <div className={styles.featureCard} key={f.title}>
+                <f.icon aria-hidden size={22} />
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Use cases */}
+      <section className={`section tight ${styles.useCaseSection}`}>
+        <div className="container">
+          <span className="eyebrow">{isDe ? "Für wen?" : "Who is it for?"}</span>
+          <h2 className={styles.sectionTitle}>
+            {isDe ? "Passt für viele – erklärt für alle." : "Fits many – explained for everyone."}
+          </h2>
+          <div className={styles.useCaseGrid}>
+            {useCases.map((u) => (
+              <div className={styles.useCaseItem} key={u.label}>
+                <strong>{u.label}</strong>
+                <span>{u.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="section">
+        <div className="container">
+          <div className={styles.faqLayout}>
+            <div>
+              <span className="eyebrow">FAQ</span>
+              <h2>{isDe ? "Häufige Fragen." : "Frequently asked questions."}</h2>
+              <p className={styles.faqIntro}>
+                {isDe
+                  ? "Noch Fragen? Schreib uns einfach – wir antworten auf Deutsch und erklären alles verständlich."
+                  : "Still have questions? Just write to us – we answer clearly and explain everything."}
+              </p>
+              <Button href={`/${locale}/contact`} variant="secondary" icon={ArrowRight}>
+                {isDe ? "Frage stellen" : "Ask a question"}
+              </Button>
+            </div>
+            <div className={styles.faqList}>
+              {faqs.map((faq) => (
+                <details className={styles.faqItem} key={faq.q}>
+                  <summary>{faq.q}</summary>
+                  <p>{faq.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className={`section tight ${styles.ctaSection}`}>
+        <div className="container">
+          <div className={styles.ctaInner}>
+            <h2>{isDe ? "Bereit loszulegen?" : "Ready to get started?"}</h2>
+            <p>
+              {isDe
+                ? "Wir helfen dir, das richtige Paket zu finden. Kostenlos und ohne Verpflichtung."
+                : "We help you find the right package. Free and without obligation."}
+            </p>
+            <div className={styles.ctaActions}>
+              <Button href={`/${locale}/pricing`} icon={ArrowRight}>
+                {isDe ? "Pakete ansehen" : "View packages"}
+              </Button>
+              <Button href={`/${locale}/contact`} variant="secondary">
+                {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
     </>

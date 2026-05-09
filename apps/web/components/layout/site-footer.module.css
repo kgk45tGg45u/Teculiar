@@ -1,34 +1,124 @@
 .footer {
   border-top: 1px solid var(--border);
-  padding: 34px 0;
+  padding: 64px 0 32px;
+  margin-top: 40px;
 }
 
-.inner {
-  display: flex;
+.top {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 64px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.brandName {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 820;
+  color: var(--ink);
 }
 
-.inner p {
-  margin: 8px 0 0;
+.brandName svg {
+  color: var(--crimson);
+}
+
+.mission {
+  margin: 0;
   color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.contact {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .links {
-  display: flex;
-  gap: 18px;
-  color: var(--muted);
-  font-weight: 650;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 40px;
 }
 
-@media (max-width: 700px) {
-  .inner {
-    align-items: flex-start;
-    flex-direction: column;
+.links h4 {
+  margin: 0 0 16px;
+  font-size: 0.78rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.links nav {
+  display: grid;
+  gap: 10px;
+}
+
+.links nav a {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.links nav a:hover {
+  color: var(--ink);
+}
+
+.ctaBlock {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.ctaBlock p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 28px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.tagline {
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .top {
+    grid-template-columns: 1fr;
+    gap: 40px;
   }
 
   .links {
-    flex-wrap: wrap;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .links {
+    grid-template-columns: 1fr;
+  }
+
+  .bottom {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

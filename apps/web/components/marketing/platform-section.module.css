@@ -1,19 +1,29 @@
 .header {
-  max-width: 780px;
-  margin-bottom: 34px;
+  max-width: 680px;
+  margin-bottom: 52px;
 }
 
 .header h2 {
-  margin: 14px 0 0;
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1.05;
+  margin: 12px 0 0;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  line-height: 1.1;
+}
+
+.subhead {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.65;
 }
 
 .item {
   display: grid;
-  gap: 16px;
-  padding-top: 22px;
-  border-top: 1px solid var(--border);
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  align-content: start;
 }
 
 .item svg {
@@ -22,10 +32,117 @@
 
 .item h3 {
   margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
 }
 
 .item p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+/* Steps section */
+.stepsSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
+  margin-bottom: 48px;
+}
+
+.step {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.stepNum {
+  display: inline-block;
+  font-size: 2.4rem;
+  font-weight: 820;
+  line-height: 1;
+  color: var(--crimson);
+  opacity: 0.35;
+}
+
+.step h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.stepsCta {
+  display: flex;
+}
+
+/* Callout */
+.callout {
+  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+}
+
+.calloutInner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 48px;
+  align-items: center;
+  padding: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.calloutInner h2 {
+  margin: 12px 0 16px;
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.calloutInner p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 560px;
+}
+
+.calloutActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+}
+
+@media (max-width: 900px) {
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calloutInner {
+    grid-template-columns: 1fr;
+    padding: 32px;
+  }
+
+  .calloutActions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
 }

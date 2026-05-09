@@ -1,0 +1,274 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 680px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Mission */
+.missionLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.missionLayout h2 {
+  margin: 12px 0 20px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.missionLayout p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+
+.missionStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.missionStats div {
+  display: grid;
+  gap: 6px;
+  padding: 24px;
+  background: var(--paper);
+}
+
+.missionStats strong {
+  font-size: 1.1rem;
+  font-weight: 820;
+}
+
+.missionStats span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* Values */
+.valuesSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 14px 0 40px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+
+.valueCard {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.valueCard svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.valueCard h3 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.valueCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+/* Who we support */
+.supportLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.supportLayout h2 {
+  margin: 12px 0 16px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.supportLayout p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.supportList {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.supportList li {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.94rem;
+  color: var(--muted);
+}
+
+.supportList li:last-child {
+  border-bottom: none;
+}
+
+.supportList li::before {
+  content: "→ ";
+  color: var(--crimson);
+  font-weight: 700;
+}
+
+/* Philosophy */
+.philosophySection {
+  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.philosophyInner {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.quote {
+  margin: 0 0 24px;
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.philosophyInner p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+/* CTA */
+.ctaSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.ctaInner {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 48px;
+  align-items: center;
+  padding: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.ctaInner h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  line-height: 1.15;
+}
+
+.ctaInner p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.ctaActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 200px;
+}
+
+/* Phone note */
+.phoneNote {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.phoneNote svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+}
+
+.phoneNote p {
+  margin: 0;
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.phoneNote a {
+  color: var(--crimson);
+  font-weight: 650;
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .missionLayout,
+  .supportLayout,
+  .ctaInner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .ctaInner {
+    padding: 32px;
+  }
+
+  .ctaActions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .phoneNote {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,278 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0 0 32px;
+}
+
+/* Explain row */
+.explainRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.explainRow h2 {
+  margin: 12px 0 20px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.explainRow p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+
+.emailExample {
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.emailExample h3 {
+  margin: 12px 0 16px;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.emailExample p {
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.65;
+  margin: 0 0 20px;
+}
+
+.emailExamples {
+  display: grid;
+  gap: 8px;
+}
+
+.emailExamples code {
+  display: block;
+  padding: 10px 14px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--crimson);
+}
+
+/* Steps */
+.stepsSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 14px 0 40px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.step {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.stepIcon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--crimson);
+}
+
+.stepIcon span {
+  font-size: 1.4rem;
+  font-weight: 820;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+.step h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+/* TLD grid */
+.tldGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border);
+  margin-top: 32px;
+}
+
+.tldItem {
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  background: var(--paper);
+}
+
+.tldItem strong {
+  font-size: 1.3rem;
+  color: var(--crimson);
+  font-weight: 820;
+}
+
+.tldItem span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* DNS section */
+.dnsSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.dnsInner {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.dnsInner svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.dnsInner h2 {
+  margin: 0 0 14px;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  line-height: 1.15;
+}
+
+.dnsInner p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* FAQ */
+.faqLayout {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.faqLayout h2 {
+  margin: 12px 0 16px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.faqIntro {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0 0 24px;
+}
+
+.faqList {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--border);
+}
+
+.faqItem:last-child {
+  border-bottom: none;
+}
+
+.faqItem summary {
+  padding: 20px 24px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.98rem;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem[open] summary {
+  color: var(--crimson);
+}
+
+.faqItem p {
+  margin: 0;
+  padding: 0 24px 20px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+@media (max-width: 860px) {
+  .explainRow,
+  .faqLayout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dnsInner {
+    flex-direction: column;
+    padding: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  .steps,
+  .tldGrid {
+    grid-template-columns: 1fr;
+  }
+}

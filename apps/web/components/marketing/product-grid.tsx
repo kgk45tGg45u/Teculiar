@@ -24,9 +24,9 @@ export async function ProductGrid({ locale }: { locale: Locale }) {
   return (
     <section className="section">
       <div className="container">
-        <span className="eyebrow">{locale === "de" ? "Produktlinie" : "Product line"}</span>
+        <span className="eyebrow">{locale === "de" ? "Hosting-Pakete" : "Hosting packages"}</span>
         <h2 className={styles.heading}>
-          {locale === "de" ? "Pakete, die vom ersten Vertrag bis zum Upgrade sauber bleiben." : "Packages that stay clean from first contract to upgrade."}
+          {locale === "de" ? "Wähle das Paket, das zu dir passt." : "Choose the package that fits you."}
         </h2>
         <div className="grid four">
           {products.map((product, index) => {

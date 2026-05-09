@@ -1,4 +1,4 @@
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight, MessageCircle, ShieldCheck } from "lucide-react";
 import type { Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import styles from "./hero.module.css";
@@ -11,34 +11,36 @@ export function Hero({ locale }: { locale: Locale }) {
       <div className="container">
         <span className="eyebrow">
           <ShieldCheck aria-hidden size={16} />
-          {isDe ? "Deutsche Infrastruktur. Klare Verträge." : "German infrastructure. Clear contracts."}
+          {isDe ? "Unabhängiges Hosting aus Deutschland" : "Independent hosting from Germany"}
         </span>
-        <h1 className="display">CrimsonGrid</h1>
+        <h1 className="display">
+          {isDe ? "Brauchst du Raum?" : "Need some space?"}
+        </h1>
         <p className="lead">
           {isDe
-            ? "Hosting, Domains, Cloud Server und Managed IT für Unternehmen, die saubere Abrechnung, starke Sicherheit und direkten Support brauchen."
-            : "Hosting, domains, cloud servers, and managed IT for teams that need clean billing, strong security, and direct support."}
+            ? "Weblösungen für Einzelpersonen, Vereine, Organisationen und kleine Unternehmen. Persönlich erklärt. Fair berechnet."
+            : "Web solutions for individuals, associations, organisations and small businesses. Explained personally. Priced fairly."}
         </p>
         <div className={styles.actions}>
-          <Button href={`/${locale}/pricing`} icon={ArrowRight}>
-            {isDe ? "Pakete ansehen" : "View packages"}
+          <Button href={`/${locale}/hosting`} icon={ArrowRight}>
+            {isDe ? "Hosting ansehen" : "View hosting"}
           </Button>
-          <Button href={`/${locale}/contact`} variant="secondary">
-            {isDe ? "Beratung buchen" : "Book consultation"}
+          <Button href={`/${locale}/contact`} variant="secondary" icon={MessageCircle}>
+            {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
           </Button>
         </div>
         <div className={styles.signal}>
           <div>
-            <strong>99.95%</strong>
-            <span>{isDe ? "Zielverfügbarkeit" : "Target uptime"}</span>
+            <strong>99.9%</strong>
+            <span>{isDe ? "Verfügbarkeit" : "Uptime"}</span>
           </div>
           <div>
             <strong>DE</strong>
-            <span>{isDe ? "Standort und Support" : "Location and support"}</span>
+            <span>{isDe ? "Server & Support" : "Servers & support"}</span>
           </div>
           <div>
-            <strong>19%</strong>
-            <span>{isDe ? "USt. und EU-Logik" : "VAT and EU logic"}</span>
+            <strong>DSGVO</strong>
+            <span>{isDe ? "Datenschutz inklusive" : "Privacy included"}</span>
           </div>
         </div>
       </div>

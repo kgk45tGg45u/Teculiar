@@ -14,26 +14,30 @@ export function getLocale(value: string): Locale {
 export const dictionary = {
   de: {
     nav: {
-      hosting: "Hosting",
-      vps: "VPS",
+      hosting: "Webhosting",
+      vps: "IT-Lösungen",
       domains: "Domains",
-      pricing: "Preise",
+      pricing: "Preisliste",
       blog: "Blog",
       contact: "Kontakt",
-      client: "Portal"
+      about: "Über uns",
+      webdesign: "Webdesign",
+      client: "Mein Konto"
     },
-    cta: "Projekt starten"
+    cta: "Kostenlos beraten lassen"
   },
   en: {
     nav: {
-      hosting: "Hosting",
-      vps: "VPS",
+      hosting: "Web Hosting",
+      vps: "IT Solutions",
       domains: "Domains",
       pricing: "Pricing",
       blog: "Blog",
       contact: "Contact",
-      client: "Portal"
+      about: "About",
+      webdesign: "Web Design",
+      client: "My Account"
     },
-    cta: "Start project"
+    cta: "Get free consultation"
   }
 } as const;

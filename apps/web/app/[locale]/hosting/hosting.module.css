@@ -1,0 +1,277 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 780px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0 0 32px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.trustBar {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 40px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.trustBar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trustBar svg {
+  color: var(--crimson);
+}
+
+/* Explain row */
+.explainRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.explainRow h2 {
+  margin: 12px 0 20px;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.explainRow p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+
+.specTable {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.specRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.specRow:last-child {
+  border-bottom: none;
+}
+
+.specRow span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.specRow strong {
+  font-size: 0.95rem;
+}
+
+/* Section title */
+.sectionTitle {
+  margin: 14px 0 40px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+
+/* Feature cards */
+.featureCard {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  align-content: start;
+}
+
+.featureCard svg {
+  color: var(--crimson);
+}
+
+.featureCard h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.featureCard p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+/* Use cases */
+.useCaseSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border);
+  margin-top: 32px;
+}
+
+.useCaseItem {
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  background: var(--paper);
+}
+
+.useCaseItem strong {
+  font-size: 0.98rem;
+}
+
+.useCaseItem span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* FAQ */
+.faqLayout {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.faqLayout h2 {
+  margin: 12px 0 16px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.faqIntro {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0 0 24px;
+}
+
+.faqList {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--border);
+}
+
+.faqItem:last-child {
+  border-bottom: none;
+}
+
+.faqItem summary {
+  padding: 20px 24px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.98rem;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem[open] summary {
+  color: var(--crimson);
+}
+
+.faqItem p {
+  margin: 0;
+  padding: 0 24px 20px;
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.7;
+}
+
+/* CTA */
+.ctaSection {
+  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+}
+
+.ctaInner {
+  padding: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.ctaInner h2 {
+  margin: 0 0 16px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.ctaInner p {
+  margin: 0 0 28px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.ctaActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .explainRow,
+  .faqLayout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .useCaseGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .useCaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ctaInner {
+    padding: 32px 24px;
+  }
+}

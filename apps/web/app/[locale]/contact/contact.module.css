@@ -1,0 +1,169 @@
+.hero {
+  padding: 82px 0 56px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  max-width: 680px;
+  margin: 18px 0 20px;
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  line-height: 1;
+}
+
+.hero p {
+  max-width: 580px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Layout */
+.layout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+/* Form */
+.formSection h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  line-height: 1.15;
+}
+
+.formIntro {
+  margin: 0 0 28px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.form {
+  display: grid;
+  gap: 20px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.textarea {
+  min-height: 140px;
+  padding: 14px 15px;
+  resize: vertical;
+}
+
+/* Sidebar */
+.sidebar {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.contactCard {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.contactCard svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.contactCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.contactCard strong {
+  font-size: 0.95rem;
+}
+
+.contactCard a {
+  color: var(--crimson);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.contactCard span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.reassurance {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+}
+
+.reassurance h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.reassurance p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.quickLinks {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.quickLinks strong {
+  font-size: 0.78rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.quickLinks a {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.quickLinks a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+}
