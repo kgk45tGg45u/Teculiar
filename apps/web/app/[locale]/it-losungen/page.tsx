@@ -1,7 +1,7 @@
 import { ArrowRight, Bot, Cloud, Database, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
-import styles from "./it-solutions.module.css";
+import styles from "./it-losungen.module.css";
 
 export default async function ITSolutionsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
@@ -202,7 +202,7 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
               : "From Nextcloud setup to complete server maintenance. We explain everything clearly and work transparently."}
           </p>
           <div className={styles.heroActions}>
-            <Button href={`/${locale}/contact`} icon={ArrowRight}>
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
             </Button>
             <Button href={`/${locale}/pricing`} variant="secondary">
@@ -266,7 +266,7 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
                   <p>{service.details}</p>
                   <div className={styles.accordionFooter}>
                     <span className={styles.pricing}>{service.pricing}</span>
-                    <Button href={`/${locale}/contact`} icon={ArrowRight} variant="secondary">
+                    <Button href={`/${locale}/kontakt`} icon={ArrowRight} variant="secondary">
                       {isDe ? "Anfragen" : "Enquire"}
                     </Button>
                   </div>
@@ -289,7 +289,7 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
                   : "Just tell us what you're planning. We'll look together at what makes sense – free and without obligation."}
               </p>
             </div>
-            <Button href={`/${locale}/contact`} icon={ArrowRight}>
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
             </Button>
           </div>

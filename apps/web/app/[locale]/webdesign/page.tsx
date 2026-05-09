@@ -92,7 +92,7 @@ export default async function WebdesignPage({ params }: { params: Promise<{ loca
               : "We design modern, accessible websites for associations, NGOs, startups and small businesses. Personally supported, fairly priced, fully set up."}
           </p>
           <div className={styles.heroActions}>
-            <Button href={`/${locale}/contact`} icon={ArrowRight}>
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Projekt besprechen" : "Discuss project"}
             </Button>
             <Button href={`/${locale}/pricing`} variant="secondary">
@@ -198,7 +198,7 @@ export default async function WebdesignPage({ params }: { params: Promise<{ loca
                   : "Tell us about your project. We'll get back to you within 24 hours – free and without obligation."}
               </p>
             </div>
-            <Button href={`/${locale}/contact`} icon={ArrowRight}>
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Projekt besprechen" : "Discuss project"}
             </Button>
           </div>

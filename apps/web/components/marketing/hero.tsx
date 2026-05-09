@@ -22,10 +22,10 @@ export function Hero({ locale }: { locale: Locale }) {
             : "Web solutions for individuals, associations, organisations and small businesses. Explained personally. Priced fairly."}
         </p>
         <div className={styles.actions}>
-          <Button href={`/${locale}/hosting`} icon={ArrowRight}>
+          <Button href={`/${locale}/webhosting`} icon={ArrowRight}>
             {isDe ? "Hosting ansehen" : "View hosting"}
           </Button>
-          <Button href={`/${locale}/contact`} variant="secondary" icon={MessageCircle}>
+          <Button href={`/${locale}/kontakt`} variant="secondary" icon={MessageCircle}>
             {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
           </Button>
         </div>

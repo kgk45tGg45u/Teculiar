@@ -97,7 +97,7 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
               ? "Domains einfach erklärt, schnell registriert und direkt mit deinem Hosting verbunden. Wir helfen dir, den richtigen Namen zu finden."
               : "Domains simply explained, quickly registered and directly connected to your hosting. We help you find the right name."}
           </p>
-          <Button href={`/${locale}/contact`} icon={ArrowRight}>
+          <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
             {isDe ? "Domain anfragen" : "Request domain"}
           </Button>
         </div>
@@ -182,6 +182,26 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
         </div>
       </section>
 
+      {/* Domain pricing CTA */}
+      <section className={`section tight ${styles.pricingCta}`}>
+        <div className="container">
+          <div className={styles.pricingCtaInner}>
+            <div>
+              <span className="eyebrow">{isDe ? "Preise" : "Pricing"}</span>
+              <h2>{isDe ? "Was kostet eine Domain?" : "What does a domain cost?"}</h2>
+              <p>
+                {isDe
+                  ? "Alle Domain-Preise für Neuregistrierung, Verlängerung und Transfer – direkt aus unserem System geladen."
+                  : "All domain prices for new registration, renewal and transfer – loaded directly from our system."}
+              </p>
+            </div>
+            <Button href={`/${locale}/domains/pricing`} icon={ArrowRight}>
+              {isDe ? "Preisliste ansehen" : "View price list"}
+            </Button>
+          </div>
+        </div>
+      </section>
+
       {/* DNS explained */}
       <section className={`section tight ${styles.dnsSection}`}>
         <div className="container">
@@ -211,7 +231,7 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
                   ? "Du hast noch Fragen? Schreib uns – wir erklären alles auf Deutsch und ohne Fachwissen."
                   : "Still have questions? Write to us – we explain everything clearly."}
               </p>
-              <Button href={`/${locale}/contact`} variant="secondary" icon={ArrowRight}>
+              <Button href={`/${locale}/kontakt`} variant="secondary" icon={ArrowRight}>
                 {isDe ? "Frage stellen" : "Ask a question"}
               </Button>
             </div>

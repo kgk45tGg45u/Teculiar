@@ -1,7 +1,7 @@
 import { ArrowRight, Mail, MessageCircle, Phone } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
-import styles from "./contact.module.css";
+import styles from "./kontakt.module.css";
 
 export default async function ContactPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
@@ -144,10 +144,10 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
 
               <div className={styles.quickLinks}>
                 <strong>{isDe ? "Schnelle Antworten" : "Quick answers"}</strong>
-                <a href={`/${locale}/hosting`}>{isDe ? "Webhosting ansehen" : "View web hosting"}</a>
+                <a href={`/${locale}/webhosting`}>{isDe ? "Webhosting ansehen" : "View web hosting"}</a>
                 <a href={`/${locale}/domains`}>{isDe ? "Domains erklärt" : "Domains explained"}</a>
                 <a href={`/${locale}/pricing`}>{isDe ? "Preisliste" : "Pricing"}</a>
-                <a href={`/${locale}/vps`}>{isDe ? "IT-Lösungen" : "IT solutions"}</a>
+                <a href={`/${locale}/it-losungen`}>{isDe ? "IT-Lösungen" : "IT solutions"}</a>
               </div>
             </div>
           </div>

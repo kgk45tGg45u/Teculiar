@@ -1,7 +1,8 @@
-import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Check, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
+import { apiGet, cycleLabel, money, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
-import styles from "./hosting.module.css";
+import styles from "./webhosting.module.css";
 
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
@@ -90,6 +91,10 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         }
       ];
 
+  // Load products from API, fall back to catalog
+  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products");
+  const hostingProducts = apiProducts?.filter((p) => p.type === "SHARED_HOSTING") ?? [];
+
   return (
     <>
       {/* Hero */}
@@ -113,7 +118,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
             <Button href={`/${locale}/pricing`} icon={ArrowRight}>
               {isDe ? "Pakete ansehen" : "View packages"}
             </Button>
-            <Button href={`/${locale}/contact`} variant="secondary">
+            <Button href={`/${locale}/kontakt`} variant="secondary">
               {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
             </Button>
           </div>
@@ -122,6 +127,83 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
             <span><CheckCircle aria-hidden size={15} /> {isDe ? "SSL inklusive" : "SSL included"}</span>
             <span><CheckCircle aria-hidden size={15} /> {isDe ? "Server in Deutschland" : "Servers in Germany"}</span>
             <span><CheckCircle aria-hidden size={15} /> {isDe ? "Persönlicher Support" : "Personal support"}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Hosting product cards from admin */}
+      {hostingProducts.length > 0 && (
+        <section className={`section tight ${styles.packagesSection}`}>
+          <div className="container">
+            <span className="eyebrow">{isDe ? "Hosting-Pakete" : "Hosting packages"}</span>
+            <h2 className={styles.sectionTitle}>
+              {isDe ? "Wähle das Paket, das zu dir passt." : "Choose the package that fits you."}
+            </h2>
+            <div className={styles.packageGrid}>
+              {hostingProducts.map((product, i) => {
+                const sorted = [...product.prices].sort((a, b) => a.amountCents - b.amountCents);
+                const lowestPrice = sorted[0];
+                const setupFee = lowestPrice?.setupFeeCents ?? 0;
+                return (
+                  <div className={`${styles.packageCard} ${i === 1 ? styles.packageFeatured : ""}`} key={product.id}>
+                    {i === 1 && <span className={styles.packageBadge}>{isDe ? "Beliebt" : "Popular"}</span>}
+                    <h3>{product.name}</h3>
+                    {lowestPrice && (
+                      <div className={styles.packagePrice}>
+                        <strong>{money(lowestPrice.amountCents, lowestPrice.currency)}</strong>
+                        <span>/ {cycleLabel(lowestPrice.billingCycle)}</span>
+                      </div>
+                    )}
+                    {setupFee > 0 && lowestPrice && (
+                      <div className={styles.setupFee}>
+                        {isDe ? "Einrichtung" : "Setup"}: {money(setupFee, lowestPrice.currency)}
+                      </div>
+                    )}
+                    {setupFee === 0 && (
+                      <div className={styles.setupFree}>{isDe ? "Keine Einrichtungsgebühr" : "No setup fee"}</div>
+                    )}
+                    <p className={styles.packageDesc}>{product.description}</p>
+                    {product.prices.length > 1 && (
+                      <div className={styles.billingCycles}>
+                        {product.prices.map((p) => (
+                          <span key={p.id} className={styles.cycleChip}>
+                            {cycleLabel(p.billingCycle)}: {money(p.amountCents, p.currency)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      href={`/${locale}/order?product=${product.id}`}
+                      icon={ArrowRight}
+                      variant={i === 1 ? "primary" : "secondary"}
+                    >
+                      {isDe ? "Jetzt bestellen" : "Order now"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Open-source badge */}
+      <section className={`section tight ${styles.openSourceSection}`}>
+        <div className="container">
+          <div className={styles.openSourceInner}>
+            <div className={styles.openSourceIcon}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28" aria-hidden>
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0112 6.8c.85.004 1.71.115 2.51.337 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10.01 10.01 0 0022 12c0-5.52-4.48-10-10-10z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>{isDe ? "Wir setzen auf Open Source." : "We rely on open source."}</h3>
+              <p>
+                {isDe
+                  ? "Unsere Infrastruktur basiert auf bewährter Open-Source-Software: Linux, Nginx, MariaDB, PHP, WordPress, Nextcloud und mehr. Keine Vendor-Lock-ins, keine proprietären Abhängigkeiten – nur transparente, community-geprüfte Technologie."
+                  : "Our infrastructure is built on proven open-source software: Linux, Nginx, MariaDB, PHP, WordPress, Nextcloud and more. No vendor lock-ins, no proprietary dependencies – just transparent, community-reviewed technology."}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -223,7 +305,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
                   ? "Noch Fragen? Schreib uns einfach – wir antworten auf Deutsch und erklären alles verständlich."
                   : "Still have questions? Just write to us – we answer clearly and explain everything."}
               </p>
-              <Button href={`/${locale}/contact`} variant="secondary" icon={ArrowRight}>
+              <Button href={`/${locale}/kontakt`} variant="secondary" icon={ArrowRight}>
                 {isDe ? "Frage stellen" : "Ask a question"}
               </Button>
             </div>
@@ -253,7 +335,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
               <Button href={`/${locale}/pricing`} icon={ArrowRight}>
                 {isDe ? "Pakete ansehen" : "View packages"}
               </Button>
-              <Button href={`/${locale}/contact`} variant="secondary">
+              <Button href={`/${locale}/kontakt`} variant="secondary">
                 {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
               </Button>
             </div>

@@ -43,6 +43,177 @@
   color: var(--crimson);
 }
 
+/* Packages section */
+.packagesSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.sectionTitle {
+  margin: 14px 0 36px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 680px;
+}
+
+.packageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.packageCard {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+  align-content: start;
+}
+
+.packageFeatured {
+  border-color: var(--crimson);
+  background: linear-gradient(180deg, rgba(177, 18, 38, 0.03), var(--paper));
+}
+
+.packageCard h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.packageBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--crimson);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.packagePrice {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.packagePrice strong {
+  font-size: 1.6rem;
+  font-weight: 820;
+  color: var(--crimson);
+  line-height: 1;
+}
+
+.packagePrice span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.setupFee {
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding: 4px 10px;
+  background: var(--surface);
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.setupFree {
+  font-size: 0.82rem;
+  color: #16a34a;
+  font-weight: 650;
+}
+
+.packageDesc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.packageFeatures {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.packageFeatures li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.packageFeatures svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+}
+
+.billingCycles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cycleChip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+/* Open source section */
+.openSourceSection {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.openSourceInner {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  padding: 32px 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.openSourceIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--crimson);
+  flex-shrink: 0;
+}
+
+.openSourceInner h3 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.openSourceInner p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
 /* Explain row */
 .explainRow {
   display: grid;
@@ -89,14 +260,6 @@
 
 .specRow strong {
   font-size: 0.95rem;
-}
-
-/* Section title */
-.sectionTitle {
-  margin: 14px 0 40px;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
-  line-height: 1.15;
-  max-width: 680px;
 }
 
 /* Feature cards */

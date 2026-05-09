@@ -15,6 +15,11 @@ export class OrdersController {
     return this.orders.homepageProducts();
   }
 
+  @Get("storefront/domain-prices")
+  storefrontDomainPrices() {
+    return this.orders.listDomainPrices();
+  }
+
   @Get("domains/search")
   searchDomain(@Query("domain") domain: string) {
     return this.orders.searchDomain(domain);

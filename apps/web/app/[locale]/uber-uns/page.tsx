@@ -1,7 +1,7 @@
 import { ArrowRight, Globe, HandHeart, Lock, MessageCircle, Phone, Sprout } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
-import styles from "./about.module.css";
+import styles from "./uber-uns.module.css";
 
 export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
@@ -224,10 +224,10 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
               </p>
             </div>
             <div className={styles.ctaActions}>
-              <Button href={`/${locale}/contact`} icon={ArrowRight}>
+              <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
                 {isDe ? "Kontakt aufnehmen" : "Get in touch"}
               </Button>
-              <Button href={`/${locale}/hosting`} variant="secondary">
+              <Button href={`/${locale}/webhosting`} variant="secondary">
                 {isDe ? "Hosting ansehen" : "View hosting"}
               </Button>
             </div>

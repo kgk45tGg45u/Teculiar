@@ -122,7 +122,7 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
                   : "We write rarely, but when we do, it's with real value. No spam, no marketing fluff."}
               </p>
             </div>
-            <Button href={`/${locale}/contact`} icon={ArrowRight} variant="secondary">
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight} variant="secondary">
               {isDe ? "Newsletter anfragen" : "Request newsletter"}
             </Button>
           </div>

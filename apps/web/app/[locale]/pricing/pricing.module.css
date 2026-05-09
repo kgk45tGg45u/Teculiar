@@ -15,7 +15,44 @@
   color: var(--muted);
   font-size: 1.15rem;
   line-height: 1.65;
-  margin: 0;
+  margin: 0 0 28px;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.pdfBtn:hover {
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+.oneTimeSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.hostingSection {
+  border-top: 1px solid var(--border);
 }
 
 .sectionTitle {

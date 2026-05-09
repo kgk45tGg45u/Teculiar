@@ -94,7 +94,7 @@ export function PlatformSection({ locale }: { locale: Locale }) {
             ))}
           </div>
           <div className={styles.stepsCta}>
-            <Button href={`/${locale}/contact`} icon={ArrowRight}>
+            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Jetzt starten" : "Get started"}
             </Button>
           </div>
@@ -119,10 +119,10 @@ export function PlatformSection({ locale }: { locale: Locale }) {
               </p>
             </div>
             <div className={styles.calloutActions}>
-              <Button href={`/${locale}/contact`} icon={ArrowRight}>
+              <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
                 {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
               </Button>
-              <Button href={`/${locale}/hosting`} variant="secondary">
+              <Button href={`/${locale}/webhosting`} variant="secondary">
                 {isDe ? "Hosting ansehen" : "View hosting"}
               </Button>
             </div>

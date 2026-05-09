@@ -1,0 +1,101 @@
+.hero {
+  padding: 64px 0 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero h1 {
+  margin: 12px 0 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.1;
+}
+
+.content {
+  padding: 56px 0 80px;
+}
+
+.prose {
+  max-width: 760px;
+}
+
+.prose h2 {
+  margin: 40px 0 14px;
+  font-size: 1.2rem;
+  font-weight: 760;
+}
+
+.prose h3 {
+  margin: 28px 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.prose p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 0.96rem;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0 0 16px 20px;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 0.96rem;
+}
+
+.prose li {
+  margin-bottom: 6px;
+}
+
+.prose a {
+  color: var(--crimson);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose a:hover {
+  opacity: 0.8;
+}
+
+.prose strong {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+.formBox {
+  margin-top: 32px;
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.formBox h3 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+}
+
+.formBox p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.updated {
+  display: inline-block;
+  margin-top: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  background: var(--surface);
+}

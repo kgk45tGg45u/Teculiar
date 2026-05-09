@@ -23,14 +23,13 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          <Link href={`${base}/hosting` as Route}>{copy.nav.hosting}</Link>
+          <Link href={`${base}/webhosting` as Route}>{copy.nav.hosting}</Link>
           <Link href={`${base}/domains` as Route}>{copy.nav.domains}</Link>
-          <Link href={`${base}/vps` as Route}>{copy.nav.vps}</Link>
+          <Link href={`${base}/it-losungen` as Route}>{copy.nav.vps}</Link>
           <Link href={`${base}/webdesign` as Route}>{copy.nav.webdesign}</Link>
-          <Link href={`${base}/pricing` as Route}>{copy.nav.pricing}</Link>
           <Link href={`${base}/blog` as Route}>{copy.nav.blog}</Link>
-          <Link href={`${base}/about` as Route}>{copy.nav.about}</Link>
-          <Link href={`${base}/contact` as Route}>{copy.nav.contact}</Link>
+          <Link href={`${base}/uber-uns` as Route}>{copy.nav.about}</Link>
+          <Link href={`${base}/kontakt` as Route}>{copy.nav.contact}</Link>
         </nav>
 
         <div className={styles.actions}>

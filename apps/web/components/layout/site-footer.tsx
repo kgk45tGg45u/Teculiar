@@ -11,24 +11,22 @@ export function SiteFooter({ locale }: { locale: Locale }) {
 
   const quickLinks = isDe
     ? [
-        { label: "Webhosting", href: `${base}/hosting` },
+        { label: "Webhosting", href: `${base}/webhosting` },
         { label: "Domains", href: `${base}/domains` },
-        { label: "IT-Lösungen", href: `${base}/vps` },
+        { label: "IT-Lösungen", href: `${base}/it-losungen` },
         { label: "Webdesign", href: `${base}/webdesign` },
-        { label: "Preisliste", href: `${base}/pricing` },
         { label: "Blog", href: `${base}/blog` },
-        { label: "Über uns", href: `${base}/about` },
-        { label: "Kontakt", href: `${base}/contact` }
+        { label: "Über uns", href: `${base}/uber-uns` },
+        { label: "Kontakt", href: `${base}/kontakt` }
       ]
     : [
-        { label: "Web Hosting", href: `${base}/hosting` },
+        { label: "Web Hosting", href: `${base}/webhosting` },
         { label: "Domains", href: `${base}/domains` },
-        { label: "IT Solutions", href: `${base}/vps` },
+        { label: "IT Solutions", href: `${base}/it-losungen` },
         { label: "Web Design", href: `${base}/webdesign` },
-        { label: "Pricing", href: `${base}/pricing` },
         { label: "Blog", href: `${base}/blog` },
-        { label: "About", href: `${base}/about` },
-        { label: "Contact", href: `${base}/contact` }
+        { label: "About", href: `${base}/uber-uns` },
+        { label: "Contact", href: `${base}/kontakt` }
       ];
 
   const legalLinks = isDe
@@ -58,8 +56,8 @@ export function SiteFooter({ locale }: { locale: Locale }) {
             </div>
             <p className={styles.mission}>
               {isDe
-                ? "Unabhängiges Hosting für Vereine, NGOs, Initiativen und kleine Unternehmen. Persönlich. Transparent. Zuverlässig."
-                : "Independent hosting for associations, NGOs, initiatives and small businesses. Personal. Transparent. Reliable."}
+                ? "Sicheres Hosting für Vereine, NGOs, Initiativen und kleine Unternehmen. Persönlich. Transparent. Zuverlässig."
+                : "Secure hosting for associations, NGOs, initiatives and small businesses. Personal. Transparent. Reliable."}
             </p>
             <div className={styles.contact}>
               <span>kontakt@dezhost.de</span>
@@ -94,8 +92,8 @@ export function SiteFooter({ locale }: { locale: Locale }) {
                   ? "Wir erklären alles Schritt für Schritt. Kostenlos und ohne Verpflichtung."
                   : "We explain everything step by step. Free and without obligation."}
               </p>
-              <Button href={`${base}/contact` as Route} icon={ArrowRight}>
-                {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+              <Button href={`${base}/kontakt` as Route} icon={ArrowRight}>
+                {isDe ? "Jetzt sich beraten lassen" : "Get consultation"}
               </Button>
             </div>
           </div>
