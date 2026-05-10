@@ -296,378 +296,435 @@ export function CheckoutForm({
   }
 
   return (
-    <div className={styles.shell}>
-      <section className={styles.summary}>
-        <span className="eyebrow">Checkout</span>
-        <h1>Order details</h1>
-        <div className={styles.orderSummary}>
-          {summary.lines.map((line) => (
-            <div className={styles.summaryLine} key={line.id}>
-              <span>{line.label}{line.detail ? <small>{line.detail}</small> : null}</span>
-              <div className={styles.cartControls}>
-                <strong>{money(line.amountCents)}</strong>
-                {line.kind === "domain" ? (
-                  <button type="button" onClick={() => focusByName(needsDomain ? "domainName" : "hostingDomainName")} title="Domain bearbeiten">
-                    edit
-                  </button>
-                ) : null}
-                {line.kind === "hostingAddon" ? (
-                  <button type="button" onClick={() => setShowHostingOffer(true)} title="Hosting bearbeiten">
-                    edit
-                  </button>
-                ) : null}
-                {line.removable ? (
-                  <button
-                    aria-label={`${line.label} entfernen`}
-                    type="button"
-                    onClick={() => {
-                      if (line.kind === "hostingAddon") {
-                        setAddHosting(false);
-                      }
-                      if (line.kind === "domainAddon") {
-                        setDomainUse("external");
-                      }
-                    }}
-                  >
-                    -
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ))}
-          {summary.vatCents > 0 ? (
-            <div className={styles.summaryLine}>
-              <span>VAT {vatPercent}%</span>
-              <strong>{money(summary.vatCents)}</strong>
-            </div>
-          ) : null}
-          <div className={styles.summaryTotal}>
-            <span>Total</span>
-            <strong>{money(summary.totalCents)}</strong>
+    <div className={styles.pageWrapper}>
+      <div className={styles.shell}>
+        {/* ── LEFT: Order Summary ── */}
+        <aside className={styles.summary}>
+          <div className={styles.summaryHeader}>
+            <span className={styles.summaryEyebrow}>Ihre Bestellung</span>
+            <h1 className={styles.summaryTitle}>{product.name}</h1>
+            {product.description ? <p className={styles.summaryDesc}>{product.description}</p> : null}
           </div>
-        </div>
-        {needsDomain && hostingProducts.length > 0 ? (
-          <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(true)}>
-            Add hosting
-          </Button>
-        ) : null}
-      </section>
 
-      <form action={submit} className={styles.form}>
-        <section className={styles.loginPanel}>
-          {profile ? (
-            <p className={styles.message}>Eingeloggt als {profile.email}</p>
-          ) : (
-            <>
-              <Button type="button" variant="secondary" onClick={() => setLoginOpen(!loginOpen)}>
-                Kundenlogin
-              </Button>
-              {loginOpen ? (
-                <div className={styles.loginGrid}>
-                  <label>
-                    E-Mail
-                    <input name="loginEmail" onChange={(event) => setLoginEmail(event.target.value)} type="email" value={loginEmail} />
-                  </label>
-                  <label>
-                    Passwort
-                    <input name="loginPassword" onChange={(event) => setLoginPassword(event.target.value)} type="password" value={loginPassword} />
-                  </label>
-                  <Button type="button" onClick={loginClient}>
-                    Einloggen
-                  </Button>
+          <div className={styles.billingCycleRow}>
+            <label className={styles.fieldLabel}>
+              Abrechnungszeitraum
+              <select className={styles.cycleSelect} value={priceId} onChange={(event) => setPriceId(event.target.value)}>
+                {selectablePrices.map((price) => (
+                  <option key={price.id} value={price.id}>
+                    {cycleLabel(price.billingCycle)}
+                    {product.type === "DOMAIN" ? "" : ` — ${money(price.amountCents, price.currency)}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className={styles.orderSummary}>
+            <p className={styles.summarySubheading}>Zusammenfassung</p>
+            {summary.lines.map((line) => (
+              <div className={styles.summaryLine} key={line.id}>
+                <div className={styles.summaryLineInfo}>
+                  <span className={styles.summaryLineName}>{line.label}</span>
+                  {line.detail ? <small className={styles.summaryLineDetail}>{line.detail}</small> : null}
                 </div>
-              ) : null}
-            </>
-          )}
-        </section>
-
-        <label>
-          Abrechnung
-          <select value={priceId} onChange={(event) => setPriceId(event.target.value)}>
-            {selectablePrices.map((price) => (
-              <option key={price.id} value={price.id}>
-                {cycleLabel(price.billingCycle)}
-                {product.type === "DOMAIN" ? "" : ` - ${money(price.amountCents, price.currency)}`}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {needsDomain ? (
-          <>
-            <label>
-              Domain
-              <input
-                name="domainName"
-                onBlur={() => checkDomain(domainNameInput)}
-                onChange={(event) => {
-                  setDomainNameInput(event.target.value);
-                  setDomainCheck({ status: "idle" });
-                }}
-                placeholder="example.de"
-                required
-                value={domainNameInput}
-              />
-            </label>
-            {domainCheck.status === "ok" ? (
-              <p className={domainCheck.available ? styles.available : styles.unavailable}>
-                {domainCheck.domain} wird {domainCheck.action === "register" ? "registriert" : "transferiert"}.
-              </p>
-            ) : null}
-            {(domainCheck.status === "ok" ? domainCheck.action : initialDomainAction) === "transfer" ? (
-              <label>
-                Auth-Code *
-                <input name="transferAuthCode" required />
-              </label>
-            ) : null}
-            {showNameServers ? (
-              <label>
-                Name servers
-                <input name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
-                <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(false)}>
-                  Hide custom name servers
-                </button>
-              </label>
-            ) : (
-              <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(true)}>
-                Add custom name servers
-              </button>
-            )}
-          </>
-        ) : null}
-
-        {needsHostingDomain ? (
-          <section className={styles.domainPanel}>
-            <h2>Domain fuer Hosting</h2>
-            <label>
-              Domain
-              <input
-                name="hostingDomainName"
-                onChange={(event) => {
-                  setHostingDomain(event.target.value);
-                  setDomainCheck({ status: "idle" });
-                }}
-                placeholder="example.de"
-                required
-                value={hostingDomain}
-              />
-            </label>
-            <Button type="button" variant="secondary" onClick={() => checkDomain(hostingDomain)}>
-              Domain pruefen
-            </Button>
-            {domainCheck.status === "loading" ? <p className={styles.message}>Pruefe Domain...</p> : null}
-            {domainCheck.status === "ok" && domainCheck.available ? (
-              <p className={styles.available}>Hurray, {domainCheck.domain} ist frei und kann zur Bestellung hinzugefuegt werden.</p>
-            ) : null}
-            {domainCheck.status === "ok" && !domainCheck.available ? (
-              <div className={styles.choiceGrid}>
-                <p className={styles.unavailable}>{domainCheck.domain} ist nicht frei.</p>
-                <label>
-                  <input checked={domainUse === "transfer"} onChange={() => setDomainUse("transfer")} type="radio" />
-                  Transfer the domain to Dezhost
-                </label>
-                <label>
-                  <input checked={domainUse === "external"} onChange={() => setDomainUse("external")} type="radio" />
-                  Use the domain for this hosting registered somewhere else
-                </label>
-              </div>
-            ) : null}
-            {domainUse === "transfer" ? (
-              <label>
-                Auth-Code *
-                <input name="hostingTransferAuthCode" required />
-              </label>
-            ) : null}
-            {freeDomainEligible ? <p className={styles.available}>Diese Domain ist mit dieser Jahreslaufzeit kostenlos.</p> : null}
-            {domainCheck.status === "ok" && selectedPrice?.billingCycle.startsWith("YEAR_") && domainCheck.priceCents > 1500 ? (
-              <p className={styles.unavailable}>Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos in der Jahreslaufzeit enthalten.</p>
-            ) : null}
-          </section>
-        ) : null}
-
-        {needsDomain && hostingProducts.length > 0 && showHostingOffer ? (
-          <div className={styles.modalBackdrop}>
-            <section className={styles.hostingModal}>
-              <h2>Website braucht Hosting</h2>
-              <p>Eine Domain allein zeigt noch keine Website. Du kannst optional direkt ein Hosting-Paket dazubuchen.</p>
-              <div className={styles.hostingCards}>
-                {hostingProducts.map((hosting) => (
-                  <label className={selectedHostingId === hosting.id ? styles.hostingCardSelected : styles.hostingCard} key={hosting.id}>
-                    <input
-                      checked={selectedHostingId === hosting.id}
-                      name="hostingPackage"
-                      onChange={() => {
-                        setSelectedHostingId(hosting.id);
-                        setSelectedHostingPriceId(hosting.prices[0]?.id ?? "");
-                      }}
-                      type="radio"
-                    />
-                    <strong>{hosting.name}</strong>
-                    <span>{hosting.description}</span>
-                    <ul>
-                      {productHighlights(hosting).map((highlight) => <li key={highlight}>{highlight}</li>)}
-                    </ul>
-                    <select
-                      value={selectedHostingId === hosting.id ? selectedHostingPriceId : hosting.prices[0]?.id ?? ""}
-                      onChange={(event) => {
-                        setSelectedHostingId(hosting.id);
-                        setSelectedHostingPriceId(event.target.value);
+                <div className={styles.cartControls}>
+                  <strong className={styles.summaryLinePrice}>{money(line.amountCents)}</strong>
+                  {line.kind === "domain" ? (
+                    <button
+                      className={styles.iconButton}
+                      type="button"
+                      onClick={() => focusByName(needsDomain ? "domainName" : "hostingDomainName")}
+                      title="Domain bearbeiten"
+                    >
+                      ✎
+                    </button>
+                  ) : null}
+                  {line.kind === "hostingAddon" ? (
+                    <button className={styles.iconButton} type="button" onClick={() => setShowHostingOffer(true)} title="Hosting bearbeiten">
+                      ✎
+                    </button>
+                  ) : null}
+                  {line.removable ? (
+                    <button
+                      className={styles.removeButton}
+                      aria-label={`${line.label} entfernen`}
+                      type="button"
+                      onClick={() => {
+                        if (line.kind === "hostingAddon") setAddHosting(false);
+                        if (line.kind === "domainAddon") setDomainUse("external");
                       }}
                     >
-                      {hosting.prices.map((price) => (
-                        <option key={price.id} value={price.id}>
-                          {cycleLabel(price.billingCycle)} - {money(price.amountCents, price.currency)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
+                      ✕
+                    </button>
+                  ) : null}
+                </div>
               </div>
-              {selectedHostingPrice?.billingCycle.startsWith("YEAR_") ? (
-                <p className={styles.available}>Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR.</p>
-              ) : null}
-              <div className={styles.modalActions}>
-                <Button type="button" onClick={() => {
-                  setAddHosting(true);
-                  setShowHostingOffer(false);
-                }}>
-                  Hosting hinzufuegen
-                </Button>
-                <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(false)}>
-                  Nur Domain
-                </Button>
-              </div>
-            </section>
-          </div>
-        ) : null}
-
-        <div className={styles.grid} key={profile?.id ?? "guest"}>
-          <label>
-            Name *
-            <input defaultValue={profile?.name ?? ""} name="name" required />
-          </label>
-          <label>
-            E-Mail *
-            <input defaultValue={profile?.email ?? ""} name="email" required type="email" />
-          </label>
-          {!profile ? (
-            <label>
-              Passwort *
-              <div className={styles.passwordControl}>
-                <input
-                  maxLength={16}
-                  minLength={9}
-                  name="password"
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  type="password"
-                  value={password}
-                />
-                <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
-                  Generieren
-                </button>
-              </div>
-              <PasswordRules password={password} />
-            </label>
-          ) : null}
-          <label>
-            Organization
-            <input name="companyName" />
-          </label>
-          <label>
-            USt-Id optional
-            <input defaultValue={profile?.vatId ?? ""} name="vatId" />
-          </label>
-          <label>
-            Adresse *
-            <input defaultValue={profileAddress(profile).line1} name="address" required />
-          </label>
-          <label>
-            PLZ *
-            <input defaultValue={profileAddress(profile).postalCode} name="postalCode" required />
-          </label>
-          <label>
-            Stadt *
-            <input defaultValue={profileAddress(profile).city} name="city" required />
-          </label>
-          <label>
-            Land *
-            <select
-              defaultValue={profile?.countryCode ?? "DE"}
-              name="countryCode"
-              onChange={(event) => {
-                const country = countries.find((item) => item.code === event.target.value);
-                if (country) {
-                  setPhoneCountryCode(country.phone);
-                }
-              }}
-              required
-            >
-              {countries.map((country) => (
-                <option key={country.code} value={country.code}>
-                  {country.flag} {country.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Bundesland *
-            <input defaultValue={profileAddress(profile).state} name="state" required />
-          </label>
-          <label>
-            Telefon *
-            <div className={styles.phoneField}>
-              <input
-                aria-label="Country calling code"
-                name="phoneCountryCode"
-                onChange={(event) => setPhoneCountryCode(event.target.value)}
-                required
-                value={phoneCountryCode}
-              />
-              <input defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
-            </div>
-          </label>
-        </div>
-
-        <fieldset className={styles.paymentMethods}>
-          Zahlung
-          <div className={styles.paymentGrid}>
-            {paymentGateways.map((gateway) => (
-              <label className={paymentMethod === gateway.method ? styles.paymentSelected : styles.paymentCard} key={gateway.method}>
-                <input
-                  checked={paymentMethod === gateway.method}
-                  onChange={() => setPaymentMethod(gateway.method)}
-                  type="radio"
-                  value={gateway.method}
-                />
-                <span className={styles.paymentImage}>{paymentMark(gateway.method)}</span>
-                <strong>{gateway.title}</strong>
-              </label>
             ))}
-          </div>
-        </fieldset>
 
-        <Button type="submit">Kostenpflichtig bestellen</Button>
-        {state.status !== "idle" ? (
-          <p className={`${styles.message} ${styles[state.status]}`}>
-            {state.message}
-            {state.status === "success" ? (
-              <>
-                {" "}
-                <a href={`/client?order=${state.orderId}`}>Zum Portal</a>
-              </>
+            {summary.vatCents > 0 ? (
+              <div className={styles.summaryVat}>
+                <span>MwSt. {vatPercent}%</span>
+                <span>{money(summary.vatCents)}</span>
+              </div>
             ) : null}
-          </p>
-        ) : null}
-      </form>
+
+            <div className={styles.summaryTotal}>
+              <span>Gesamtbetrag</span>
+              <strong>{money(summary.totalCents)}</strong>
+            </div>
+          </div>
+
+          {needsDomain && hostingProducts.length > 0 ? (
+            <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(true)}>
+              + Hosting hinzufügen
+            </Button>
+          ) : null}
+        </aside>
+
+        {/* ── RIGHT: Checkout Form ── */}
+        <form action={submit} className={styles.form}>
+
+          {/* Existing customer login */}
+          <div className={styles.loginPanel}>
+            {profile ? (
+              <div className={styles.loggedInBadge}>
+                <span className={styles.loggedInIcon}>✓</span>
+                <span>Eingeloggt als <strong>{profile.email}</strong></span>
+              </div>
+            ) : (
+              <>
+                <div className={styles.loginToggleRow}>
+                  <span className={styles.loginHint}>Bereits Kunde?</span>
+                  <button className={styles.linkButton} type="button" onClick={() => setLoginOpen(!loginOpen)}>
+                    {loginOpen ? "Abbrechen" : "Einloggen"}
+                  </button>
+                </div>
+                {loginOpen ? (
+                  <div className={styles.loginGrid}>
+                    <label className={styles.fieldLabel}>
+                      E-Mail
+                      <input className={styles.input} name="loginEmail" onChange={(event) => setLoginEmail(event.target.value)} type="email" value={loginEmail} />
+                    </label>
+                    <label className={styles.fieldLabel}>
+                      Passwort
+                      <input className={styles.input} name="loginPassword" onChange={(event) => setLoginPassword(event.target.value)} type="password" value={loginPassword} />
+                    </label>
+                    <Button type="button" onClick={loginClient}>
+                      Einloggen
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {/* Domain section */}
+          {needsDomain ? (
+            <div className={styles.formSection}>
+              <p className={styles.sectionLabel}>Domain</p>
+              <label className={styles.fieldLabel}>
+                <span>Domain-Name <span className={styles.required}>*</span></span>
+                <input
+                  className={styles.input}
+                  name="domainName"
+                  onBlur={() => checkDomain(domainNameInput)}
+                  onChange={(event) => {
+                    setDomainNameInput(event.target.value);
+                    setDomainCheck({ status: "idle" });
+                  }}
+                  placeholder="example.de"
+                  required
+                  value={domainNameInput}
+                />
+              </label>
+              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>Prüfe Domain…</p> : null}
+              {domainCheck.status === "ok" ? (
+                <p className={domainCheck.available ? styles.available : styles.unavailable}>
+                  {domainCheck.available ? "✓" : "✕"} {domainCheck.domain} wird {domainCheck.action === "register" ? "registriert" : "transferiert"}.
+                </p>
+              ) : null}
+              {(domainCheck.status === "ok" ? domainCheck.action : initialDomainAction) === "transfer" ? (
+                <label className={styles.fieldLabel}>
+                  <span>Auth-Code <span className={styles.required}>*</span></span>
+                  <input className={styles.input} name="transferAuthCode" required />
+                </label>
+              ) : null}
+              {showNameServers ? (
+                <label className={styles.fieldLabel}>
+                  Name-Server
+                  <input className={styles.input} name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
+                  <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(false)}>
+                    Eigene Name-Server ausblenden
+                  </button>
+                </label>
+              ) : (
+                <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(true)}>
+                  + Eigene Name-Server hinzufügen
+                </button>
+              )}
+            </div>
+          ) : null}
+
+          {/* Hosting domain section */}
+          {needsHostingDomain ? (
+            <div className={styles.formSection}>
+              <p className={styles.sectionLabel}>Domain für Hosting</p>
+              <label className={styles.fieldLabel}>
+                <span>Domain <span className={styles.required}>*</span></span>
+                <input
+                  className={styles.input}
+                  name="hostingDomainName"
+                  onChange={(event) => {
+                    setHostingDomain(event.target.value);
+                    setDomainCheck({ status: "idle" });
+                  }}
+                  placeholder="example.de"
+                  required
+                  value={hostingDomain}
+                />
+              </label>
+              <Button type="button" variant="secondary" onClick={() => checkDomain(hostingDomain)}>
+                Domain prüfen
+              </Button>
+              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>Prüfe Domain…</p> : null}
+              {domainCheck.status === "ok" && domainCheck.available ? (
+                <p className={styles.available}>✓ {domainCheck.domain} ist verfügbar und kann zur Bestellung hinzugefügt werden.</p>
+              ) : null}
+              {domainCheck.status === "ok" && !domainCheck.available ? (
+                <div className={styles.choiceGrid}>
+                  <p className={styles.unavailable}>✕ {domainCheck.domain} ist nicht verfügbar.</p>
+                  <label className={styles.radioLabel}>
+                    <input checked={domainUse === "transfer"} onChange={() => setDomainUse("transfer")} type="radio" />
+                    Domain zu Dezhost transferieren
+                  </label>
+                  <label className={styles.radioLabel}>
+                    <input checked={domainUse === "external"} onChange={() => setDomainUse("external")} type="radio" />
+                    Domain extern belassen
+                  </label>
+                </div>
+              ) : null}
+              {domainUse === "transfer" ? (
+                <label className={styles.fieldLabel}>
+                  <span>Auth-Code <span className={styles.required}>*</span></span>
+                  <input className={styles.input} name="hostingTransferAuthCode" required />
+                </label>
+              ) : null}
+              {freeDomainEligible ? <p className={styles.available}>✓ Diese Domain ist bei Jahreslaufzeit kostenlos enthalten.</p> : null}
+              {domainCheck.status === "ok" && selectedPrice?.billingCycle.startsWith("YEAR_") && domainCheck.priceCents > 1500 ? (
+                <p className={styles.unavailable}>Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos enthalten.</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Hosting upsell modal */}
+          {needsDomain && hostingProducts.length > 0 && showHostingOffer ? (
+            <div className={styles.modalBackdrop}>
+              <section className={styles.hostingModal}>
+                <div className={styles.modalHeader}>
+                  <h2 className={styles.modalTitle}>Hosting hinzufügen</h2>
+                  <button className={styles.modalClose} type="button" onClick={() => setShowHostingOffer(false)} aria-label="Schließen">✕</button>
+                </div>
+                <p className={styles.modalDesc}>Eine Domain allein zeigt noch keine Website. Buche direkt ein passendes Hosting-Paket dazu.</p>
+                <div className={styles.hostingCards}>
+                  {hostingProducts.map((hosting) => (
+                    <label className={selectedHostingId === hosting.id ? styles.hostingCardSelected : styles.hostingCard} key={hosting.id}>
+                      <div className={styles.hostingCardTop}>
+                        <input
+                          checked={selectedHostingId === hosting.id}
+                          name="hostingPackage"
+                          onChange={() => {
+                            setSelectedHostingId(hosting.id);
+                            setSelectedHostingPriceId(hosting.prices[0]?.id ?? "");
+                          }}
+                          type="radio"
+                        />
+                        <strong className={styles.hostingCardName}>{hosting.name}</strong>
+                      </div>
+                      <span className={styles.hostingCardDesc}>{hosting.description}</span>
+                      <ul className={styles.hostingCardFeatures}>
+                        {productHighlights(hosting).map((highlight) => <li key={highlight}>{highlight}</li>)}
+                      </ul>
+                      <select
+                        className={styles.hostingCycleSelect}
+                        value={selectedHostingId === hosting.id ? selectedHostingPriceId : hosting.prices[0]?.id ?? ""}
+                        onChange={(event) => {
+                          setSelectedHostingId(hosting.id);
+                          setSelectedHostingPriceId(event.target.value);
+                        }}
+                      >
+                        {hosting.prices.map((price) => (
+                          <option key={price.id} value={price.id}>
+                            {cycleLabel(price.billingCycle)} — {money(price.amountCents, price.currency)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+                {selectedHostingPrice?.billingCycle.startsWith("YEAR_") ? (
+                  <p className={styles.available}>✓ Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR.</p>
+                ) : null}
+                <div className={styles.modalActions}>
+                  <Button type="button" onClick={() => { setAddHosting(true); setShowHostingOffer(false); }}>
+                    Hosting hinzufügen
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(false)}>
+                    Nur Domain
+                  </Button>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {/* Personal & contact info */}
+          <div className={styles.formSection} key={profile?.id ?? "guest"}>
+            <p className={styles.sectionLabel}>Persönliche Daten</p>
+            <div className={styles.grid}>
+              <label className={styles.fieldLabel}>
+                <span>Name <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profile?.name ?? ""} name="name" required />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>E-Mail <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profile?.email ?? ""} name="email" required type="email" />
+              </label>
+              {!profile ? (
+                <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
+                  <span>Passwort <span className={styles.required}>*</span></span>
+                  <div className={styles.passwordControl}>
+                    <input
+                      className={styles.input}
+                      maxLength={16}
+                      minLength={9}
+                      name="password"
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                      type="password"
+                      value={password}
+                    />
+                    <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
+                      Generieren
+                    </button>
+                  </div>
+                  <PasswordRules password={password} />
+                </label>
+              ) : null}
+              <label className={styles.fieldLabel}>
+                <span>Telefon <span className={styles.required}>*</span></span>
+                <div className={styles.phoneField}>
+                  <input
+                    className={styles.input}
+                    aria-label="Ländervorwahl"
+                    name="phoneCountryCode"
+                    onChange={(event) => setPhoneCountryCode(event.target.value)}
+                    required
+                    value={phoneCountryCode}
+                  />
+                  <input className={styles.input} defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Company info */}
+          <div className={styles.formSection}>
+            <p className={styles.sectionLabel}>Unternehmen <span className={styles.optionalBadge}>optional</span></p>
+            <div className={styles.grid}>
+              <label className={styles.fieldLabel}>
+                Firmenname
+                <input className={styles.input} name="companyName" placeholder="Nur für Geschäftskunden" />
+              </label>
+              <label className={styles.fieldLabel}>
+                USt-Id
+                <input className={styles.input} defaultValue={profile?.vatId ?? ""} name="vatId" placeholder="DE123456789" />
+              </label>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div className={styles.formSection}>
+            <p className={styles.sectionLabel}>Adresse</p>
+            <div className={styles.grid}>
+              <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
+                <span>Straße & Hausnummer <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profileAddress(profile).line1} name="address" required />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>PLZ <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profileAddress(profile).postalCode} name="postalCode" required />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>Stadt <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profileAddress(profile).city} name="city" required />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>Bundesland <span className={styles.required}>*</span></span>
+                <input className={styles.input} defaultValue={profileAddress(profile).state} name="state" required />
+              </label>
+              <label className={styles.fieldLabel}>
+                <span>Land <span className={styles.required}>*</span></span>
+                <select
+                  className={styles.input}
+                  defaultValue={profile?.countryCode ?? "DE"}
+                  name="countryCode"
+                  onChange={(event) => {
+                    const country = countries.find((item) => item.code === event.target.value);
+                    if (country) setPhoneCountryCode(country.phone);
+                  }}
+                  required
+                >
+                  {countries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.flag} {country.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          {/* Payment */}
+          <div className={styles.formSection}>
+            <p className={styles.sectionLabel}>Zahlungsmethode</p>
+            <div className={styles.paymentGrid}>
+              {paymentGateways.map((gateway) => (
+                <label className={paymentMethod === gateway.method ? styles.paymentSelected : styles.paymentCard} key={gateway.method}>
+                  <input
+                    checked={paymentMethod === gateway.method}
+                    onChange={() => setPaymentMethod(gateway.method)}
+                    type="radio"
+                    value={gateway.method}
+                  />
+                  <span className={styles.paymentImage}>{paymentMark(gateway.method)}</span>
+                  <strong className={styles.paymentLabel}>{gateway.title}</strong>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className={styles.submitRow}>
+            <Button type="submit">Kostenpflichtig bestellen</Button>
+            {state.status !== "idle" ? (
+              <p className={`${styles.statusMsg} ${styles[state.status]}`}>
+                {state.message}
+                {state.status === "success" ? (
+                  <> <a href={`/client?order=${state.orderId}`} className={styles.portalLink}>Zum Portal →</a></>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
 function PasswordRules({ password }: { password: string }) {
   const rules = [
-    { label: "9-16 Zeichen", passed: password.length >= 9 && password.length <= 16 },
-    { label: "Grossbuchstaben", passed: /[A-Z]/.test(password) },
+    { label: "9–16 Zeichen", passed: password.length >= 9 && password.length <= 16 },
+    { label: "Großbuchstaben", passed: /[A-Z]/.test(password) },
     { label: "Kleinbuchstaben", passed: /[a-z]/.test(password) },
     { label: "Zahlen", passed: /\d/.test(password) },
     { label: "Sonderzeichen", passed: /[~*!@$#%_+.?:,{}]/.test(password) }
@@ -677,7 +734,7 @@ function PasswordRules({ password }: { password: string }) {
     <div className={styles.passwordRules}>
       {rules.map((rule) => (
         <span className={rule.passed ? styles.rulePassed : styles.ruleMissing} key={rule.label}>
-          {rule.label}
+          {rule.passed ? "✓" : "○"} {rule.label}
         </span>
       ))}
     </div>
@@ -746,19 +803,15 @@ function splitProfilePhone(phone?: string) {
 }
 
 const defaultPaymentGateways: ApiPaymentGateway[] = [
-  { method: "CREDIT_CARD", title: "Credit/debit card" },
-  { method: "PAYPAL", title: "Paypal" },
+  { method: "CREDIT_CARD", title: "Kredit-/Debitkarte" },
+  { method: "PAYPAL", title: "PayPal" },
   { method: "SEPA", title: "SEPA Lastschrift" }
 ];
 
 function paymentMark(method: string) {
-  if (method === "PAYPAL") {
-    return "PayPal";
-  }
-  if (method === "SEPA") {
-    return "SEPA";
-  }
-  return "VISA MC";
+  if (method === "PAYPAL") return "PayPal";
+  if (method === "SEPA") return "SEPA";
+  return "VISA · MC";
 }
 
 function productHighlights(product: ApiProduct) {
@@ -805,7 +858,7 @@ function orderSummary(input: {
       amountCents: domainPrice,
       id: "domain",
       kind: "domain",
-      detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} year${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "s"}`,
+      detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} Jahr${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "e"}`,
       label: `${input.domainName || "Domain"} ${input.domainCheck.status === "ok" ? input.domainCheck.action : "registration"}`
     });
     if (input.addHosting && input.selectedHosting && input.selectedHostingPrice) {
@@ -834,8 +887,8 @@ function orderSummary(input: {
         amountCents: free ? 0 : domainPrice,
         id: "domain-addon",
         kind: "domainAddon",
-        detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} year${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "s"}`,
-        label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (free)" : ""}`,
+        detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} Jahr${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "e"}`,
+        label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (kostenlos)" : ""}`,
         removable: true
       });
     }
@@ -868,7 +921,6 @@ function hostingDomainUse(domainUse: "external" | "register" | "transfer", domai
   if (domainCheck.status === "ok" && domainCheck.available && domainCheck.domain === hostingDomain.trim().toLowerCase()) {
     return domainCheck.action;
   }
-
   return domainUse;
 }
 
