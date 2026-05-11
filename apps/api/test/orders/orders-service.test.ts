@@ -152,8 +152,8 @@ describe("OrdersService", () => {
     };
     const external = {
       resellBiz: {
-        register: async (request: { customerContact?: { email: string }; domain: string }) => {
-          events.push(`register:${request.domain}:${request.customerContact?.email}`);
+        register: async (request: { customerContact?: { email: string; phone: string; phoneCountryCode: string }; domain: string }) => {
+          events.push(`register:${request.domain}:${request.customerContact?.email}:${request.customerContact?.phoneCountryCode}:${request.customerContact?.phone}`);
           return { externalId: "rb_123", status: "ACTIVE", metadata: { testApi: true } };
         }
       }
@@ -166,7 +166,7 @@ describe("OrdersService", () => {
     assert.deepEqual(events, [
       "order:paid",
       "item:item_domain:provisioning",
-      "register:contact-test.com:buyer@example.com",
+      "register:contact-test.com:buyer@example.com:49:30123456",
       "domain-record",
       "item:item_domain:active:rb_123",
       "order:complete"
@@ -620,6 +620,67 @@ describe("OrdersService", () => {
 
     assert.deepEqual(events, ["invoice:user_existing", "order:user_existing"]);
   });
+
+  it("checkout creates unpaid invoice and pending entities for storefront order combinations", async () => {
+    const cases = [
+      { label: "only-domain", items: [{ domainName: "only-domain.test", productId: "prod_domain", quantity: 1 }] },
+      {
+        label: "domain-and-hosting",
+        items: [
+          { domainName: "bundle.test", productId: "prod_domain", quantity: 1 },
+          { configuration: { bundledDomain: true, domainName: "bundle.test" }, productId: "prod_hosting", quantity: 1 }
+        ]
+      },
+      { label: "only-hosting", items: [{ configuration: { domainName: "external.test" }, productId: "prod_hosting", quantity: 1 }] }
+    ];
+
+    for (const scenario of cases) {
+      const events: string[] = [];
+      const orders = {
+        createOrder: async (input: { items: Array<{ type: string }>; userId: string }) => {
+          events.push(`order:${scenario.label}:${input.items.map((item) => item.type).join("+")}`);
+          return {
+            id: `ord_${scenario.label}`,
+            items: input.items.map((item, index) => ({ ...item, id: `item_${scenario.label}_${index}` }))
+          };
+        },
+        createPendingEntitiesForOrder: async (order: { id: string; items: Array<{ type: string }> }, invoiceId: string) =>
+          events.push(`pending:${order.id}:${invoiceId}:${order.items.map((item) => item.type).join("+")}`),
+        findProduct: async (id: string) =>
+          id === "prod_domain" ? product("prod_domain", "DOMAIN", 1200, "YEAR_1") : product("prod_hosting", "SHARED_HOSTING", 1000, "MONTHLY")
+      };
+      const billing = {
+        createInvoice: async (input: { status: string; userId: string }) => {
+          events.push(`invoice:${input.userId}:${input.status}`);
+          return { id: `inv_${scenario.label}`, subtotalCents: 1000, taxAmountCents: 0, totalCents: 1000 };
+        },
+        vatPercent: async () => 0
+      };
+      const users = {
+        createUser: async (input: { email: string }) => ({ email: input.email, id: `user_${scenario.label}` }),
+        findByEmail: async () => null
+      };
+      const domainPricing = {
+        priceFor: async (_domain: string, fallback: number) => ({ amountCents: fallback, source: "stored", tld: "test" })
+      };
+      const service = new OrdersService(orders as never, billing as never, {} as never, users as never, domainPricing as never);
+
+      await service.checkout({
+        customer: {
+          email: `${scenario.label}@example.test`,
+          name: scenario.label,
+          password: "StrongPass1!"
+        },
+        items: scenario.items
+      });
+
+      assert.deepEqual(events, [
+        `invoice:user_${scenario.label}:UNPAID`,
+        `order:${scenario.label}:${scenario.items.map((item) => (item.productId === "prod_domain" ? "DOMAIN" : "SHARED_HOSTING")).join("+")}`,
+        `pending:ord_${scenario.label}:inv_${scenario.label}:${scenario.items.map((item) => (item.productId === "prod_domain" ? "DOMAIN" : "SHARED_HOSTING")).join("+")}`
+      ]);
+    }
+  });
 });
 
 function domainItem(id: string, domainName: string) {
@@ -660,7 +721,7 @@ function customerSnapshot() {
     countryCode: "DE",
     email: "buyer@example.com",
     name: "Buyer Person",
-    phone: "+49 30123456",
+    phone: "+4930123456",
     vatId: "DE123"
   };
 }

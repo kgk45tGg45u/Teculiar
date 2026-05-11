@@ -261,6 +261,55 @@
   font-weight: 700;
 }
 
+.clientList {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.clientRow {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.clientRow summary {
+  display: grid;
+  grid-template-columns: 1.4fr auto 1.6fr repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.clientRow summary span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.modal {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.lineEditor {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.lineEditor legend {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 @media (max-width: 720px) {
   .page {
     grid-template-columns: 1fr;

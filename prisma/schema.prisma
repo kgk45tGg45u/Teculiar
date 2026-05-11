@@ -43,6 +43,7 @@ enum ProductType {
 }
 
 enum BillingCycle {
+  ONE_TIME
   MONTHLY
   QUARTERLY
   SEMI_ANNUAL
@@ -53,6 +54,7 @@ enum BillingCycle {
 }
 
 enum ServiceStatus {
+  PENDING
   ORDERED
   PROVISIONING
   ACTIVE
@@ -61,6 +63,7 @@ enum ServiceStatus {
   CANCELLED
   TERMINATED
   FAILED
+  PROVISIONING_FAILED
 }
 
 enum InvoiceStatus {
@@ -71,6 +74,8 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   FAILED
+  CANCELLED
+  REFUNDED
 }
 
 enum PaymentMethodType {
@@ -154,10 +159,13 @@ enum TranslationStatus {
 
 enum DomainStatus {
   PENDING
+  PENDING_TRANSFER
   ACTIVE
   TRANSFERRING
   EXPIRED
   LOCKED
+  SUSPENDED
+  CANCELLED
   FAILED
 }
 
@@ -417,6 +425,8 @@ model OrderItem {
   product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
   productPrice      ProductPrice    @relation(fields: [productPriceId], references: [id], onDelete: Restrict)
   service           Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  invoiceItems      InvoiceItem[]
+  domainRecords     DomainRecord[]
 }
 
 model ProductConfig {
@@ -458,16 +468,30 @@ model Service {
   id             String          @id @default(cuid())
   userId         String
   teamId         String?
+  orderId        String?
+  orderItemId    String?
+  initialInvoiceId String?
+  domainRecordId String?
   productId      String
   productPriceId String
   status         ServiceStatus   @default(ORDERED)
+  billingCycle   BillingCycle?
+  recurringAmountCents Int       @default(0)
+  setupFeeCents  Int             @default(0)
   configuration  Json            @default("{}")
+  customFields   Json            @default("{}")
   externalId     String?
+  moduleName     String?
+  moduleStatus   String          @default("pending")
+  moduleReference String?
+  autoRenew      Boolean         @default(true)
   startedAt      DateTime?
   renewsAt       DateTime?
+  nextDueAt      DateTime?
   suspendedAt    DateTime?
   cancelAt       DateTime?
   cancelledAt    DateTime?
+  terminatedAt   DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -498,6 +522,9 @@ model ServiceAddOn {
 model Invoice {
   id              String        @id @default(cuid())
   invoiceNumber   String        @unique @default(cuid())
+  tempInvoiceNumber String?     @unique
+  finalInvoiceNumber String?    @unique
+  finalizedAt     DateTime?
   userId          String
   teamId          String?
   subscriptionId  String?
@@ -513,8 +540,10 @@ model Invoice {
   reverseCharge   Boolean       @default(false)
   taxReason       String?
   customerSnapshot Json         @default("{}")
+  sellerSnapshot  Json          @default("{}")
   footerLines     Json          @default("[]")
   orderSnapshot   Json          @default("{}")
+  adminNotes      String?
   couponId        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -530,7 +559,11 @@ model Invoice {
 model InvoiceItem {
   id                 String    @id @default(cuid())
   invoiceId          String
+  type               String    @default("CUSTOM")
+  orderItemId        String?
   serviceId          String?
+  domainRecordId     String?
+  lifecycleAction    String?
   description        String
   quantity           Int       @default(1)
   unitAmountCents    Int
@@ -541,8 +574,16 @@ model InvoiceItem {
   totalCents         Int
   servicePeriodStart DateTime?
   servicePeriodEnd   DateTime?
+  metadata           Json      @default("{}")
+  createdAt          DateTime  @default(now())
   invoice            Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderItem          OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   service            Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  domainRecord       DomainRecord? @relation(fields: [domainRecordId], references: [id], onDelete: SetNull)
+
+  @@index([orderItemId])
+  @@index([serviceId])
+  @@index([domainRecordId])
 }
 
 model Transaction {
@@ -635,18 +676,60 @@ model DomainRecord {
   id                String       @id @default(cuid())
   serviceId         String?
   userId            String
+  orderId           String?
+  orderItemId       String?
+  initialInvoiceId  String?
   domain            String       @unique
+  type              String       @default("register")
   status            DomainStatus @default(PENDING)
   registrarProvider String       @default("resell.biz")
+  registrarModule   String?
   externalId        String?
   authCodeHash      String?
+  eppCode           String?
   expiresAt         DateTime?
+  registrationDate  DateTime?
+  nextDueAt         DateTime?
+  registrationPeriodYears Int    @default(1)
+  firstPaymentAmountCents Int    @default(0)
+  recurringAmountCents Int       @default(0)
   autoRenew         Boolean      @default(true)
+  nameservers       Json?
   dnsRecords        Json?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   service           Service?     @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItem         OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  invoiceItems      InvoiceItem[]
+
+  @@index([orderItemId])
+  @@index([initialInvoiceId])
+}
+
+model ModuleLog {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  invoiceId      String?
+  orderId        String?
+  orderItemId    String?
+  serviceId      String?
+  domainRecordId String?
+  moduleName     String
+  action         String
+  status         String
+  request        Json     @default("{}")
+  response       Json     @default("{}")
+  errorMessage   String?
+  actorId        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([serviceId])
+  @@index([domainRecordId])
+  @@index([action, serviceId])
+  @@index([action, domainRecordId])
 }
 
 model HostingService {

@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
   money,
+  type ApiClient,
   type ApiInvoice,
   type ApiDomainPrice,
   type ApiOrder,
+  type ApiProduct,
   type ApiService,
   type ApiTicket,
   type AuthUser
@@ -13,7 +15,7 @@ import {
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
-import { AnnouncementForm, BlogManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
 import styles from "./admin-dashboard.module.css";
 
@@ -40,6 +42,8 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   await runMaintenance();
 
   const orders = (await apiGetAuth<ApiOrder[]>("/orders/admin")) ?? [];
+  const clients = (await apiGetAuth<ApiClient[]>("/users")) ?? [];
+  const products = (await apiGetAuth<ApiProduct[]>("/products")) ?? [];
   const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
   const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
@@ -101,7 +105,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "home" ? <ModuleGrid /> : null}
         {view === "home" || view === "orders" ? <OrdersPanel orders={orders} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel prices={domainPrices} /> : null}
-        {view === "clients" ? <Placeholder icon={UsersRound} title="Clients" body="Client list is ready for admin auth UI." /> : null}
+        {view === "clients" ? <ClientsPanel clients={clients} products={products} /> : null}
         {view === "services" ? <ServicesPanel services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
         {view === "tickets" ? <TicketsPanel tickets={tickets} /> : null}
@@ -299,7 +303,7 @@ function ServicesPanel({ services }: { services: ApiService[] }) {
         <tbody>
           {services.map((service) => (
             <tr key={service.id}>
-              <td>{service.product.name}</td>
+              <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
               <td>{money(service.productPrice.amountCents, service.productPrice.currency)} / {service.productPrice.billingCycle}</td>
               <td>{dateLabel(service.renewsAt)}</td>
               <td>
@@ -309,6 +313,21 @@ function ServicesPanel({ services }: { services: ApiService[] }) {
           ))}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function ClientsPanel({ clients, products }: { clients: ApiClient[]; products: ApiProduct[] }) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Clients</span>
+          <h2>Clients</h2>
+        </div>
+        <StatusPill label={`${clients.length} clients`} tone={clients.length ? "good" : "neutral"} />
+      </div>
+      <ClientManager clients={clients} products={products} />
     </section>
   );
 }
@@ -325,13 +344,14 @@ function InvoicesPanel({ invoices }: { invoices: ApiInvoice[] }) {
       </div>
       <div className={styles.invoiceCards}>
         {invoices.map((invoice) => (
-          <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
-            <div><span>Invoice</span><strong>{invoice.invoiceNumber}</strong></div>
+          <div className={styles.invoiceCard} id={`invoice-${invoice.id}`} key={invoice.id}>
+            <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></strong></div>
             <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
             <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
             <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
             <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
-          </a>
+            <AdminInvoiceActions invoice={invoice} />
+          </div>
         ))}
       </div>
     </section>
@@ -451,6 +471,14 @@ function orderLabel(status: string) {
     return "Canceled";
   }
   return "In Progress";
+}
+
+function serviceKindLabel(type: string) {
+  return { DOMAIN: "Domain", SHARED_HOSTING: "Hosting", VPS: "VPS" }[type] ?? type.toLowerCase().replaceAll("_", " ");
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value ? value : undefined;
 }
 
 function ticketLabel(status: string) {

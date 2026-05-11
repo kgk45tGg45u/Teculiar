@@ -24,20 +24,21 @@ export class BillingEngineService {
       0
     );
     const discountCents = this.calculateDiscount(subtotalCents, input.coupon);
-    const taxableBaseCents = Math.max(0, subtotalCents - discountCents);
+    const taxableBaseCents = subtotalCents - discountCents;
 
     const lines = input.lines.map((line) => {
       const lineSubtotalCents = line.quantity * line.unitAmountCents;
       const lineShare = subtotalCents > 0 ? lineSubtotalCents / subtotalCents : 0;
       const lineDiscountCents = Math.round(discountCents * lineShare);
-      const lineTaxableCents = Math.max(0, lineSubtotalCents - lineDiscountCents);
-      const taxAmountCents = Math.round((lineTaxableCents * vat.rate) / 100);
+      const lineTaxableCents = lineSubtotalCents - lineDiscountCents;
+      const taxRate = line.taxRate ?? vat.rate;
+      const taxAmountCents = Math.round((lineTaxableCents * taxRate) / 100);
 
       return {
         ...line,
         subtotalCents: lineSubtotalCents,
         discountCents: lineDiscountCents,
-        taxRate: vat.rate,
+        taxRate,
         taxAmountCents,
         totalCents: lineTaxableCents + taxAmountCents
       };

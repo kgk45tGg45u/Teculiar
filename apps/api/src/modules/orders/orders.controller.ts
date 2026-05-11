@@ -3,7 +3,7 @@ import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { CheckoutOrderDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
+import { AdminCreateOrderDto, CheckoutOrderDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
 import { OrdersService } from "./orders.service";
 
 @Controller()
@@ -40,6 +40,13 @@ export class OrdersController {
   @Get("orders/admin")
   adminOrders() {
     return this.orders.listAdminOrders();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Post("orders/admin")
+  createAdminOrder(@Body() dto: AdminCreateOrderDto) {
+    return this.orders.createAdminOrder(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

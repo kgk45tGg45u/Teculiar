@@ -76,6 +76,18 @@ export class CheckoutOrderDto {
   customer: OrderCustomerDto & { password: string };
 }
 
+export class AdminCreateOrderDto {
+  @IsString()
+  userId: string;
+
+  @IsArray()
+  items: OrderItemDto[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 export class PayOrderDto {
   @IsIn(["CREDIT_CARD", "PAYPAL", "SEPA", "CRYPTO"])
   method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | "CRYPTO";

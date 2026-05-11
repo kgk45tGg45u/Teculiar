@@ -26,7 +26,21 @@ export class ProductsController {
   @Roles("admin", "staff")
   @Get("admin/dev/services")
   listServicesDev() {
-    return this.products.listServices();
+    return this.products.listServicesFresh();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Post("admin/dev/services/refresh")
+  refreshServicesDev() {
+    return this.products.refreshAllServiceStatuses();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Patch("admin/dev/services/:id/status")
+  updateServiceStatusDev(@Param("id") id: string, @Body("status") status: string) {
+    return this.products.updateServiceStatus(id, status);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

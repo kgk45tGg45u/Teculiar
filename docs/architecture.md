@@ -49,6 +49,19 @@ The billing engine separates:
 - Payment processor abstraction
 - Affiliate attribution
 
+Invoice payment state is the automation gate. Orders create unpaid invoices plus pending services/domains only; module calls wait until `onInvoicePaid(invoiceId)`.
+
+When an invoice becomes paid, the billing module:
+
+- assigns a final sequential invoice number if one does not exist yet
+- activates, renews, or unsuspends linked services
+- registers, transfers, or renews linked domains
+- writes module logs with idempotency keys before provider calls
+- keeps the invoice paid if a provider action fails
+- writes audit logs for payment, status, and module outcomes
+
+Temporary invoice numbers use the `N-100001` style. Final accounting numbers are assigned once on paid state and are not removed when an invoice is later marked unpaid.
+
 This avoids coupling provider provisioning to revenue recognition. A service can fail provisioning while the related invoice and transaction retain an auditable state.
 
 ## Provider Abstraction

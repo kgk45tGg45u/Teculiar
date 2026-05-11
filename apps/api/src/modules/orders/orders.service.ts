@@ -5,7 +5,7 @@ import { ExternalService } from "../external/external.service";
 import { UsersRepository } from "../users/users.repository";
 import { DomainAvailabilityService } from "./domain-availability.service";
 import { DomainPricingService } from "./domain-pricing.service";
-import type { CheckoutOrderDto, OrderItemDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
+import type { AdminCreateOrderDto, CheckoutOrderDto, OrderItemDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
 import { OrdersRepository, type PricedOrderItem } from "./orders.repository";
 
 @Injectable()
@@ -154,7 +154,68 @@ export class OrdersService {
       totalCents: invoice.totalCents,
       userId: user.id
     });
+    if (typeof (this.orders as unknown as { createPendingEntitiesForOrder?: unknown }).createPendingEntitiesForOrder === "function") {
+      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string) => Promise<unknown> }).createPendingEntitiesForOrder(
+        order,
+        invoice.id
+      );
+    }
 
+    return { invoice, order };
+  }
+
+  async createAdminOrder(dto: AdminCreateOrderDto) {
+    const user = await this.users.findById(dto.userId);
+    if (!user) {
+      throw new NotFoundException("Client not found");
+    }
+    const items = await this.priceItems(dto.items);
+    const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
+    const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
+    const taxableCents = subtotalCents + setupFeeCents;
+    const vatPercent = await this.billing.vatPercent();
+    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
+    const snapshot = customerSnapshotFromUser(user);
+    const invoice = await this.billing.createInvoice({
+      buyerCountryCode: user.countryCode ?? "DE",
+      buyerVatId: user.vatId ?? undefined,
+      customerSnapshot: snapshot,
+      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+      isBusinessCustomer: user.customerType === "BUSINESS",
+      lines: items.map((item) => ({
+        description: item.description,
+        lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
+        quantity: 1,
+        type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
+        unitAmountCents: item.totalCents
+      })),
+      orderSnapshot: {
+        adminNotes: dto.notes,
+        items,
+        setupFeeCents,
+        subtotalCents,
+        taxAmountCents,
+        totalCents: taxableCents + taxAmountCents
+      },
+      status: "UNPAID",
+      userId: user.id
+    });
+    const order = await this.orders.createOrder({
+      customerSnapshot: snapshot,
+      invoiceId: invoice.id,
+      items,
+      setupFeeCents,
+      subtotalCents: invoice.subtotalCents,
+      taxAmountCents: invoice.taxAmountCents,
+      totalCents: invoice.totalCents,
+      userId: user.id
+    });
+    if (typeof (this.orders as unknown as { createPendingEntitiesForOrder?: unknown }).createPendingEntitiesForOrder === "function") {
+      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string) => Promise<unknown> }).createPendingEntitiesForOrder(
+        order,
+        invoice.id
+      );
+    }
     return { invoice, order };
   }
 
@@ -170,6 +231,12 @@ export class OrdersService {
     const invoice = await this.billing.payInvoice(order.invoiceId, dto);
     if (invoice.status !== "PAID") {
       return { invoice, order: await this.orders.findOrderForActivation(id) };
+    }
+    if ((invoice as { lifecycleProcessed?: boolean }).lifecycleProcessed) {
+      return {
+        invoice,
+        order: await this.orders.findOrderForActivation(id)
+      };
     }
 
     await this.orders.markOrderPaid(id, dto.method);
@@ -425,6 +492,26 @@ function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string)
   };
 }
 
+function customerSnapshotFromUser(user: {
+  contacts?: Array<{ address?: unknown; phone?: string | null }>;
+  countryCode?: string;
+  customerType?: string;
+  email: string;
+  name: string;
+  vatId?: string | null;
+}) {
+  const contact = user.contacts?.[0];
+  return {
+    address: isRecord(contact?.address) ? contact?.address : undefined,
+    countryCode: user.countryCode ?? "DE",
+    customerType: user.customerType ?? "INDIVIDUAL",
+    email: user.email,
+    name: user.name,
+    phone: contact?.phone,
+    vatId: user.vatId ?? undefined
+  };
+}
+
 function applyFreeDomainDiscount(items: PricedOrderItem[]) {
   const hasAnnualHosting = items.some((item) => item.type === "SHARED_HOSTING" && item.billingCycle.startsWith("YEAR_"));
   if (!hasAnnualHosting) {
@@ -582,9 +669,11 @@ function domainCustomerContact(snapshot: unknown) {
 }
 
 function splitPhone(value: string) {
-  const match = value.trim().match(/^\+?(\d{1,3})\s*(.*)$/);
-  const countryCode = match?.[1] ?? "49";
-  const number = (match?.[2] ?? value).replace(/[^\d]/g, "");
+  const compact = value.replace(/[^\d+]/g, "");
+  const digits = compact.replace(/\D/g, "");
+  const knownCodes = ["49", "43", "41", "33", "34", "39", "44", "1"];
+  const countryCode = compact.startsWith("+") ? knownCodes.find((code) => digits.startsWith(code)) ?? digits.slice(0, 2) : "49";
+  const number = compact.startsWith("+") ? digits.slice(countryCode.length) : digits.startsWith("49") && digits.length > 10 ? digits.slice(2) : digits;
   if (!number) {
     throw new BadRequestException("Phone number is required");
   }

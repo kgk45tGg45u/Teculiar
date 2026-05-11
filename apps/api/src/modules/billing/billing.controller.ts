@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { Res } from "@nestjs/common";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -55,6 +55,24 @@ export class BillingController {
   @Post("invoices/:id/pay")
   payInvoice(@Param("id") id: string, @Body() dto: PayInvoiceDto) {
     return this.billing.payInvoice(id, dto);
+  }
+
+  @Roles("admin", "staff")
+  @Post("invoices/:id/mark-paid")
+  markInvoicePaid(@Param("id") id: string, @Body() body: { actorId?: string }) {
+    return this.billing.markInvoicePaid(id, { actorId: body.actorId, source: "admin" });
+  }
+
+  @Roles("admin", "staff")
+  @Post("invoices/:id/mark-unpaid")
+  markInvoiceUnpaid(@Param("id") id: string, @Body() body: { actorId?: string; reason?: string }) {
+    return this.billing.markInvoiceUnpaid(id, body);
+  }
+
+  @Roles("admin", "staff")
+  @Delete("invoices/:id")
+  deleteInvoice(@Param("id") id: string) {
+    return this.billing.deleteInvoice(id);
   }
 
   @Roles("admin", "staff")
@@ -124,7 +142,27 @@ export class BillingDevController {
   }
 
   @Patch("billing/settings")
-  updateSettings(@Body() body: { invoiceDaysAhead?: number; ticketAutoCloseHours?: number; vatPercent?: number }) {
+  updateSettings(
+    @Body()
+    body: {
+      invoiceBankDetails?: string;
+      invoiceCompanyAddress?: string;
+      invoiceCompanyCity?: string;
+      invoiceCompanyCountry?: string;
+      invoiceCompanyEmail?: string;
+      invoiceCompanyName?: string;
+      invoiceCompanyPhone?: string;
+      invoiceCompanyZip?: string;
+      invoiceDaysAhead?: number;
+      invoiceFooterLine1?: string;
+      invoiceFooterLine2?: string;
+      invoiceFooterLine3?: string;
+      invoicePaymentInstructions?: string;
+      invoiceVatNumber?: string;
+      ticketAutoCloseHours?: number;
+      vatPercent?: number;
+    }
+  ) {
     return this.billing.updateSettings(body);
   }
 
@@ -138,5 +176,10 @@ export class BillingDevController {
   @Patch("services/:id/status")
   updateServiceStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.billing.updateServiceStatus(id, status);
+  }
+
+  @Post("module-logs/:id/retry")
+  retryModuleAction(@Param("id") id: string, @Body() body: { actorId?: string }) {
+    return this.billing.retryModuleAction(id, body);
   }
 }

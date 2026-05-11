@@ -6,6 +6,14 @@ export function formatInvoiceNumber(next: number) {
   return fixedNumber(next, 7, "Invoice number");
 }
 
+export function formatFinalInvoiceNumber(next: number) {
+  return fixedNumber(next, 6, "Final invoice number");
+}
+
+export function formatTemporaryInvoiceNumber(next: number, prefix = "N-") {
+  return `${prefix}${fixedNumber(next, 6, "Temporary invoice number")}`;
+}
+
 export function addBillingCycle(date: Date, cycle: string) {
   const next = new Date(date);
   const months = {

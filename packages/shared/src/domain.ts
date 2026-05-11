@@ -1,4 +1,5 @@
 export const billingCycles = [
+  "ONE_TIME",
   "MONTHLY",
   "QUARTERLY",
   "SEMI_ANNUAL",
@@ -17,7 +18,9 @@ export const invoiceStatuses = [
   "UNPAID",
   "PAID",
   "OVERDUE",
-  "FAILED"
+  "FAILED",
+  "CANCELLED",
+  "REFUNDED"
 ] as const;
 
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
@@ -51,6 +54,7 @@ export const productTypes = [
 export type ProductType = (typeof productTypes)[number];
 
 export const serviceStatuses = [
+  "PENDING",
   "ORDERED",
   "PROVISIONING",
   "ACTIVE",
@@ -58,7 +62,8 @@ export const serviceStatuses = [
   "PENDING_CANCEL",
   "CANCELLED",
   "TERMINATED",
-  "FAILED"
+  "FAILED",
+  "PROVISIONING_FAILED"
 ] as const;
 
 export type ServiceStatus = (typeof serviceStatuses)[number];
@@ -79,7 +84,13 @@ export type InvoiceLineInput = {
   description: string;
   quantity: number;
   unitAmountCents: number;
-  taxRate: number;
+  taxRate?: number;
+  type?: string;
+  orderItemId?: string;
+  serviceId?: string;
+  domainRecordId?: string;
+  lifecycleAction?: string;
+  metadata?: Record<string, unknown>;
   servicePeriodStart?: string;
   servicePeriodEnd?: string;
 };

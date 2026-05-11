@@ -214,7 +214,7 @@ function ServicesTable({ services }: { services: ApiService[] }) {
               <tbody>
                 {services.map((service) => (
                   <tr key={service.id}>
-                    <td><a href={`/client/services/${service.id}`}><strong>{serviceName(service)}</strong></a><br />{service.product.type}</td>
+                    <td><a href={`/client/services/${service.id}`}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
                     <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
@@ -503,16 +503,19 @@ function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
   return (
     <section className={styles.invoiceCards}>
       {invoices.map((invoice) => (
-        <a className={styles.invoiceCard} href={`/client/invoices/${invoice.id}`} key={invoice.id}>
+        <article className={styles.invoiceCard} key={invoice.id}>
           <div>
             <span>Invoice</span>
-            <strong>{invoice.invoiceNumber}</strong>
+            <strong><a href={`/client/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></strong>
           </div>
           <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
           <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
           <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
           <StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} />
-        </a>
+          {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
+            <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
+          ) : null}
+        </article>
       ))}
     </section>
   );
@@ -545,6 +548,9 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
         {showVat ? <span>USt. {money(invoice.taxAmountCents ?? 0, invoice.currency)}</span> : null}
         <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
       </div>
+      {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
+        <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
+      ) : null}
       <PdfDownloadButton invoice={invoice} />
       <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
     </section>
@@ -659,12 +665,24 @@ function serviceName(service: ApiService) {
   return service.domainRecords?.[0]?.domain ?? stringConfig(service.configuration, "domainName") ?? service.product.name;
 }
 
+function serviceListTitle(service: ApiService) {
+  return service.product.type === "DOMAIN" ? serviceName(service) : service.product.name;
+}
+
+function serviceListSubtitle(service: ApiService) {
+  const domain = service.domainRecords?.[0]?.domain ?? stringConfig(service.configuration, "domainName");
+  if (service.product.type === "DOMAIN") {
+    return "Domain";
+  }
+  return domain ? `${serviceKind(service)} - ${domain}` : serviceKind(service);
+}
+
 function serviceKind(service: ApiService) {
   if (service.product.type === "DOMAIN") {
-    return "Domain service";
+    return "Domain";
   }
   if (service.product.type === "SHARED_HOSTING") {
-    return `Hosting package: ${service.product.name}`;
+    return `${service.product.name} Hosting`;
   }
   if (service.product.type === "VPS") {
     return `VPS hosting: ${service.product.name}`;

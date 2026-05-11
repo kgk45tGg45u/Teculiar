@@ -210,6 +210,17 @@ export class ProductsRepository {
     });
   }
 
+  updateDomainRecordStatus(id: string, status: string, externalId?: string) {
+    return this.prisma.domainRecord.update({
+      where: { id },
+      data: {
+        externalId,
+        registrationDate: status === "ACTIVE" ? new Date() : undefined,
+        status: status as never
+      }
+    });
+  }
+
   scheduleCancellation(id: string, cancelAt: Date) {
     return this.prisma.service.update({
       where: { id },

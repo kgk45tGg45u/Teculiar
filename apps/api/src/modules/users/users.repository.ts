@@ -45,6 +45,50 @@ export class UsersRepository {
     });
   }
 
+  async createClient(input: {
+    address?: Record<string, unknown>;
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email: string;
+    name: string;
+    passwordHash: string;
+    phone?: string;
+    vatId?: string;
+  }) {
+    return this.prisma.user.create({
+      data: {
+        countryCode: input.countryCode ?? "DE",
+        customerType: input.customerType ?? "INDIVIDUAL",
+        email: input.email.toLowerCase(),
+        name: input.name,
+        passwordHash: input.passwordHash,
+        vatId: input.vatId,
+        contacts: input.phone || input.address
+          ? {
+              create: {
+                address: input.address as Prisma.InputJsonValue,
+                email: input.email.toLowerCase(),
+                name: input.name,
+                phone: input.phone,
+                type: "BILLING"
+              }
+            }
+          : undefined,
+        userRoles: {
+          create: {
+            role: {
+              connectOrCreate: {
+                where: { slug: "client" },
+                create: { slug: "client", name: "Client" }
+              }
+            }
+          }
+        }
+      },
+      include: clientInclude
+    });
+  }
+
   async adminExists() {
     const count = await this.prisma.user.count({
       where: { userRoles: { some: { role: { slug: "admin" } } } }
@@ -83,8 +127,15 @@ export class UsersRepository {
   listClients() {
     return this.prisma.user.findMany({
       where: { userRoles: { some: { role: { slug: "client" } } } },
-      include: { teams: true, contacts: true },
+      include: clientInclude,
       orderBy: { createdAt: "desc" }
+    });
+  }
+
+  findClient(id: string) {
+    return this.prisma.user.findFirst({
+      where: { id, userRoles: { some: { role: { slug: "client" } } } },
+      include: clientInclude
     });
   }
 
@@ -135,6 +186,62 @@ export class UsersRepository {
     return this.findById(userId);
   }
 
+  async updateClient(userId: string, input: {
+    address?: Record<string, unknown>;
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email?: string;
+    name?: string;
+    phone?: string;
+    segment?: string;
+    vatId?: string;
+  }) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        countryCode: input.countryCode,
+        customerType: input.customerType,
+        email: input.email?.toLowerCase(),
+        name: input.name,
+        segment: input.segment,
+        vatId: input.vatId
+      }
+    });
+
+    if (input.phone !== undefined || input.address !== undefined || input.name !== undefined || input.email !== undefined) {
+      const latest = await this.prisma.contact.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } });
+      if (latest) {
+        await this.prisma.contact.update({
+          where: { id: latest.id },
+          data: {
+            address: input.address as Prisma.InputJsonValue,
+            email: input.email?.toLowerCase() ?? user.email,
+            name: input.name ?? user.name,
+            phone: input.phone
+          }
+        });
+      } else {
+        await this.prisma.contact.create({
+          data: {
+            address: input.address as Prisma.InputJsonValue,
+            email: input.email?.toLowerCase() ?? user.email,
+            name: input.name ?? user.name,
+            phone: input.phone,
+            type: "BILLING",
+            userId
+          }
+        });
+      }
+    }
+
+    return this.findClient(userId);
+  }
+
+  async deleteClient(userId: string) {
+    await this.prisma.userRole.deleteMany({ where: { userId, role: { slug: "client" } } });
+    return this.prisma.user.delete({ where: { id: userId } });
+  }
+
   setTotpSecret(userId: string, secret: string) {
     return this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
   }
@@ -168,3 +275,16 @@ export class UsersRepository {
     return this.prisma.refreshSession.updateMany({ where: { tokenHash }, data: { revokedAt: new Date() } });
   }
 }
+
+const clientInclude = {
+  contacts: { orderBy: { createdAt: "desc" as const }, take: 1 },
+  domainRecords: true,
+  invoices: { include: { items: true }, orderBy: { issuedAt: "desc" as const } },
+  orders: { include: { invoice: true, items: true }, orderBy: { createdAt: "desc" as const } },
+  services: {
+    include: { domainRecords: true, product: true, productPrice: true },
+    orderBy: { createdAt: "desc" as const }
+  },
+  teams: true,
+  userRoles: { include: { role: true } }
+};

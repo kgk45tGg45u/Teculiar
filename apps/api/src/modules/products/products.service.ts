@@ -1,14 +1,35 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ExternalService } from "../external/external.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { ProductsRepository } from "./products.repository";
 
 @Injectable()
-export class ProductsService {
+export class ProductsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ProductsService.name);
+  private statusRefreshTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly products: ProductsRepository,
     private readonly external: ExternalService
   ) {}
+
+  onModuleInit() {
+    if (process.env.NODE_ENV === "test") {
+      return;
+    }
+    this.statusRefreshTimer = setInterval(() => {
+      this.refreshAllServiceStatuses().catch((error: unknown) => {
+        this.logger.warn(`Daily service status refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }, 24 * 60 * 60 * 1000);
+    this.statusRefreshTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.statusRefreshTimer) {
+      clearInterval(this.statusRefreshTimer);
+    }
+  }
 
   listProducts() {
     return this.products.listProducts();
@@ -93,6 +114,16 @@ export class ProductsService {
     return this.products.listServices(userId);
   }
 
+  async refreshAllServiceStatuses() {
+    const services = await this.products.listServices();
+    let refreshed = 0;
+    for (const service of services) {
+      await this.refreshService(service.id).catch(() => undefined);
+      refreshed += 1;
+    }
+    return { checked: services.length, refreshed };
+  }
+
   async listServicesFresh(userId?: string) {
     const services = await this.products.listServices(userId);
     await Promise.all(services.map((service) => this.refreshService(service.id, userId).catch(() => undefined)));
@@ -146,21 +177,28 @@ export class ProductsService {
     if (!service || (userId && service.userId !== userId)) {
       return service;
     }
-    if (!["ORDERED", "PROVISIONING"].includes(service.status)) {
+    for (const domainRecord of service.domainRecords ?? []) {
+      if (!this.external.resellBiz.status || !["PENDING", "PENDING_TRANSFER", "TRANSFERRING", "FAILED"].includes(domainRecord.status)) {
+        continue;
+      }
+      const domainStatus = await this.external.resellBiz.status(domainRecord.domain);
+      if (domainStatus.status === "ACTIVE" || domainStatus.status === "FAILED") {
+        await this.products.updateDomainRecordStatus(domainRecord.id, domainStatus.status, domainStatus.externalId);
+      }
+    }
+    if (!["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status)) {
       return service;
     }
-    if (service.product.type === "DOMAIN") {
-      const domainName = service.domainRecords[0]?.domain;
-      if (!domainName || !this.external.resellBiz.status) {
-        return service;
-      }
-      const status = await this.external.resellBiz.status(domainName);
-      if (status.status === "ACTIVE") {
-        return this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
-      }
-      return service;
-    }
+
     if (service.product.type !== "SHARED_HOSTING") {
+      const domainRecord = service.domainRecords[0];
+      if (service.product.type === "DOMAIN" && domainRecord?.domain && this.external.resellBiz.status) {
+        const status = await this.external.resellBiz.status(domainRecord.domain);
+        if (status.status === "ACTIVE") {
+          await this.products.updateDomainRecordStatus(domainRecord.id, "ACTIVE", status.externalId);
+          return this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
+        }
+      }
       return service;
     }
 
@@ -192,6 +230,10 @@ export class ProductsService {
 
     const provider = this.external.hostingProvider(service.product.type);
     return provider.restart(service.externalId);
+  }
+
+  updateServiceStatus(id: string, status: string) {
+    return this.products.updateServiceStatus(id, status);
   }
 
   async cancelService(id: string, cancelAt = new Date()) {

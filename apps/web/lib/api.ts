@@ -68,7 +68,7 @@ export type ApiDomainPrice = {
 
 export type ApiService = {
   configuration?: Record<string, unknown>;
-  domainRecords?: Array<{ domain: string; status: string; externalId?: string | null }>;
+  domainRecords?: Array<{ id?: string; domain: string; status: string; externalId?: string | null }>;
   externalId?: string | null;
   id: string;
   status: string;
@@ -91,6 +91,20 @@ export type ApiInvoice = {
   footerLines?: string[];
   id: string;
   invoiceNumber: string;
+  tempInvoiceNumber?: string | null;
+  finalInvoiceNumber?: string | null;
+  sellerSnapshot?: {
+    address?: string;
+    bankDetails?: string;
+    city?: string;
+    companyName?: string;
+    country?: string;
+    email?: string;
+    paymentInstructions?: string;
+    phone?: string;
+    vatNumber?: string;
+    zip?: string;
+  };
   items?: Array<{
     description: string;
     discountCents: number;
@@ -109,6 +123,21 @@ export type ApiInvoice = {
   taxAmountCents?: number;
   totalCents: number;
   currency: string;
+};
+
+export type ApiClient = {
+  contacts?: Array<{ address?: { city?: string; line1?: string; postalCode?: string; state?: string }; phone?: string | null }>;
+  countryCode: string;
+  customerType: string;
+  domainRecords?: Array<{ id: string; domain: string; status: string }>;
+  email: string;
+  id: string;
+  invoices?: ApiInvoice[];
+  name: string;
+  orders?: ApiOrder[];
+  segment: string;
+  services?: ApiService[];
+  vatId?: string | null;
 };
 
 export type ApiTicket = {

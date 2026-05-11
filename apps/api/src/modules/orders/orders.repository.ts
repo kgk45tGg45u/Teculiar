@@ -96,6 +96,99 @@ export class OrdersRepository {
     });
   }
 
+  async createPendingEntitiesForOrder(order: { id: string; items: Array<Record<string, any>>; userId?: string }, invoiceId: string) {
+    const invoiceItems = await this.prisma.invoiceItem.findMany({
+      where: { invoiceId },
+      orderBy: { createdAt: "asc" }
+    });
+    const serviceByDomain = new Map<string, string>();
+    const items = [...order.items].sort((a, b) => pendingEntityPriority(a) - pendingEntityPriority(b));
+
+    for (const item of items) {
+      const configuration = isRecord(item.configuration) ? item.configuration : {};
+      let serviceId = typeof item.serviceId === "string" ? item.serviceId : undefined;
+      let domainRecordId: string | undefined;
+
+      if (item.type !== "DOMAIN" && !serviceId) {
+        const renewsAt = item.billingCycle === "ONE_TIME" ? undefined : addBillingCycle(new Date(), String(item.billingCycle));
+        const service = await this.prisma.service.create({
+          data: {
+            billingCycle: item.billingCycle as BillingCycle,
+            configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
+            initialInvoiceId: invoiceId,
+            moduleName: moduleNameForProductType(String(item.type)),
+            nextDueAt: renewsAt,
+            orderId: order.id,
+            orderItemId: String(item.id),
+            productId: String(item.productId),
+            productPriceId: String(item.productPriceId),
+            recurringAmountCents: Number(item.unitAmountCents ?? 0),
+            renewsAt,
+            setupFeeCents: Number(item.setupFeeCents ?? 0),
+            status: "PENDING",
+            userId: String(order.userId)
+          }
+        });
+        serviceId = service.id;
+        await this.prisma.orderItem.update({ where: { id: String(item.id) }, data: { serviceId } });
+        if (item.billingCycle !== "ONE_TIME") {
+          await this.prisma.subscription.create({
+            data: {
+              billingCycle: item.billingCycle as BillingCycle,
+              nextInvoiceAt: renewsAt ?? addBillingCycle(new Date(), String(item.billingCycle)),
+              productPriceId: String(item.productPriceId),
+              serviceId: service.id,
+              userId: String(order.userId)
+            }
+          });
+        }
+        const serviceDomain = serviceDomainName(configuration);
+        if (serviceDomain) {
+          serviceByDomain.set(serviceDomain, service.id);
+        }
+      }
+
+      if (item.type === "DOMAIN" && item.domainName) {
+        const linkedServiceId = serviceByDomain.get(String(item.domainName).toLowerCase());
+        const action = domainAction(configuration);
+        const domain = await this.prisma.domainRecord.create({
+          data: {
+            autoRenew: true,
+            domain: String(item.domainName).toLowerCase(),
+            firstPaymentAmountCents: Number(item.totalCents ?? item.unitAmountCents ?? 0),
+            initialInvoiceId: invoiceId,
+            nameservers: domainNameServers(configuration) as Prisma.InputJsonValue,
+            nextDueAt: addBillingCycle(new Date(), String(item.billingCycle)),
+            orderId: order.id,
+            orderItemId: String(item.id),
+            recurringAmountCents: Number(item.unitAmountCents ?? 0),
+            registrarModule: "resellbiz",
+            registrationPeriodYears: yearsFromCycle(String(item.billingCycle)),
+            serviceId: linkedServiceId,
+            status: action === "transfer" ? "PENDING_TRANSFER" : "PENDING",
+            type: action,
+            userId: String(order.userId)
+          }
+        });
+        domainRecordId = domain.id;
+      }
+
+      const invoiceItem = invoiceItems[order.items.findIndex((candidate) => candidate.id === item.id)];
+      if (invoiceItem) {
+        await this.prisma.invoiceItem.update({
+          where: { id: invoiceItem.id },
+          data: {
+            domainRecordId,
+            lifecycleAction: item.type === "DOMAIN" ? domainAction(configuration) : "create",
+            orderItemId: String(item.id),
+            serviceId,
+            type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE"
+          }
+        });
+      }
+    }
+  }
+
   listOrders() {
     return this.prisma.order.findMany({
       include: {
@@ -282,6 +375,40 @@ export class OrdersRepository {
 
     return item;
   }
+}
+
+function pendingEntityPriority(item: Record<string, any>) {
+  return item.type !== "DOMAIN" && serviceDomainName(isRecord(item.configuration) ? item.configuration : {}) ? 0 : 1;
+}
+
+function moduleNameForProductType(type: string) {
+  return ["VPS", "DEDICATED_SERVER"].includes(type) ? "hetzner" : "virtualmin";
+}
+
+function serviceDomainName(configuration: Record<string, unknown>) {
+  if (typeof configuration.domainName !== "string") {
+    return undefined;
+  }
+  return configuration.domainName.trim().toLowerCase();
+}
+
+function domainAction(configuration: Record<string, unknown>) {
+  return configuration.domainAction === "transfer" ? "transfer" : "register";
+}
+
+function yearsFromCycle(cycle: string) {
+  return Number(cycle.match(/^YEAR_(\d+)$/)?.[1] ?? 1);
+}
+
+function domainNameServers(configuration: Record<string, unknown>) {
+  if (!Array.isArray(configuration.nameServers)) {
+    return undefined;
+  }
+  return configuration.nameServers.filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const publicUserSelect = {

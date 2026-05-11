@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { hash } from "bcryptjs";
 import { UsersRepository } from "./users.repository";
 
 @Injectable()
@@ -12,6 +13,43 @@ export class UsersService {
 
   listClients() {
     return this.users.listClients();
+  }
+
+  getClient(userId: string) {
+    return this.users.findClient(userId);
+  }
+
+  async createClient(input: {
+    address?: Record<string, unknown>;
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email: string;
+    name: string;
+    password: string;
+    phone?: string;
+    vatId?: string;
+  }) {
+    return this.users.createClient({
+      ...input,
+      passwordHash: await hash(input.password, 12)
+    });
+  }
+
+  updateClient(userId: string, input: {
+    address?: Record<string, unknown>;
+    countryCode?: string;
+    customerType?: "INDIVIDUAL" | "BUSINESS";
+    email?: string;
+    name?: string;
+    phone?: string;
+    segment?: string;
+    vatId?: string;
+  }) {
+    return this.users.updateClient(userId, input);
+  }
+
+  deleteClient(userId: string) {
+    return this.users.deleteClient(userId);
   }
 
   updateSegment(userId: string, segment: string) {

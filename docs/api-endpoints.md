@@ -38,6 +38,7 @@ Base URL: `/api/v1`
 - `GET /services`
 - `POST /services`
 - `GET /services/:id`
+- `POST /admin/dev/services/refresh` - admin/manual service and domain status refresh. The API server also runs this once per day and stores the latest provider status in the database.
 - `POST /services/:id/upgrade`
 - `POST /services/:id/cancel`
 - `POST /services/:id/restart`
@@ -61,13 +62,17 @@ Base URL: `/api/v1`
 - `POST /billing/invoices`
 - `GET /billing/invoices/:id`
 - `POST /billing/invoices/:id/send`
-- `POST /billing/invoices/:id/pay`
+- `POST /billing/invoices/:id/pay` - gateway payment; successful payment finalizes the invoice number and triggers `onInvoicePaid`.
+- `POST /billing/invoices/:id/mark-paid` - admin/manual payment; same lifecycle behavior as gateway payment.
+- `POST /billing/invoices/:id/mark-unpaid` - admin/manual reversal; keeps the invoice final number, creates audit metadata, and suspends linked hosting services without termination.
+- `DELETE /billing/invoices/:id` - admin invoice delete.
 - `POST /billing/subscriptions`
 - `POST /billing/subscriptions/:id/renew`
 - `GET /admin/dev/billing/settings` - temporary admin billing settings, including VAT percent.
-- `PATCH /admin/dev/billing/settings` - temporary admin billing settings update.
+- `PATCH /admin/dev/billing/settings` - temporary admin billing/invoice settings update. Stores company address, USt-IdNr, VAT percent, footer, payment instructions, and bank details.
 - `GET /admin/dev/billing/payment-gateways` - temporary admin payment gateway settings. Stores provider/API config in `PaymentProcessorConfig`.
 - `PATCH /admin/dev/billing/payment-gateways` - temporary admin payment gateway update. Checkout uses only enabled method names/titles.
+- `POST /admin/dev/module-logs/:id/retry` - temporary admin module retry guard. Skips retry when a successful module log already exists for the same target/action.
 - `GET /admin/dev/virtualmin/templates` - temporary admin helper for Virtualmin plans/templates.
 - `GET /admin/dev/virtualmin/plans/detect` - temporary admin helper that fetches Virtualmin plans server-side and shows real names/options for confirmation.
 - `POST /admin/dev/virtualmin/plans/sync` - temporary admin helper that saves confirmed Virtualmin hosting package names/options into products. Admin still sets billing-cycle prices.

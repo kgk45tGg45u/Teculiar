@@ -21,12 +21,36 @@ export class InvoiceLineDto {
   quantity: number;
 
   @IsInt()
-  @Min(0)
   unitAmountCents: number;
 
   @IsOptional()
   @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  orderItemId?: string;
+
+  @IsOptional()
+  @IsString()
   serviceId?: string;
+
+  @IsOptional()
+  @IsString()
+  domainRecordId?: string;
+
+  @IsOptional()
+  @IsString()
+  lifecycleAction?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  vatRate?: number;
+
+  @IsOptional()
+  @IsObject()
+  metadata?: Record<string, unknown>;
 
   @IsOptional()
   @IsDateString()
