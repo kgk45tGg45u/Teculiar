@@ -130,8 +130,11 @@ export class OrdersService {
       dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
       isBusinessCustomer: dto.customer.customerType === "BUSINESS",
       lines: preview.items.map((item) => ({
+        billingCycle: item.billingCycle,
         description: item.description,
+        lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
         quantity: 1,
+        type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
         unitAmountCents: item.totalCents
       })),
       orderSnapshot: {
@@ -183,6 +186,7 @@ export class OrdersService {
       dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
       isBusinessCustomer: user.customerType === "BUSINESS",
       lines: items.map((item) => ({
+        billingCycle: item.billingCycle,
         description: item.description,
         lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
         quantity: 1,
@@ -574,7 +578,7 @@ function orderStatusFromAdmin(status: string) {
   if (["completed", "complete"].includes(normalized)) {
     return "COMPLETE";
   }
-  if (["in_progress", "in-progress", "progress", "provisioning", "paid", "pending_payment"].includes(normalized)) {
+  if (["in_progress", "in-progress", "progress", "provisioning", "paid", "pending", "pending_payment"].includes(normalized)) {
     return "PROVISIONING";
   }
   if (["canceled", "cancelled", "cancel"].includes(normalized)) {

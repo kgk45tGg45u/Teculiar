@@ -196,13 +196,15 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
         const status = await this.external.resellBiz.status(domainRecord.domain);
         if (status.status === "ACTIVE") {
           await this.products.updateDomainRecordStatus(domainRecord.id, "ACTIVE", status.externalId);
-          return this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
+          const updated = await this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
+          await this.completeReadyOrdersForService(service.id);
+          return updated;
         }
       }
       return service;
     }
 
-    const domainName = service.externalId ?? domainFromConfiguration(service.configuration);
+    const domainName = refreshDomainName(service.externalId, service.configuration);
     if (!domainName) {
       return service;
     }
@@ -212,7 +214,9 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     }
     const status = await provider.status(domainName);
     if (status.status === "ACTIVE") {
-      return this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
+      const updated = await this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
+      await this.completeReadyOrdersForService(service.id);
+      return updated;
     }
 
     return service;
@@ -280,6 +284,13 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     }
     return status;
   }
+
+  private completeReadyOrdersForService(serviceId: string) {
+    const repository = this.products as ProductsRepository & {
+      completeReadyOrdersForService?: (serviceId: string) => Promise<unknown>;
+    };
+    return repository.completeReadyOrdersForService?.(serviceId) ?? Promise.resolve();
+  }
 }
 
 function domainFromConfiguration(configuration: unknown) {
@@ -288,6 +299,14 @@ function domainFromConfiguration(configuration: unknown) {
   }
   const value = (configuration as Record<string, unknown>).domainName;
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function refreshDomainName(externalId: string | null | undefined, configuration: unknown) {
+  const configured = domainFromConfiguration(configuration);
+  if (!externalId || externalId.startsWith("virtualmin_")) {
+    return configured;
+  }
+  return externalId;
 }
 
 function customerPlanConfigs(plan: { id: string; limits?: Record<string, string | undefined> }) {

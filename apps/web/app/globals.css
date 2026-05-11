@@ -178,6 +178,12 @@ textarea {
   font-weight: 680;
 }
 
+.dezhost-toast {
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  color: var(--ink);
+}
+
 @media (max-width: 880px) {
   .container {
     width: min(100% - 28px, 1180px);

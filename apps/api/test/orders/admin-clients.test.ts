@@ -98,7 +98,7 @@ describe("Admin clients", () => {
   });
 
   it("admin monthly hosting plus domain order invoices hosting monthly and domain yearly", async () => {
-    const lines: Array<{ description: string; type?: string; unitAmountCents: number }> = [];
+    const lines: Array<{ billingCycle?: string; description: string; type?: string; unitAmountCents: number }> = [];
     const itemsSeen: Array<{ billingCycle: string; type: string }> = [];
     const orders = {
       createOrder: async (input: { items: Array<{ billingCycle: string; type: string }>; userId: string }) => {
@@ -142,7 +142,7 @@ describe("Admin clients", () => {
     });
 
     assert.deepEqual(itemsSeen.map((item) => `${item.type}:${item.billingCycle}`), ["SHARED_HOSTING:MONTHLY", "DOMAIN:YEAR_1"]);
-    assert.deepEqual(lines.map((line) => `${line.type}:${line.unitAmountCents}`), ["SERVICE:999", "DOMAIN:1200"]);
+    assert.deepEqual(lines.map((line) => `${line.type}:${line.billingCycle}:${line.unitAmountCents}`), ["SERVICE:MONTHLY:999", "DOMAIN:YEAR_1:1200"]);
   });
 });
 

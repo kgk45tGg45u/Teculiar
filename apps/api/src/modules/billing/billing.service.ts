@@ -56,6 +56,7 @@ export class BillingService {
       couponId: coupon?.id,
       lines: draft.lines.map((line) => ({
         ...line,
+        billingCycle: line.billingCycle,
         domainRecordId: line.domainRecordId,
         lifecycleAction: line.lifecycleAction,
         metadata: line.metadata,
@@ -101,7 +102,7 @@ export class BillingService {
       `Datum: ${invoice.issuedAt.toISOString().slice(0, 10)}`,
       `Faellig: ${invoice.dueAt.toISOString().slice(0, 10)}`,
       "",
-      ...invoice.items.map((item) => `${item.description}  ${item.quantity} x ${formatEuro(item.unitAmountCents)} = ${formatEuro(item.totalCents)}`),
+      ...invoice.items.map((item) => `${item.description}${item.billingCycle ? ` (${formatBillingCycle(item.billingCycle)})` : ""}  ${item.quantity} x ${formatEuro(item.unitAmountCents)} = ${formatEuro(item.totalCents)}`),
       "",
       `Zwischensumme: ${formatEuro(invoice.subtotalCents)}`,
       invoice.taxAmountCents > 0 ? `USt.: ${formatEuro(invoice.taxAmountCents)}` : "",
@@ -506,6 +507,7 @@ export class BillingService {
       lines: [
         {
           description: `${subscription.service.product.name} renewal`,
+          billingCycle: subscription.billingCycle,
           lifecycleAction: "renew",
           quantity: 1,
           type: "SERVICE_RENEWAL",
@@ -765,6 +767,19 @@ export class BillingService {
 
 function formatEuro(cents: number) {
   return `${(cents / 100).toFixed(2)} EUR`;
+}
+
+function formatBillingCycle(cycle: string) {
+  return {
+    MONTHLY: "monthly",
+    QUARTERLY: "quarterly",
+    SEMI_ANNUAL: "semi-annual",
+    YEAR_1: "annually",
+    YEAR_2: "2 years",
+    YEAR_3: "3 years",
+    YEAR_4: "4 years",
+    ONE_TIME: "one time"
+  }[cycle] ?? cycle.toLowerCase();
 }
 
 type LifecycleItem = {

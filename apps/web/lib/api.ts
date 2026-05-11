@@ -30,7 +30,7 @@ export type ApiOrder = {
   currency: string;
   createdAt: string;
   user?: { email: string; name: string };
-  invoice?: { invoiceNumber: string; status: string; totalCents: number };
+  invoice?: { id: string; invoiceNumber: string; status: string; totalCents: number };
   items: Array<{
     id: string;
     description: string;
@@ -106,6 +106,7 @@ export type ApiInvoice = {
     zip?: string;
   };
   items?: Array<{
+    billingCycle?: string | null;
     description: string;
     discountCents: number;
     quantity: number;
@@ -114,6 +115,12 @@ export type ApiInvoice = {
     taxRate: number;
     totalCents: number;
     unitAmountCents: number;
+  }>;
+  transactions?: Array<{
+    createdAt: string;
+    method: string;
+    providerReference: string;
+    status: string;
   }>;
   status: string;
   issuedAt: string;

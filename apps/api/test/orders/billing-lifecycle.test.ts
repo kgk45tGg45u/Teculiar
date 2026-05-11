@@ -208,16 +208,17 @@ describe("Billing lifecycle", () => {
       customerSnapshot: { name: "Manual Client" },
       dueAt: new Date().toISOString(),
       lines: [
-        { description: "Support work", quantity: 2, type: "CUSTOM", unitAmountCents: 5000, vatRate: 7 },
+        { billingCycle: "MONTHLY", description: "Support work", quantity: 2, type: "CUSTOM", unitAmountCents: 5000, vatRate: 7 },
         { description: "Discount", quantity: 1, type: "DISCOUNT", unitAmountCents: -1000, vatRate: 0 }
       ],
       status: "UNPAID",
       userId: "user_1"
     } as never);
 
-    const lines = created[0]?.lines as Array<{ taxAmountCents: number; taxRate: number; totalCents: number; type: string }>;
+    const lines = created[0]?.lines as Array<{ billingCycle?: string; taxAmountCents: number; taxRate: number; totalCents: number; type: string }>;
     assert.equal(invoice.invoiceNumber, "N-100001");
     assert.equal(lines[0]?.type, "CUSTOM");
+    assert.equal(lines[0]?.billingCycle, "MONTHLY");
     assert.equal(lines[0]?.taxRate, 7);
     assert.equal(lines[0]?.taxAmountCents, 700);
     assert.equal(lines[1]?.taxRate, 0);

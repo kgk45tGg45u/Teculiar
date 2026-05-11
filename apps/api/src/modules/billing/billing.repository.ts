@@ -33,6 +33,7 @@ export class BillingRepository {
     adminNotes?: string;
     couponId?: string;
     lines: Array<{
+      billingCycle?: string;
       description: string;
       quantity: number;
       unitAmountCents: number;
@@ -76,6 +77,7 @@ export class BillingRepository {
         couponId: input.couponId,
         items: {
           create: input.lines.map((line) => ({
+            billingCycle: line.billingCycle ? (line.billingCycle as BillingCycle) : undefined,
             description: line.description,
             discountCents: line.discountCents,
             domainRecordId: line.domainRecordId,

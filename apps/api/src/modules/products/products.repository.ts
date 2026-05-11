@@ -221,6 +221,41 @@ export class ProductsRepository {
     });
   }
 
+  completeReadyOrdersForService(serviceId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const serviceItems = await tx.orderItem.findMany({
+        where: { serviceId },
+        select: { id: true, orderId: true }
+      });
+      const orderIds = [...new Set(serviceItems.map((item) => item.orderId))];
+      if (orderIds.length === 0) {
+        return { completedOrders: 0, updatedItems: 0 };
+      }
+
+      const updated = await tx.orderItem.updateMany({
+        where: { serviceId, provisioningStatus: { in: ["PENDING", "PROVISIONING", "FAILED"] } },
+        data: { provisioningStatus: "ACTIVE" }
+      });
+
+      let completedOrders = 0;
+      for (const orderId of orderIds) {
+        const items = await tx.orderItem.findMany({
+          where: { orderId },
+          select: { provisioningStatus: true }
+        });
+        if (items.length > 0 && items.every((item) => item.provisioningStatus === "ACTIVE")) {
+          await tx.order.update({
+            where: { id: orderId },
+            data: { completedAt: new Date(), notes: null, status: "COMPLETE" }
+          });
+          completedOrders += 1;
+        }
+      }
+
+      return { completedOrders, updatedItems: updated.count };
+    });
+  }
+
   scheduleCancellation(id: string, cancelAt: Date) {
     return this.prisma.service.update({
       where: { id },

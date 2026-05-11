@@ -375,6 +375,56 @@ describe("OrdersService", () => {
     assert.equal(preview.totalCents, 1200);
   });
 
+  it("storefront checkout invoices monthly hosting and annual domain billing cycles", async () => {
+    const invoiceLines: Array<{ billingCycle?: string; type?: string; unitAmountCents: number }> = [];
+    const orders = {
+      createOrder: async (input: { items: Array<{ billingCycle: string; type: string }>; userId: string }) => ({
+        id: "ord_storefront_cycles",
+        items: input.items.map((item, index) => ({ ...item, id: `item_${index}` })),
+        userId: input.userId
+      }),
+      createPendingEntitiesForOrder: async () => undefined,
+      findProduct: async (id: string) =>
+        id === "prod_domain"
+          ? product("prod_domain", "DOMAIN", 1200, "YEAR_1")
+          : product("prod_hosting", "SHARED_HOSTING", 999, "MONTHLY")
+    };
+    const billing = {
+      createInvoice: async (input: { lines: typeof invoiceLines }) => {
+        invoiceLines.push(...input.lines);
+        return { id: "inv_storefront_cycles", subtotalCents: 2199, taxAmountCents: 0, totalCents: 2199 };
+      },
+      vatPercent: async () => 0
+    };
+    const users = {
+      createUser: async (input: { email: string }) => ({ email: input.email, id: "user_storefront_cycles" }),
+      findByEmail: async () => null
+    };
+    const domainPricing = {
+      priceFor: async (_domain: string, fallback: number) => ({ amountCents: fallback, source: "stored", tld: "com" })
+    };
+    const service = new OrdersService(orders as never, billing as never, {} as never, users as never, domainPricing as never);
+
+    await service.checkout({
+      customer: {
+        address: { city: "Berlin", line1: "Main 1", postalCode: "10115", state: "Berlin" },
+        email: "storefront-cycles@example.test",
+        name: "Storefront Buyer",
+        password: "StrongPass1!",
+        phone: "+49 30123456"
+      },
+      items: [
+        { configuration: { domainName: "storefront-cycles.com" }, productId: "prod_hosting", quantity: 1 },
+        { configuration: { domainAction: "register" }, domainName: "storefront-cycles.com", productId: "prod_domain", quantity: 1 }
+      ]
+    });
+
+    assert.deepEqual(invoiceLines.map((line) => `${line.type}:${line.billingCycle}:${line.unitAmountCents}`), [
+      "SERVICE:MONTHLY:999",
+      "DOMAIN:YEAR_1:1200"
+    ]);
+  });
+
   it("discounts cheap domains when annual hosting is in the same order", async () => {
     const orders = {
       findProduct: async (id: string) => (id === "prod_domain" ? product("prod_domain", "DOMAIN", 1200, "YEAR_1") : product("prod_hosting", "SHARED_HOSTING", 9900, "YEAR_1"))

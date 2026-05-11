@@ -7,6 +7,7 @@ describe("ProductsService service status refresh", () => {
     const events: string[] = [];
     const service = {
       configuration: { domainName: "fresh-example.com" },
+      domainRecords: [],
       externalId: null,
       id: "svc_1",
       product: { type: "SHARED_HOSTING" },
@@ -31,6 +32,84 @@ describe("ProductsService service status refresh", () => {
 
     assert.equal(result?.status, "ACTIVE");
     assert.deepEqual(events, ["svc_1:ACTIVE:fresh-example.com"]);
+  });
+
+  it("marks related order item active and completes the order after a delayed Virtualmin activation", async () => {
+    const events: string[] = [];
+    const service = {
+      configuration: { domainName: "delayed-example.com" },
+      domainRecords: [{ domain: "delayed-example.com", id: "dom_1", status: "ACTIVE" }],
+      externalId: "delayed-example.com",
+      id: "svc_1",
+      product: { type: "SHARED_HOSTING" },
+      status: "PROVISIONING",
+      userId: "user_1"
+    };
+    const products = {
+      completeReadyOrdersForService: async (serviceId: string) => events.push(`orders-complete:${serviceId}`),
+      findService: async () => service,
+      updateServiceStatus: async (id: string, status: string, externalId?: string) => {
+        events.push(`service:${id}:${status}:${externalId}`);
+        return { ...service, externalId, status };
+      }
+    };
+    const external = {
+      hostingProvider: () => ({
+        status: async (domain: string) => {
+          events.push(`virtualmin:${domain}`);
+          return { externalId: domain, status: "ACTIVE" };
+        }
+      }),
+      resellBiz: {}
+    };
+    const productsService = new ProductsService(products as never, external as never);
+
+    const result = await productsService.refreshService("svc_1", "user_1");
+
+    assert.equal(result?.status, "ACTIVE");
+    assert.deepEqual(events, [
+      "virtualmin:delayed-example.com",
+      "service:svc_1:ACTIVE:delayed-example.com",
+      "orders-complete:svc_1"
+    ]);
+  });
+
+  it("uses the configured domain instead of a temporary Virtualmin placeholder reference", async () => {
+    const events: string[] = [];
+    const service = {
+      configuration: { domainName: "real-domain.example" },
+      domainRecords: [],
+      externalId: "virtualmin_svc_1",
+      id: "svc_1",
+      product: { type: "SHARED_HOSTING" },
+      status: "PROVISIONING",
+      userId: "user_1"
+    };
+    const products = {
+      completeReadyOrdersForService: async () => undefined,
+      findService: async () => service,
+      updateServiceStatus: async (id: string, status: string, externalId?: string) => {
+        events.push(`service:${id}:${status}:${externalId}`);
+        return { ...service, externalId, status };
+      }
+    };
+    const external = {
+      hostingProvider: () => ({
+        status: async (domain: string) => {
+          events.push(`virtualmin:${domain}`);
+          return { externalId: domain, status: "ACTIVE" };
+        }
+      }),
+      resellBiz: {}
+    };
+    const productsService = new ProductsService(products as never, external as never);
+
+    await productsService.refreshService("svc_1", "user_1");
+
+    assert.deepEqual(events, [
+      "virtualmin:real-domain.example",
+      "service:svc_1:ACTIVE:real-domain.example"
+    ]);
   });
 });
 

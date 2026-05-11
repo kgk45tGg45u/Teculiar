@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type ServiceStatus = "active" | "provisioning" | "suspended" | "cancelled";
+export type ServiceStatus = "active" | "pending" | "suspended" | "cancelled";
 
 export type PortalService = {
   id: string;
@@ -31,7 +31,7 @@ export const usePortalStore = create<PortalState>((set) => ({
       id: "svc_nc_01",
       name: "Nextcloud Team",
       kind: "Nextcloud",
-      status: "provisioning",
+      status: "pending",
       renewsAt: "2026-05-18"
     },
     {
@@ -45,7 +45,7 @@ export const usePortalStore = create<PortalState>((set) => ({
   restartService: (id) =>
     set((state) => ({
       services: state.services.map((service) =>
-        service.id === id ? { ...service, status: "provisioning" } : service
+        service.id === id ? { ...service, status: "pending" } : service
       )
     })),
   cancelService: (id) =>

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastProvider } from "../components/ui/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,6 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="de" suppressHydrationWarning>
       <body>
         <ThemeBootstrap />
+        <ToastProvider />
         {children}
       </body>
     </html>

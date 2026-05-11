@@ -10,9 +10,13 @@ import {
   Min,
   ValidateNested
 } from "class-validator";
-import { invoiceStatuses } from "@crimson/shared";
+import { billingCycles, invoiceStatuses } from "@crimson/shared";
 
 export class InvoiceLineDto {
+  @IsOptional()
+  @IsIn([...billingCycles])
+  billingCycle?: string;
+
   @IsString()
   description: string;
 

@@ -2,6 +2,7 @@ import { Bell, FileText, Package, Settings, Ticket, UsersRound } from "lucide-re
 import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
+  cycleLabel,
   money,
   type ApiClient,
   type ApiInvoice,
@@ -12,6 +13,7 @@ import {
   type ApiTicket,
   type AuthUser
 } from "../../lib/api";
+import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
@@ -234,6 +236,7 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
             <th>Order</th>
             <th>Kunde</th>
             <th>Status</th>
+            <th>Invoice</th>
             <th>Items</th>
             <th>Total</th>
           </tr>
@@ -247,7 +250,7 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
                     <summary>{order.orderNumber}</summary>
                     <div className={styles.orderDetails}>
                       <p><strong>Invoice:</strong> {order.invoice?.invoiceNumber ?? "-"} ({order.invoice?.status ?? "no invoice"})</p>
-                      <p><strong>Status:</strong> {orderLabel(order.status)}</p>
+                      <p><strong>Status:</strong> {orderStatusLabel(order.status)}</p>
                       <OrderStatusForm orderId={order.id} status={order.status} />
                       <table className="table">
                         <tbody>
@@ -255,7 +258,7 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
                             <tr key={item.id}>
                               <td>{item.description}</td>
                               <td>{item.domainName ?? "-"}</td>
-                              <td>{item.provisioningStatus}</td>
+                              <td>{serviceStatusLabel(item.provisioningStatus)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -265,15 +268,16 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
                 </td>
                 <td>{order.user?.email ?? "unknown"}</td>
                 <td>
-                  <StatusPill label={orderLabel(order.status)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
+                  <StatusPill label={orderStatusLabel(order.status)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
                 </td>
+                <td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{order.invoice.invoiceNumber}</a> : "-"}</td>
                 <td>{order.items.map((item) => item.description).join(", ")}</td>
                 <td>{money(order.totalCents, order.currency)}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={5}>Noch keine Bestellungen oder API nicht erreichbar.</td>
+              <td colSpan={6}>Noch keine Bestellungen oder API nicht erreichbar.</td>
             </tr>
           )}
         </tbody>
@@ -304,10 +308,10 @@ function ServicesPanel({ services }: { services: ApiService[] }) {
           {services.map((service) => (
             <tr key={service.id}>
               <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
-              <td>{money(service.productPrice.amountCents, service.productPrice.currency)} / {service.productPrice.billingCycle}</td>
+              <td>{money(service.productPrice.amountCents, service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</td>
               <td>{dateLabel(service.renewsAt)}</td>
               <td>
-                <StatusPill label={service.status} tone={service.status === "ACTIVE" ? "good" : "warn"} />
+                <StatusPill label={serviceStatusLabel(service.status)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
               </td>
             </tr>
           ))}
@@ -348,8 +352,10 @@ function InvoicesPanel({ invoices }: { invoices: ApiInvoice[] }) {
             <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></strong></div>
             <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
             <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+            {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt)}</strong></div> : null}
+            {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
             <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-            <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
+            <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : "warn"} />
             <AdminInvoiceActions invoice={invoice} />
           </div>
         ))}
@@ -463,16 +469,6 @@ function adminTitle(view: AdminView) {
   }[view];
 }
 
-function orderLabel(status: string) {
-  if (status === "COMPLETE") {
-    return "completed";
-  }
-  if (status === "CANCELLED") {
-    return "Canceled";
-  }
-  return "In Progress";
-}
-
 function serviceKindLabel(type: string) {
   return { DOMAIN: "Domain", SHARED_HOSTING: "Hosting", VPS: "VPS" }[type] ?? type.toLowerCase().replaceAll("_", " ");
 }
@@ -487,6 +483,10 @@ function ticketLabel(status: string) {
 
 function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
+}
+
+function paymentGateway(invoice: ApiInvoice) {
+  return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
 }
 
 async function runMaintenance() {

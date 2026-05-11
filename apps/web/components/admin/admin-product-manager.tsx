@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, type ApiProduct } from "../../lib/api";
 import { Button } from "../ui/button";
+import { notify } from "../ui/toast-provider";
 import styles from "./admin-product-manager.module.css";
 
 type FormState = { kind: "idle" | "loading" | "ok" | "error"; message?: string };
@@ -30,6 +31,7 @@ export function AdminProductManager() {
 
   async function submit(formData: FormData) {
     setState({ kind: "loading", message: "Speichere Produkt..." });
+    notify.info("Speichere Produkt...");
     const setupFeeCents = cents(formData.get("setupFee"));
     const prices = ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"]
       .map((billingCycle) => {
@@ -65,10 +67,13 @@ export function AdminProductManager() {
       }
 
       setState({ kind: "ok", message: "Produkt gespeichert." });
+      notify.success("Produkt gespeichert.");
       setEditing(undefined);
       await refreshProducts();
     } catch (error) {
-      setState({ kind: "error", message: error instanceof Error ? error.message : "Produkt fehlgeschlagen." });
+      const message = error instanceof Error ? error.message : "Produkt fehlgeschlagen.";
+      setState({ kind: "error", message });
+      notify.error(message);
     }
   }
 
@@ -77,9 +82,11 @@ export function AdminProductManager() {
     const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
       setState({ kind: "error", message: "Produkt konnte nicht entfernt werden." });
+      notify.error("Produkt konnte nicht entfernt werden.");
       return;
     }
     setState({ kind: "ok", message: "Produkt entfernt." });
+    notify.success("Produkt entfernt.");
     await refreshProducts();
   }
 
@@ -94,6 +101,11 @@ export function AdminProductManager() {
     const payload = await response.json().catch(() => ({}));
     setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
     setDetectedPlans(payload.plans ?? []);
+    if (response.ok) {
+      notify.success("Virtualmin plans detected.");
+    } else {
+      notify.error("Virtualmin plan detection failed.");
+    }
   }
 
   async function syncVirtualminPlans() {
@@ -105,6 +117,11 @@ export function AdminProductManager() {
     const payload = await response.json().catch(() => ({}));
     setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
     setDetectedPlans(payload.plans ?? []);
+    if (response.ok) {
+      notify.success("Virtualmin plans saved.");
+    } else {
+      notify.error("Virtualmin plan sync failed.");
+    }
     await refreshProducts();
   }
 

@@ -564,6 +564,7 @@ model InvoiceItem {
   serviceId          String?
   domainRecordId     String?
   lifecycleAction    String?
+  billingCycle       BillingCycle?
   description        String
   quantity           Int       @default(1)
   unitAmountCents    Int

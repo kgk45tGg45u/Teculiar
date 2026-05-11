@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
 import { Button } from "../ui/button";
+import { notify } from "../ui/toast-provider";
 import styles from "./checkout-form.module.css";
 
 type CheckoutFormProps = {
@@ -142,16 +143,21 @@ export function CheckoutForm({
 
   async function submit(formData: FormData) {
     if (!selectedPrice) {
-      setState({ status: "error", message: "Kein Preis fuer dieses Produkt gefunden." });
+      const message = "Kein Preis fuer dieses Produkt gefunden.";
+      setState({ status: "error", message });
+      notify.error(message);
       return;
     }
     const submittedPassword = loggedInPassword || String(formData.get("password") ?? "");
     if (!profile && !isStrongPassword(submittedPassword)) {
-      setState({ status: "error", message: "Passwort erfuellt die Regeln nicht." });
+      const message = "Passwort erfuellt die Regeln nicht.";
+      setState({ status: "error", message });
+      notify.error(message);
       return;
     }
 
     setState({ status: "loading", message: "Bestellung wird erstellt..." });
+    notify.info("Bestellung wird erstellt...");
     const domainName = String(formData.get("domainName") ?? "").trim().toLowerCase();
     const hostingDomainName = String(formData.get("hostingDomainName") ?? domainName).trim().toLowerCase();
     const phone = `${String(formData.get("phoneCountryCode") ?? "").trim()} ${String(formData.get("phone") ?? "").trim()}`.trim();
@@ -233,34 +239,46 @@ export function CheckoutForm({
 
     try {
       const checkoutResponse = await postJson<{ order: { id: string } }>("/orders/checkout", body);
+      notify.success("Bestellung erstellt.");
       const auth = await postJson<AuthPayload>("/auth/login", {
         email: body.customer.email,
         password: submittedPassword
       });
       storeAuth(auth);
       setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
+      notify.info("Sandbox-Zahlung laeuft...");
       await postJson(`/orders/${checkoutResponse.order.id}/pay`, {
         method: paymentMethod,
         paymentMethodId: "sandbox"
       });
+      notify.success("Zahlung erfolgreich.");
+      if (items.some((item) => hostingProducts.some((hosting) => hosting.id === item.productId) || product.type === "SHARED_HOSTING")) {
+        notify.info("Hosting account is being activated.");
+      }
       setState({
         status: "success",
         message: "Bezahlt. Weiterleitung ins Kundenportal...",
         orderId: checkoutResponse.order.id
       });
+      notify.success("Bezahlt. Weiterleitung ins Kundenportal...");
       window.location.assign(`/client?order=${checkoutResponse.order.id}`);
     } catch (error) {
-      setState({ status: "error", message: error instanceof Error ? error.message : "Bestellung fehlgeschlagen." });
+      const message = error instanceof Error ? error.message : "Bestellung fehlgeschlagen.";
+      setState({ status: "error", message });
+      notify.error(message);
     }
   }
 
   async function checkDomain(domain: string) {
     const clean = domain.trim().toLowerCase();
     if (!clean) {
-      setDomainCheck({ status: "error", message: "Domain fehlt." });
+      const message = "Domain fehlt.";
+      setDomainCheck({ status: "error", message });
+      notify.error(message);
       return;
     }
     setDomainCheck({ status: "loading" });
+    notify.info("Domainpruefung laeuft...");
     try {
       const result = await getJson<{ action: "register" | "transfer"; available: boolean; domain: string; price: { amountCents: number } }>(
         `/domains/search?domain=${encodeURIComponent(clean)}`
@@ -273,8 +291,11 @@ export function CheckoutForm({
         domain: result.domain,
         priceCents: result.price.amountCents
       });
+      notify.success(`${result.domain} wird ${result.available ? "registriert" : "transferiert"}.`);
     } catch (error) {
-      setDomainCheck({ status: "error", message: error instanceof Error ? error.message : "Domainpruefung fehlgeschlagen." });
+      const message = error instanceof Error ? error.message : "Domainpruefung fehlgeschlagen.";
+      setDomainCheck({ status: "error", message });
+      notify.error(message);
     }
   }
 
@@ -290,8 +311,11 @@ export function CheckoutForm({
       setPassword("");
       setLoginOpen(false);
       setState({ status: "idle" });
+      notify.success("Login erfolgreich.");
     } catch (error) {
-      setState({ status: "error", message: error instanceof Error ? error.message : "Login fehlgeschlagen." });
+      const message = error instanceof Error ? error.message : "Login fehlgeschlagen.";
+      setState({ status: "error", message });
+      notify.error(message);
     }
   }
 
@@ -566,7 +590,7 @@ export function CheckoutForm({
                   <p className={styles.available}>✓ Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR.</p>
                 ) : null}
                 <div className={styles.modalActions}>
-                  <Button type="button" onClick={() => { setAddHosting(true); setShowHostingOffer(false); }}>
+                  <Button type="button" onClick={() => { setAddHosting(true); setShowHostingOffer(false); notify.info("Hosting wurde zur Bestellung hinzugefuegt."); }}>
                     Hosting hinzufügen
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(false)}>

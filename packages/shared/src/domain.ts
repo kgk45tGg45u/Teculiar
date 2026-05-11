@@ -81,6 +81,7 @@ export type TaxContext = {
 };
 
 export type InvoiceLineInput = {
+  billingCycle?: string;
   description: string;
   quantity: number;
   unitAmountCents: number;

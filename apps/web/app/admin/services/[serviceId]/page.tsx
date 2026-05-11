@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { money, type ApiService, type AuthUser } from "../../../../lib/api";
+import { cycleLabel, money, type ApiService, type AuthUser } from "../../../../lib/api";
+import { serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminServiceStatusForm } from "../../../../components/admin/admin-forms";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
@@ -21,7 +22,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
     <main className="container">
       <a href="/admin/services">Back to services</a>
       <h1>{service.product.name}</h1>
-      <StatusPill label={service.status.toLowerCase()} tone={service.status === "ACTIVE" ? "good" : "warn"} />
+      <StatusPill label={serviceStatusLabel(service.status)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
           <div>
@@ -36,7 +37,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
             <tr><th>Product</th><td>{service.product.name}</td></tr>
             <tr><th>Type</th><td>{serviceType(service.product.type)}</td></tr>
             <tr><th>Domain</th><td>{domain ?? "-"}</td></tr>
-            <tr><th>Billing</th><td>{service.productPrice.billingCycle} / {money(service.productPrice.amountCents, service.productPrice.currency)}</td></tr>
+            <tr><th>Billing</th><td>{cycleLabel(service.productPrice.billingCycle)} / {money(service.productPrice.amountCents, service.productPrice.currency)}</td></tr>
             <tr><th>Next due</th><td>{dateLabel(service.renewsAt)}</td></tr>
             <tr><th>Provider ref</th><td>{service.externalId ?? "-"}</td></tr>
           </tbody>
@@ -49,7 +50,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
           <tbody>{(service.domainRecords ?? []).map((record) => (
             <tr key={record.id ?? record.domain}>
               <td>{record.domain}</td>
-              <td>{record.status}</td>
+              <td>{serviceStatusLabel(record.status)}</td>
               <td>{record.externalId ?? "-"}</td>
             </tr>
           ))}</tbody>

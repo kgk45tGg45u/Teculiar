@@ -1,7 +1,7 @@
 "use client";
 
 import { BarChart3, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Send, Server, UserRound, UsersRound, Wallet } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
   authHeaders,
@@ -12,8 +12,10 @@ import {
   type ApiService,
   type ApiTicket
 } from "../../lib/api";
+import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
+import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
@@ -41,6 +43,7 @@ type PanelEntry = { address?: string; fields: Record<string, string>; name: stri
 
 const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   ACTIVE: "good",
+  PENDING: "warn",
   ORDERED: "warn",
   PROVISIONING: "warn",
   SUSPENDED: "warn",
@@ -65,11 +68,27 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   const [selectedInvoice, setSelectedInvoice] = useState<ApiInvoice>();
   const [tickets, setTickets] = useState<ApiTicket[]>(sampleTickets);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
+  const seenServiceStatuses = useRef(new Map<string, string>());
+  const servicePollingReady = useRef(false);
 
   useEffect(() => {
     const headers = authHeaders();
+    const applyServices = (payload: ApiService[]) => {
+      if (servicePollingReady.current) {
+        for (const service of payload) {
+          notifyServiceTransition(service, seenServiceStatuses.current.get(service.id));
+        }
+      }
+      servicePollingReady.current = true;
+      seenServiceStatuses.current = new Map(payload.map((service) => [service.id, service.status]));
+      setServices(payload);
+    };
     const loadServices = () => {
-      fetch(`${API_BASE_URL}/services`, { headers }).then(json).then((payload) => payload?.length && setServices(payload)).catch(() => undefined);
+      fetch(`${API_BASE_URL}/services`, { headers }).then(json).then((payload) => {
+        if (Array.isArray(payload)) {
+          applyServices(payload);
+        }
+      }).catch(() => undefined);
     };
     loadServices();
     const timer = window.setInterval(loadServices, 20_000);
@@ -82,7 +101,16 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
     }
     const headers = authHeaders();
     const loadService = () => {
-      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then((payload) => payload && setSelectedService(payload)).catch(() => undefined);
+      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then((payload) => {
+        if (!payload) {
+          return;
+        }
+        const service = payload as ApiService;
+        notifyServiceTransition(service, seenServiceStatuses.current.get(service.id));
+        seenServiceStatuses.current.set(service.id, service.status);
+        setSelectedService(service);
+        setServices((current) => current.some((item) => item.id === service.id) ? current.map((item) => item.id === service.id ? service : item) : [service, ...current]);
+      }).catch(() => undefined);
     };
     loadService();
     const timer = window.setInterval(loadService, 20_000);
@@ -472,7 +500,7 @@ function ActionForm({
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Sent." : "Failed.");
+    setMessage(await notifyResponse(response, "Sent.", "Failed."));
     if (response.ok) {
       refresh();
     }
@@ -511,7 +539,9 @@ function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
           <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
           <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
           <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-          <StatusPill label={invoice.status.toLowerCase()} tone={statusTone[invoice.status] ?? "neutral"} />
+          <StatusPill label={invoiceStatusLabel(invoice.status)} tone={statusTone[invoice.status] ?? "neutral"} />
+          {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt)}</strong></div> : null}
+          {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
           {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
             <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
           ) : null}
@@ -533,15 +563,15 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
     <section className={styles.invoice}>
       <div className={styles.invoiceTop}>
         <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoice.invoiceNumber}</h2></div>
-        <StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} />
+        <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : "warn"} />
       </div>
       <div className={styles.invoiceMeta}>
         <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
-        <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />E-Mail: {customer.email}</div>
+        <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />{invoice.status === "PAID" ? <>Bezahlt: {dateLabel(invoice.paidAt)}<br />Gateway: {paymentGateway(invoice)}<br /></> : null}E-Mail: {customer.email}</div>
       </div>
       <table className="table">
-        <thead><tr><th>Beschreibung</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
-        <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
+        <thead><tr><th>Beschreibung</th><th>Cycle</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
+        <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{item.billingCycle ? cycleLabel(item.billingCycle) : "-"}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
       </table>
       <div className={styles.invoiceTotals}>
         <span>Zwischensumme {money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</span>
@@ -563,6 +593,7 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders() });
     if (!response.ok) {
       setMessage("PDF failed.");
+      notify.error("PDF failed.");
       return;
     }
     const blob = await response.blob();
@@ -573,6 +604,7 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
     link.click();
     URL.revokeObjectURL(url);
     setMessage("");
+    notify.success("PDF ready.");
   }
   return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={download}>Download PDF</Button>{message ? <span>{message}</span> : null}</div>;
 }
@@ -585,7 +617,7 @@ function DomainRenewal({ service }: { service: ApiService }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Renewal sent." : "Renewal failed.");
+    setMessage(await notifyResponse(response, "Renewal sent.", "Renewal failed."));
   }
   return <form action={submit} className={styles.inlineForm}><label>Renew for years<select name="years"><option>1</option><option>2</option><option>3</option><option>5</option></select></label><Button type="submit">Renew domain</Button>{message ? <p>{message}</p> : null}</form>;
 }
@@ -598,7 +630,7 @@ function PlanChange({ service }: { service: ApiService }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Upgrade/downgrade request sent." : "Request failed.");
+    setMessage(await notifyResponse(response, "Upgrade/downgrade request sent.", "Request failed."));
   }
   return <div className={styles.inlineForm}><Button type="button" onClick={submit}>Upgrade/Downgrade</Button>{message ? <p>{message}</p> : null}</div>;
 }
@@ -608,15 +640,15 @@ function TicketsTable({ tickets }: { tickets: ApiTicket[] }) {
 }
 
 function NewTicket({ services }: { services: ApiService[] }) {
-  return <section className={styles.module}><h2>New Ticket</h2><label>Department<select className="input"><option>Support</option><option>Sales</option><option>Abuse</option></select></label><label>Related service<select className="input">{services.map((service) => <option key={service.id}>{service.product.name}</option>)}</select></label><label>Subject<input className="input" placeholder="Short subject" /></label><label>Message<textarea className="input" rows={6} /></label><Button icon={Send}>Open Ticket</Button></section>;
+  return <section className={styles.module}><h2>New Ticket</h2><label>Department<select className="input"><option>Support</option><option>Sales</option><option>Abuse</option></select></label><label>Related service<select className="input">{services.map((service) => <option key={service.id}>{service.product.name}</option>)}</select></label><label>Subject<input className="input" placeholder="Short subject" /></label><label>Message<textarea className="input" rows={6} /></label><Button icon={Send} type="button" onClick={() => notify.info("Ticket action needs a connected ticket form.")}>Open Ticket</Button></section>;
 }
 
 function AddFunds({ activeServices }: { activeServices: number }) {
-  return <section className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2>{activeServices ? <><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" placeholder="50.00" /></label><Button icon={CreditCard}>Add Funds</Button></> : <p>You must have at least one active order before adding funds.</p>}</section>;
+  return <section className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2>{activeServices ? <><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" placeholder="50.00" /></label><Button icon={CreditCard} type="button" onClick={() => notify.info("Add funds action needs a payment connection.")}>Add Funds</Button></> : <p>You must have at least one active order before adding funds.</p>}</section>;
 }
 
 function PaymentInfo() {
-  return <section className={styles.module}><CreditCard aria-hidden /><h2>Payment Information</h2><label>SEPA IBAN<input className="input" placeholder="DE00 0000 0000 0000 0000 00" /></label><label>PayPal account<input className="input" placeholder="billing@example.com" /></label><label>Card token<input className="input" placeholder="Connect credit/debit card" /></label><Button icon={CreditCard}>Save Payment Info</Button></section>;
+  return <section className={styles.module}><CreditCard aria-hidden /><h2>Payment Information</h2><label>SEPA IBAN<input className="input" placeholder="DE00 0000 0000 0000 0000 00" /></label><label>PayPal account<input className="input" placeholder="billing@example.com" /></label><label>Card token<input className="input" placeholder="Connect credit/debit card" /></label><Button icon={CreditCard} type="button" onClick={() => notify.info("Payment info action needs a payment gateway token flow.")}>Save Payment Info</Button></section>;
 }
 
 function ProfileForm() {
@@ -639,7 +671,7 @@ function ProfileForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(response.ok ? "Profile saved." : "Profile failed.");
+    setMessage(await notifyResponse(response, "Profile saved.", "Profile failed."));
   }
   return <form action={submit} className={styles.module}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" name="name" /></label><label>Email<input className="input" name="email" type="email" /></label><label>Address<input className="input" name="address" /></label><label>Postal code<input className="input" name="postalCode" /></label><label>City<input className="input" name="city" /></label><label>State<input className="input" name="state" /></label><label>Country<input className="input" defaultValue="DE" name="countryCode" /></label><label>Phone<input className="input" name="phone" /></label><label>VAT ID<input className="input" name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
 }
@@ -702,10 +734,6 @@ function ticketLabel(status: string) {
   return { WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
 }
 
-function serviceStatusLabel(status: string) {
-  return { ORDERED: "inactive", PROVISIONING: "inactive" }[status] ?? status.toLowerCase();
-}
-
 async function json(response: Response) {
   if (response.status === 401 && typeof window !== "undefined") {
     window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
@@ -713,6 +741,25 @@ async function json(response: Response) {
   }
   return response.ok ? response.json() : null;
 }
+
+function notifyServiceTransition(service: ApiService, previous?: string) {
+  if (previous && previous !== "ACTIVE" && service.status === "ACTIVE") {
+    notify.success(`${serviceName(service)} is now active.`);
+  }
+  for (const record of service.domainRecords ?? []) {
+    const key = `${service.id}:${record.id ?? record.domain}`;
+    const previousDomain = domainStatusMemory.get(key);
+    if (previousDomain && previousDomain !== "ACTIVE" && record.status === "ACTIVE") {
+      notify.success(`${record.domain} registration is active.`);
+    }
+    if (previousDomain && previousDomain !== "FAILED" && record.status === "FAILED") {
+      notify.error(`${record.domain} registration failed.`);
+    }
+    domainStatusMemory.set(key, record.status);
+  }
+}
+
+const domainStatusMemory = new Map<string, string>();
 
 const sampleServices: ApiService[] = [
   { id: "svc_1", status: "ACTIVE", renewsAt: "2026-06-01T00:00:00.000Z", product: { name: "Reseller Hosting - UK-WHM25", type: "SHARED_HOSTING" }, productPrice: { amountCents: 697, billingCycle: "MONTHLY", currency: "EUR" } }
@@ -725,3 +772,7 @@ const sampleInvoices: ApiInvoice[] = [
 const sampleTickets: ApiTicket[] = [
   { id: "412103", department: "SUPPORT", subject: "Emails not working", status: "OPEN", updatedAt: "2026-05-05T12:00:00.000Z" }
 ];
+
+function paymentGateway(invoice: ApiInvoice) {
+  return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
+}

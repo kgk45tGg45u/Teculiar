@@ -3,7 +3,9 @@
 import { Bell, CreditCard, FileText, Package, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, money, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
+import { notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ClientManager({ clients, products }: { clients: ApiClient[]; products: ApiProduct[] }) {
@@ -29,7 +31,7 @@ export function ClientManager({ clients, products }: { clients: ApiClient[]; pro
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Client created. Refresh to see latest list." : await response.text());
+    setMessage(await notifyResponse(response, "Client created. Refresh to see latest list.", "Client creation failed."));
   }
 
   return (
@@ -86,12 +88,12 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(response.ok ? "Client saved." : await response.text());
+    setMessage(await notifyResponse(response, "Client saved.", "Client save failed."));
   }
 
   async function deleteClient() {
     const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
-    setMessage(response.ok ? "Client deleted. Refresh to update list." : await response.text());
+    setMessage(await notifyResponse(response, "Client deleted. Refresh to update list.", "Client delete failed."));
   }
 
   async function createInvoice(formData: FormData) {
@@ -111,6 +113,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         dueAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
         isBusinessCustomer: client.customerType === "BUSINESS",
         lines: [{
+          billingCycle: "ONE_TIME",
           description: String(formData.get("description") ?? "Manual invoice"),
           quantity: Number(formData.get("quantity") ?? 1),
           type: "CUSTOM",
@@ -123,7 +126,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Invoice created." : await response.text());
+    setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
   }
 
   async function createOrder(formData: FormData) {
@@ -156,7 +159,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Order created with unpaid invoice and pending items." : await response.text());
+    setMessage(await notifyResponse(response, "Order created with unpaid invoice and pending items.", "Order creation failed."));
   }
 
   return (
@@ -245,13 +248,13 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Order created." : await response.text());
+    setMessage(await notifyResponse(response, "Order created.", "Order creation failed."));
   }
 
   async function createInvoice(formData: FormData) {
     const descriptions = formData.getAll("description").map(String).filter(Boolean);
     const lines = descriptions.map((description, index) => ({
-      billingCycle: String(formData.getAll("billingCycle")[index] ?? "one_time"),
+      billingCycle: String(formData.getAll("billingCycle")[index] ?? "ONE_TIME"),
       description,
       quantity: Number(formData.getAll("quantity")[index] ?? 1),
       type: "CUSTOM",
@@ -272,7 +275,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Invoice created." : await response.text());
+    setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
   }
 
   return (
@@ -305,7 +308,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
             <fieldset className={styles.lineEditor} key={index}>
               <legend>Line {index + 1}</legend>
               <label>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" /></label>
-              <label>Billing cycle<select defaultValue="one_time" name="billingCycle"><option value="one_time">One time</option><option value="monthly">Monthly</option><option value="annually">Annually</option></select></label>
+              <label>Billing cycle<select defaultValue="ONE_TIME" name="billingCycle"><option value="ONE_TIME">One time</option><option value="MONTHLY">Monthly</option><option value="YEAR_1">Annually</option></select></label>
               <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
               <label>Amount EUR<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
               <label>VAT rate<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
@@ -330,7 +333,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Marked paid. Refresh to see lifecycle changes." : await response.text());
+    setMessage(await notifyResponse(response, "Marked paid. Refresh to see lifecycle changes.", "Mark paid failed."));
   }
 
   async function markUnpaid() {
@@ -339,7 +342,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(response.ok ? "Marked unpaid. Services were not terminated." : await response.text());
+    setMessage(await notifyResponse(response, "Marked unpaid. Services were not terminated.", "Mark unpaid failed."));
   }
 
   async function deleteInvoice() {
@@ -347,7 +350,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: authHeaders(),
       method: "DELETE"
     });
-    setMessage(response.ok ? "Invoice deleted. Refresh to update list." : await response.text());
+    setMessage(await notifyResponse(response, "Invoice deleted. Refresh to update list.", "Invoice delete failed."));
   }
 
   return (
@@ -370,13 +373,15 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(response.ok ? "Service status saved." : await response.text());
+    setMessage(await notifyResponse(response, "Service status saved.", "Service status failed."));
   }
 
   return (
     <form action={submit} className={styles.inlineForm}>
       <select defaultValue={status} name="status">
-        {["PENDING", "ORDERED", "PROVISIONING", "ACTIVE", "SUSPENDED", "CANCELLED", "TERMINATED", "FAILED"].map((value) => <option key={value}>{value}</option>)}
+        {["PENDING", "ORDERED", "PROVISIONING", "ACTIVE", "SUSPENDED", "CANCELLED", "TERMINATED", "FAILED"].map((value) => (
+          <option key={value} value={value}>{serviceStatusLabel(value)}</option>
+        ))}
       </select>
       <Button icon={Save} type="submit">Save Status</Button>
       {message ? <span>{message}</span> : null}
@@ -403,7 +408,7 @@ export function AnnouncementForm() {
       method: "POST"
     });
 
-    setMessage(response.ok ? "Announcement published." : "Announcement failed.");
+    setMessage(await notifyResponse(response, "Announcement published.", "Announcement failed."));
   }
 
   return (
@@ -487,7 +492,7 @@ export function SettingsForm() {
       method: "PATCH"
     });
 
-    setMessage(response.ok ? "Settings saved." : "Settings failed.");
+    setMessage(await notifyResponse(response, "Settings saved.", "Settings failed."));
   }
 
   return (
@@ -543,7 +548,7 @@ export function PaymentGatewayForm() {
       method: "PATCH"
     });
 
-    setMessage(response.ok ? "Payment gateways saved." : "Payment gateways failed.");
+    setMessage(await notifyResponse(response, "Payment gateways saved.", "Payment gateways failed."));
   }
 
   return (
@@ -607,7 +612,7 @@ export function BlogManager() {
       method: editing ? "PATCH" : "POST"
     });
 
-    setMessage(response.ok ? "Blog article saved." : "Blog article failed.");
+    setMessage(await notifyResponse(response, "Blog article saved.", "Blog article failed."));
     if (response.ok) {
       setEditing(undefined);
       await refresh();
@@ -616,7 +621,7 @@ export function BlogManager() {
 
   async function remove(post: ApiBlogPost) {
     const response = await fetch(`${API_BASE_URL}/cms/pages/${post.id}`, { headers: authHeaders(), method: "DELETE" });
-    setMessage(response.ok ? "Blog article deleted." : "Delete failed.");
+    setMessage(await notifyResponse(response, "Blog article deleted.", "Delete failed."));
     if (response.ok) {
       await refresh();
     }
@@ -721,7 +726,7 @@ export function DomainPriceForm() {
       method: "POST"
     });
 
-    setMessage(response.ok ? "Domain price saved." : "Domain price failed.");
+    setMessage(await notifyResponse(response, "Domain price saved.", "Domain price failed."));
   }
 
   return (
@@ -755,14 +760,14 @@ export function OrderStatusForm({ orderId, status }: { orderId: string; status: 
       method: "PATCH"
     });
 
-    setMessage(response.ok ? "Order status saved." : "Order status failed.");
+    setMessage(await notifyResponse(response, "Order status saved.", "Order status failed."));
   }
 
   return (
     <form action={submit} className={styles.inlineForm}>
       <select name="status" value={value} onChange={(event) => setValue(event.target.value)}>
         <option value="completed">completed</option>
-        <option value="in_progress">In Progress</option>
+        <option value="pending">Pending</option>
         <option value="canceled">Canceled</option>
       </select>
       <Button type="submit" variant="secondary">Save</Button>
@@ -778,7 +783,7 @@ function statusLabelValue(status: string) {
   if (status === "CANCELLED") {
     return "canceled";
   }
-  return "in_progress";
+  return "pending";
 }
 
 function gatewayTitle(method: string) {

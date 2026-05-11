@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { API_BASE_URL, storeAuth, type AuthPayload } from "../../lib/api";
 import { Button } from "../ui/button";
+import { notify } from "../ui/toast-provider";
 import styles from "./login-form.module.css";
 
 export function LoginForm({ admin = false }: { admin?: boolean }) {
@@ -26,15 +27,19 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
     setLoading(false);
 
     if (!response.ok || !payload.accessToken || !payload.refreshToken || !payload.user) {
-      setError(typeof payload.message === "string" ? payload.message : "Login failed.");
+      const message = typeof payload.message === "string" ? payload.message : "Login failed.";
+      setError(message);
+      notify.error(message);
       return;
     }
     if (admin && !payload.user.roles.some((role) => role === "admin" || role === "staff")) {
       setError("Admin access required.");
+      notify.error("Admin access required.");
       return;
     }
 
     storeAuth(payload as AuthPayload);
+    notify.success("Login successful.");
     window.location.assign(safeNext(params.get("next"), admin ? "/admin" : "/client"));
   }
 
@@ -54,11 +59,14 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
     setLoading(false);
 
     if (!response.ok || !payload.accessToken || !payload.refreshToken || !payload.user) {
-      setError(typeof payload.message === "string" ? payload.message : "Admin setup failed.");
+      const message = typeof payload.message === "string" ? payload.message : "Admin setup failed.";
+      setError(message);
+      notify.error(message);
       return;
     }
 
     storeAuth(payload as AuthPayload);
+    notify.success("Admin created.");
     window.location.assign("/admin");
   }
 
