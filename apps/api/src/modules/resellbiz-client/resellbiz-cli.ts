@@ -59,7 +59,91 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
 
+  if (command === "register") {
+    writeJson(await client.registerDomain(registerInputFrom(args)));
+    return;
+  }
+
+  if (command === "register-customer") {
+    const input = registerCustomerInputFrom(args);
+    const customerId = await client.addCustomer(input.customer);
+    const contactId = await client.addContact({ ...input.contact, customerId });
+    const payload = await client.registerDomain({
+      adminContactId: contactId,
+      autoRenew: true,
+      billingContactId: contactId,
+      customerId,
+      discountAmount: 0,
+      domainName: input.domainName,
+      extraAttributes: input.extraAttributes,
+      invoiceOption: "NoInvoice",
+      nameServers: input.nameServers,
+      protectPrivacy: false,
+      purchasePrivacy: false,
+      registrantContactId: contactId,
+      technicalContactId: contactId,
+      years: input.years
+    });
+    writeJson({ contactId, customerId, domainName: input.domainName, payload });
+    return;
+  }
+
   throw new Error(`Unknown command: ${command}`);
+}
+
+function registerCustomerInputFrom(args: string[]) {
+  const { flags, positional } = parseFlags(args);
+  const domainName = required(positional[0], "domain");
+  const email = required(oneFlag(flags, "email"), "email");
+  const name = oneFlag(flags, "name") ?? "Dezhost Test Buyer";
+  const country = oneFlag(flags, "country") ?? "DE";
+  const phoneCountryCode = oneFlag(flags, "phone-cc") ?? "49";
+  const phone = oneFlag(flags, "phone") ?? "30123456";
+
+  const base = {
+    addressLine1: oneFlag(flags, "address") ?? "Main Street 1",
+    city: oneFlag(flags, "city") ?? "Berlin",
+    company: oneFlag(flags, "company") ?? "N/A",
+    country,
+    email,
+    name,
+    phone,
+    phoneCountryCode,
+    state: oneFlag(flags, "state") ?? "Berlin",
+    zipCode: oneFlag(flags, "zip") ?? "10115"
+  };
+
+  return {
+    contact: { ...base, type: "Contact" as const },
+    customer: { ...base, password: `Dz${Date.now().toString(36)}!9Aa` },
+    domainName,
+    extraAttributes: attrsFrom(flags.get("attr") ?? []),
+    nameServers: flags.get("ns") ?? ["ns1.domain.com", "ns2.domain.com"],
+    years: Number(oneFlag(flags, "years") ?? 1)
+  };
+}
+
+function registerInputFrom(args: string[]) {
+  const { flags, positional } = parseFlags(args);
+  const domainName = required(positional[0], "domain");
+  const contactId = numberFlag(flags, "contact-id");
+
+  return {
+    adminContactId: optionalNumberFlag(flags, "admin-contact-id") ?? contactId,
+    autoRenew: booleanFlag(flags, "auto-renew"),
+    billingContactId: optionalNumberFlag(flags, "billing-contact-id") ?? contactId,
+    customerId: numberFlag(flags, "customer-id"),
+    discountAmount: 0,
+    domainName,
+    extraAttributes: attrsFrom(flags.get("attr") ?? []),
+    invoiceOption: invoiceOptionFrom(required(oneFlag(flags, "invoice-option"), "invoice option")),
+    nameServers: flags.get("ns") ?? ["ns1.domain.com", "ns2.domain.com"],
+    protectPrivacy: optionalBooleanFlag(flags, "protect-privacy") ?? false,
+    purchasePrivacy: optionalBooleanFlag(flags, "purchase-privacy") ?? false,
+    registrantContactId: optionalNumberFlag(flags, "reg-contact-id") ?? contactId,
+    technicalContactId: optionalNumberFlag(flags, "tech-contact-id") ?? contactId,
+    years: Number(oneFlag(flags, "years") ?? 1)
+  };
 }
 
 function transferInputFrom(args: string[]): TransferDomainInput {
@@ -128,6 +212,10 @@ function numberFlag(flags: Flags, key: string): number {
   return value;
 }
 
+function optionalNumberFlag(flags: Flags, key: string): number | undefined {
+  return flags.has(key) ? numberFlag(flags, key) : undefined;
+}
+
 function booleanFlag(flags: Flags, key: string): boolean {
   const value = required(oneFlag(flags, key), key).toLowerCase();
   if (value === "true") {
@@ -188,5 +276,7 @@ Commands:
   change-ns <domain|order-id> <ns1> <ns2> [ns3...]
   validate-transfer <domain>
   transfer <domain> --customer-id <id> --reg-contact-id <id> --admin-contact-id <id> --tech-contact-id <id> --billing-contact-id <id> --invoice-option <option> --auto-renew <true|false> [--auth-code <code>] [--ns <host>] [--attr name=value]
+  register <domain> --customer-id <id> --contact-id <id> --invoice-option <option> --auto-renew <true|false> [--years <n>] [--ns <host>] [--attr name=value]
+  register-customer <domain> --email <email> [--name <name>] [--ns <host>] [--attr name=value]
 `);
 }

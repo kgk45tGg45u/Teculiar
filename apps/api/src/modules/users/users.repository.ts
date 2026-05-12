@@ -9,14 +9,14 @@ export class UsersRepository {
   findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
-      include: { userRoles: { include: { role: true } } }
+      select: authUserSelect
     });
   }
 
   findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { contacts: { orderBy: { createdAt: "desc" }, take: 1 }, userRoles: { include: { role: true } } }
+      select: publicUserSelect
     });
   }
 
@@ -41,7 +41,8 @@ export class UsersRepository {
             }
           }
         }
-      }
+      },
+      select: { email: true, id: true }
     });
   }
 
@@ -85,7 +86,7 @@ export class UsersRepository {
           }
         }
       },
-      include: clientInclude
+      select: clientSelect
     });
   }
 
@@ -120,14 +121,15 @@ export class UsersRepository {
             }
           }
         }
-      }
+      },
+      select: { email: true, id: true }
     });
   }
 
   listClients() {
     return this.prisma.user.findMany({
       where: { userRoles: { some: { role: { slug: "client" } } } },
-      include: clientInclude,
+      select: clientSelect,
       orderBy: { createdAt: "desc" }
     });
   }
@@ -135,12 +137,12 @@ export class UsersRepository {
   findClient(id: string) {
     return this.prisma.user.findFirst({
       where: { id, userRoles: { some: { role: { slug: "client" } } } },
-      include: clientInclude
+      select: clientSelect
     });
   }
 
   updateSegment(userId: string, segment: string) {
-    return this.prisma.user.update({ where: { id: userId }, data: { segment } });
+    return this.prisma.user.update({ where: { id: userId }, data: { segment }, select: { id: true, segment: true } });
   }
 
   async updateProfile(userId: string, input: {
@@ -160,7 +162,8 @@ export class UsersRepository {
         email: input.email,
         name: input.name,
         vatId: input.vatId
-      }
+      },
+      select: { email: true, name: true }
     });
 
     if (input.phone !== undefined || input.address !== undefined) {
@@ -205,7 +208,8 @@ export class UsersRepository {
         name: input.name,
         segment: input.segment,
         vatId: input.vatId
-      }
+      },
+      select: { email: true, name: true }
     });
 
     if (input.phone !== undefined || input.address !== undefined || input.name !== undefined || input.email !== undefined) {
@@ -239,15 +243,15 @@ export class UsersRepository {
 
   async deleteClient(userId: string) {
     await this.prisma.userRole.deleteMany({ where: { userId, role: { slug: "client" } } });
-    return this.prisma.user.delete({ where: { id: userId } });
+    return this.prisma.user.delete({ where: { id: userId }, select: { id: true } });
   }
 
   setTotpSecret(userId: string, secret: string) {
-    return this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret } });
+    return this.prisma.user.update({ where: { id: userId }, data: { totpSecret: secret }, select: { id: true } });
   }
 
   enableTotp(userId: string) {
-    return this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
+    return this.prisma.user.update({ where: { id: userId }, data: { totpEnabled: true }, select: { id: true } });
   }
 
   createRefreshSession(input: {
@@ -263,7 +267,7 @@ export class UsersRepository {
   findRefreshSessionByTokenHash(tokenHash: string) {
     return this.prisma.refreshSession.findFirst({
       where: { tokenHash },
-      include: { user: { include: { userRoles: { include: { role: true } } } } }
+      include: { user: { select: { email: true, userRoles: { select: { role: { select: { slug: true } } } } } } }
     });
   }
 
@@ -276,15 +280,44 @@ export class UsersRepository {
   }
 }
 
-const clientInclude = {
-  contacts: { orderBy: { createdAt: "desc" as const }, take: 1 },
-  domainRecords: true,
+const authUserSelect = {
+  email: true,
+  id: true,
+  passwordHash: true,
+  totpEnabled: true,
+  totpSecret: true,
+  userRoles: { select: { role: { select: { slug: true } } } }
+};
+
+const publicUserSelect = {
+  balanceCents: true,
+  contacts: { orderBy: { createdAt: "desc" as const }, take: 1, select: { address: true, phone: true } },
+  countryCode: true,
+  customerType: true,
+  email: true,
+  id: true,
+  name: true,
+  totpSecret: true,
+  userRoles: { select: { role: { select: { slug: true } } } },
+  vatId: true
+};
+
+const clientSelect = {
+  contacts: { orderBy: { createdAt: "desc" as const }, take: 1, select: { address: true, phone: true } },
+  countryCode: true,
+  customerType: true,
+  domainRecords: { select: { id: true, domain: true, status: true } },
+  email: true,
+  id: true,
   invoices: { include: { items: true }, orderBy: { issuedAt: "desc" as const } },
+  name: true,
   orders: { include: { invoice: true, items: true }, orderBy: { createdAt: "desc" as const } },
+  segment: true,
   services: {
     include: { domainRecords: true, product: true, productPrice: true },
     orderBy: { createdAt: "desc" as const }
   },
   teams: true,
-  userRoles: { include: { role: true } }
+  userRoles: { select: { role: { select: { slug: true } } } },
+  vatId: true
 };

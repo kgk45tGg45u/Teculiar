@@ -193,6 +193,13 @@ export class BillingRepository {
     });
   }
 
+  updateTransactionStatus(id: string, status: string, raw: Record<string, unknown> = {}) {
+    return this.prisma.transaction.update({
+      where: { id },
+      data: { raw: raw as Prisma.InputJsonValue, status: status as TransactionStatus }
+    });
+  }
+
   createSubscription(input: {
     userId: string;
     serviceId: string;
@@ -257,6 +264,21 @@ export class BillingRepository {
         coupon: true,
         invoices: { orderBy: { issuedAt: "desc" }, take: 1 }
       }
+    });
+  }
+
+  balancePayableInvoices() {
+    return this.prisma.invoice.findMany({
+      where: { status: { in: ["UNPAID", "OVERDUE"] }, totalCents: { gt: 0 } },
+      include: { user: { select: { balanceCents: true } } },
+      orderBy: { issuedAt: "asc" }
+    });
+  }
+
+  debitUserBalance(userId: string, amountCents: number) {
+    return this.prisma.user.updateMany({
+      where: { id: userId, balanceCents: { gte: amountCents } },
+      data: { balanceCents: { decrement: amountCents } }
     });
   }
 
@@ -328,6 +350,10 @@ export class BillingRepository {
     return this.prisma.paymentProcessorConfig.findMany({ orderBy: { method: "asc" } });
   }
 
+  paymentGateway(method: string) {
+    return this.prisma.paymentProcessorConfig.findUnique({ where: { method: method as PaymentMethodType } });
+  }
+
   upsertPaymentGateway(input: { config: Record<string, unknown>; enabled: boolean; method: string }) {
     return this.prisma.paymentProcessorConfig.upsert({
       where: { method: input.method as PaymentMethodType },
@@ -340,6 +366,14 @@ export class BillingRepository {
         config: input.config as Prisma.InputJsonValue,
         enabled: input.enabled
       }
+    });
+  }
+
+  addUserBalance(userId: string, amountCents: number) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { balanceCents: { increment: amountCents } },
+      select: { balanceCents: true, id: true }
     });
   }
 

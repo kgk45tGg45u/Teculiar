@@ -127,7 +127,7 @@ export class BillingService {
     return this.billing.updateInvoiceStatus(id, "PENDING");
   }
 
-  async payInvoice(id: string, dto: PayInvoiceDto) {
+  async payInvoice(id: string, dto: PayInvoiceDto, options: { processLifecycle?: boolean } = {}) {
     const invoice = await this.billing.findInvoice(id);
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
@@ -141,7 +141,10 @@ export class BillingService {
       invoiceId: id,
       amountCents: invoice.totalCents,
       currency: "EUR",
-      paymentMethodId: dto.paymentMethodId
+      description: `Invoice ${invoice.invoiceNumber}`,
+      paymentMethodId: dto.paymentMethodId,
+      redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
+      webhookUrl: `${publicApiUrl()}/billing/webhooks/${dto.method.toLowerCase()}`
     });
 
     await this.billing.createTransaction({
@@ -155,8 +158,10 @@ export class BillingService {
     });
 
     if (result.status === "SUCCEEDED") {
-      const paid = await this.billing.markInvoicePaid(id);
-      await this.onInvoicePaid(id, { source: "gateway" });
+      const paid = await this.finalizePaidInvoice(id, { source: "gateway" }, options);
+      if (options.processLifecycle === false) {
+        return paid;
+      }
       return { ...paid, lifecycleProcessed: true };
     }
 
@@ -164,13 +169,63 @@ export class BillingService {
       return this.billing.updateInvoiceStatus(id, "FAILED");
     }
 
-    return this.billing.updateInvoiceStatus(id, "PENDING");
+    const pending = await this.billing.updateInvoiceStatus(id, "PENDING");
+    return { ...pending, paymentRedirectUrl: result.paymentRedirectUrl };
+  }
+
+  async addFunds(userId: string, input: { amountCents: number; method: string }) {
+    if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+      throw new BadRequestException("Amount must be greater than zero.");
+    }
+    const invoice = await this.createInvoice({
+      buyerCountryCode: "DE",
+      customerSnapshot: { userId },
+      dueAt: new Date().toISOString(),
+      lines: [{
+        description: "Account balance top-up",
+        quantity: 1,
+        type: "CUSTOM",
+        unitAmountCents: input.amountCents,
+        vatRate: 0
+      }],
+      orderSnapshot: { accountCreditCents: input.amountCents },
+      status: "UNPAID",
+      userId
+    });
+    const paid = await this.payInvoice(invoice.id, { method: input.method as never, paymentMethodId: "account-balance" }, { processLifecycle: false });
+    return {
+      amountCents: input.amountCents,
+      invoiceId: invoice.id,
+      paymentRedirectUrl: (paid as { paymentRedirectUrl?: string }).paymentRedirectUrl,
+      status: paid.status
+    };
   }
 
   async markInvoicePaid(id: string, input: { actorId?: string; source?: string } = {}) {
-    const paid = await this.billing.markInvoicePaid(id);
-    await this.onInvoicePaid(id, { actorId: input.actorId, source: input.source ?? "admin" });
+    const paid = await this.finalizePaidInvoice(id, { actorId: input.actorId, source: input.source ?? "admin" });
     return { ...paid, lifecycleProcessed: true };
+  }
+
+  async confirmInvoicePayment(id: string) {
+    const invoice = await this.billing.findInvoice(id);
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+    const transaction = [...(invoice.transactions ?? [])].reverse().find((item) => item.status === "PENDING") ?? invoice.transactions?.at(-1);
+    if (!transaction) {
+      throw new BadRequestException("Invoice has no payment transaction to confirm.");
+    }
+    const processor = this.payments.get(transaction.method);
+    const result = processor.confirm ? await processor.confirm(transaction.providerReference) : { providerReference: transaction.providerReference, status: "SUCCEEDED" as const };
+    await this.billing.updateTransactionStatus(transaction.id, result.status, result.raw ?? {});
+    if (result.status === "SUCCEEDED") {
+      const paid = await this.finalizePaidInvoice(id, { source: "gateway" });
+      return { invoice: paid, status: "PAID" };
+    }
+    if (result.status === "FAILED") {
+      return { invoice: await this.billing.updateInvoiceStatus(id, "FAILED"), status: "FAILED" };
+    }
+    return { invoice: await this.billing.updateInvoiceStatus(id, "PENDING"), status: "PENDING" };
   }
 
   async markInvoiceUnpaid(id: string, input: { actorId?: string; reason?: string } = {}) {
@@ -209,7 +264,7 @@ export class BillingService {
     const items = lifecycleItems(invoice);
     const results: Array<{ ok: boolean; pending?: boolean }> = [];
     for (const item of items) {
-      if (item.service) {
+      if (item.service && item.type !== "DOMAIN" && item.service.product?.type !== "DOMAIN") {
         results.push(await this.processPaidService(invoice, item, input));
       }
       if (item.domainRecord) {
@@ -233,6 +288,20 @@ export class BillingService {
       invoiceId,
       processed: results.length
     };
+  }
+
+  private async finalizePaidInvoice(invoiceId: string, input: { actorId?: string; source?: string } = {}, options: { processLifecycle?: boolean } = {}) {
+    const paid = await this.billing.markInvoicePaid(invoiceId);
+    const snapshot = isRecord(paid.orderSnapshot) ? paid.orderSnapshot : {};
+    const accountCreditCents = typeof snapshot.accountCreditCents === "number" ? snapshot.accountCreditCents : 0;
+    if (accountCreditCents > 0) {
+      await this.billing.addUserBalance(paid.userId, accountCreditCents);
+      return paid;
+    }
+    if (options.processLifecycle !== false) {
+      await this.onInvoicePaid(invoiceId, { actorId: input.actorId, source: input.source ?? "system" });
+    }
+    return paid;
   }
 
   async retryModuleAction(id: string, input: { actorId?: string } = {}) {
@@ -368,6 +437,9 @@ export class BillingService {
     }
     if (domainTld(domain.domain) === "de" && action === "register_domain") {
       await this.billing.setDomainLifecycleStatus(domain.id, "PENDING");
+      if (item.service?.id ?? item.serviceId) {
+        await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "PENDING");
+      }
       if (item.orderItem?.id ?? item.orderItemId) {
         await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "SKIPPED", {
           errorMessage: "Manual .de registration required"
@@ -400,6 +472,9 @@ export class BillingService {
       if (result.status === "FAILED") {
         await this.billing.failModuleLog(log.id, "Registrar module returned FAILED", result as Record<string, unknown>);
         await this.billing.setDomainLifecycleStatus(domain.id, "FAILED", { externalId: result.externalId });
+        if (item.service?.id ?? item.serviceId) {
+          await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "FAILED", { externalId: result.externalId });
+        }
         if (item.orderItem?.id ?? item.orderItemId) {
           await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", {
             errorMessage: "Registrar module returned FAILED"
@@ -421,6 +496,13 @@ export class BillingService {
         externalId: result.externalId,
         expiresAt: nextDomainExpiry(domain)
       });
+      if (item.service?.id ?? item.serviceId) {
+        await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, active ? "ACTIVE" : "PROVISIONING", {
+          externalId: result.externalId,
+          moduleReference: result.externalId,
+          renewsAt: nextDomainExpiry(domain)
+        });
+      }
       if (item.orderItem?.id ?? item.orderItemId) {
         await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, active ? "ACTIVE" : "PROVISIONING", {
           providerReference: result.externalId
@@ -438,6 +520,9 @@ export class BillingService {
       const message = error instanceof Error ? error.message : "Registrar module failed";
       await this.billing.failModuleLog(log.id, message);
       await this.billing.setDomainLifecycleStatus(domain.id, "FAILED");
+      if (item.service?.id ?? item.serviceId) {
+        await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "FAILED");
+      }
       if (item.orderItem?.id ?? item.orderItemId) {
         await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", { errorMessage: message });
       }
@@ -557,6 +642,8 @@ export class BillingService {
       generatedInvoices += 1;
     }
 
+    const balancePaidInvoices = await this.payInvoicesFromAccountBalance();
+
     const overdueInvoices = await this.billing.overdueUnpaidInvoices(now);
     const serviceIds = overdueInvoices.flatMap((invoice) =>
       invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
@@ -566,12 +653,47 @@ export class BillingService {
     const suspended = await this.billing.suspendServices([...new Set(serviceIds)]);
 
     return {
+      balancePaidInvoices,
       generatedInvoices,
       invoiceDaysAhead,
       overdueInvoices: overdueInvoices.length,
       suspendedServices: suspended.count,
       ticketCloseHours
     };
+  }
+
+  private async payInvoicesFromAccountBalance() {
+    const invoices = await this.billing.balancePayableInvoices();
+    let paid = 0;
+
+    for (const invoice of invoices) {
+      const snapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
+      if (typeof snapshot.accountCreditCents === "number" && snapshot.accountCreditCents > 0) {
+        continue;
+      }
+      if ((invoice.user?.balanceCents ?? 0) < invoice.totalCents) {
+        continue;
+      }
+
+      const debit = await this.billing.debitUserBalance(invoice.userId, invoice.totalCents);
+      if (debit.count !== 1) {
+        continue;
+      }
+
+      await this.billing.createTransaction({
+        amountCents: invoice.totalCents,
+        currency: "EUR",
+        invoiceId: invoice.id,
+        method: "ACCOUNT_BALANCE",
+        providerReference: `account_balance_${invoice.id}_${Date.now()}`,
+        raw: { source: "account_balance" },
+        status: "SUCCEEDED"
+      });
+      await this.finalizePaidInvoice(invoice.id, { source: "account_balance" });
+      paid += 1;
+    }
+
+    return paid;
   }
 
   vatPercent() {
@@ -652,16 +774,22 @@ export class BillingService {
     return defaultPaymentGateways().map((gateway) => byMethod.get(gateway.method) ?? gateway);
   }
 
-  updatePaymentGateways(input: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }>) {
-    return Promise.all(
-      input.map((gateway) =>
-        this.billing.upsertPaymentGateway({
-          config: gateway.config ?? {},
-          enabled: Boolean(gateway.enabled),
-          method: gateway.method
-        })
-      )
-    );
+  async updatePaymentGateways(input: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }>) {
+    const results = [];
+    for (const gateway of input) {
+      const validation = await this.payments.validateConfig({
+        config: gateway.config ?? {},
+        enabled: Boolean(gateway.enabled),
+        method: gateway.method
+      });
+      const saved = await this.billing.upsertPaymentGateway({
+        config: { ...(gateway.config ?? {}), verifiedAt: Boolean(gateway.enabled) ? new Date().toISOString() : undefined },
+        enabled: Boolean(gateway.enabled),
+        method: gateway.method
+      });
+      results.push({ ...saved, validation });
+    }
+    return results;
   }
 
   updateSettings(input: {
@@ -1031,6 +1159,14 @@ function defaultPaymentGateways(): Array<{ config: Record<string, unknown>; enab
     { config: {}, enabled: true, method: "PAYPAL" },
     { config: {}, enabled: true, method: "SEPA" }
   ];
+}
+
+function publicWebUrl() {
+  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
+}
+
+function publicApiUrl() {
+  return process.env.PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 }
 
 function gatewayTitle(method: string) {

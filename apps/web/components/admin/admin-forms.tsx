@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, money, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
-import { notifyResponse } from "../ui/toast-provider";
+import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ClientManager({ clients, products }: { clients: ApiClient[]; products: ApiProduct[] }) {
@@ -537,7 +537,10 @@ export function PaymentGatewayForm() {
     const next = gateways.map((gateway) => ({
       config: {
         apiKey: String(formData.get(`${gateway.method}_apiKey`) ?? ""),
-        provider: String(formData.get(`${gateway.method}_provider`) ?? "")
+        clientId: String(formData.get(`${gateway.method}_clientId`) ?? ""),
+        clientSecret: String(formData.get(`${gateway.method}_clientSecret`) ?? ""),
+        mode: String(formData.get(`${gateway.method}_mode`) ?? "test"),
+        provider: String(formData.get(`${gateway.method}_provider`) ?? gatewayProvider(gateway.method))
       },
       enabled: formData.get(`${gateway.method}_enabled`) === "on",
       method: gateway.method
@@ -548,6 +551,14 @@ export function PaymentGatewayForm() {
       method: "PATCH"
     });
 
+    const payload = await response.clone().json().catch(() => undefined);
+    if (response.ok && Array.isArray(payload)) {
+      setGateways(payload);
+      const messages = payload.map((gateway) => gateway.validation?.message).filter(Boolean).join(" ");
+      setMessage(messages || "Payment gateways saved.");
+      notify.success(messages || "Payment gateways saved.");
+      return;
+    }
     setMessage(await notifyResponse(response, "Payment gateways saved.", "Payment gateways failed."));
   }
 
@@ -556,8 +567,17 @@ export function PaymentGatewayForm() {
       {gateways.map((gateway) => (
         <fieldset className={styles.form} key={gateway.method}>
           <label><input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" /> {gatewayTitle(gateway.method)}</label>
-          <label>Gateway/provider<input defaultValue={String(gateway.config?.provider ?? "")} name={`${gateway.method}_provider`} placeholder="stripe, paypal, sepa-provider" /></label>
-          <label>API key / config token<input defaultValue={String(gateway.config?.apiKey ?? "")} name={`${gateway.method}_apiKey`} /></label>
+          <label>Gateway/provider<input defaultValue={String(gateway.config?.provider ?? gatewayProvider(gateway.method))} name={`${gateway.method}_provider`} readOnly /></label>
+          {gateway.method === "PAYPAL" ? (
+            <>
+              <label>Mode<select defaultValue={String(gateway.config?.mode ?? "test")} name={`${gateway.method}_mode`}><option value="test">Sandbox</option><option value="live">Live</option></select></label>
+              <label>Client ID<input defaultValue={String(gateway.config?.clientId ?? "")} name={`${gateway.method}_clientId`} /></label>
+              <label>Client secret<input defaultValue={String(gateway.config?.clientSecret ?? "")} name={`${gateway.method}_clientSecret`} type="password" /></label>
+            </>
+          ) : (
+            <label>Mollie API key<input defaultValue={String(gateway.config?.apiKey ?? "")} name={`${gateway.method}_apiKey`} placeholder="test_xxx" type="password" /></label>
+          )}
+          {gateway.config?.verifiedAt ? <small>Verified: {String(gateway.config.verifiedAt)}</small> : null}
         </fieldset>
       ))}
       <Button icon={CreditCard} type="submit">Save Payment Gateways</Button>
@@ -792,6 +812,10 @@ function gatewayTitle(method: string) {
     PAYPAL: "Paypal",
     SEPA: "SEPA Lastschrift"
   }[method] ?? method;
+}
+
+function gatewayProvider(method: string) {
+  return method === "PAYPAL" ? "paypal" : ["CREDIT_CARD", "SEPA"].includes(method) ? "mollie" : "sandbox";
 }
 
 function splitComma(value: FormDataEntryValue | null) {

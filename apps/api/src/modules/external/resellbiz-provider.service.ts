@@ -210,8 +210,8 @@ function defaultNameServers() {
   }
 
   return [
-    process.env.RESELLBIZ_DEFAULT_NS1 ?? "ns1.dezhost.test",
-    process.env.RESELLBIZ_DEFAULT_NS2 ?? "ns2.dezhost.test"
+    process.env.RESELLBIZ_DEFAULT_NS1 ?? "ns1.domain.com",
+    process.env.RESELLBIZ_DEFAULT_NS2 ?? "ns2.domain.com"
   ];
 }
 

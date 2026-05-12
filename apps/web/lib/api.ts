@@ -133,6 +133,7 @@ export type ApiInvoice = {
 };
 
 export type ApiClient = {
+  balanceCents?: number;
   contacts?: Array<{ address?: { city?: string; line1?: string; postalCode?: string; state?: string }; phone?: string | null }>;
   countryCode: string;
   customerType: string;

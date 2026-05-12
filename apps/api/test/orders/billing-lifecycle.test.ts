@@ -65,6 +65,54 @@ describe("Billing lifecycle", () => {
     assert.ok(events.includes("order:ord_1:PROVISIONING"));
   });
 
+  it("updates the client-visible domain service when domain registration fails", async () => {
+    const events: string[] = [];
+    const invoice = lifecycleInvoice({
+      items: [domainLine("line_domain", "dom_fail", "broken.example", "register", "svc_domain")]
+    });
+    const billing = lifecycleRepository(events, new Set(), invoice);
+    const service = new BillingService(
+      billing as never,
+      new BillingEngineService(new TaxService()),
+      paymentProcessor(events) as never,
+      externalProviders(events, { failDomain: true }) as never
+    );
+
+    await service.onInvoicePaid("inv_1", { source: "gateway" });
+
+    assert.ok(events.includes("domain:dom_fail:FAILED"));
+    assert.ok(events.includes("service:svc_domain:FAILED"));
+    assert.ok(events.includes("item:oi_dom_fail:FAILED"));
+    assert.ok(events.includes("order:ord_1:PROVISIONING"));
+  });
+
+  it("registers a domain service and creates hosting from the same paid order", async () => {
+    const events: string[] = [];
+    const invoice = lifecycleInvoice({
+      items: [
+        serviceLine("line_hosting", "svc_hosting", "PENDING", "SHARED_HOSTING", { domainName: "bundle.example" }),
+        domainLine("line_domain", "dom_bundle", "bundle.example", "register", "svc_domain")
+      ]
+    });
+    const billing = lifecycleRepository(events, new Set(), invoice);
+    const service = new BillingService(
+      billing as never,
+      new BillingEngineService(new TaxService()),
+      paymentProcessor(events) as never,
+      externalProviders(events) as never
+    );
+
+    await service.onInvoicePaid("inv_1", { source: "gateway" });
+
+    assert.deepEqual(
+      events.filter((event) => event.startsWith("virtualmin") || event.startsWith("resellbiz")),
+      ["virtualmin:bundle.example", "resellbiz:register:bundle.example"]
+    );
+    assert.ok(events.includes("service:svc_hosting:ACTIVE"));
+    assert.ok(events.includes("service:svc_domain:ACTIVE"));
+    assert.ok(events.includes("domain:dom_bundle:ACTIVE"));
+  });
+
   it("manual paid behaves like gateway payment and manual unpaid does not terminate service", async () => {
     const events: string[] = [];
     const invoice = lifecycleInvoice({
@@ -286,7 +334,7 @@ function serviceLine(
   };
 }
 
-function domainLine(id: string, domainRecordId: string, domain: string, action: "register" | "renew" | "transfer") {
+function domainLine(id: string, domainRecordId: string, domain: string, action: "register" | "renew" | "transfer", serviceId?: string) {
   const orderItem = { id: `oi_${domainRecordId}`, configuration: { domainAction: action }, provisioningStatus: "PENDING", type: "DOMAIN" };
   return {
     description: domain,
@@ -306,6 +354,18 @@ function domainLine(id: string, domainRecordId: string, domain: string, action: 
     lifecycleAction: action,
     orderItem,
     orderItemId: orderItem.id,
+    service: serviceId
+      ? {
+          autoRenew: true,
+          billingCycle: "YEAR_1",
+          configuration: { domainName: domain },
+          id: serviceId,
+          moduleName: "resellbiz",
+          product: { type: "DOMAIN" },
+          status: "PENDING"
+        }
+      : undefined,
+    serviceId,
     type: action === "renew" ? "DOMAIN_RENEWAL" : "DOMAIN"
   };
 }
@@ -351,7 +411,7 @@ function paymentProcessor(events: string[]) {
   };
 }
 
-function externalProviders(events: string[], options: { failHosting?: boolean } = {}) {
+function externalProviders(events: string[], options: { failDomain?: boolean; failHosting?: boolean } = {}) {
   return {
     hetzner: {
       provision: async (request: { serviceId: string }) => {
@@ -362,7 +422,9 @@ function externalProviders(events: string[], options: { failHosting?: boolean } 
     resellBiz: {
       register: async (request: { domain: string }) => {
         events.push(`resellbiz:register:${request.domain}`);
-        return { externalId: "rb_123", metadata: {}, status: "ACTIVE" };
+        return options.failDomain
+          ? { externalId: "rb_failed", metadata: {}, status: "FAILED" }
+          : { externalId: "rb_123", metadata: {}, status: "ACTIVE" };
       },
       renew: async (request: { domain: string }) => {
         events.push(`resellbiz:renew:${request.domain}`);

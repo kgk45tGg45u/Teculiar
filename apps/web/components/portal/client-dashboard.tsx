@@ -18,7 +18,7 @@ import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
-type ClientView = "dashboard" | "services" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
+type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
 type HostingPanel = {
   bandwidth: Array<{ fields: Record<string, string>; name: string }>;
   bandwidthUsage?: Usage;
@@ -62,6 +62,16 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 };
 
 export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; view?: ClientView }) {
+  const [profile, setProfile] = useState<{
+    address?: { city?: string; line1?: string; postalCode?: string; state?: string };
+    balanceCents?: number;
+    countryCode?: string;
+    customerType?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+    vatId?: string | null;
+  }>();
   const [services, setServices] = useState<ApiService[]>(sampleServices);
   const [selectedService, setSelectedService] = useState<ApiService>();
   const [invoices, setInvoices] = useState<ApiInvoice[]>(sampleInvoices);
@@ -129,12 +139,15 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
     const headers = authHeaders();
     fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => payload?.length && setInvoices(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => payload?.length && setTickets(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/cms/announcements`).then(json).then((payload) => payload?.length && setAnnouncements(payload)).catch(() => undefined);
   }, []);
 
-  const activeServices = services.filter((service) => service.status === "ACTIVE").length;
-  const unpaidInvoices = invoices.filter((invoice) => invoice.status !== "PAID").length;
-  const activeTickets = tickets.filter((ticket) => ticket.status !== "CLOSED").length;
+  const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
+  const activeServices = serviceRows.filter((service) => service.status === "ACTIVE").length;
+  const domainRows = domainRowsFromServices(services);
+  const openInvoices = invoices.filter((invoice) => invoice.status !== "PAID").length;
+  const openTickets = tickets.filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status)).length;
 
   return (
     <div className={styles.page}>
@@ -142,13 +155,18 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         <strong>CrimsonGrid</strong>
         <nav aria-label="Client">
           <a href="/client/services">Services</a>
+          <a href="/client/domains">Domains</a>
           <a href="/client/invoices">Rechnungen</a>
           <a href="/client/tickets">Support Tickets</a>
           <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
           <a href="/client/billing/add-funds">Add Funds</a>
-          <a href="/client/billing/payment">Zahlung</a>
           <a href="/client/profile">Profile</a>
         </nav>
+        <div className="metric">
+          <Wallet aria-hidden size={20} />
+          <strong>{money(profile?.balanceCents ?? 0)}</strong>
+          <span>Account Balance</span>
+        </div>
       </aside>
 
       <main className={styles.main}>
@@ -165,36 +183,37 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         <section className="grid four" aria-label="Overview">
           <a className="metric" href="/client/services">
             <Server aria-hidden size={22} />
-            <strong>{activeServices}</strong>
+            <strong>{serviceRows.length}</strong>
             <span>Services</span>
           </a>
-          <a className="metric" href="/client/invoices">
-            <FileText aria-hidden size={22} />
-            <strong>{unpaidInvoices}</strong>
-            <span>Offene Rechnungen</span>
+          <a className="metric" href="/client/domains">
+            <Globe aria-hidden size={22} />
+            <strong>{domainRows.length}</strong>
+            <span>Domains</span>
           </a>
           <a className="metric" href="/client/tickets">
             <LifeBuoy aria-hidden size={22} />
-            <strong>{activeTickets}</strong>
-            <span>Aktives Ticket</span>
+            <strong>{openTickets}</strong>
+            <span>Open Tickets</span>
           </a>
-          <a className="metric" href="/client/billing/payment">
-            <CreditCard aria-hidden size={22} />
-            <strong>SEPA</strong>
-            <span>Zahlung</span>
+          <a className="metric" href="/client/invoices">
+            <FileText aria-hidden size={22} />
+            <strong>{openInvoices}</strong>
+            <span>Open Invoices</span>
           </a>
         </section>
 
         {(view === "dashboard" || view === "services") && !serviceId ? <Announcements announcements={announcements} /> : null}
-        {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={services} /> : null}
+        {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={serviceRows} /> : null}
+        {view === "domains" ? <DomainsTable domains={domainRows} /> : null}
         {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
         {view === "invoices" && !invoiceId ? <InvoicesTable invoices={invoices} /> : null}
         {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} /> : null}
         {view === "tickets" ? <TicketsTable tickets={tickets} /> : null}
-        {view === "new-ticket" ? <NewTicket services={services} /> : null}
+        {view === "new-ticket" ? <NewTicket services={serviceRows} /> : null}
         {view === "add-funds" ? <AddFunds activeServices={activeServices} /> : null}
         {view === "payment" ? <PaymentInfo /> : null}
-        {view === "profile" ? <ProfileForm /> : null}
+        {view === "profile" ? <ProfileForm profile={profile} setProfile={setProfile} /> : null}
       </main>
     </div>
   );
@@ -254,6 +273,53 @@ function ServicesTable({ services }: { services: ApiService[] }) {
             </table>
           </div>
         </section>
+  );
+}
+
+type DomainRow = {
+  amountCents: number;
+  billingCycle: string;
+  currency: string;
+  domain: string;
+  id: string;
+  renewsAt?: string | null;
+  status: string;
+};
+
+function DomainsTable({ domains }: { domains: DomainRow[] }) {
+  return (
+    <section className={styles.block} id="domains">
+      <div className={styles.blockHeader}>
+        <div>
+          <span className="eyebrow">Domains</span>
+          <h2>Domains</h2>
+        </div>
+      </div>
+      <div className={styles.tableWrap}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Pricing</th>
+              <th>Next Due Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {domains.length ? domains.map((domain) => (
+              <tr key={domain.id}>
+                <td><strong>{domain.domain}</strong></td>
+                <td>{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
+                <td>{dateLabel(domain.renewsAt)}</td>
+                <td><StatusPill label={serviceStatusLabel(domain.status)} tone={statusTone[domain.status] ?? "neutral"} /></td>
+              </tr>
+            )) : (
+              <tr><td colSpan={4}>Noch keine Domains.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -644,14 +710,44 @@ function NewTicket({ services }: { services: ApiService[] }) {
 }
 
 function AddFunds({ activeServices }: { activeServices: number }) {
-  return <section className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2>{activeServices ? <><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" placeholder="50.00" /></label><Button icon={CreditCard} type="button" onClick={() => notify.info("Add funds action needs a payment connection.")}>Add Funds</Button></> : <p>You must have at least one active order before adding funds.</p>}</section>;
+  const [message, setMessage] = useState("");
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/billing/add-funds`, {
+      body: JSON.stringify({
+        amountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
+        method: String(formData.get("method") ?? "PAYPAL")
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    const payload = await response.clone().json().catch(() => undefined);
+    if (response.ok && payload?.paymentRedirectUrl) {
+      window.location.assign(payload.paymentRedirectUrl);
+      return;
+    }
+    setMessage(await notifyResponse(response, "Funds added.", "Add funds failed."));
+  }
+  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2>{activeServices ? <><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button></> : <p>You must have at least one active order before adding funds.</p>}{message ? <p>{message}</p> : null}</form>;
 }
 
 function PaymentInfo() {
   return <section className={styles.module}><CreditCard aria-hidden /><h2>Payment Information</h2><label>SEPA IBAN<input className="input" placeholder="DE00 0000 0000 0000 0000 00" /></label><label>PayPal account<input className="input" placeholder="billing@example.com" /></label><label>Card token<input className="input" placeholder="Connect credit/debit card" /></label><Button icon={CreditCard} type="button" onClick={() => notify.info("Payment info action needs a payment gateway token flow.")}>Save Payment Info</Button></section>;
 }
 
-function ProfileForm() {
+function ProfileForm({
+  profile,
+  setProfile
+}: {
+  profile?: {
+    address?: { city?: string; line1?: string; postalCode?: string; state?: string };
+    countryCode?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+    vatId?: string | null;
+  };
+  setProfile: (profile: any) => void;
+}) {
   const [message, setMessage] = useState("");
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -671,9 +767,13 @@ function ProfileForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
+    const payload = await response.clone().json().catch(() => undefined);
+    if (response.ok && payload) {
+      setProfile(payload);
+    }
     setMessage(await notifyResponse(response, "Profile saved.", "Profile failed."));
   }
-  return <form action={submit} className={styles.module}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" name="name" /></label><label>Email<input className="input" name="email" type="email" /></label><label>Address<input className="input" name="address" /></label><label>Postal code<input className="input" name="postalCode" /></label><label>City<input className="input" name="city" /></label><label>State<input className="input" name="state" /></label><label>Country<input className="input" defaultValue="DE" name="countryCode" /></label><label>Phone<input className="input" name="phone" /></label><label>VAT ID<input className="input" name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
+  return <form action={submit} className={styles.module} key={profile?.email ?? "profile"}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label><label>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label><label>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label><label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label><label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label><label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label><label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label><label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label><label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
 function titleFor(view: ClientView) {
@@ -684,6 +784,7 @@ function titleFor(view: ClientView) {
     "new-ticket": "Open Ticket",
     payment: "Payment Information",
     profile: "Profile",
+    domains: "Domains",
     services: "Services",
     tickets: "My Support Tickets"
   }[view];
@@ -702,11 +803,10 @@ function serviceListTitle(service: ApiService) {
 }
 
 function serviceListSubtitle(service: ApiService) {
-  const domain = service.domainRecords?.[0]?.domain ?? stringConfig(service.configuration, "domainName");
   if (service.product.type === "DOMAIN") {
     return "Domain";
   }
-  return domain ? `${serviceKind(service)} - ${domain}` : serviceKind(service);
+  return serviceKind(service);
 }
 
 function serviceKind(service: ApiService) {
@@ -760,6 +860,41 @@ function notifyServiceTransition(service: ApiService, previous?: string) {
 }
 
 const domainStatusMemory = new Map<string, string>();
+
+function domainRowsFromServices(services: ApiService[]): DomainRow[] {
+  const rows = new Map<string, DomainRow>();
+  for (const service of services) {
+    if (service.product.type === "DOMAIN") {
+      const record = service.domainRecords?.[0];
+      const domain = record?.domain ?? stringConfig(service.configuration, "domainName") ?? service.product.name;
+      rows.set(domain, {
+        amountCents: service.productPrice.amountCents,
+        billingCycle: service.productPrice.billingCycle,
+        currency: service.productPrice.currency,
+        domain,
+        id: record?.id ?? service.id,
+        renewsAt: service.renewsAt,
+        status: record?.status ?? service.status
+      });
+      continue;
+    }
+    for (const record of service.domainRecords ?? []) {
+      if (rows.has(record.domain)) {
+        continue;
+      }
+      rows.set(record.domain, {
+        amountCents: service.productPrice.amountCents,
+        billingCycle: service.productPrice.billingCycle,
+        currency: service.productPrice.currency,
+        domain: record.domain,
+        id: record.id ?? `${service.id}:${record.domain}`,
+        renewsAt: service.renewsAt,
+        status: record.status
+      });
+    }
+  }
+  return [...rows.values()];
+}
 
 const sampleServices: ApiService[] = [
   { id: "svc_1", status: "ACTIVE", renewsAt: "2026-06-01T00:00:00.000Z", product: { name: "Reseller Hosting - UK-WHM25", type: "SHARED_HOSTING" }, productPrice: { amountCents: 697, billingCycle: "MONTHLY", currency: "EUR" } }

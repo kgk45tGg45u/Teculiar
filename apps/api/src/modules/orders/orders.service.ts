@@ -232,9 +232,20 @@ export class OrdersService {
       throw new BadRequestException("Order has no invoice");
     }
 
-    const invoice = await this.billing.payInvoice(order.invoiceId, dto);
+    const invoice = await this.billing.payInvoice(order.invoiceId, dto, { processLifecycle: false });
     if (invoice.status !== "PAID") {
       return { invoice, order: await this.orders.findOrderForActivation(id) };
+    }
+    if (typeof (this.billing as unknown as { onInvoicePaid?: unknown }).onInvoicePaid === "function") {
+      await this.orders.markOrderPaid(id, dto.method);
+      await this.orders.markOrderInProgress(id, "Payment received. Provisioning is running in the background.");
+      void (this.billing as unknown as { onInvoicePaid: (invoiceId: string, input: { source: string }) => Promise<unknown> })
+        .onInvoicePaid(order.invoiceId, { source: "gateway" })
+        .catch(() => undefined);
+      return {
+        invoice,
+        order: await this.orders.findOrderForActivation(id)
+      };
     }
     if ((invoice as { lifecycleProcessed?: boolean }).lifecycleProcessed) {
       return {

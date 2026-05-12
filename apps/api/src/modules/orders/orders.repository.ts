@@ -101,7 +101,6 @@ export class OrdersRepository {
       where: { invoiceId },
       orderBy: { createdAt: "asc" }
     });
-    const serviceByDomain = new Map<string, string>();
     const items = [...order.items].sort((a, b) => pendingEntityPriority(a) - pendingEntityPriority(b));
 
     for (const item of items) {
@@ -142,15 +141,40 @@ export class OrdersRepository {
             }
           });
         }
-        const serviceDomain = serviceDomainName(configuration);
-        if (serviceDomain) {
-          serviceByDomain.set(serviceDomain, service.id);
-        }
       }
 
       if (item.type === "DOMAIN" && item.domainName) {
-        const linkedServiceId = serviceByDomain.get(String(item.domainName).toLowerCase());
         const action = domainAction(configuration);
+        const renewsAt = addBillingCycle(new Date(), String(item.billingCycle));
+        const service = await this.prisma.service.create({
+          data: {
+            billingCycle: item.billingCycle as BillingCycle,
+            configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
+            initialInvoiceId: invoiceId,
+            moduleName: "resellbiz",
+            nextDueAt: renewsAt,
+            orderId: order.id,
+            orderItemId: String(item.id),
+            productId: String(item.productId),
+            productPriceId: String(item.productPriceId),
+            recurringAmountCents: Number(item.unitAmountCents ?? 0),
+            renewsAt,
+            setupFeeCents: Number(item.setupFeeCents ?? 0),
+            status: "PENDING",
+            userId: String(order.userId)
+          }
+        });
+        serviceId = service.id;
+        await this.prisma.orderItem.update({ where: { id: String(item.id) }, data: { serviceId } });
+        await this.prisma.subscription.create({
+          data: {
+            billingCycle: item.billingCycle as BillingCycle,
+            nextInvoiceAt: renewsAt,
+            productPriceId: String(item.productPriceId),
+            serviceId: service.id,
+            userId: String(order.userId)
+          }
+        });
         const domain = await this.prisma.domainRecord.create({
           data: {
             autoRenew: true,
@@ -164,7 +188,7 @@ export class OrdersRepository {
             recurringAmountCents: Number(item.unitAmountCents ?? 0),
             registrarModule: "resellbiz",
             registrationPeriodYears: yearsFromCycle(String(item.billingCycle)),
-            serviceId: linkedServiceId,
+            serviceId: service.id,
             status: action === "transfer" ? "PENDING_TRANSFER" : "PENDING",
             type: action,
             userId: String(order.userId)

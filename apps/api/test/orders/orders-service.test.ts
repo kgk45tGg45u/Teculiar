@@ -425,6 +425,81 @@ describe("OrdersService", () => {
     ]);
   });
 
+  it("creates pending dashboard entities for paid and failed storefront order items", async () => {
+    const events: string[] = [];
+    const order = {
+      id: "ord_pending_entities",
+      items: [
+        {
+          billingCycle: "YEAR_1",
+          configuration: { domainAction: "register" },
+          domainName: "dashboard-domain.com",
+          id: "item_domain",
+          productId: "prod_domain",
+          productPriceId: "price_domain",
+          totalCents: 1200,
+          type: "DOMAIN",
+          unitAmountCents: 1200
+        },
+        {
+          billingCycle: "MONTHLY",
+          configuration: { domainName: "dashboard-domain.com" },
+          id: "item_hosting",
+          productId: "prod_hosting",
+          productPriceId: "price_hosting",
+          setupFeeCents: 0,
+          type: "SHARED_HOSTING",
+          unitAmountCents: 900
+        }
+      ],
+      userId: "user_1"
+    };
+    const invoiceItems = [{ id: "line_domain" }, { id: "line_hosting" }];
+    const prisma = {
+      domainRecord: {
+        create: async (input: { data: { serviceId?: string } }) => {
+          events.push(`domain:${input.data.serviceId}`);
+          return { id: "dom_1" };
+        }
+      },
+      invoiceItem: {
+        findMany: async () => invoiceItems,
+        update: async (input: { data: { domainRecordId?: string; serviceId?: string; type?: string }; where: { id: string } }) =>
+          events.push(`line:${input.where.id}:${input.data.type}:${input.data.serviceId}:${input.data.domainRecordId ?? "none"}`)
+      },
+      orderItem: {
+        update: async (input: { data: { serviceId?: string }; where: { id: string } }) =>
+          events.push(`item:${input.where.id}:${input.data.serviceId}`)
+      },
+      service: {
+        create: async (input: { data: { orderItemId: string; productId: string } }) => {
+          const id = `svc_${input.data.orderItemId}`;
+          events.push(`service:${id}:${input.data.productId}`);
+          return { id };
+        }
+      },
+      subscription: {
+        create: async (input: { data: { serviceId: string } }) => events.push(`subscription:${input.data.serviceId}`)
+      }
+    };
+    const { OrdersRepository } = await import("../../src/modules/orders/orders.repository");
+    const repository = new OrdersRepository(prisma as never);
+
+    await repository.createPendingEntitiesForOrder(order, "inv_1");
+
+    assert.deepEqual(events, [
+      "service:svc_item_hosting:prod_hosting",
+      "item:item_hosting:svc_item_hosting",
+      "subscription:svc_item_hosting",
+      "line:line_hosting:SERVICE:svc_item_hosting:none",
+      "service:svc_item_domain:prod_domain",
+      "item:item_domain:svc_item_domain",
+      "subscription:svc_item_domain",
+      "domain:svc_item_domain",
+      "line:line_domain:DOMAIN:svc_item_domain:dom_1"
+    ]);
+  });
+
   it("discounts cheap domains when annual hosting is in the same order", async () => {
     const orders = {
       findProduct: async (id: string) => (id === "prod_domain" ? product("prod_domain", "DOMAIN", 1200, "YEAR_1") : product("prod_hosting", "SHARED_HOSTING", 9900, "YEAR_1"))
@@ -487,6 +562,42 @@ describe("OrdersService", () => {
       "item:item_domain:failed:ResellBiz domain registration failed",
       "order:in-progress"
     ]);
+  });
+
+  it("returns after dummy payment and starts paid invoice lifecycle in the background", async () => {
+    const events: string[] = [];
+    const lifecycle = deferred<void>();
+    const order = {
+      id: "ord_async",
+      userId: "user_1",
+      invoiceId: "inv_1",
+      customerSnapshot: customerSnapshot(),
+      items: [{ ...serviceItem("item_hosting", "SHARED_HOSTING"), configuration: { domainName: "async-example.com" } }]
+    };
+    const orders = {
+      findOrderForActivation: async () => order,
+      markOrderPaid: async () => events.push("order:paid"),
+      markOrderInProgress: async () => events.push("order:in-progress")
+    };
+    const billing = {
+      payInvoice: async (_invoiceId: string, _dto: unknown, options?: { processLifecycle?: boolean }) => {
+        events.push(`pay:${options?.processLifecycle}`);
+        return { status: "PAID" };
+      },
+      onInvoicePaid: async () => {
+        events.push("lifecycle:start");
+        await lifecycle.promise;
+        events.push("lifecycle:done");
+      }
+    };
+    const service = new OrdersService(orders as never, billing as never, {} as never, {} as never, {} as never);
+
+    await service.payOrder("ord_async", { method: "CREDIT_CARD", paymentMethodId: "sandbox" });
+
+    assert.deepEqual(events, ["pay:false", "order:paid", "order:in-progress", "lifecycle:start"]);
+    lifecycle.resolve();
+    await flushPromises();
+    assert.deepEqual(events, ["pay:false", "order:paid", "order:in-progress", "lifecycle:start", "lifecycle:done"]);
   });
 
   it("provisions shared hosting through Virtualmin using the selected domain", async () => {

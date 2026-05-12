@@ -93,6 +93,7 @@ function publicUser(user: {
   email: string;
   id: string;
   name: string;
+  balanceCents?: number;
   userRoles?: Array<{ role: { slug: string } }>;
   vatId?: string | null;
 }) {
@@ -104,6 +105,7 @@ function publicUser(user: {
     email: user.email,
     id: user.id,
     name: user.name,
+    balanceCents: user.balanceCents ?? 0,
     phone: contact?.phone,
     vatId: user.vatId,
     roles: user.userRoles?.map((userRole) => userRole.role.slug) ?? []

@@ -247,10 +247,16 @@ export function CheckoutForm({
       storeAuth(auth);
       setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
       notify.info("Sandbox-Zahlung laeuft...");
-      await postJson(`/orders/${checkoutResponse.order.id}/pay`, {
+      const paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutResponse.order.id}/pay`, {
         method: paymentMethod,
         paymentMethodId: "sandbox"
       });
+      const redirectUrl = paymentResponse.paymentRedirectUrl ?? (paymentResponse.invoice as { paymentRedirectUrl?: string } | undefined)?.paymentRedirectUrl;
+      if (redirectUrl) {
+        notify.info("Weiterleitung zum Zahlungsanbieter...");
+        window.location.assign(redirectUrl);
+        return;
+      }
       notify.success("Zahlung erfolgreich.");
       if (items.some((item) => hostingProducts.some((hosting) => hosting.id === item.productId) || product.type === "SHARED_HOSTING")) {
         notify.info("Hosting account is being activated.");

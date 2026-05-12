@@ -57,6 +57,19 @@ export class BillingController {
     return this.billing.payInvoice(id, dto);
   }
 
+  @Post("invoices/:id/confirm-payment")
+  confirmInvoicePayment(@Param("id") id: string) {
+    return this.billing.confirmInvoicePayment(id);
+  }
+
+  @Post("add-funds")
+  addFunds(
+    @Req() request: Request & { user: { sub: string } },
+    @Body() body: { amountCents: number; method: string }
+  ) {
+    return this.billing.addFunds(request.user.sub, body);
+  }
+
   @Roles("admin", "staff")
   @Post("invoices/:id/mark-paid")
   markInvoicePaid(@Param("id") id: string, @Body() body: { actorId?: string }) {

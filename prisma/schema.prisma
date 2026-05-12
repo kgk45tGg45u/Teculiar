@@ -83,6 +83,7 @@ enum PaymentMethodType {
   PAYPAL
   SEPA
   CRYPTO
+  ACCOUNT_BALANCE
 }
 
 enum TransactionStatus {
@@ -190,6 +191,7 @@ model User {
   customerType    CustomerType     @default(INDIVIDUAL)
   countryCode     String           @default("DE")
   vatId           String?
+  balanceCents    Int              @default(0)
   segment         String           @default("standard")
   totpSecret      String?
   totpEnabled     Boolean          @default(false)
