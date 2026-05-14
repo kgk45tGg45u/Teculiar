@@ -6,12 +6,14 @@ import { Button } from "./button";
 
 export function ImageUploader({
   action,
+  accept = "image/png,image/jpeg,image/webp,image/svg+xml",
   headers,
   label,
   name = "image",
   onUploaded,
   previewUrl
 }: {
+  accept?: string;
   action: string;
   headers?: Record<string, string>;
   label: string;
@@ -46,7 +48,7 @@ export function ImageUploader({
 
   return (
     <div>
-      <label>{label}<input accept="image/png,image/jpeg,image/webp,image/svg+xml" name={name} ref={inputRef} type="file" /></label>
+      <label>{label}<input accept={accept} name={name} ref={inputRef} type="file" /></label>
       {previewUrl ? <img alt="" src={previewUrl} style={{ display: "block", maxHeight: 60, maxWidth: 180, objectFit: "contain" }} /> : null}
       <Button icon={Upload} type="button" variant="secondary" onClick={upload}>Upload Image</Button>
       {message ? <small>{message}</small> : null}

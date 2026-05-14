@@ -30,14 +30,17 @@
 }
 
 .categoryBtn {
+  display: inline-flex;
+  align-items: center;
   padding: 7px 14px;
   border: 1px solid var(--border);
-  border-radius: 100px;
+  border-radius: 8px;
   background: var(--paper);
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.15s;
 }
 
@@ -56,11 +59,12 @@
 .postCard {
   display: grid;
   gap: 12px;
-  padding: 28px;
+  padding: 0 0 24px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--paper);
   align-content: start;
+  overflow: hidden;
   text-decoration: none;
   transition: border-color 0.15s;
 }
@@ -72,7 +76,20 @@ a.postCard:hover {
 .postMeta {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding: 0 24px;
+}
+
+.postCard > .postMeta:first-child {
+  padding-top: 24px;
+}
+
+.postImage {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  object-fit: cover;
+  background: var(--surface);
 }
 
 .postCategory {
@@ -90,15 +107,38 @@ a.postCard:hover {
 
 .postCard h2 {
   margin: 0;
+  padding: 0 24px;
   font-size: 1.1rem;
   line-height: 1.35;
 }
 
 .postCard p {
   margin: 0;
+  padding: 0 24px;
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.65;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 24px;
+}
+
+.postHero .tagRow {
+  padding: 0;
+}
+
+.tagRow span,
+.tagRow a {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  text-decoration: none;
 }
 
 .readMore {
@@ -108,7 +148,7 @@ a.postCard:hover {
   font-size: 0.88rem;
   font-weight: 650;
   color: var(--crimson);
-  margin-top: 4px;
+  margin: 4px 24px 0;
 }
 
 /* Newsletter */
@@ -123,8 +163,56 @@ a.postCard:hover {
   gap: 28px;
   padding: 40px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--paper);
+}
+
+.postHero {
+  padding: 82px 0 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.postHero h1 {
+  max-width: 820px;
+  margin: 18px 0 16px;
+  font-size: clamp(2.2rem, 5vw, 4.4rem);
+  line-height: 1;
+}
+
+.postHero p {
+  max-width: 700px;
+  color: var(--muted);
+  font-size: 1.12rem;
+  line-height: 1.65;
+}
+
+.heroImage {
+  aspect-ratio: 16 / 7;
+  border-radius: 8px;
+  margin-top: 28px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.postArticle {
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+.postBody {
+  color: var(--ink);
+  font-size: 1.02rem;
+  line-height: 1.8;
+}
+
+.postBody a {
+  color: var(--crimson);
+}
+
+.postBody img {
+  border-radius: 8px;
+  height: auto;
+  max-width: 100%;
 }
 
 .newsletter svg {

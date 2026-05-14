@@ -1,8 +1,12 @@
 "use client";
 
-import { Bell, CreditCard, FileText, Package, Plus, Save, Trash2 } from "lucide-react";
+import LinkExtension from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, money, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
 import { ImageUploader } from "../ui/image-uploader";
@@ -401,36 +405,75 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
 }
 
 export function AnnouncementForm() {
+  const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
+  const [editing, setEditing] = useState<ApiAnnouncement>();
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function refresh() {
+    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements`, { headers: authHeaders() });
+    const payload = await response.json().catch(() => []);
+    setAnnouncements(Array.isArray(payload) ? payload : []);
+  }
 
   async function submit(formData: FormData) {
     const title = String(formData.get("title") ?? "");
-    const body = String(formData.get("content") ?? "");
-    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements`, {
+    const publishedAt = String(formData.get("publishedAt") ?? "");
+    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements${editing ? `/${editing.id}` : ""}`, {
       body: JSON.stringify({
-        content: { body },
+        body: String(formData.get("body") ?? ""),
         excerpt: String(formData.get("excerpt") ?? ""),
-        locale: "de",
-        slug: String(formData.get("slug") ?? title.toLowerCase().replace(/[^a-z0-9]+/g, "-")),
-        title,
-        type: "POST"
+        locale: String(formData.get("locale") ?? "de"),
+        publishedAt: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString(),
+        title
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      method: "POST"
+      method: editing ? "PATCH" : "POST"
     });
 
-    setMessage(await notifyResponse(response, "Announcement published.", "Announcement failed."));
+    setMessage(await notifyResponse(response, editing ? "Announcement saved." : "Announcement published.", "Announcement failed."));
+    if (response.ok) {
+      setEditing(undefined);
+      await refresh();
+    }
+  }
+
+  async function remove(announcement: ApiAnnouncement) {
+    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements/${announcement.id}`, { headers: authHeaders(), method: "DELETE" });
+    setMessage(await notifyResponse(response, "Announcement deleted.", "Delete failed."));
+    if (response.ok) {
+      await refresh();
+    }
   }
 
   return (
-    <form action={submit} className={styles.form}>
-      <label>Title<input name="title" placeholder="Maintenance window" required /></label>
-      <label>Slug<input name="slug" placeholder="maintenance-window" required /></label>
-      <label>Excerpt<input name="excerpt" placeholder="Short portal message" /></label>
-      <label>Content<textarea name="content" rows={5} placeholder="Full announcement" required /></label>
-      <Button icon={Bell} type="submit">Publish</Button>
-      {message ? <p>{message}</p> : null}
-    </form>
+    <div className={styles.form}>
+      <div className={styles.blogList}>
+        {announcements.map((announcement) => (
+          <article key={announcement.id}>
+            <div>
+              <strong>{announcement.title}</strong>
+              <span>{announcement.locale ?? "de"} / {dateTimeLabel(announcement.publishedAt ?? announcement.createdAt)}</span>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => setEditing(announcement)}>Edit</Button>
+            <Button type="button" variant="ghost" onClick={() => remove(announcement)}>Delete</Button>
+          </article>
+        ))}
+      </div>
+      <form action={submit} className={styles.form} key={editing?.id ?? "new-announcement"}>
+        <label>Title<input defaultValue={editing?.title ?? ""} name="title" placeholder="Maintenance window" required /></label>
+        <label>Locale<select defaultValue={editing?.locale ?? "de"} name="locale"><option value="de">German</option><option value="en">English</option></select></label>
+        <label>Date and time<input defaultValue={datetimeLocal(editing?.publishedAt)} name="publishedAt" type="datetime-local" /></label>
+        <label>Excerpt<input defaultValue={editing?.excerpt ?? ""} name="excerpt" placeholder="Short portal message" /></label>
+        <label>Content<textarea defaultValue={editing?.body ?? ""} name="body" rows={5} placeholder="Short announcement" required /></label>
+        <Button icon={Bell} type="submit">{editing ? "Save Announcement" : "Publish Announcement"}</Button>
+        {editing ? <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>New Announcement</Button> : null}
+        {message ? <p>{message}</p> : null}
+      </form>
+    </div>
   );
 }
 
@@ -611,12 +654,17 @@ export function PaymentGatewayForm() {
 
 export function BlogManager() {
   const [editing, setEditing] = useState<ApiBlogPost>();
+  const [featureImage, setFeatureImage] = useState("");
   const [message, setMessage] = useState("");
   const [posts, setPosts] = useState<ApiBlogPost[]>([]);
 
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    setFeatureImage(editing?.featureImage ?? editing?.content?.featureImage ?? editing?.content?.images?.[0] ?? "");
+  }, [editing]);
 
   async function refresh() {
     const response = await fetch(`${API_BASE_URL}/cms/admin/dev/posts`, { headers: authHeaders() });
@@ -627,18 +675,15 @@ export function BlogManager() {
   async function submit(formData: FormData) {
     const title = String(formData.get("title") ?? "");
     const body = String(formData.get("content") ?? "");
+    const uploadedImage = String(formData.get("featureImage") ?? "").trim();
     const content = {
-      aiBrief: {
-        audience: String(formData.get("aiAudience") ?? ""),
-        goal: String(formData.get("aiGoal") ?? ""),
-        internalLinks: String(formData.get("aiInternalLinks") ?? ""),
-        tone: String(formData.get("aiTone") ?? ""),
-        topics: String(formData.get("aiTopics") ?? "")
-      },
       body,
-      images: splitLines(formData.get("images")),
-      keywords: splitComma(formData.get("keywords")),
-      published: formData.get("published") === "on"
+      category: String(formData.get("category") ?? "").trim(),
+      featureImage: uploadedImage,
+      images: uploadedImage ? [uploadedImage] : [],
+      postType: "manual",
+      published: formData.get("published") === "on",
+      tags: splitComma(formData.get("tags"))
     };
     const response = await fetch(`${API_BASE_URL}/cms/${editing ? `pages/${editing.id}` : "posts"}`, {
       body: JSON.stringify({
@@ -670,39 +715,46 @@ export function BlogManager() {
     }
   }
 
+  const categories = Array.from(new Set(posts.map((post) => post.category ?? post.content?.category).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+
   return (
     <div className={styles.form}>
       <div className={styles.blogList}>
-        {posts.map((post) => (
+        {posts.length ? posts.map((post) => (
           <article key={post.id}>
             <div>
-              <strong>{post.title}</strong>
-              <span>{post.locale} / {post.slug} / {post.publishedAt ? "published" : "draft"}</span>
+              <a href={`/${post.locale}/blog/${post.slug}`}><strong>{post.title}</strong></a>
+              <span>{post.locale} / {post.slug} / {post.category ?? post.content?.category ?? "uncategorized"} / {post.publishedAt ? "published" : "draft"}</span>
+              {(post.tags ?? post.content?.tags ?? []).length ? <small>{(post.tags ?? post.content?.tags ?? []).join(", ")}</small> : null}
             </div>
             <Button type="button" variant="secondary" onClick={() => setEditing(post)}>Edit</Button>
             <Button type="button" variant="ghost" onClick={() => remove(post)}>Delete</Button>
           </article>
-        ))}
+        )) : <p>No blog posts yet.</p>}
       </div>
       <form action={submit} className={styles.form} key={editing?.id ?? "new-blog"}>
         <label>Title<input defaultValue={editing?.title ?? ""} name="title" required /></label>
         <label>Slug<input defaultValue={editing?.slug ?? ""} name="slug" placeholder="managed-hosting-security" /></label>
         <label>Locale<select defaultValue={editing?.locale ?? "de"} name="locale"><option value="de">German</option><option value="en">English</option></select></label>
-        <label>Keywords<input defaultValue={editing?.content?.keywords?.join(", ") ?? ""} name="keywords" placeholder="hosting, email, security" /></label>
+        <ImageUploader
+          accept="image/png,image/jpeg,image/webp"
+          action={`${API_BASE_URL}/cms/admin/dev/blog-assets`}
+          headers={authHeaders()}
+          label="Feature photo"
+          onUploaded={(payload) => setFeatureImage(String(payload.imageUrl ?? ""))}
+          previewUrl={featureImage}
+        />
+        <label>Feature photo URL<input name="featureImage" onChange={(event) => setFeatureImage(event.target.value)} required value={featureImage} /></label>
+        <label>Category<input defaultValue={editing?.category ?? editing?.content?.category ?? ""} list="blog-categories" name="category" placeholder="Hosting" required /></label>
+        <datalist id="blog-categories">
+          {categories.map((category) => <option key={category} value={category} />)}
+        </datalist>
+        <label>Tags<input defaultValue={(editing?.tags ?? editing?.content?.tags ?? editing?.content?.keywords ?? []).join(", ")} name="tags" placeholder="hosting, email, security" /></label>
         <label><input defaultChecked={Boolean(editing?.publishedAt ?? editing?.content?.published)} name="published" type="checkbox" /> Published</label>
         <label>Excerpt<input defaultValue={editing?.excerpt ?? ""} name="excerpt" /></label>
-        <label>Images<textarea defaultValue={editing?.content?.images?.join("\n") ?? ""} name="images" placeholder="https://..." rows={3} /></label>
         <RichTextEditor initialValue={editing?.content?.body ?? ""} />
-        <section className={styles.aiBox}>
-          <h3>AI article brief</h3>
-          <p>Planned AI fields for automatic articles: target area, audience, tone, SEO keywords, internal links, article length, publishing status, image direction, review owner, and schedule.</p>
-          <label>Topics / areas<input defaultValue={String(editing?.content?.aiBrief?.topics ?? "")} name="aiTopics" placeholder="hosting security, email setup, domains" /></label>
-          <label>Goal<input defaultValue={String(editing?.content?.aiBrief?.goal ?? "")} name="aiGoal" placeholder="educate, sell, compare, announce" /></label>
-          <label>Audience<input defaultValue={String(editing?.content?.aiBrief?.audience ?? "")} name="aiAudience" placeholder="small business owners" /></label>
-          <label>Tone<input defaultValue={String(editing?.content?.aiBrief?.tone ?? "")} name="aiTone" placeholder="clear, expert, friendly" /></label>
-          <label>Internal links<input defaultValue={String(editing?.content?.aiBrief?.internalLinks ?? "")} name="aiInternalLinks" placeholder="/de/hosting, /de/domains" /></label>
-        </section>
         <Button icon={Save} type="submit">{editing ? "Update Article" : "Create Article"}</Button>
+        {editing ? <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>New Post</Button> : null}
         {message ? <p>{message}</p> : null}
       </form>
     </div>
@@ -711,15 +763,53 @@ export function BlogManager() {
 
 function RichTextEditor({ initialValue }: { initialValue: string }) {
   const [value, setValue] = useState(initialValue);
+  const editor = useEditor({
+    content: initialValue || "",
+    editorProps: {
+      attributes: {
+        class: styles.editor ?? "",
+        dir: "ltr",
+        lang: "de"
+      }
+    },
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3] }
+      }),
+      LinkExtension.configure({
+        autolink: true,
+        defaultProtocol: "https",
+        openOnClick: false
+      }),
+      Placeholder.configure({
+        placeholder: "Write the blog article here."
+      })
+    ],
+    immediatelyRender: false,
+    onUpdate: ({ editor: currentEditor }) => setValue(currentEditor.getHTML())
+  });
 
   useEffect(() => {
     setValue(initialValue);
-  }, [initialValue]);
+    if (editor && editor.getHTML() !== initialValue) {
+      editor.commands.setContent(initialValue || "", { emitUpdate: false });
+    }
+  }, [editor, initialValue]);
 
-  function command(name: string, argument?: string) {
-    document.execCommand(name, false, argument);
-    const editor = document.querySelector<HTMLElement>("[data-blog-editor]");
-    setValue(editor?.innerHTML ?? "");
+  function setLink() {
+    if (!editor) {
+      return;
+    }
+    const current = editor.getAttributes("link").href as string | undefined;
+    const url = window.prompt("Link URL", current ?? "https://");
+    if (url === null) {
+      return;
+    }
+    if (!url.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
   }
 
   return (
@@ -728,25 +818,15 @@ function RichTextEditor({ initialValue }: { initialValue: string }) {
       <input name="content" type="hidden" value={value} />
       <div className={styles.editorShell}>
         <div className={styles.editorToolbar}>
-          <button type="button" onClick={() => command("formatBlock", "h2")}>H2</button>
-          <button type="button" onClick={() => command("bold")}>Bold</button>
-          <button type="button" onClick={() => command("italic")}>Italic</button>
-          <button type="button" onClick={() => command("insertUnorderedList")}>List</button>
-          <button type="button" onClick={() => {
-            const url = window.prompt("Link URL");
-            if (url) {
-              command("createLink", url);
-            }
-          }}>Link</button>
+          <button aria-label="Heading" className={editor?.isActive("heading", { level: 2 }) ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></button>
+          <button aria-label="Bold" className={editor?.isActive("bold") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
+          <button aria-label="Italic" className={editor?.isActive("italic") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
+          <button aria-label="Bullet list" className={editor?.isActive("bulletList") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
+          <button aria-label="Link" className={editor?.isActive("link") ? styles.activeTool : ""} type="button" onClick={setLink}><LinkIcon size={16} /></button>
+          <button aria-label="Undo" type="button" onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
+          <button aria-label="Redo" type="button" onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
         </div>
-        <div
-          className={styles.editor}
-          contentEditable
-          data-blog-editor
-          dangerouslySetInnerHTML={{ __html: value }}
-          onInput={(event) => setValue(event.currentTarget.innerHTML)}
-          suppressContentEditableWarning
-        />
+        <EditorContent dir="ltr" editor={editor} />
       </div>
     </label>
   );
@@ -850,6 +930,15 @@ function splitComma(value: FormDataEntryValue | null) {
 
 function splitLines(value: FormDataEntryValue | null) {
   return String(value ?? "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+}
+
+function datetimeLocal(value?: string | null) {
+  const date = value ? new Date(value) : new Date();
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function dateTimeLabel(value?: string | null) {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
 }
 
 function slugify(value: string) {

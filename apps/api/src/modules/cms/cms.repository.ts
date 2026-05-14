@@ -1,7 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { ContentType, Locale, Prisma, TranslationStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { CreateAnnouncementDto } from "./dto/create-announcement.dto";
 import { CreateContentDto } from "./dto/create-content.dto";
+import { UpdateAnnouncementDto } from "./dto/update-announcement.dto";
+
+type BlogFilters = {
+  tag?: string;
+};
 
 @Injectable()
 export class CmsRepository {
@@ -14,25 +20,55 @@ export class CmsRepository {
     });
   }
 
-  listPosts(locale: string) {
-    return this.prisma.content.findMany({
-      where: { type: "POST", locale: locale as Locale, publishedAt: { not: null } },
+  async findPublishedPost(locale: string, slug: string) {
+    const post = await this.prisma.content.findFirst({
+      where: {
+        NOT: { slug: { startsWith: "announcement-" } },
+        locale: localeFrom(locale),
+        publishedAt: { lte: new Date() },
+        slug,
+        type: "POST"
+      }
+    });
+    return post ? normalizeBlogPost(post) : null;
+  }
+
+  async listPosts(locale: string, filters: BlogFilters = {}) {
+    const rows = await this.prisma.content.findMany({
+      where: {
+        NOT: { slug: { startsWith: "announcement-" } },
+        type: "POST",
+        locale: localeFrom(locale),
+        publishedAt: { lte: new Date() }
+      },
       orderBy: { publishedAt: "desc" }
     });
+
+    const posts = rows.map(normalizeBlogPost);
+    const tag = filters.tag?.trim().toLowerCase();
+    return tag ? posts.filter((post) => post.tags.some((item) => item.toLowerCase() === tag)) : posts;
   }
 
-  listAdminPosts() {
-    return this.prisma.content.findMany({
-      where: { type: "POST" },
+  async listPostTags(locale: string) {
+    const posts = await this.listPosts(locale);
+    return Array.from(new Set(posts.flatMap((post) => post.tags))).sort((a, b) => a.localeCompare(b));
+  }
+
+  async listAdminPosts() {
+    const rows = await this.prisma.content.findMany({
+      where: {
+        NOT: { slug: { startsWith: "announcement-" } },
+        type: "POST"
+      },
       orderBy: { updatedAt: "desc" }
     });
+    return rows.map(normalizeBlogPost);
   }
 
-  listAnnouncements(locale: string) {
-    return this.prisma.content.findMany({
-      where: { type: "POST", locale: locale as Locale, slug: { startsWith: "announcement-" }, publishedAt: { not: null } },
+  listAdminAnnouncements() {
+    return this.prisma.announcement.findMany({
       orderBy: { publishedAt: "desc" },
-      take: 5
+      take: 100
     });
   }
 
@@ -41,7 +77,7 @@ export class CmsRepository {
       data: {
         ...dto,
         type: dto.type as ContentType,
-        locale: dto.locale as Locale,
+        locale: localeFrom(dto.locale),
         content: dto.content as Prisma.InputJsonValue,
         authorId,
         publishedAt: (dto.content as { published?: boolean }).published || dto.type === "LEGAL" ? new Date() : null
@@ -49,34 +85,90 @@ export class CmsRepository {
     });
   }
 
-  async createAnnouncement(dto: CreateContentDto) {
-    const author = await this.prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
-    if (!author) {
-      throw new Error("Create one admin/user before writing announcements");
-    }
-
-    return this.prisma.content.create({
+  createAnnouncement(dto: CreateAnnouncementDto, authorId: string) {
+    return this.prisma.announcement.create({
       data: {
-        ...dto,
-        type: "POST",
-        locale: dto.locale as Locale,
-        slug: dto.slug.startsWith("announcement-") ? dto.slug : `announcement-${dto.slug}`,
-        content: dto.content as Prisma.InputJsonValue,
-        authorId: author.id,
-        publishedAt: new Date()
+        authorId,
+        body: dto.body,
+        excerpt: dto.excerpt,
+        locale: localeFrom(dto.locale),
+        publishedAt: dto.publishedAt ? new Date(dto.publishedAt) : new Date(),
+        title: dto.title
       }
     });
   }
 
-  updateContent(id: string, dto: Partial<CreateContentDto>) {
+  updateAnnouncement(id: string, dto: UpdateAnnouncementDto) {
+    return this.prisma.announcement.update({
+      where: { id },
+      data: {
+        body: dto.body,
+        excerpt: dto.excerpt,
+        locale: dto.locale ? localeFrom(dto.locale) : undefined,
+        publishedAt: dto.publishedAt ? new Date(dto.publishedAt) : undefined,
+        title: dto.title
+      }
+    });
+  }
+
+  deleteAnnouncement(id: string) {
+    return this.prisma.announcement.delete({ where: { id } });
+  }
+
+  async listClientAnnouncements(userId: string, locale: string) {
+    const rows = await this.prisma.announcement.findMany({
+      where: {
+        locale: localeFrom(locale),
+        publishedAt: { lte: new Date() },
+        reads: { none: { hiddenAt: { not: null }, userId } }
+      },
+      include: { reads: { where: { userId }, take: 1 } },
+      orderBy: { publishedAt: "desc" },
+      take: 10
+    });
+
+    return rows.map((row) => {
+      const read = row.reads[0];
+      const { reads: _reads, ...announcement } = row;
+      return {
+        ...announcement,
+        hiddenAt: read?.hiddenAt ?? null,
+        isRead: Boolean(read?.readAt),
+        readAt: read?.readAt ?? null
+      };
+    });
+  }
+
+  markAnnouncementRead(announcementId: string, userId: string) {
+    return this.prisma.announcementRead.upsert({
+      where: { announcementId_userId: { announcementId, userId } },
+      create: { announcementId, userId },
+      update: { readAt: new Date() }
+    });
+  }
+
+  hideAnnouncement(announcementId: string, userId: string) {
+    const now = new Date();
+    return this.prisma.announcementRead.upsert({
+      where: { announcementId_userId: { announcementId, userId } },
+      create: { announcementId, hiddenAt: now, readAt: now, userId },
+      update: { hiddenAt: now, readAt: now }
+    });
+  }
+
+  async updateContent(id: string, dto: Partial<CreateContentDto>) {
+    const current = await this.prisma.content.findUnique({ where: { id }, select: { publishedAt: true } });
+    const content = dto.content as { published?: boolean } | undefined;
+    const changesPublishedState = content && Object.prototype.hasOwnProperty.call(content, "published");
+
     return this.prisma.content.update({
       where: { id },
       data: {
         ...dto,
         type: dto.type ? (dto.type as ContentType) : undefined,
-        locale: dto.locale ? (dto.locale as Locale) : undefined,
+        locale: dto.locale ? localeFrom(dto.locale) : undefined,
         content: dto.content ? (dto.content as Prisma.InputJsonValue) : undefined,
-        publishedAt: dto.content && "published" in dto.content ? (dto.content.published ? new Date() : null) : undefined
+        publishedAt: changesPublishedState ? (content?.published ? current?.publishedAt ?? new Date() : null) : undefined
       }
     });
   }
@@ -119,4 +211,33 @@ export class CmsRepository {
       }
     });
   }
+}
+
+function localeFrom(value?: string) {
+  return value === "en" ? Locale.en : Locale.de;
+}
+
+function normalizeBlogPost<T extends { content: Prisma.JsonValue }>(post: T) {
+  const content = isRecord(post.content) ? post.content : {};
+  const tags = stringArray(content.tags);
+  const fallbackTags = tags.length ? tags : stringArray(content.keywords);
+  const featureImage = stringValue(content.featureImage) ?? stringArray(content.images)[0] ?? null;
+  return {
+    ...post,
+    category: stringValue(content.category),
+    featureImage,
+    tags: fallbackTags
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()) : [];
 }

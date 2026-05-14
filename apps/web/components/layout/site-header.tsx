@@ -1,9 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, Globe } from "lucide-react";
+import { ArrowRight, Globe, Menu } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
-import { Button } from "../ui/button";
-import { ThemeToggle } from "../ui/theme-toggle";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
@@ -14,6 +12,15 @@ type SiteHeaderProps = {
 export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
   const copy = dictionary[locale];
   const base = `/${locale}`;
+  const navLinks = [
+    { href: `${base}/webhosting`, label: copy.nav.hosting },
+    { href: `${base}/domains`, label: copy.nav.domains },
+    { href: `${base}/it-losungen`, label: copy.nav.vps },
+    { href: `${base}/webdesign`, label: copy.nav.webdesign },
+    { href: `${base}/blog`, label: copy.nav.blog },
+    { href: `${base}/uber-uns`, label: copy.nav.about },
+    { href: `${base}/kontakt`, label: copy.nav.contact }
+  ];
 
   return (
     <header className={styles.header}>
@@ -23,20 +30,27 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          <Link href={`${base}/webhosting` as Route}>{copy.nav.hosting}</Link>
-          <Link href={`${base}/domains` as Route}>{copy.nav.domains}</Link>
-          <Link href={`${base}/it-losungen` as Route}>{copy.nav.vps}</Link>
-          <Link href={`${base}/webdesign` as Route}>{copy.nav.webdesign}</Link>
-          <Link href={`${base}/blog` as Route}>{copy.nav.blog}</Link>
-          <Link href={`${base}/uber-uns` as Route}>{copy.nav.about}</Link>
-          <Link href={`${base}/kontakt` as Route}>{copy.nav.contact}</Link>
+          {navLinks.map((link) => (
+            <Link href={link.href as Route} key={link.href}>{link.label}</Link>
+          ))}
         </nav>
 
         <div className={styles.actions}>
-          <ThemeToggle />
-          <Button href="/client" icon={ArrowRight} variant="secondary">
+          <Link className={styles.clientLogin} href="/client">
             {copy.nav.client}
-          </Button>
+            <ArrowRight aria-hidden size={14} />
+          </Link>
+          <details className={styles.mobileMenu}>
+            <summary aria-label="Menu">
+              <Menu aria-hidden size={18} />
+              <span>Menu</span>
+            </summary>
+            <nav className={styles.mobileNav} aria-label="Mobile primary">
+              {navLinks.map((link) => (
+                <Link href={link.href as Route} key={link.href}>{link.label}</Link>
+              ))}
+            </nav>
+          </details>
         </div>
       </div>
     </header>

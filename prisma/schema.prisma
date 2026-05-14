@@ -212,6 +212,8 @@ model User {
   ticketReplies   TicketReply[]
   internalNotes   TicketInternalNote[]
   contents        Content[]
+  announcements   Announcement[]
+  announcementReads AnnouncementRead[]
   emailLogs       EmailLog[]
   affiliate       Affiliate?
   gdprRequests    GdprRequest[]
@@ -847,6 +849,35 @@ model Content {
   translations   Translation[]
 
   @@unique([type, locale, slug])
+}
+
+model Announcement {
+  id          String             @id @default(cuid())
+  locale      Locale             @default(de)
+  title       String
+  excerpt     String?
+  body        String
+  authorId    String
+  publishedAt DateTime           @default(now())
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  author      User               @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  reads       AnnouncementRead[]
+
+  @@index([locale, publishedAt])
+}
+
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+  hiddenAt       DateTime?
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId, hiddenAt])
 }
 
 model Translation {

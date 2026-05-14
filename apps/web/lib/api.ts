@@ -171,25 +171,39 @@ export type ApiActionLog = {
 };
 
 export type ApiAnnouncement = {
+  body?: string;
   id: string;
+  hiddenAt?: string | null;
+  isRead?: boolean;
+  locale?: string;
+  publishedAt?: string;
+  readAt?: string | null;
   title: string;
   excerpt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type ApiBlogPost = {
+  category?: string | null;
   content?: {
     aiBrief?: Record<string, unknown>;
     body?: string;
+    category?: string;
+    featureImage?: string;
     images?: string[];
     keywords?: string[];
+    postType?: "manual" | "ai" | string;
     published?: boolean;
+    tags?: string[];
   };
   excerpt?: string | null;
+  featureImage?: string | null;
   id: string;
   locale: string;
   publishedAt?: string | null;
   slug: string;
+  tags?: string[];
   title: string;
   updatedAt?: string;
 };

@@ -221,6 +221,7 @@ function BlogPanel() {
           <span className="eyebrow">CMS</span>
           <h2>Blog Articles</h2>
         </div>
+        <Button href="/admin/blog/new" variant="secondary">New Post</Button>
       </div>
       <BlogManager />
     </section>
@@ -455,7 +456,7 @@ function AnnouncementsPanel() {
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">Announcements</span>
-          <h2>Write Announcement</h2>
+          <h2>Client Announcements</h2>
         </div>
       </div>
       <AnnouncementForm />

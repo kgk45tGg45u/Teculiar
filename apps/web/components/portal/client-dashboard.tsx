@@ -173,7 +173,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
     fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/storefront/settings`).then(json).then((payload) => payload?.siteLogoUrl && setBrandLogo(payload.siteLogoUrl)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/cms/announcements`).then(json).then((payload) => payload?.length && setAnnouncements(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/cms/announcements`, { headers }).then(json).then((payload) => Array.isArray(payload) && setAnnouncements(payload)).catch(() => undefined);
   }, []);
 
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
@@ -236,7 +236,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
           </a>
         </section>
 
-        {(view === "dashboard" || view === "services") && !serviceId ? <Announcements announcements={announcements} /> : null}
+        {(view === "dashboard" || view === "services") && !serviceId ? <Announcements announcements={announcements} setAnnouncements={setAnnouncements} /> : null}
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={serviceRows} /> : null}
         {view === "domains" ? <DomainsTable domains={domainRows} /> : null}
         {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
@@ -252,7 +252,27 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   );
 }
 
-function Announcements({ announcements }: { announcements: ApiAnnouncement[] }) {
+function Announcements({
+  announcements,
+  setAnnouncements
+}: {
+  announcements: ApiAnnouncement[];
+  setAnnouncements: (updater: (items: ApiAnnouncement[]) => ApiAnnouncement[]) => void;
+}) {
+  async function markRead(item: ApiAnnouncement) {
+    const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/read`, { headers: authHeaders("client"), method: "POST" });
+    if (response.ok) {
+      setAnnouncements((items) => items.map((row) => row.id === item.id ? { ...row, isRead: true, readAt: new Date().toISOString() } : row));
+    }
+  }
+
+  async function hide(item: ApiAnnouncement) {
+    const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/hide`, { headers: authHeaders("client"), method: "POST" });
+    if (response.ok) {
+      setAnnouncements((items) => items.filter((row) => row.id !== item.id));
+    }
+  }
+
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
@@ -264,7 +284,21 @@ function Announcements({ announcements }: { announcements: ApiAnnouncement[] }) 
       <div className={styles.tableWrap}>
         <table className="table">
           <tbody>
-            {announcements.length ? announcements.map((item) => <tr key={item.id}><td><strong>{item.title}</strong><br />{item.excerpt ?? ""}</td></tr>) : <tr><td>Noch keine Announcements.</td></tr>}
+            {announcements.length ? announcements.map((item) => (
+              <tr key={item.id}>
+                <td>
+                  <strong>{item.title}</strong> {item.isRead ? <span>Read</span> : null}
+                  <br />
+                  {announcementDateLabel(item.publishedAt ?? item.createdAt)}
+                  {item.excerpt ? <><br />{item.excerpt}</> : null}
+                  {item.body ? <><br />{item.body}</> : null}
+                </td>
+                <td>
+                  <Button type="button" variant="secondary" onClick={() => markRead(item)}>Mark Read</Button>
+                  <Button type="button" variant="ghost" onClick={() => hide(item)}>Hide</Button>
+                </td>
+              </tr>
+            )) : <tr><td>Noch keine Announcements.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -895,6 +929,10 @@ function titleFor(view: ClientView) {
 
 function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
+}
+
+function announcementDateLabel(value?: string | null) {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
 }
 
 function serviceName(service: ApiService) {

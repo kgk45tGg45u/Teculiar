@@ -1,16 +1,29 @@
 import Link from "next/link";
 import type { Route } from "next";
+import type { Metadata } from "next";
 import { ArrowRight, BookOpen, Mail } from "lucide-react";
 import { apiGet, type ApiBlogPost } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./blog.module.css";
 
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale: rawLocale } = await params;
+  const locale = getLocale(rawLocale);
+  return {
+    description: locale === "de"
+      ? "Artikel ueber Hosting, Domains, Datenschutz, WordPress und digitale Werkzeuge."
+      : "Articles about hosting, domains, privacy, WordPress, and digital tools.",
+    title: locale === "de" ? "Blog | Dezhost" : "Blog | Dezhost"
+  };
+}
+
 export default async function BlogPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
   const posts = (await apiGet<ApiBlogPost[]>(`/cms/posts?locale=${locale}`)) ?? [];
+  const tags = (await apiGet<string[]>(`/cms/post-tags?locale=${locale}`)) ?? [];
 
   const categories = isDe
     ? ["Alle", "Vereinsdigitalisierung", "Domains & E-Mail", "Datenschutz", "WordPress", "Nextcloud", "Linux & Hosting", "KI für Organisationen", "Tutorials", "Open Source"]
@@ -62,10 +75,16 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
       <section className={`section tight ${styles.categoriesSection}`}>
         <div className="container">
           <div className={styles.categories}>
-            {categories.map((cat) => (
-              <button className={styles.categoryBtn} key={cat} type="button">
+            {tags.length ? (
+              tags.map((tag) => (
+                <Link className={styles.categoryBtn} href={`/${locale}/blog/tag/${encodeURIComponent(tag)}` as Route} key={tag}>
+                  {tag}
+                </Link>
+              ))
+            ) : categories.map((cat) => (
+              <span className={styles.categoryBtn} key={cat}>
                 {cat}
-              </button>
+              </span>
             ))}
           </div>
         </div>
@@ -76,18 +95,29 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
         <div className="container">
           {posts.length > 0 ? (
             <div className={styles.postGrid}>
-              {posts.map((post) => (
-                <Link className={styles.postCard} href={`/${locale}/blog/${post.slug}` as Route} key={post.id}>
-                  <div className={styles.postMeta}>
-                    <span className={styles.postCategory}>Blog</span>
-                  </div>
-                  <h2>{post.title}</h2>
-                  <p>{post.excerpt ?? (isDe ? "Artikel lesen." : "Read article.")}</p>
-                  <span className={styles.readMore}>
-                    {isDe ? "Weiterlesen" : "Read more"} <ArrowRight aria-hidden size={14} />
-                  </span>
-                </Link>
-              ))}
+              {posts.map((post) => {
+                const featureImage = post.featureImage ?? post.content?.featureImage ?? post.content?.images?.[0];
+                const postTags = post.tags ?? post.content?.tags ?? [];
+                return (
+                  <Link className={styles.postCard} href={`/${locale}/blog/${post.slug}` as Route} key={post.id}>
+                    {featureImage ? <img alt="" className={styles.postImage} src={featureImage} /> : null}
+                    <div className={styles.postMeta}>
+                      <span className={styles.postCategory}>{post.category ?? post.content?.category ?? "Blog"}</span>
+                      <span className={styles.postDate}>{dateLabel(post.publishedAt)}</span>
+                    </div>
+                    <h2>{post.title}</h2>
+                    <p>{post.excerpt ?? (isDe ? "Artikel lesen." : "Read article.")}</p>
+                    {postTags.length ? (
+                      <div className={styles.tagRow}>
+                        {postTags.map((tag) => <span key={tag}>{tag}</span>)}
+                      </div>
+                    ) : null}
+                    <span className={styles.readMore}>
+                      {isDe ? "Weiterlesen" : "Read more"} <ArrowRight aria-hidden size={14} />
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           ) : displayPosts ? (
             <div className={styles.postGrid}>
@@ -130,4 +160,8 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
       </section>
     </>
   );
+}
+
+function dateLabel(value?: string | null) {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "";
 }

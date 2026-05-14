@@ -1,6 +1,6 @@
 # Project Agent Instructions
 
-- Answer in Caveman full: short, plain, useful.
+- Answer in Caveman 'ultra' skill': short, useful.
 - Keep files small so reading and editing stays cheap.
 - Write tests first, before implementation.
 - Prefer focused tests that cover different code paths.

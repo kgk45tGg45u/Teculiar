@@ -1,11 +1,14 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CmsService } from "./cms.service";
 import { AutoTranslateDto } from "./dto/auto-translate.dto";
+import { CreateAnnouncementDto } from "./dto/create-announcement.dto";
 import { CreateContentDto } from "./dto/create-content.dto";
+import { UpdateAnnouncementDto } from "./dto/update-announcement.dto";
 
 @Controller("cms")
 export class CmsController {
@@ -21,8 +24,18 @@ export class CmsController {
   }
 
   @Get("posts")
-  listPosts(@Query("locale") locale = "de") {
-    return this.cms.listPosts(locale);
+  listPosts(@Query("locale") locale = "de", @Query("tag") tag?: string) {
+    return this.cms.listPosts(locale, { tag });
+  }
+
+  @Get("posts/:locale/:slug")
+  getPost(@Param("locale") locale: string, @Param("slug") slug: string) {
+    return this.cms.findPost(locale, slug);
+  }
+
+  @Get("post-tags")
+  listPostTags(@Query("locale") locale = "de") {
+    return this.cms.listPostTags(locale);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,16 +45,58 @@ export class CmsController {
     return this.cms.listAdminPosts();
   }
 
-  @Get("announcements")
-  listAnnouncements(@Query("locale") locale = "de") {
-    return this.cms.listAnnouncements(locale);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Get("admin/dev/announcements")
+  listAdminAnnouncements() {
+    return this.cms.listAdminAnnouncements();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "editor")
   @Post("admin/dev/announcements")
-  createAnnouncement(@Req() request: Request & { user: { sub: string } }, @Body() dto: CreateContentDto) {
-    return this.cms.createContent({ ...dto, type: "POST" }, request.user.sub);
+  createAnnouncement(@Req() request: Request & { user: { sub: string } }, @Body() dto: CreateAnnouncementDto) {
+    return this.cms.createAnnouncement(dto, request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Patch("admin/dev/announcements/:id")
+  updateAnnouncement(@Param("id") id: string, @Body() dto: UpdateAnnouncementDto) {
+    return this.cms.updateAnnouncement(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Delete("admin/dev/announcements/:id")
+  deleteAnnouncement(@Param("id") id: string) {
+    return this.cms.deleteAnnouncement(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("announcements")
+  listAnnouncements(@Req() request: Request & { user: { sub: string } }, @Query("locale") locale = "de") {
+    return this.cms.listClientAnnouncements(request.user.sub, locale);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("announcements/:id/read")
+  markAnnouncementRead(@Req() request: Request & { user: { sub: string } }, @Param("id") id: string) {
+    return this.cms.markAnnouncementRead(id, request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("announcements/:id/hide")
+  hideAnnouncement(@Req() request: Request & { user: { sub: string } }, @Param("id") id: string) {
+    return this.cms.hideAnnouncement(id, request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Post("admin/dev/blog-assets")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadBlogAsset(@UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    return this.cms.uploadBlogAsset(file);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { ArrowRight, Globe } from "lucide-react";
 import type { Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
+import { ThemeToggle } from "../ui/theme-toggle";
 import styles from "./site-footer.module.css";
 
 export function SiteFooter({ brandLogo, locale }: { brandLogo?: string; locale: Locale }) {
@@ -103,6 +104,9 @@ export function SiteFooter({ brandLogo, locale }: { brandLogo?: string; locale: 
           <span className={styles.tagline}>
             {isDe ? "Hosting mit Haltung. Gemacht in Deutschland." : "Hosting with values. Made in Germany."}
           </span>
+          <div className={styles.footerTools}>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </footer>

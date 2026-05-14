@@ -106,8 +106,19 @@ Lifecycle notes:
 - `GET /cms/pages/:locale/:slug`
 - `POST /cms/pages`
 - `PATCH /cms/pages/:id`
-- `GET /cms/posts`
+- `GET /cms/posts?locale=de&tag=hosting` - published blog posts, newest first. Optional tag filter powers tag archive pages.
+- `GET /cms/posts/:locale/:slug` - published blog post detail.
+- `GET /cms/post-tags?locale=de` - unique published blog tags.
 - `POST /cms/posts`
+- `GET /cms/admin/dev/posts` - guarded admin blog list.
+- `POST /cms/admin/dev/blog-assets` - guarded blog image upload. Stores PNG/JPG/WebP under `apps/web/public/uploads/blog`.
+- `GET /cms/admin/dev/announcements` - guarded admin announcement list.
+- `POST /cms/admin/dev/announcements` - guarded admin announcement create.
+- `PATCH /cms/admin/dev/announcements/:id` - guarded admin announcement update.
+- `DELETE /cms/admin/dev/announcements/:id` - guarded admin announcement delete.
+- `GET /cms/announcements` - client announcement list for the authenticated client, excluding hidden rows.
+- `POST /cms/announcements/:id/read` - mark one announcement read for the authenticated client.
+- `POST /cms/announcements/:id/hide` - hide one announcement for the authenticated client.
 - `POST /cms/translations/auto`
 - `PATCH /cms/translations/:id/manual-override`
 

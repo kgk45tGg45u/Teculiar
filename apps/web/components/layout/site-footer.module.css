@@ -108,6 +108,11 @@
   font-style: italic;
 }
 
+.footerTools {
+  display: inline-flex;
+  margin-left: auto;
+}
+
 @media (max-width: 900px) {
   .top {
     grid-template-columns: 1fr;
@@ -127,5 +132,10 @@
   .bottom {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .footerTools {
+    margin-left: 0;
+    padding-top: 4px;
   }
 }
