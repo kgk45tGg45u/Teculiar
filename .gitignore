@@ -10,4 +10,4 @@ coverage
 generated
 prisma/migrations/dev
 .npm-cache
-
+.agents
