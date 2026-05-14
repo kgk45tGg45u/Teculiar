@@ -21,8 +21,8 @@ export class OrdersController {
   }
 
   @Get("domains/search")
-  searchDomain(@Query("domain") domain: string) {
-    return this.orders.searchDomain(domain);
+  searchDomain(@Query("domain") domain: string, @Query("years") years?: string) {
+    return this.orders.searchDomain(domain, years);
   }
 
   @Post("orders/preview")
@@ -60,7 +60,7 @@ export class OrdersController {
   @Roles("admin", "staff")
   @Post("orders/admin/domain-prices")
   upsertDomainPrice(
-    @Body() body: { action: string; amountCents: number; manual?: boolean; suggested?: boolean; tld: string; years: number }
+    @Body() body: { action: string; amountCents?: number; manual?: boolean; suggested?: boolean; tld: string; years: number }
   ) {
     return this.orders.upsertDomainPrice(body);
   }

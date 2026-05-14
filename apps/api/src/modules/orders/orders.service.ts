@@ -35,7 +35,7 @@ export class OrdersService {
     return this.domainPricing.listStoredPrices();
   }
 
-  upsertDomainPrice(input: { action: string; amountCents: number; manual?: boolean; suggested?: boolean; tld: string; years: number }) {
+  upsertDomainPrice(input: { action: string; amountCents?: number; manual?: boolean; suggested?: boolean; tld: string; years: number }) {
     return this.domainPricing.upsertStoredPrice(input);
   }
 
@@ -43,16 +43,17 @@ export class OrdersService {
     return this.domainPricing.syncFromResellBiz(customerId);
   }
 
-  async searchDomain(domain: string) {
+  async searchDomain(domain: string, yearsInput?: string | number) {
     if (!this.domainAvailability) {
       throw new BadRequestException("Domain availability service is not configured");
     }
 
+    const years = normalizedDomainYears(yearsInput);
     const availability = await this.domainAvailability.check(domain);
     const products = await this.orders.listHomepageProducts();
     const domainProduct = products.find((product) => product.type === "DOMAIN") ?? (await this.orders.findProductByType("DOMAIN"));
-    const fallbackCents = domainProduct?.prices[0]?.amountCents ?? 0;
-    const price = await this.domainPricing.priceFor(domain, fallbackCents, availability.available ? "register" : "transfer");
+    const fallbackCents = domainProductFallbackCents(domainProduct, years);
+    const price = await this.domainPricing.priceFor(domain, fallbackCents, availability.available ? "register" : "transfer", years);
 
     const suggestions = await this.suggestedDomainResults(domain, availability.tld, domainProduct?.id, fallbackCents);
 
@@ -143,9 +144,9 @@ export class OrdersService {
         billingCycle: item.billingCycle,
         description: item.description,
         lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
-        quantity: 1,
+        quantity: invoiceLineQuantity(item),
         type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
-        unitAmountCents: item.totalCents
+        unitAmountCents: invoiceLineUnitAmount(item)
       })),
       orderSnapshot: {
         items: preview.items,
@@ -206,9 +207,9 @@ export class OrdersService {
         billingCycle: item.billingCycle,
         description: item.description,
         lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
-        quantity: 1,
+        quantity: invoiceLineQuantity(item),
         type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
-        unitAmountCents: item.totalCents
+        unitAmountCents: invoiceLineUnitAmount(item)
       })),
       orderSnapshot: {
         adminNotes: dto.notes,
@@ -343,10 +344,17 @@ export class OrdersService {
       throw new NotFoundException("Product not found");
     }
 
+    const configuration = item.configuration ?? {};
+    const requestedCycle = product.type === "DOMAIN" ? requestedDomainCycle(configuration) : undefined;
     const configuredPrice = item.productPriceId
       ? product.prices.find((candidate) => candidate.id === item.productPriceId)
       : product.prices[0];
+    const requestedPrice = requestedCycle
+      ? product.prices.find((candidate) => candidate.billingCycle === requestedCycle) ??
+        (await this.orders.findDomainProductPrice(product.id, requestedCycle))
+      : undefined;
     const price =
+      requestedPrice ??
       configuredPrice ??
       (product.type === "DOMAIN"
         ? await this.orders.findDomainProductPrice(product.id, requestedDomainCycle(item.configuration) ?? "YEAR_1")
@@ -355,8 +363,8 @@ export class OrdersService {
       throw new BadRequestException(`No active price for ${product.name}`);
     }
 
-    const quantity = item.quantity ?? 1;
-    const configuration = item.configuration ?? {};
+    let quantity = item.quantity ?? 1;
+    const billingCycle = requestedCycle ?? price.billingCycle;
     let unitAmountCents = price.amountCents;
     let description = product.name;
 
@@ -365,14 +373,16 @@ export class OrdersService {
         throw new BadRequestException("Domain orders need a domain name");
       }
       const action = domainAction(configuration) === "transfer" ? "transfer" : "register";
-      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action, yearsFromCycle(price.billingCycle));
+      const years = yearsFromCycle(billingCycle);
+      const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action, years);
       unitAmountCents = livePrice.amountCents;
+      quantity = years;
       description = `${item.domainName} domain ${action}`;
       configuration.domainPricing = livePrice;
     }
 
     return {
-      billingCycle: price.billingCycle,
+      billingCycle,
       configuration,
       description,
       domainName: item.domainName,
@@ -619,6 +629,14 @@ function applyFreeDomainDiscount(items: PricedOrderItem[]) {
   });
 }
 
+function invoiceLineQuantity(item: PricedOrderItem) {
+  return item.setupFeeCents > 0 ? 1 : item.quantity;
+}
+
+function invoiceLineUnitAmount(item: PricedOrderItem) {
+  return item.setupFeeCents > 0 ? item.totalCents : item.unitAmountCents;
+}
+
 function hostingOptions(configuration: unknown, customerSnapshot?: unknown) {
   const config = isRecord(configuration) ? configuration : {};
   const customer = isRecord(customerSnapshot) ? customerSnapshot : {};
@@ -660,18 +678,25 @@ function yearsFromCycle(cycle: string) {
   return Number(cycle.match(/^YEAR_(\d+)$/)?.[1] ?? 1);
 }
 
+function normalizedDomainYears(value?: string | number) {
+  const years = typeof value === "number" ? value : Number.parseInt(String(value ?? "1"), 10);
+  return Number.isFinite(years) && years > 0 ? years : 1;
+}
+
+function domainProductFallbackCents(product: { prices?: Array<{ amountCents: number; billingCycle: string }> } | null | undefined, years: number) {
+  const cycle = `YEAR_${years}`;
+  return product?.prices?.find((price) => price.billingCycle === cycle)?.amountCents ?? product?.prices?.[0]?.amountCents ?? 0;
+}
+
 function nextBillingDate(date: Date, cycle: string) {
   const next = new Date(date);
+  const yearly = cycle.match(/^YEAR_(\d+)$/);
   const months = {
     MONTHLY: 1,
     QUARTERLY: 3,
-    SEMI_ANNUAL: 6,
-    YEAR_1: 12,
-    YEAR_2: 24,
-    YEAR_3: 36,
-    YEAR_4: 48
+    SEMI_ANNUAL: 6
   }[cycle];
-  next.setMonth(next.getMonth() + (months ?? 12));
+  next.setMonth(next.getMonth() + (yearly ? Number(yearly[1]) * 12 : months ?? 12));
   return next;
 }
 

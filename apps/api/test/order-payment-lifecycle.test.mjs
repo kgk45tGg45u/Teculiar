@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { OrdersService } from "../dist/modules/orders/orders.service.js";
 import { BillingService } from "../dist/modules/billing/billing.service.js";
 import { AbstractPaymentService } from "../dist/modules/billing/processors/abstract-payment.service.js";
+import { DomainPricingService } from "../dist/modules/orders/domain-pricing.service.js";
 
 const customer = {
   address: { city: "Berlin", line1: "Example Str. 1", postalCode: "10115" },
@@ -219,6 +220,126 @@ test("checkout API requests include auth headers when present", async () => {
   const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /headers: \{ \.\.\.authHeaders\(\), "Content-Type": "application\/json" \}/);
+});
+
+test("domain prices use matching year row as yearly unit and multiply by years", async () => {
+  const calls = [];
+  const orders = {
+    findProduct: async () => ({
+      id: "domain-product",
+      name: "Domain",
+      prices: [
+        { amountCents: 900, billingCycle: "YEAR_1", id: "domain-year-1", setupFeeCents: 0 },
+        { amountCents: 1000, billingCycle: "YEAR_2", id: "domain-year-2", setupFeeCents: 0 }
+      ],
+      type: "DOMAIN"
+    })
+  };
+  const domainPricing = {
+    priceFor: async (domain, fallbackCents, action, years) => {
+      calls.push([domain, fallbackCents, action, years]);
+      return { amountCents: 1100, source: "live", tld: "com" };
+    }
+  };
+  const service = new OrdersService(orders, { vatPercent: async () => 0 }, {}, {}, domainPricing);
+
+  const preview = await service.previewOrder({
+    items: [{
+      configuration: { billingCycle: "YEAR_2", domainAction: "register" },
+      domainName: "example.com",
+      productId: "domain-product",
+      productPriceId: "domain-year-2",
+      quantity: 1
+    }]
+  });
+
+  assert.deepEqual(calls, [["example.com", 1000, "register", 2]]);
+  assert.equal(preview.items[0].quantity, 2);
+  assert.equal(preview.items[0].unitAmountCents, 1100);
+  assert.equal(preview.items[0].totalCents, 2200);
+  assert.equal(preview.subtotalCents, 2200);
+});
+
+test("domain pricing honors requested billing cycle when product price id is only a fallback", async () => {
+  const calls = [];
+  const orders = {
+    findProduct: async () => ({
+      id: "domain-product",
+      name: "Domain",
+      prices: [
+        { amountCents: 900, billingCycle: "YEAR_1", id: "domain-year-1", setupFeeCents: 0 }
+      ],
+      type: "DOMAIN"
+    }),
+    findDomainProductPrice: async () => null
+  };
+  const domainPricing = {
+    priceFor: async (domain, fallbackCents, action, years) => {
+      calls.push([domain, fallbackCents, action, years]);
+      return { amountCents: 1200, source: "live", tld: "com" };
+    }
+  };
+  const service = new OrdersService(orders, { vatPercent: async () => 0 }, {}, {}, domainPricing);
+
+  const preview = await service.previewOrder({
+    items: [{
+      configuration: { billingCycle: "YEAR_3", domainAction: "register" },
+      domainName: "example.com",
+      productId: "domain-product",
+      productPriceId: "domain-year-1",
+      quantity: 1
+    }]
+  });
+
+  assert.deepEqual(calls, [["example.com", 900, "register", 3]]);
+  assert.equal(preview.items[0].billingCycle, "YEAR_3");
+  assert.equal(preview.items[0].quantity, 3);
+  assert.equal(preview.items[0].totalCents, 3600);
+});
+
+test("suggested-only domain price markers do not become zero live prices", async () => {
+  const prisma = {
+    $queryRaw: async () => [{ amountCents: 0 }]
+  };
+  const service = new DomainPricingService(prisma);
+
+  const price = await service.priceFor("example.com", 1500, "register", 1);
+
+  assert.equal(price.amountCents, 1500);
+  assert.equal(price.source, "fallback");
+});
+
+test("admin can save suggested TLD without manual amount", async () => {
+  const calls = [];
+  const prisma = {
+    $executeRaw: async (strings, ...values) => {
+      calls.push({ sql: Array.from(strings).join("?"), values });
+    }
+  };
+  const service = new DomainPricingService(prisma);
+
+  await service.upsertStoredPrice({ action: "register", suggested: true, tld: "app", years: 1 });
+
+  assert.equal(calls.length, 1);
+  assert.ok(!calls[0].values.includes(undefined));
+  assert.doesNotMatch(calls[0].sql, /"amountCents" = EXCLUDED\."amountCents"/);
+});
+
+test("checkout summary multiplies selected domain year price by selected years", async () => {
+  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /function domainUnitPriceCents/);
+  assert.match(source, /domainYears \* domainUnitPrice/);
+  assert.match(source, /price\.billingCycle === cycle/);
+});
+
+test("checkout domain year dropdown comes from positive TLD registration prices", async () => {
+  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /getJson<ApiDomainPrice\[\]>\("\/storefront\/domain-prices"\)/);
+  assert.match(source, /function domainSelectablePrices/);
+  assert.match(source, /price\.amountCents > 0/);
+  assert.match(source, /priceKey\(price\)/);
 });
 
 function pricedHostingItem() {

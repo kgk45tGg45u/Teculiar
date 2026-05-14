@@ -63,7 +63,7 @@ export class DomainPricingService {
 
   async upsertStoredPrice(input: {
     action: string;
-    amountCents: number;
+    amountCents?: number;
     manual?: boolean;
     suggested?: boolean;
     tld: string;
@@ -73,10 +73,28 @@ export class DomainPricingService {
       return undefined;
     }
     const tld = normalizeTld(input.tld);
+    const years = normalizeYears(input.years);
+    const amountCents = normalizeAmountCents(input.amountCents);
+
+    if (amountCents === undefined && input.suggested) {
+      await this.prisma.$executeRaw`
+        INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
+        VALUES (${randomUUID()}, ${tld}, ${input.action}, ${years}, 0, 'EUR', false, true, NOW(), NOW())
+        ON CONFLICT ("tld", "action", "years") DO UPDATE SET
+          "suggested" = true,
+          "updatedAt" = NOW()
+      `;
+
+      return { ...input, amountCents: 0, manual: false, suggested: true, tld, years };
+    }
+
+    if (amountCents === undefined) {
+      throw new Error("Domain price amount is required unless only marking a TLD as suggested.");
+    }
 
     await this.prisma.$executeRaw`
       INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
-      VALUES (${randomUUID()}, ${tld}, ${input.action}, ${input.years}, ${input.amountCents}, 'EUR', ${Boolean(input.manual)}, ${Boolean(input.suggested)}, NOW(), NOW())
+      VALUES (${randomUUID()}, ${tld}, ${input.action}, ${years}, ${amountCents}, 'EUR', ${Boolean(input.manual)}, ${Boolean(input.suggested)}, NOW(), NOW())
       ON CONFLICT ("tld", "action", "years") DO UPDATE SET
         "amountCents" = EXCLUDED."amountCents",
         "manual" = EXCLUDED."manual",
@@ -84,7 +102,7 @@ export class DomainPricingService {
         "updatedAt" = NOW()
     `;
 
-    return { ...input, tld };
+    return { ...input, amountCents, tld, years };
   }
 
   async listStoredPrices() {
@@ -136,11 +154,12 @@ export class DomainPricingService {
     const rows = await this.prisma.$queryRaw<Array<{ amountCents: number }>>`
       SELECT "amountCents"
       FROM "DomainTldPrice"
-      WHERE "tld" = ${tld} AND "action" = ${action} AND "years" = ${years}
+      WHERE "tld" = ${tld} AND "action" = ${action} AND "years" = ${years} AND "amountCents" > 0
       LIMIT 1
     `;
 
-    return rows[0]?.amountCents;
+    const amountCents = rows[0]?.amountCents;
+    return amountCents && amountCents > 0 ? amountCents : undefined;
   }
 
   private async replaceStoredPrices(prices: ResellBizDomainPrice[]) {
@@ -175,4 +194,25 @@ function normalizeTld(input: string) {
   }
 
   return tld;
+}
+
+function normalizeYears(input: number) {
+  const years = Number(input);
+  if (!Number.isInteger(years) || years < 1) {
+    throw new Error("Domain price years must be a positive integer");
+  }
+
+  return years;
+}
+
+function normalizeAmountCents(input?: number) {
+  if (input === undefined || input === null) {
+    return undefined;
+  }
+  const amountCents = Number(input);
+  if (!Number.isFinite(amountCents) || amountCents < 0) {
+    throw new Error("Domain price amount must be zero or more");
+  }
+
+  return Math.round(amountCents);
 }

@@ -158,7 +158,7 @@ function DomainPricesPanel({ prices }: { prices: ApiDomainPrice[] }) {
                 <td>.{price.tld}</td>
                 <td>{price.action}</td>
                 <td>{price.years}</td>
-                <td>{money(price.amountCents, price.currency)}</td>
+                <td>{price.amountCents > 0 ? money(price.amountCents, price.currency) : "Resell.biz"}</td>
                 <td>{price.manual ? "yes" : "no"}</td>
                 <td>{price.suggested ? "yes" : "no"}</td>
                 <td>{dateLabel(price.updatedAt)}</td>

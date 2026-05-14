@@ -21,7 +21,7 @@ export default function DomainPricingPage() {
     fetch(`${API_BASE_URL}/storefront/domain-prices`)
       .then((r) => r.ok ? r.json() : [])
       .then((data: ApiDomainPrice[]) => {
-        setPrices(Array.isArray(data) ? data : []);
+        setPrices(Array.isArray(data) ? data.filter((price) => price.amountCents > 0) : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));

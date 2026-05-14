@@ -16,17 +16,14 @@ export function formatTemporaryInvoiceNumber(next: number, prefix = "N-") {
 
 export function addBillingCycle(date: Date, cycle: string) {
   const next = new Date(date);
+  const yearly = cycle.match(/^YEAR_(\d+)$/);
   const months = {
     MONTHLY: 1,
     QUARTERLY: 3,
-    SEMI_ANNUAL: 6,
-    YEAR_1: 12,
-    YEAR_2: 24,
-    YEAR_3: 36,
-    YEAR_4: 48
+    SEMI_ANNUAL: 6
   }[cycle];
 
-  next.setMonth(next.getMonth() + (months ?? 1));
+  next.setMonth(next.getMonth() + (yearly ? Number(yearly[1]) * 12 : months ?? 1));
   return next;
 }
 

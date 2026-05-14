@@ -836,11 +836,13 @@ export function DomainPriceForm() {
   const [message, setMessage] = useState("");
 
   async function submit(formData: FormData) {
+    const amount = String(formData.get("amount") ?? "").trim();
+    const amountCents = amount ? Math.round(Number(amount) * 100) : undefined;
     const response = await fetch(`${API_BASE_URL}/orders/admin/domain-prices`, {
       body: JSON.stringify({
         action: String(formData.get("action") ?? "register"),
-        amountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
-        manual: formData.get("manual") === "on",
+        ...(amountCents === undefined ? {} : { amountCents }),
+        manual: amountCents === undefined ? false : formData.get("manual") === "on",
         suggested: formData.get("suggested") === "on",
         tld: String(formData.get("tld") ?? ""),
         years: Number(formData.get("years") ?? 1)
@@ -863,7 +865,7 @@ export function DomainPriceForm() {
         </select>
       </label>
       <label>Years<input defaultValue="1" min="1" name="years" type="number" /></label>
-      <label>Price EUR<input name="amount" placeholder="12.90" required step="0.01" type="number" /></label>
+      <label>Price EUR<input name="amount" placeholder="blank = Resell.biz price" step="0.01" type="number" /></label>
       <label><input defaultChecked name="manual" type="checkbox" /> Manual price</label>
       <label><input name="suggested" type="checkbox" /> Suggested TLD</label>
       <Button icon={Save} type="submit">Save Price</Button>

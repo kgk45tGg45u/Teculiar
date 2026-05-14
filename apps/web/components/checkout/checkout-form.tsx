@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
+import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
@@ -55,11 +55,10 @@ export function CheckoutForm({
   locale,
   product
 }: CheckoutFormProps) {
-  const selectablePrices = useMemo(
-    () => (product.type === "DOMAIN" ? product.prices.filter((price) => price.billingCycle.startsWith("YEAR_")) : product.prices),
-    [product.prices, product.type]
-  );
-  const [priceId, setPriceId] = useState(selectablePrices[0]?.id ?? "");
+  const firstPrice = product.type === "DOMAIN"
+    ? product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0]
+    : product.prices[0];
+  const [priceSelection, setPriceSelection] = useState(firstPrice ? priceSelectionKey(firstPrice, product.type) : "");
   const [paymentMethod, setPaymentMethod] = useState("CREDIT_CARD");
   const [domainUse, setDomainUse] = useState<"register" | "transfer" | "external">(initialDomainAction);
   const [password, setPassword] = useState("");
@@ -77,12 +76,18 @@ export function CheckoutForm({
   const [selectedHostingPriceId, setSelectedHostingPriceId] = useState(hostingProducts[0]?.prices[0]?.id ?? "");
   const [phoneCountryCode, setPhoneCountryCode] = useState(splitProfilePhone().countryCode);
   const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(defaultPaymentGateways);
+  const [domainPrices, setDomainPrices] = useState<ApiDomainPrice[]>([]);
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: "idle" });
   const [vatPercent, setVatPercent] = useState(0);
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
+  const domainPriceAction = domainCheck.status === "ok" ? domainCheck.action : initialDomainAction;
+  const selectablePrices = useMemo(
+    () => (product.type === "DOMAIN" ? domainSelectablePrices(product, domainPrices, domainNameInput, domainPriceAction) : product.prices),
+    [domainNameInput, domainPriceAction, domainPrices, product]
+  );
   const selectedPrice = useMemo(
-    () => selectablePrices.find((price) => price.id === priceId) ?? selectablePrices[0],
-    [priceId, selectablePrices]
+    () => selectablePrices.find((price) => priceSelectionKey(price, product.type) === priceSelection) ?? selectablePrices[0],
+    [priceSelection, product.type, selectablePrices]
   );
   const selectedHosting = useMemo(
     () => hostingProducts.find((candidate) => candidate.id === selectedHostingId) ?? hostingProducts[0],
@@ -125,15 +130,18 @@ export function CheckoutForm({
           setPaymentGateways(next);
           setPaymentMethod(next[0]?.method ?? "CREDIT_CARD");
         })
+        .catch(() => undefined),
+      getJson<ApiDomainPrice[]>("/storefront/domain-prices")
+        .then((prices) => setDomainPrices(Array.isArray(prices) ? prices : []))
         .catch(() => undefined)
     ]);
   }, []);
 
   useEffect(() => {
-    if (!selectablePrices.some((price) => price.id === priceId)) {
-      setPriceId(selectablePrices[0]?.id ?? "");
+    if (!selectablePrices.some((price) => priceSelectionKey(price, product.type) === priceSelection)) {
+      setPriceSelection(selectablePrices[0] ? priceSelectionKey(selectablePrices[0], product.type) : "");
     }
-  }, [priceId, selectablePrices]);
+  }, [priceSelection, product.type, selectablePrices]);
 
   useEffect(() => {
     if (initialDomain) {
@@ -205,9 +213,10 @@ export function CheckoutForm({
 
     const resolvedHostingDomainUse = hostingDomainUse(domainUse, domainCheck, hostingDomainName);
     if (needsHostingDomain && domainProduct && resolvedHostingDomainUse !== "external" && hostingDomainName) {
-      const domainPrice = yearlyPrice(domainProduct);
+      const domainPrice = priceForCycle(domainProduct, selectedPrice?.billingCycle);
       items.push({
         configuration: {
+          billingCycle: selectedPrice?.billingCycle,
           domainAction: resolvedHostingDomainUse,
           transferAuthCode: String(formData.get("hostingTransferAuthCode") ?? "")
         },
@@ -289,8 +298,9 @@ export function CheckoutForm({
     setDomainCheck({ status: "loading" });
     notify.info("Domainpruefung laeuft...");
     try {
+      const years = yearsFromCycle(selectedPrice?.billingCycle);
       const result = await getJson<{ action: "register" | "transfer"; available: boolean; domain: string; price: { amountCents: number } }>(
-        `/domains/search?domain=${encodeURIComponent(clean)}`
+        `/domains/search?domain=${encodeURIComponent(clean)}&years=${years}`
       );
       setDomainUse(result.available ? "register" : "transfer");
       setDomainCheck({
@@ -342,10 +352,20 @@ export function CheckoutForm({
           <div className={styles.billingCycleRow}>
             <label className={styles.fieldLabel}>
               Abrechnungszeitraum
-              <select className={styles.cycleSelect} value={priceId} onChange={(event) => setPriceId(event.target.value)}>
+              <select
+                className={styles.cycleSelect}
+                value={priceSelection}
+                onChange={(event) => {
+                  setPriceSelection(event.target.value);
+                  if (domainCheck.status === "ok") {
+                    setDomainCheck({ status: "idle" });
+                  }
+                }}
+              >
                 {selectablePrices.map((price) => (
-                  <option key={price.id} value={price.id}>
+                  <option key={priceSelectionKey(price, product.type)} value={priceSelectionKey(price, product.type)}>
                     {cycleLabel(price.billingCycle)}
+                    {product.type === "DOMAIN" && price.amountCents > 0 ? ` — ${money(price.amountCents, price.currency)}` : ""}
                     {product.type === "DOMAIN" ? "" : ` — ${money(price.amountCents, price.currency)}`}
                   </option>
                 ))}
@@ -808,8 +828,51 @@ function shuffle(values: string[]) {
     .map((item) => item.value);
 }
 
-function yearlyPrice(product: ApiProduct) {
-  return product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0];
+function priceSelectionKey(price: ApiProduct["prices"][number], productType: string) {
+  return productType === "DOMAIN" ? priceKey(price) : price.id;
+}
+
+function priceKey(price: ApiProduct["prices"][number]) {
+  return price.billingCycle;
+}
+
+function domainSelectablePrices(product: ApiProduct, prices: ApiDomainPrice[], domain: string, action: "register" | "transfer") {
+  const productYearPrices = product.prices
+    .filter((price) => price.billingCycle.startsWith("YEAR_"))
+    .sort((a, b) => yearsFromCycle(a.billingCycle) - yearsFromCycle(b.billingCycle));
+  const fallbackPrice = productYearPrices[0] ?? product.prices[0];
+  const tld = domainTld(domain);
+  const tldPrices = tld
+    ? prices
+        .filter((price) => price.tld === tld && price.action === action && price.amountCents > 0 && price.years > 0)
+        .sort((a, b) => a.years - b.years)
+    : [];
+
+  if (!fallbackPrice) {
+    return [];
+  }
+  if (tldPrices.length === 0) {
+    return productYearPrices;
+  }
+
+  return tldPrices.map((domainPrice) => {
+    const billingCycle = `YEAR_${domainPrice.years}`;
+    const productPrice = productYearPrices.find((price) => price.billingCycle === billingCycle) ?? fallbackPrice;
+    return {
+      ...productPrice,
+      amountCents: domainPrice.amountCents,
+      billingCycle,
+      currency: domainPrice.currency ?? productPrice.currency
+    };
+  });
+}
+
+function priceForCycle(product: ApiProduct, cycle?: string) {
+  if (cycle?.startsWith("YEAR_")) {
+    return product.prices.find((price) => price.billingCycle === cycle) ?? product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0];
+  }
+
+  return product.prices.find((price) => price.billingCycle === "YEAR_1") ?? product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0];
 }
 
 function focusByName(name: string) {
@@ -885,15 +948,13 @@ function orderSummary(input: {
   const lines: Array<{ amountCents: number; detail?: string; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
 
   if (input.needsDomain) {
-    const domainPrice =
-      input.domainCheck.status === "ok"
-        ? input.domainCheck.priceCents
-        : input.product.minimumPriceCents ?? input.selectedPrice?.amountCents ?? 0;
+    const domainYears = yearsFromCycle(input.selectedPrice?.billingCycle);
+    const domainUnitPrice = domainUnitPriceCents(input.domainCheck, input.selectedPrice, input.product.minimumPriceCents);
     lines.push({
-      amountCents: domainPrice,
+      amountCents: domainYears * domainUnitPrice,
       id: "domain",
       kind: "domain",
-      detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} Jahr${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "e"}`,
+      detail: `${domainYears} Jahr${domainYears === 1 ? "" : "e"} · ${money(domainUnitPrice)} / Jahr`,
       label: `${input.domainName || "Domain"} ${input.domainCheck.status === "ok" ? input.domainCheck.action : "registration"}`
     });
     if (input.addHosting && input.selectedHosting && input.selectedHostingPrice) {
@@ -916,13 +977,14 @@ function orderSummary(input: {
     });
     const domainUse = hostingDomainUse(input.domainUse, input.domainCheck, input.hostingDomain);
     if (input.needsHostingDomain && domainUse !== "external" && input.domainProduct) {
-      const domainPrice = input.domainCheck.status === "ok" ? input.domainCheck.priceCents : input.domainProduct.minimumPriceCents ?? 0;
-      const free = input.selectedPrice?.billingCycle.startsWith("YEAR_") && domainPrice <= 1500;
+      const domainYears = yearsFromCycle(input.selectedPrice?.billingCycle);
+      const domainUnitPrice = domainUnitPriceCents(input.domainCheck, priceForCycle(input.domainProduct, input.selectedPrice?.billingCycle), input.domainProduct.minimumPriceCents);
+      const free = input.selectedPrice?.billingCycle.startsWith("YEAR_") && domainUnitPrice <= 1500;
       lines.push({
-        amountCents: free ? 0 : domainPrice,
+        amountCents: free ? 0 : domainYears * domainUnitPrice,
         id: "domain-addon",
         kind: "domainAddon",
-        detail: `${yearsFromCycle(input.selectedPrice?.billingCycle)} Jahr${yearsFromCycle(input.selectedPrice?.billingCycle) === 1 ? "" : "e"}`,
+        detail: `${domainYears} Jahr${domainYears === 1 ? "" : "e"} · ${money(domainUnitPrice)} / Jahr`,
         label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (kostenlos)" : ""}`,
         removable: true
       });
@@ -940,6 +1002,10 @@ function orderSummary(input: {
   };
 }
 
+function domainUnitPriceCents(domainCheck: DomainCheck, price?: ApiProduct["prices"][number], minimumPriceCents?: number) {
+  return domainCheck.status === "ok" ? domainCheck.priceCents : price && price.amountCents > 0 ? price.amountCents : minimumPriceCents ?? 0;
+}
+
 function productDetails(product?: ApiProduct) {
   return (product?.configs ?? [])
     .filter((config) => !config.key.startsWith("virtualmin_"))
@@ -950,6 +1016,11 @@ function productDetails(product?: ApiProduct) {
 function yearsFromCycle(cycle?: string) {
   const match = cycle?.match(/^YEAR_(\d+)$/);
   return match ? Number(match[1]) : 1;
+}
+
+function domainTld(domain: string) {
+  const parts = domain.trim().toLowerCase().split(".").filter(Boolean);
+  return parts.length > 1 ? parts.slice(1).join(".") : undefined;
 }
 
 function hostingDomainUse(domainUse: "external" | "register" | "transfer", domainCheck: DomainCheck, hostingDomain: string) {

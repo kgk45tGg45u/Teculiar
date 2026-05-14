@@ -277,11 +277,11 @@ function productPrices(dto: CreateProductDto) {
   }
 
   if (dto.type === "DOMAIN") {
-    return [
-      { amountCents: 0, billingCycle: "YEAR_1", setupFeeCents: 0 },
-      { amountCents: 0, billingCycle: "YEAR_2", setupFeeCents: 0 },
-      { amountCents: 0, billingCycle: "YEAR_3", setupFeeCents: 0 }
-    ];
+    return Array.from({ length: 10 }, (_, index) => ({
+      amountCents: 0,
+      billingCycle: `YEAR_${index + 1}`,
+      setupFeeCents: 0
+    }));
   }
 
   if (!dto.billingCycle || dto.amountCents === undefined) {
