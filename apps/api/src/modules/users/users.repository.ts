@@ -20,6 +20,18 @@ export class UsersRepository {
     });
   }
 
+  createAuditLog(input: { action: string; actorId?: string; metadata?: Record<string, unknown>; subject: string; subjectId?: string }) {
+    return this.prisma.auditLog.create({
+      data: {
+        action: input.action,
+        actorId: input.actorId,
+        metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
+        subject: input.subject,
+        subjectId: input.subjectId
+      }
+    });
+  }
+
   createUser(input: {
     countryCode?: string;
     customerType?: "INDIVIDUAL" | "BUSINESS";
@@ -42,6 +54,21 @@ export class UsersRepository {
           }
         }
       },
+      select: { email: true, id: true }
+    });
+  }
+
+  findOrCreatePendingCheckoutUser() {
+    return this.prisma.user.upsert({
+      where: { email: pendingCheckoutEmail },
+      create: {
+        countryCode: "DE",
+        customerType: "BUSINESS",
+        email: pendingCheckoutEmail,
+        name: "Pending storefront checkout",
+        passwordHash: "pending-checkout-system-user"
+      },
+      update: {},
       select: { email: true, id: true }
     });
   }
@@ -321,3 +348,5 @@ const clientSelect = {
   userRoles: { select: { role: { select: { slug: true } } } },
   vatId: true
 };
+
+const pendingCheckoutEmail = "pending-checkout@dezhost.local";

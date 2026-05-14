@@ -112,6 +112,48 @@ export class BillingRepository {
     });
   }
 
+  async listLogs(limit = 100) {
+    const take = Math.min(Math.max(Number.isFinite(limit) ? Math.trunc(limit) : 100, 1), 500);
+    const [auditLogs, moduleLogs] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        include: { actor: { select: { email: true, id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+        take
+      }),
+      this.prisma.moduleLog.findMany({
+        orderBy: { createdAt: "desc" },
+        take
+      })
+    ]);
+
+    return [
+      ...auditLogs.map((log) => ({
+        action: log.action,
+        actor: log.actor,
+        createdAt: log.createdAt,
+        id: log.id,
+        message: undefined,
+        metadata: log.metadata,
+        source: "audit",
+        status: "RECORDED",
+        subject: log.subject,
+        subjectId: log.subjectId
+      })),
+      ...moduleLogs.map((log) => ({
+        action: log.action,
+        actor: undefined,
+        createdAt: log.createdAt,
+        id: log.id,
+        message: log.errorMessage,
+        metadata: { request: log.request, response: log.response },
+        source: "module",
+        status: log.status,
+        subject: log.domainRecordId ? "domain" : log.serviceId ? "service" : "module",
+        subjectId: log.domainRecordId ?? log.serviceId ?? log.id
+      }))
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, take);
+  }
+
   findInvoice(id: string) {
     return this.prisma.invoice.findUnique({
       where: { id },
@@ -160,6 +202,76 @@ export class BillingRepository {
         paidAt: new Date(),
         status: "PAID"
       }
+    });
+  }
+
+  async finalizeFundsDepositInvoice(id: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+    if (!invoice) {
+      throw new Error("Invoice not found");
+    }
+    if (invoice.status === "PAID" && invoice.finalInvoiceNumber) {
+      return invoice;
+    }
+
+    const finalInvoiceNumber = formatFinalInvoiceNumber(await this.nextInvoiceCounter("invoiceFinalCounter", 100001));
+    return this.prisma.$transaction(async (tx) => {
+      const paid = await tx.invoice.create({
+        data: {
+          adminNotes: invoice.adminNotes,
+          couponId: invoice.couponId,
+          currency: invoice.currency,
+          customerSnapshot: invoice.customerSnapshot as Prisma.InputJsonValue,
+          discountCents: invoice.discountCents,
+          dueAt: invoice.dueAt,
+          finalInvoiceNumber,
+          finalizedAt: new Date(),
+          footerLines: invoice.footerLines as Prisma.InputJsonValue,
+          invoiceNumber: finalInvoiceNumber,
+          issuedAt: invoice.issuedAt,
+          orderSnapshot: invoice.orderSnapshot as Prisma.InputJsonValue,
+          paidAt: new Date(),
+          reverseCharge: invoice.reverseCharge,
+          sellerSnapshot: invoice.sellerSnapshot as Prisma.InputJsonValue,
+          status: "PAID",
+          subtotalCents: invoice.subtotalCents,
+          taxAmountCents: invoice.taxAmountCents,
+          taxReason: invoice.taxReason,
+          teamId: invoice.teamId,
+          totalCents: invoice.totalCents,
+          userId: invoice.userId,
+          items: {
+            create: invoice.items.map((item) => ({
+              billingCycle: item.billingCycle,
+              description: item.description,
+              discountCents: item.discountCents,
+              domainRecordId: item.domainRecordId,
+              lifecycleAction: item.lifecycleAction,
+              metadata: item.metadata as Prisma.InputJsonValue,
+              orderItemId: item.orderItemId,
+              quantity: item.quantity,
+              serviceId: item.serviceId,
+              servicePeriodEnd: item.servicePeriodEnd,
+              servicePeriodStart: item.servicePeriodStart,
+              subtotalCents: item.subtotalCents,
+              taxAmountCents: item.taxAmountCents,
+              taxRate: item.taxRate,
+              totalCents: item.totalCents,
+              type: item.type,
+              unitAmountCents: item.unitAmountCents
+            }))
+          }
+        },
+        include: { items: true }
+      });
+
+      await tx.transaction.updateMany({ where: { invoiceId: id }, data: { invoiceId: paid.id } });
+      await tx.invoice.delete({ where: { id } });
+
+      return paid;
     });
   }
 
@@ -275,6 +387,25 @@ export class BillingRepository {
     });
   }
 
+  automaticPayableInvoices(now = new Date()) {
+    return this.prisma.invoice.findMany({
+      where: { dueAt: { lte: now }, status: { in: ["UNPAID", "OVERDUE"] }, totalCents: { gt: 0 } },
+      include: {
+        transactions: true,
+        user: {
+          select: {
+            balanceCents: true,
+            paymentMethods: {
+              where: { automatic: true, status: "VALID", verifiedAt: { not: null } },
+              orderBy: [{ default: "desc" }, { createdAt: "desc" }]
+            }
+          }
+        }
+      },
+      orderBy: { issuedAt: "asc" }
+    });
+  }
+
   debitUserBalance(userId: string, amountCents: number) {
     return this.prisma.user.updateMany({
       where: { id: userId, balanceCents: { gte: amountCents } },
@@ -374,6 +505,92 @@ export class BillingRepository {
       where: { id: userId },
       data: { balanceCents: { increment: amountCents } },
       select: { balanceCents: true, id: true }
+    });
+  }
+
+  findUserForPaymentSetup(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, id: true, name: true }
+    });
+  }
+
+  listUserPaymentMethods(userId: string) {
+    return this.prisma.paymentMethod.findMany({
+      where: { userId },
+      orderBy: [{ default: "desc" }, { createdAt: "desc" }]
+    });
+  }
+
+  createPaymentMethod(input: {
+    automatic?: boolean;
+    default?: boolean;
+    label: string;
+    mandateId?: string;
+    provider: string;
+    providerCustomerId?: string;
+    providerToken: string;
+    status?: string;
+    type: string;
+    userId: string;
+    verifiedAt?: Date;
+  }) {
+    return this.prisma.paymentMethod.create({
+      data: {
+        automatic: input.automatic ?? true,
+        consentGivenAt: input.verifiedAt,
+        default: input.default ?? false,
+        label: input.label,
+        mandateId: input.mandateId,
+        provider: input.provider,
+        providerCustomerId: input.providerCustomerId,
+        providerToken: input.providerToken,
+        status: input.status ?? "PENDING",
+        type: input.type as PaymentMethodType,
+        userId: input.userId,
+        verifiedAt: input.verifiedAt
+      }
+    });
+  }
+
+  updatePaymentMethod(id: string, input: {
+    automatic?: boolean;
+    default?: boolean;
+    label?: string;
+    mandateId?: string;
+    providerCustomerId?: string;
+    providerToken?: string;
+    status?: string;
+    verifiedAt?: Date;
+  }) {
+    return this.prisma.paymentMethod.update({
+      where: { id },
+      data: {
+        automatic: input.automatic,
+        consentGivenAt: input.verifiedAt,
+        default: input.default,
+        label: input.label,
+        mandateId: input.mandateId,
+        providerCustomerId: input.providerCustomerId,
+        providerToken: input.providerToken,
+        status: input.status,
+        verifiedAt: input.verifiedAt
+      }
+    });
+  }
+
+  deletePaymentMethod(id: string, userId: string) {
+    return this.prisma.paymentMethod.deleteMany({ where: { id, userId } });
+  }
+
+  findPaymentMethod(id: string, userId?: string) {
+    return this.prisma.paymentMethod.findFirst({ where: { id, userId } });
+  }
+
+  findTransactionByProviderReference(providerReference: string) {
+    return this.prisma.transaction.findUnique({
+      where: { providerReference },
+      include: { invoice: { include: { transactions: true } } }
     });
   }
 
@@ -490,6 +707,103 @@ export class BillingRepository {
     });
   }
 
+  async materializePaidCheckoutUser(invoiceId: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { order: true }
+    });
+    const snapshot = asRecord(invoice?.orderSnapshot);
+    if (!invoice || !isRecord(snapshot.pendingCheckout)) {
+      return null;
+    }
+    const pendingCheckout = snapshot.pendingCheckout;
+
+    const email = typeof pendingCheckout.email === "string" ? pendingCheckout.email.toLowerCase() : undefined;
+    const passwordHash = typeof pendingCheckout.passwordHash === "string" ? pendingCheckout.passwordHash : undefined;
+    const name = typeof pendingCheckout.name === "string" ? pendingCheckout.name : undefined;
+    if (!email || !passwordHash || !name) {
+      throw new Error("Paid checkout is missing client registration data");
+    }
+
+    const cleanedSnapshot = { ...snapshot };
+    delete cleanedSnapshot.pendingCheckout;
+
+    return this.prisma.$transaction(async (tx) => {
+      const role = await tx.role.upsert({
+        where: { slug: "client" },
+        create: { slug: "client", name: "Client" },
+        update: {}
+      });
+      let user = await tx.user.findUnique({ where: { email }, select: { email: true, id: true } });
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            countryCode: stringOr(pendingCheckout.countryCode, "DE"),
+            customerType: pendingCheckout.customerType === "BUSINESS" ? "BUSINESS" : "INDIVIDUAL",
+            email,
+            name,
+            passwordHash,
+            vatId: typeof pendingCheckout.vatId === "string" ? pendingCheckout.vatId : undefined,
+            contacts: pendingCheckout.phone || pendingCheckout.address
+              ? {
+                  create: {
+                    address: pendingCheckout.address as Prisma.InputJsonValue,
+                    email,
+                    name,
+                    phone: typeof pendingCheckout.phone === "string" ? pendingCheckout.phone : undefined,
+                    type: "BILLING"
+                  }
+                }
+              : undefined,
+            userRoles: { create: { roleId: role.id } }
+          },
+          select: { email: true, id: true }
+        });
+      } else {
+        await tx.userRole.upsert({
+          where: { userId_roleId: { roleId: role.id, userId: user.id } },
+          create: { roleId: role.id, userId: user.id },
+          update: {}
+        });
+      }
+
+      const orderId = invoice.order?.id;
+      const serviceIds = (await tx.service.findMany({
+        where: {
+          OR: [
+            { initialInvoiceId: invoiceId },
+            ...(orderId ? [{ orderId }] : [])
+          ]
+        },
+        select: { id: true }
+      })).map((service) => service.id);
+
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { orderSnapshot: cleanedSnapshot as Prisma.InputJsonValue, userId: user.id }
+      });
+      if (orderId) {
+        await tx.order.update({ where: { id: orderId }, data: { userId: user.id } });
+      }
+      if (serviceIds.length > 0) {
+        await tx.service.updateMany({ where: { id: { in: serviceIds } }, data: { userId: user.id } });
+        await tx.subscription.updateMany({ where: { serviceId: { in: serviceIds } }, data: { userId: user.id } });
+      }
+      await tx.domainRecord.updateMany({
+        where: {
+          OR: [
+            { initialInvoiceId: invoiceId },
+            ...(orderId ? [{ orderId }] : []),
+            ...(serviceIds.length > 0 ? [{ serviceId: { in: serviceIds } }] : [])
+          ]
+        },
+        data: { userId: user.id }
+      });
+
+      return user;
+    });
+  }
+
   createAuditLog(input: { action: string; actorId?: string; metadata?: Record<string, unknown>; subject: string; subjectId?: string }) {
     return this.prisma.auditLog.create({
       data: {
@@ -536,3 +850,15 @@ const publicUserSelect = {
   segment: true,
   vatId: true
 } satisfies Prisma.UserSelect;
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringOr(value: unknown, fallback: string) {
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}

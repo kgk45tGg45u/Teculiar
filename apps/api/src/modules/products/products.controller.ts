@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -101,15 +101,15 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Get("services")
-  listServices(@Req() request: Request & { user: { sub: string; roles?: string[] } }) {
-    const canSeeAll = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.products.listServicesFresh(canSeeAll ? undefined : request.user.sub);
+  listServices(@Req() request: Request & { user: { sub: string; roles?: string[] } }, @Query("refresh") refresh?: string) {
+    const userId = request.user.sub;
+    return refresh === "1" || refresh === "true" ? this.products.listServicesFresh(userId) : this.products.listServices(userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("services/:id")
-  getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
-    return this.products.getService(id, request.user);
+  getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }, @Query("refresh") refresh?: string) {
+    return this.products.getService(id, request.user, { refresh: refresh === "1" || refresh === "true" });
   }
 
   @UseGuards(JwtAuthGuard)

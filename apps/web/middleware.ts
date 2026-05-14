@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_FILE = /\.(.*)$/;
 const locales = ["de", "en"];
+const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
+const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -14,9 +16,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hasToken = Boolean(request.cookies.get("dezhost_access_token")?.value);
+  const hasClientToken = Boolean(request.cookies.get(CLIENT_AUTH_COOKIE)?.value);
+  const hasAdminToken = Boolean(request.cookies.get(ADMIN_AUTH_COOKIE)?.value);
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
-    if (!hasToken) {
+    if (!hasAdminToken) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
       url.searchParams.set("next", pathname);
@@ -26,7 +29,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/client")) {
-    if (!hasToken) {
+    if (!hasClientToken) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname);

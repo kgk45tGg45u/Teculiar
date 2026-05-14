@@ -130,12 +130,15 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     return this.products.listServices(userId);
   }
 
-  async getService(id: string, user?: { roles?: string[]; sub: string }) {
-    const service = await this.refreshService(id, user?.sub);
+  async getService(id: string, user?: { roles?: string[]; sub: string }, options: { refresh?: boolean } = {}) {
+    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    if (options.refresh) {
+      await this.refreshService(id, staff ? undefined : user?.sub);
+    }
+    const service = await this.products.findService(id, staff ? undefined : user?.sub);
     if (!service) {
       throw new NotFoundException("Service not found");
     }
-    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
     if (user && !staff && service.userId !== user.sub) {
       throw new NotFoundException("Service not found");
     }
@@ -174,8 +177,11 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
 
   async refreshService(id: string, userId?: string) {
     const service = await this.products.findService(id);
-    if (!service || (userId && service.userId !== userId)) {
-      return service;
+    if (!service) {
+      return null;
+    }
+    if (userId && service.userId !== userId) {
+      return null;
     }
     for (const domainRecord of service.domainRecords ?? []) {
       if (!this.external.resellBiz.status || !["PENDING", "PENDING_TRANSFER", "TRANSFERRING", "FAILED"].includes(domainRecord.status)) {
@@ -186,12 +192,13 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
         await this.products.updateDomainRecordStatus(domainRecord.id, domainStatus.status, domainStatus.externalId);
       }
     }
-    if (!["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status)) {
+    const refreshableStatus = ["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status);
+    if (service.product.type !== "SHARED_HOSTING" && !refreshableStatus) {
       return service;
     }
 
     if (service.product.type !== "SHARED_HOSTING") {
-      const domainRecord = service.domainRecords[0];
+      const domainRecord = service.domainRecords?.[0];
       if (service.product.type === "DOMAIN" && domainRecord?.domain && this.external.resellBiz.status) {
         const status = await this.external.resellBiz.status(domainRecord.domain);
         if (status.status === "ACTIVE") {
@@ -204,9 +211,18 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
       return service;
     }
 
+    if (!refreshableStatus && service.status !== "ACTIVE") {
+      return service;
+    }
     const domainName = refreshDomainName(service.externalId, service.configuration);
     if (!domainName) {
       return service;
+    }
+    if (["ORDERED", "PENDING", "PROVISIONING"].includes(service.status)) {
+      const runningCreate = await this.products.findRunningModuleLogForService?.(service.id, "create");
+      if (runningCreate) {
+        return service;
+      }
     }
     const provider = this.external.hostingProvider(service.product.type);
     if (!provider.status) {
@@ -217,6 +233,12 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
       const updated = await this.products.updateServiceStatus(service.id, "ACTIVE", status.externalId);
       await this.completeReadyOrdersForService(service.id);
       return updated;
+    }
+    if (service.status === "ACTIVE") {
+      return this.products.updateServiceStatus(service.id, this.mapProvisioningStatus(status.status), status.externalId);
+    }
+    if (status.status === "FAILED") {
+      return this.products.updateServiceStatus(service.id, "FAILED", status.externalId);
     }
 
     return service;

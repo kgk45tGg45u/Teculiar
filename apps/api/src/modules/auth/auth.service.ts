@@ -20,7 +20,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
-    const existing = await this.users.findByEmail(dto.email);
+    const existing = await this.users.findByEmail(dto.email.trim().toLowerCase());
     if (existing) {
       throw new BadRequestException("Email is already registered");
     }
@@ -31,6 +31,13 @@ export class AuthService {
       name: dto.name,
       passwordHash
     });
+    void this.users.createAuditLog({
+      action: "user.registered",
+      actorId: user.id,
+      metadata: { email: user.email, ipAddress },
+      subject: "user",
+      subjectId: user.id
+    }).catch(() => undefined);
 
     return this.issueTokens(
       { id: user.id, email: user.email, roles: ["client"] },
@@ -56,13 +63,26 @@ export class AuthService {
       },
       "admin"
     );
+    void this.users.createAuditLog({
+      action: "user.admin_bootstrapped",
+      actorId: user.id,
+      metadata: { email: user.email, ipAddress, userAgent },
+      subject: "user",
+      subjectId: user.id
+    }).catch(() => undefined);
 
     return this.issueTokens({ id: user.id, email: user.email, roles: ["admin"] }, ipAddress, userAgent);
   }
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
-    const user = await this.users.findByEmail(dto.email.toLowerCase());
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.users.findByEmail(email);
     if (!user || !(await compare(dto.password, user.passwordHash))) {
+      void this.users.createAuditLog({
+        action: "user.login_failed",
+        metadata: { email, ipAddress, userAgent },
+        subject: "user"
+      }).catch(() => undefined);
       throw new UnauthorizedException("Invalid credentials");
     }
 
@@ -77,6 +97,13 @@ export class AuthService {
     }
 
     const roles = user.userRoles.map((userRole) => userRole.role.slug);
+    void this.users.createAuditLog({
+      action: "user.login_succeeded",
+      actorId: user.id,
+      metadata: { email: user.email, ipAddress, userAgent },
+      subject: "user",
+      subjectId: user.id
+    }).catch(() => undefined);
     return this.issueTokens({ id: user.id, email: user.email, roles }, ipAddress, userAgent);
   }
 

@@ -157,6 +157,19 @@ export type ApiTicket = {
   service?: { product?: { name: string } } | null;
 };
 
+export type ApiActionLog = {
+  action: string;
+  actor?: { email: string; id: string; name: string } | null;
+  createdAt: string;
+  id: string;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  source: "audit" | "module" | string;
+  status: string;
+  subject: string;
+  subjectId?: string | null;
+};
+
 export type ApiAnnouncement = {
   id: string;
   title: string;
@@ -182,8 +195,6 @@ export type ApiBlogPost = {
 };
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
-const AUTH_COOKIE = "dezhost_access_token";
-const REFRESH_COOKIE = "dezhost_refresh_token";
 
 export async function apiGet<T>(path: string): Promise<T | null> {
   try {
@@ -227,39 +238,72 @@ export type AuthPayload = {
   user: AuthUser;
 };
 
-export function authHeaders(): Record<string, string> {
-  const token = browserToken();
+export type AuthScope = "admin" | "client";
+
+export const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
+export const CLIENT_REFRESH_COOKIE = "dezhost_client_refresh_token";
+export const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
+export const ADMIN_REFRESH_COOKIE = "dezhost_admin_refresh_token";
+const LEGACY_AUTH_COOKIE = "dezhost_access_token";
+const LEGACY_REFRESH_COOKIE = "dezhost_refresh_token";
+
+export function authHeaders(scope: AuthScope = currentScope()): Record<string, string> {
+  const token = browserToken(scope);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export function storeAuth(payload: AuthPayload) {
+export function storeAuth(payload: AuthPayload, scope: AuthScope = "client") {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(AUTH_COOKIE, payload.accessToken);
-  window.localStorage.setItem(REFRESH_COOKIE, payload.refreshToken);
-  window.localStorage.setItem("dezhost_roles", payload.user.roles.join(","));
-  setCookie(AUTH_COOKIE, payload.accessToken);
-  setCookie(REFRESH_COOKIE, payload.refreshToken);
+  const names = authCookieNames(scope);
+  window.localStorage.setItem(names.auth, payload.accessToken);
+  window.localStorage.setItem(names.refresh, payload.refreshToken);
+  window.localStorage.setItem(`${scope}_dezhost_roles`, payload.user.roles.join(","));
+  setCookie(names.auth, payload.accessToken);
+  setCookie(names.refresh, payload.refreshToken);
+  expireCookie(LEGACY_AUTH_COOKIE);
+  expireCookie(LEGACY_REFRESH_COOKIE);
 }
 
-export function clearAuth() {
+export function clearAuth(scope?: AuthScope) {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.removeItem(AUTH_COOKIE);
-  window.localStorage.removeItem(REFRESH_COOKIE);
+  const scopes = scope ? [scope] : ["admin", "client"] as AuthScope[];
+  for (const item of scopes) {
+    const names = authCookieNames(item);
+    window.localStorage.removeItem(names.auth);
+    window.localStorage.removeItem(names.refresh);
+    window.localStorage.removeItem(`${item}_dezhost_roles`);
+    expireCookie(names.auth);
+    expireCookie(names.refresh);
+  }
   window.localStorage.removeItem("dezhost_roles");
-  expireCookie(AUTH_COOKIE);
-  expireCookie(REFRESH_COOKIE);
+  expireCookie(LEGACY_AUTH_COOKIE);
+  expireCookie(LEGACY_REFRESH_COOKIE);
 }
 
-function browserToken() {
+function browserToken(scope: AuthScope) {
   if (typeof window === "undefined") {
     return undefined;
   }
-  return window.localStorage.getItem(AUTH_COOKIE) ?? readCookie(AUTH_COOKIE);
+  const names = authCookieNames(scope);
+  return window.localStorage.getItem(names.auth) ?? readCookie(names.auth);
+}
+
+function currentScope(): AuthScope {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+    return "admin";
+  }
+  return "client";
+}
+
+function authCookieNames(scope: AuthScope) {
+  return scope === "admin"
+    ? { auth: ADMIN_AUTH_COOKIE, refresh: ADMIN_REFRESH_COOKIE }
+    : { auth: CLIENT_AUTH_COOKIE, refresh: CLIENT_REFRESH_COOKIE };
 }
 
 function setCookie(name: string, value: string) {

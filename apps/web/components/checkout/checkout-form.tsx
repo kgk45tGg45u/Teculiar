@@ -158,6 +158,7 @@ export function CheckoutForm({
 
     setState({ status: "loading", message: "Bestellung wird erstellt..." });
     notify.info("Bestellung wird erstellt...");
+    const customerEmail = profile?.email ?? String(formData.get("email") ?? "").trim().toLowerCase();
     const domainName = String(formData.get("domainName") ?? "").trim().toLowerCase();
     const hostingDomainName = String(formData.get("hostingDomainName") ?? domainName).trim().toLowerCase();
     const phone = `${String(formData.get("phoneCountryCode") ?? "").trim()} ${String(formData.get("phone") ?? "").trim()}`.trim();
@@ -227,7 +228,7 @@ export function CheckoutForm({
         },
         countryCode: String(formData.get("countryCode") ?? "DE"),
         customerType: String(formData.get("companyName") ?? "").trim() ? "BUSINESS" : "INDIVIDUAL",
-        email: String(formData.get("email") ?? ""),
+        email: customerEmail,
         companyName: String(formData.get("companyName") ?? ""),
         name: String(formData.get("name") ?? ""),
         password: submittedPassword,
@@ -240,11 +241,6 @@ export function CheckoutForm({
     try {
       const checkoutResponse = await postJson<{ order: { id: string } }>("/orders/checkout", body);
       notify.success("Bestellung erstellt.");
-      const auth = await postJson<AuthPayload>("/auth/login", {
-        email: body.customer.email,
-        password: submittedPassword
-      });
-      storeAuth(auth);
       setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
       notify.info("Sandbox-Zahlung laeuft...");
       const paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutResponse.order.id}/pay`, {
@@ -256,6 +252,13 @@ export function CheckoutForm({
         notify.info("Weiterleitung zum Zahlungsanbieter...");
         window.location.assign(redirectUrl);
         return;
+      }
+      if (!profile) {
+        const auth = await postJson<AuthPayload>("/auth/login", {
+          email: customerEmail,
+          password: submittedPassword
+        });
+        storeAuth(auth);
       }
       notify.success("Zahlung erfolgreich.");
       if (items.some((item) => hostingProducts.some((hosting) => hosting.id === item.productId) || product.type === "SHARED_HOSTING")) {
@@ -617,7 +620,7 @@ export function CheckoutForm({
               </label>
               <label className={styles.fieldLabel}>
                 <span>E-Mail <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profile?.email ?? ""} name="email" required type="email" />
+                <input className={styles.input} defaultValue={profile?.email ?? ""} name="email" readOnly={Boolean(profile)} required type="email" />
               </label>
               {!profile ? (
                 <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
@@ -957,7 +960,7 @@ function hostingDomainUse(domainUse: "external" | "register" | "transfer", domai
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     body: JSON.stringify(body),
-    headers: { "Content-Type": "application/json" },
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
     method: "POST"
   });
   const payload = await response.json().catch(() => ({}));

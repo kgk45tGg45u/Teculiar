@@ -631,11 +631,18 @@ model PaymentMethod {
   label         String
   provider      String
   providerToken String
+  providerCustomerId String?
+  mandateId     String?
+  status        String            @default("PENDING")
+  automatic     Boolean           @default(true)
   default       Boolean           @default(false)
   verifiedAt    DateTime?
+  consentGivenAt DateTime?
   createdAt     DateTime          @default(now())
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   team          Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([userId, automatic, status])
 }
 
 model Coupon {

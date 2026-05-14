@@ -173,7 +173,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
                       </div>
                     )}
                     <Button
-                      href={`/${locale}/order?product=${product.id}`}
+                      href={`/${locale}/order/${product.id}`}
                       icon={ArrowRight}
                       variant={i === 1 ? "primary" : "secondary"}
                     >

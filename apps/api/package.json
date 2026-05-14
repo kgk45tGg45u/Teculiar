@@ -11,7 +11,7 @@
     "build": "nest build",
     "lint": "tsc --noEmit",
     "resellbiz": "node scripts/resellbiz.cjs",
-    "test": "node --test --require ./test/register.cjs test/auth/*.test.ts test/virtualmin-client/*.test.ts test/resellbiz-client/*.test.ts test/orders/*.test.ts",
+    "test": "npm run build && node --test test/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

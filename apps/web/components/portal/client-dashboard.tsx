@@ -19,6 +19,17 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
+type ApiPaymentMethod = {
+  automatic: boolean;
+  createdAt: string;
+  default: boolean;
+  id: string;
+  label: string;
+  provider: string;
+  status: string;
+  type: string;
+  verifiedAt?: string | null;
+};
 type HostingPanel = {
   bandwidth: Array<{ fields: Record<string, string>; name: string }>;
   bandwidthUsage?: Usage;
@@ -72,18 +83,22 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
     phone?: string;
     vatId?: string | null;
   }>();
-  const [services, setServices] = useState<ApiService[]>(sampleServices);
+  const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
-  const [invoices, setInvoices] = useState<ApiInvoice[]>(sampleInvoices);
+  const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<ApiInvoice>();
-  const [tickets, setTickets] = useState<ApiTicket[]>(sampleTickets);
+  const [tickets, setTickets] = useState<ApiTicket[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const seenServiceStatuses = useRef(new Map<string, string>());
   const servicePollingReady = useRef(false);
+  const servicesRef = useRef<ApiService[]>([]);
 
   useEffect(() => {
-    const headers = authHeaders();
+    const headers = authHeaders("client");
     const applyServices = (payload: ApiService[]) => {
+      if (payload.length === 0 && servicesRef.current.length > 0) {
+        return;
+      }
       if (servicePollingReady.current) {
         for (const service of payload) {
           notifyServiceTransition(service, seenServiceStatuses.current.get(service.id));
@@ -91,6 +106,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
       }
       servicePollingReady.current = true;
       seenServiceStatuses.current = new Map(payload.map((service) => [service.id, service.status]));
+      servicesRef.current = payload;
       setServices(payload);
     };
     const loadServices = () => {
@@ -100,51 +116,65 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         }
       }).catch(() => undefined);
     };
+    const loadServicesFresh = () => {
+      fetch(`${API_BASE_URL}/services?refresh=1`, { headers }).then(json).then((payload) => {
+        if (Array.isArray(payload)) {
+          applyServices(payload);
+        }
+      }).catch(() => undefined);
+    };
     loadServices();
-    const timer = window.setInterval(loadServices, 20_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setTimeout(loadServicesFresh, 240_000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!serviceId) {
       return;
     }
-    const headers = authHeaders();
+    const headers = authHeaders("client");
+    const applyService = (payload: unknown) => {
+      if (!payload) {
+        return;
+      }
+      const service = payload as ApiService;
+      notifyServiceTransition(service, seenServiceStatuses.current.get(service.id));
+      seenServiceStatuses.current.set(service.id, service.status);
+      setSelectedService(service);
+      setServices((current) => {
+        const next = current.some((item) => item.id === service.id) ? current.map((item) => item.id === service.id ? service : item) : [service, ...current];
+        servicesRef.current = next;
+        return next;
+      });
+    };
     const loadService = () => {
-      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then((payload) => {
-        if (!payload) {
-          return;
-        }
-        const service = payload as ApiService;
-        notifyServiceTransition(service, seenServiceStatuses.current.get(service.id));
-        seenServiceStatuses.current.set(service.id, service.status);
-        setSelectedService(service);
-        setServices((current) => current.some((item) => item.id === service.id) ? current.map((item) => item.id === service.id ? service : item) : [service, ...current]);
-      }).catch(() => undefined);
+      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then(applyService).catch(() => undefined);
+    };
+    const loadServiceFresh = () => {
+      fetch(`${API_BASE_URL}/services/${serviceId}?refresh=1`, { headers }).then(json).then(applyService).catch(() => undefined);
     };
     loadService();
-    const timer = window.setInterval(loadService, 20_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setTimeout(loadServiceFresh, 240_000);
+    return () => window.clearTimeout(timer);
   }, [serviceId]);
 
   useEffect(() => {
     if (!invoiceId) {
       return;
     }
-    const headers = authHeaders();
+    const headers = authHeaders("client");
     fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers }).then(json).then((payload) => payload && setSelectedInvoice(payload)).catch(() => undefined);
   }, [invoiceId]);
 
   useEffect(() => {
-    const headers = authHeaders();
-    fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => payload?.length && setInvoices(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => payload?.length && setTickets(payload)).catch(() => undefined);
+    const headers = authHeaders("client");
+    fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => Array.isArray(payload) && setInvoices(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/cms/announcements`).then(json).then((payload) => payload?.length && setAnnouncements(payload)).catch(() => undefined);
   }, []);
 
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
-  const activeServices = serviceRows.filter((service) => service.status === "ACTIVE").length;
   const domainRows = domainRowsFromServices(services);
   const openInvoices = invoices.filter((invoice) => invoice.status !== "PAID").length;
   const openTickets = tickets.filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status)).length;
@@ -157,9 +187,10 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
           <a href="/client/services">Services</a>
           <a href="/client/domains">Domains</a>
           <a href="/client/invoices">Rechnungen</a>
+          <a className={styles.subNav} href="/client/billing/add-funds">Add Funds</a>
+          <a href="/client/payments">Payments</a>
           <a href="/client/tickets">Support Tickets</a>
           <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
-          <a href="/client/billing/add-funds">Add Funds</a>
           <a href="/client/profile">Profile</a>
         </nav>
         <div className="metric">
@@ -211,7 +242,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} /> : null}
         {view === "tickets" ? <TicketsTable tickets={tickets} /> : null}
         {view === "new-ticket" ? <NewTicket services={serviceRows} /> : null}
-        {view === "add-funds" ? <AddFunds activeServices={activeServices} /> : null}
+        {view === "add-funds" ? <AddFunds /> : null}
         {view === "payment" ? <PaymentInfo /> : null}
         {view === "profile" ? <ProfileForm profile={profile} setProfile={setProfile} /> : null}
       </main>
@@ -563,7 +594,7 @@ function ActionForm({
     const body = Object.fromEntries([...hiddenFields, ...fields.map(([name]) => [name, String(formData.get(name) ?? "")] as [string, string])]);
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/hosting-panel`, {
       body: JSON.stringify({ ...body, intent }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
     setMessage(await notifyResponse(response, "Sent.", "Failed."));
@@ -587,7 +618,7 @@ function localPart(value: string, suffix?: string) {
 }
 
 function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => void) {
-  fetch(`${API_BASE_URL}/services/${serviceId}/hosting-panel`, { headers: authHeaders() })
+  fetch(`${API_BASE_URL}/services/${serviceId}/hosting-panel`, { headers: authHeaders("client") })
     .then(json)
     .then((payload) => payload && setPanel(payload))
     .catch(() => undefined);
@@ -656,7 +687,7 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
 function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
   async function download() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders() });
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders("client") });
     if (!response.ok) {
       setMessage("PDF failed.");
       notify.error("PDF failed.");
@@ -680,7 +711,7 @@ function DomainRenewal({ service }: { service: ApiService }) {
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/renew-domain`, {
       body: JSON.stringify({ years: Number(formData.get("years") ?? 1) }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
     setMessage(await notifyResponse(response, "Renewal sent.", "Renewal failed."));
@@ -693,7 +724,7 @@ function PlanChange({ service }: { service: ApiService }) {
   async function submit() {
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/change-plan`, {
       body: JSON.stringify({}),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
     setMessage(await notifyResponse(response, "Upgrade/downgrade request sent.", "Request failed."));
@@ -709,7 +740,7 @@ function NewTicket({ services }: { services: ApiService[] }) {
   return <section className={styles.module}><h2>New Ticket</h2><label>Department<select className="input"><option>Support</option><option>Sales</option><option>Abuse</option></select></label><label>Related service<select className="input">{services.map((service) => <option key={service.id}>{service.product.name}</option>)}</select></label><label>Subject<input className="input" placeholder="Short subject" /></label><label>Message<textarea className="input" rows={6} /></label><Button icon={Send} type="button" onClick={() => notify.info("Ticket action needs a connected ticket form.")}>Open Ticket</Button></section>;
 }
 
-function AddFunds({ activeServices }: { activeServices: number }) {
+function AddFunds() {
   const [message, setMessage] = useState("");
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/billing/add-funds`, {
@@ -717,7 +748,48 @@ function AddFunds({ activeServices }: { activeServices: number }) {
         amountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
         method: String(formData.get("method") ?? "PAYPAL")
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    const payload = await response.clone().json().catch(() => undefined);
+    if (response.ok) {
+      if (payload?.paymentRedirectUrl) {
+        window.location.assign(payload.paymentRedirectUrl);
+        return;
+      }
+      if (payload?.status === "PAID" && payload?.invoiceId) {
+        window.location.assign(`/client/invoices/${payload.invoiceId}`);
+        return;
+      }
+      window.location.assign("/client");
+      return;
+    }
+    setMessage(await notifyResponse(response, "Funds added.", "Add funds failed."));
+  }
+  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button>{message ? <p>{message}</p> : null}</form>;
+}
+
+function PaymentInfo() {
+  const [methods, setMethods] = useState<ApiPaymentMethod[]>([]);
+  const [message, setMessage] = useState("");
+  const [method, setMethod] = useState("CREDIT_CARD");
+  const needsIban = method === "SEPA";
+
+  async function load() {
+    fetch(`${API_BASE_URL}/billing/payment-methods`, { headers: authHeaders("client") }).then(json).then((payload) => Array.isArray(payload) && setMethods(payload)).catch(() => undefined);
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/billing/payment-methods/setup`, {
+      body: JSON.stringify({
+        iban: formData.get("iban") || undefined,
+        method
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
     const payload = await response.clone().json().catch(() => undefined);
@@ -725,13 +797,42 @@ function AddFunds({ activeServices }: { activeServices: number }) {
       window.location.assign(payload.paymentRedirectUrl);
       return;
     }
-    setMessage(await notifyResponse(response, "Funds added.", "Add funds failed."));
+    if (response.ok) {
+      await load();
+    }
+    setMessage(await notifyResponse(response, "Payment method saved.", "Payment method failed."));
   }
-  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2>{activeServices ? <><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button></> : <p>You must have at least one active order before adding funds.</p>}{message ? <p>{message}</p> : null}</form>;
-}
 
-function PaymentInfo() {
-  return <section className={styles.module}><CreditCard aria-hidden /><h2>Payment Information</h2><label>SEPA IBAN<input className="input" placeholder="DE00 0000 0000 0000 0000 00" /></label><label>PayPal account<input className="input" placeholder="billing@example.com" /></label><label>Card token<input className="input" placeholder="Connect credit/debit card" /></label><Button icon={CreditCard} type="button" onClick={() => notify.info("Payment info action needs a payment gateway token flow.")}>Save Payment Info</Button></section>;
+  async function remove(id: string) {
+    const response = await fetch(`${API_BASE_URL}/billing/payment-methods/${id}`, {
+      headers: authHeaders("client"),
+      method: "DELETE"
+    });
+    if (response.ok) {
+      setMethods((items) => items.filter((item) => item.id !== id));
+    }
+  }
+
+  return (
+    <section className={styles.module}>
+      <CreditCard aria-hidden />
+      <h2>Payments</h2>
+      <form action={submit} className={styles.inlineForm}>
+        <label>Method<select className="input" value={method} onChange={(event) => setMethod(event.target.value)}><option value="CREDIT_CARD">Credit/debit card</option><option value="SEPA">SEPA Direct Debit</option><option value="PAYPAL">PayPal</option></select></label>
+        {needsIban ? <label>IBAN<input className="input" name="iban" placeholder="DE00 0000 0000 0000 0000 00" required /></label> : null}
+        <Button icon={CreditCard} type="submit">Authorize Automatic Payments</Button>
+      </form>
+      <div className={styles.tableWrap}>
+        <table className="table">
+          <thead><tr><th>Method</th><th>Status</th><th>Automatic</th><th></th></tr></thead>
+          <tbody>{methods.length ? methods.map((item) => (
+            <tr key={item.id}><td>{item.label}</td><td><StatusPill label={item.status.toLowerCase()} tone={item.status === "VALID" ? "good" : "warn"} /></td><td>{item.automatic ? "Enabled" : "Disabled"}</td><td><Button type="button" variant="secondary" onClick={() => void remove(item.id)}>Remove</Button></td></tr>
+          )) : <tr><td colSpan={4}>No automatic payment method yet.</td></tr>}</tbody>
+        </table>
+      </div>
+      {message ? <p>{message}</p> : null}
+    </section>
+  );
 }
 
 function ProfileForm({
@@ -764,7 +865,7 @@ function ProfileForm({
         phone: formData.get("phone"),
         vatId: formData.get("vatId")
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "PATCH"
     });
     const payload = await response.clone().json().catch(() => undefined);
@@ -782,7 +883,7 @@ function titleFor(view: ClientView) {
     dashboard: "Dashboard",
     invoices: "My Invoices",
     "new-ticket": "Open Ticket",
-    payment: "Payment Information",
+    payment: "Payments",
     profile: "Profile",
     domains: "Domains",
     services: "Services",
@@ -895,18 +996,6 @@ function domainRowsFromServices(services: ApiService[]): DomainRow[] {
   }
   return [...rows.values()];
 }
-
-const sampleServices: ApiService[] = [
-  { id: "svc_1", status: "ACTIVE", renewsAt: "2026-06-01T00:00:00.000Z", product: { name: "Reseller Hosting - UK-WHM25", type: "SHARED_HOSTING" }, productPrice: { amountCents: 697, billingCycle: "MONTHLY", currency: "EUR" } }
-];
-
-const sampleInvoices: ApiInvoice[] = [
-  { id: "inv_1", invoiceNumber: "0000001", issuedAt: "2026-05-01T00:00:00.000Z", dueAt: "2026-05-08T00:00:00.000Z", status: "UNPAID", totalCents: 913, currency: "EUR" }
-];
-
-const sampleTickets: ApiTicket[] = [
-  { id: "412103", department: "SUPPORT", subject: "Emails not working", status: "OPEN", updatedAt: "2026-05-05T12:00:00.000Z" }
-];
 
 function paymentGateway(invoice: ApiInvoice) {
   return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";

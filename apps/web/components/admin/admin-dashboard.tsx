@@ -2,8 +2,10 @@ import { Bell, FileText, Package, Settings, Ticket, UsersRound } from "lucide-re
 import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
+  ADMIN_AUTH_COOKIE,
   cycleLabel,
   money,
+  type ApiActionLog,
   type ApiClient,
   type ApiInvoice,
   type ApiDomainPrice,
@@ -28,6 +30,7 @@ type AdminView =
   | "orders"
   | "domain-prices"
   | "invoices"
+  | "logs"
   | "payment-gateways"
   | "products"
   | "services"
@@ -48,6 +51,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const products = (await apiGetAuth<ApiProduct[]>("/products")) ?? [];
   const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
   const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
+  const logs = (await apiGetAuth<ApiActionLog[]>("/admin/dev/logs")) ?? [];
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
@@ -67,6 +71,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
           <a href="/admin/products">Products/Services</a>
           <a href="/admin/payment-gateways">Payment Gateways</a>
           <a href="/admin/invoices">Invoices</a>
+          <a href="/admin/logs">Logs</a>
           <a href="/admin/tickets">Support Tickets</a>
           <a href="/admin/blog">Blog</a>
           <a href="/admin/announcements">Announcements</a>
@@ -110,6 +115,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "clients" ? <ClientsPanel clients={clients} products={products} /> : null}
         {view === "services" ? <ServicesPanel services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
+        {view === "logs" ? <LogsPanel logs={logs} /> : null}
         {view === "tickets" ? <TicketsPanel tickets={tickets} /> : null}
         {view === "blog" ? <BlogPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
@@ -247,7 +253,7 @@ function OrdersPanel({ orders }: { orders: ApiOrder[] }) {
               <tr key={order.id}>
                 <td>
                   <details>
-                    <summary>{order.orderNumber}</summary>
+                    <summary><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></summary>
                     <div className={styles.orderDetails}>
                       <p><strong>Invoice:</strong> {order.invoice?.invoiceNumber ?? "-"} ({order.invoice?.status ?? "no invoice"})</p>
                       <p><strong>Status:</strong> {orderStatusLabel(order.status)}</p>
@@ -399,6 +405,34 @@ function TicketsPanel({ tickets }: { tickets: ApiTicket[] }) {
   );
 }
 
+function LogsPanel({ logs }: { logs: ApiActionLog[] }) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">System</span>
+          <h2>Action Logs</h2>
+        </div>
+        <StatusPill label={`${logs.length} events`} tone={logs.length ? "good" : "neutral"} />
+      </div>
+      <table className="table">
+        <thead><tr><th>Time</th><th>Source</th><th>Action</th><th>Subject</th><th>Actor</th><th>Status</th><th>Message</th></tr></thead>
+        <tbody>{logs.length ? logs.map((log) => (
+          <tr key={`${log.source}-${log.id}`}>
+            <td>{dateTimeLabel(log.createdAt)}</td>
+            <td>{log.source}</td>
+            <td>{log.action}</td>
+            <td>{log.subject}{log.subjectId ? `:${log.subjectId.slice(-6)}` : ""}</td>
+            <td>{log.actor?.email ?? "-"}</td>
+            <td>{log.status}</td>
+            <td>{log.message ?? "-"}</td>
+          </tr>
+        )) : <tr><td colSpan={7}>No logs yet.</td></tr>}</tbody>
+      </table>
+    </section>
+  );
+}
+
 function ProductsPanel() {
   return (
     <section className={styles.panel}>
@@ -460,6 +494,7 @@ function adminTitle(view: AdminView) {
     "domain-prices": "Domain Prices",
     home: "Operations Console",
     invoices: "Invoices",
+    logs: "Logs",
     orders: "Orders",
     products: "Products/Services",
     services: "Services",
@@ -485,13 +520,17 @@ function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
 }
 
+function dateTimeLabel(value?: string | null) {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "-";
+}
+
 function paymentGateway(invoice: ApiInvoice) {
   return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
 }
 
 async function runMaintenance() {
   const { cookies } = await import("next/headers");
-  const token = (await cookies()).get("dezhost_access_token")?.value;
+  const token = (await cookies()).get(ADMIN_AUTH_COOKIE)?.value;
   const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
   const billing = await fetch(`${API_BASE_URL}/admin/dev/billing/maintenance`, { method: "POST", cache: "no-store", headers })
     .then((response) => (response.ok ? response.json() : null))

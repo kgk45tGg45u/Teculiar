@@ -186,15 +186,22 @@ export class ProductsRepository {
   listServices(userId?: string) {
     return this.prisma.service.findMany({
       where: userId ? { userId } : undefined,
-      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } },
+      include: { domainRecords: userId ? { where: { userId } } : true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } },
       orderBy: { createdAt: "desc" }
     });
   }
 
-  findService(id: string) {
+  findService(id: string, userId?: string) {
     return this.prisma.service.findUnique({
       where: { id },
-      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+      include: { domainRecords: userId ? { where: { userId } } : true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+    });
+  }
+
+  findRunningModuleLogForService(serviceId: string, action = "create") {
+    return this.prisma.moduleLog.findFirst({
+      where: { action, serviceId, status: "RUNNING" },
+      orderBy: { createdAt: "desc" }
     });
   }
 

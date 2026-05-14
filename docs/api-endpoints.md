@@ -56,6 +56,13 @@ Base URL: `/api/v1`
 - `POST /orders/admin/domain-prices` - temporary unguarded manual TLD price and suggested TLD update.
 - `POST /orders/admin/domain-prices/sync` - temporary unguarded Resell.biz pricing sync trigger for cron/admin use.
 
+Lifecycle notes:
+- Storefront checkout may create an order, unpaid invoice, pending services, and pending domain records before payment. New-client login must happen only after successful payment materializes the real client user.
+- After successful payment, send the client to the dashboard fast. Domain and hosting provisioning runs in the background.
+- Shared-hosting services must stay `PENDING` until the Virtualmin create/status API proves the domain exists on the Virtualmin server. Never mark hosting `ACTIVE` from payment alone.
+- Virtualmin hosting create requires the customer domain name. If no domain name is present in service configuration, provisioning must fail or stay non-active; do not create nameless Virtualmin services.
+- Domain registrations and transfers must write Resell.biz module/audit logs. `.de` registrations are manual and should log a Resell.biz skip reason instead of silently doing nothing.
+
 ## Billing
 
 - `GET /billing/invoices`

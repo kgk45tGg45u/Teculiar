@@ -38,7 +38,7 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
       return;
     }
 
-    storeAuth(payload as AuthPayload);
+    storeAuth(payload as AuthPayload, admin ? "admin" : "client");
     notify.success("Login successful.");
     window.location.assign(safeNext(params.get("next"), admin ? "/admin" : "/client"));
   }
@@ -65,7 +65,7 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
       return;
     }
 
-    storeAuth(payload as AuthPayload);
+    storeAuth(payload as AuthPayload, "admin");
     notify.success("Admin created.");
     window.location.assign("/admin");
   }

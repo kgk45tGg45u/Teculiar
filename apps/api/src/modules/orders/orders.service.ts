@@ -106,23 +106,33 @@ export class OrdersService {
       throw new BadRequestException("Password is required");
     }
 
-    const email = dto.customer.email.toLowerCase();
+    const email = dto.customer.email.trim().toLowerCase();
     const existing = await this.users.findByEmail(email);
     if (existing && !(await compare(dto.customer.password, existing.passwordHash))) {
       throw new BadRequestException("Email is already registered. Please log in before ordering.");
     }
 
     const preview = await this.previewOrder(dto);
+    if (preview.items.some((item) => item.type === "DOMAIN")) {
+      assertDomainRegistrantContact(dto.customer);
+    }
+    const pendingPasswordHash = existing ? undefined : await hash(dto.customer.password, 12);
     const user =
       existing ??
-      (await this.users.createUser({
-        countryCode: dto.customer.countryCode ?? "DE",
-        customerType: dto.customer.customerType ?? "INDIVIDUAL",
-        email,
-        name: dto.customer.name,
-        passwordHash: await hash(dto.customer.password, 12),
-        vatId: dto.customer.vatId
-      }));
+      (await this.users.findOrCreatePendingCheckoutUser());
+    const pendingCheckout = pendingPasswordHash
+      ? {
+          address: dto.customer.address,
+          companyName: dto.customer.companyName,
+          countryCode: dto.customer.countryCode ?? "DE",
+          customerType: dto.customer.customerType ?? "INDIVIDUAL",
+          email,
+          name: dto.customer.name,
+          passwordHash: pendingPasswordHash,
+          phone: dto.customer.phone,
+          vatId: dto.customer.vatId
+        }
+      : undefined;
     const invoice = await this.billing.createInvoice({
       buyerCountryCode: dto.customer.countryCode ?? "DE",
       buyerVatId: dto.customer.vatId,
@@ -139,6 +149,7 @@ export class OrdersService {
       })),
       orderSnapshot: {
         items: preview.items,
+        pendingCheckout,
         setupFeeCents: preview.setupFeeCents,
         subtotalCents: preview.subtotalCents,
         taxAmountCents: preview.taxAmountCents,
@@ -163,6 +174,12 @@ export class OrdersService {
         invoice.id
       );
     }
+    await this.billing.recordAction?.({
+      action: "order.created",
+      metadata: { invoiceId: invoice.id, source: "storefront", totalCents: invoice.totalCents },
+      subject: "order",
+      subjectId: order.id
+    });
 
     return { invoice, order };
   }
@@ -220,6 +237,13 @@ export class OrdersService {
         invoice.id
       );
     }
+    await this.billing.recordAction?.({
+      action: "order.created",
+      actorId: dto.userId,
+      metadata: { invoiceId: invoice.id, source: "admin", totalCents: invoice.totalCents },
+      subject: "order",
+      subjectId: order.id
+    });
     return { invoice, order };
   }
 
@@ -232,11 +256,25 @@ export class OrdersService {
       throw new BadRequestException("Order has no invoice");
     }
 
-    const invoice = await this.billing.payInvoice(order.invoiceId, dto, { processLifecycle: false });
+    let invoice;
+    try {
+      invoice = await this.billing.payInvoice(order.invoiceId, dto, { processLifecycle: false });
+    } catch (error) {
+      await this.billing.recordAction?.({
+        action: "order.payment_error",
+        metadata: { error: error instanceof Error ? error.message : "Payment failed", invoiceId: order.invoiceId },
+        subject: "order",
+        subjectId: id
+      });
+      throw error;
+    }
     if (invoice.status !== "PAID") {
       return { invoice, order: await this.orders.findOrderForActivation(id) };
     }
     if (typeof (this.billing as unknown as { onInvoicePaid?: unknown }).onInvoicePaid === "function") {
+      if (typeof (this.billing as unknown as { materializePaidCheckoutUser?: unknown }).materializePaidCheckoutUser === "function") {
+        await (this.billing as unknown as { materializePaidCheckoutUser: (invoiceId: string) => Promise<unknown> }).materializePaidCheckoutUser(order.invoiceId);
+      }
       await this.orders.markOrderPaid(id, dto.method);
       await this.orders.markOrderInProgress(id, "Payment received. Provisioning is running in the background.");
       void (this.billing as unknown as { onInvoicePaid: (invoiceId: string, input: { source: string }) => Promise<unknown> })
@@ -507,6 +545,26 @@ function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string)
   };
 }
 
+function assertDomainRegistrantContact(customer: CheckoutOrderDto["customer"]) {
+  const address = isRecord(customer.address) ? customer.address : {};
+  assertRequiredString(customer.name, "Name");
+  assertRequiredString(customer.email, "Email");
+  assertRequiredString(customer.countryCode ?? "DE", "Country");
+  assertRequiredString(address.line1, "Address");
+  assertRequiredString(address.postalCode, "Zip");
+  assertRequiredString(address.city, "City");
+  const phone = String(customer.phone ?? "").replace(/[^\d+]/g, "").replace(/\D/g, "");
+  if (!phone) {
+    throw new BadRequestException("Phone number is required");
+  }
+}
+
+function assertRequiredString(value: unknown, label: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new BadRequestException(`${label} is required for domain registration`);
+  }
+}
+
 function customerSnapshotFromUser(user: {
   contacts?: Array<{ address?: unknown; phone?: string | null }>;
   countryCode?: string;
@@ -677,7 +735,7 @@ function domainCustomerContact(snapshot: unknown) {
     name: requiredString(snapshot.name, "Name"),
     phone: phone.number,
     phoneCountryCode: phone.countryCode,
-    state: requiredString(address.state, "State"),
+    state: optionalString(address.state) ?? "N/A",
     vatId: optionalString(snapshot.vatId),
     zipCode: requiredString(address.postalCode, "Zip")
   };

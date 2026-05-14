@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ExternalModule } from "../external/external.module";
-import { BillingController, BillingDevController, BillingStorefrontController } from "./billing.controller";
+import { BillingController, BillingDevController, BillingStorefrontController, BillingWebhookController } from "./billing.controller";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
 import { BillingService } from "./billing.service";
@@ -9,7 +9,7 @@ import { TaxService } from "./tax.service";
 
 @Module({
   imports: [ExternalModule],
-  controllers: [BillingController, BillingDevController, BillingStorefrontController],
+  controllers: [BillingController, BillingDevController, BillingStorefrontController, BillingWebhookController],
   providers: [BillingService, BillingRepository, BillingEngineService, TaxService, AbstractPaymentService],
   exports: [BillingService]
 })

@@ -204,6 +204,10 @@ function temporaryCustomerPassword() {
 }
 
 function defaultNameServers() {
+  if (isResellBizTestApi()) {
+    return ["ns1.domain.com", "ns2.domain.com"];
+  }
+
   const combined = process.env.RESELLBIZ_DEFAULT_NS?.split(",").map((value) => value.trim()).filter(Boolean);
   if (combined && combined.length > 0) {
     return combined;
@@ -213,6 +217,10 @@ function defaultNameServers() {
     process.env.RESELLBIZ_DEFAULT_NS1 ?? "ns1.domain.com",
     process.env.RESELLBIZ_DEFAULT_NS2 ?? "ns2.domain.com"
   ];
+}
+
+function isResellBizTestApi() {
+  return (process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com").includes("test.httpapi.com");
 }
 
 function numberFromEnv(key: string) {

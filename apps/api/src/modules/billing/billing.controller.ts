@@ -17,11 +17,9 @@ export class BillingController {
   @Get("invoices")
   listInvoices(
     @Req() request: Request & { user: { sub: string; roles?: string[] } },
-    @Query("status") status?: string,
-    @Query("userId") userId?: string
+    @Query("status") status?: string
   ) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.billing.listInvoices({ status, userId: staff ? userId : request.user.sub });
+    return this.billing.listInvoices({ status, userId: request.user.sub });
   }
 
   @Get("invoices/:id")
@@ -70,6 +68,38 @@ export class BillingController {
     return this.billing.addFunds(request.user.sub, body);
   }
 
+  @Get("payment-methods")
+  listPaymentMethods(@Req() request: Request & { user: { sub: string } }) {
+    return this.billing.listPaymentMethods(request.user.sub);
+  }
+
+  @Post("payment-methods/setup")
+  setupPaymentMethod(
+    @Req() request: Request & { user: { sub: string } },
+    @Body() body: { iban?: string; method: string }
+  ) {
+    return this.billing.setupPaymentMethod(request.user.sub, body);
+  }
+
+  @Post("payment-methods/:id/confirm")
+  confirmPaymentMethod(@Param("id") id: string, @Req() request: Request & { user: { sub: string } }) {
+    return this.billing.confirmPaymentMethod(request.user.sub, id);
+  }
+
+  @Patch("payment-methods/:id")
+  updatePaymentMethod(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string } },
+    @Body() body: { automatic?: boolean; default?: boolean }
+  ) {
+    return this.billing.updatePaymentMethod(request.user.sub, id, body);
+  }
+
+  @Delete("payment-methods/:id")
+  deletePaymentMethod(@Param("id") id: string, @Req() request: Request & { user: { sub: string } }) {
+    return this.billing.deletePaymentMethod(request.user.sub, id);
+  }
+
   @Roles("admin", "staff")
   @Post("invoices/:id/mark-paid")
   markInvoicePaid(@Param("id") id: string, @Body() body: { actorId?: string }) {
@@ -106,6 +136,16 @@ export class BillingController {
     return this.billing.revenueReport();
   }
 
+}
+
+@Controller("billing/webhooks")
+export class BillingWebhookController {
+  constructor(private readonly billing: BillingService) {}
+
+  @Post(":method")
+  paymentWebhook(@Param("method") method: string, @Body() body: Record<string, unknown>) {
+    return this.billing.handlePaymentWebhook(method, body);
+  }
 }
 
 @Controller("storefront")
@@ -147,6 +187,11 @@ export class BillingDevController {
   @Get("billing/invoices")
   listInvoices(@Query("userId") userId?: string) {
     return this.billing.listInvoices({ userId });
+  }
+
+  @Get("logs")
+  listLogs(@Query("limit") limit?: string) {
+    return this.billing.listLogs(limit ? Number(limit) : undefined);
   }
 
   @Post("billing/maintenance")

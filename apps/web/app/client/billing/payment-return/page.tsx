@@ -13,13 +13,13 @@ export default function PaymentReturnPage() {
       return;
     }
     void fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/confirm-payment`, {
-      headers: authHeaders(),
+      headers: authHeaders("client"),
       method: "POST"
     })
       .then((response) => response.json().then((payload) => ({ ok: response.ok, payload })))
       .then(({ ok, payload }) => {
         if (ok && payload.status === "PAID") {
-          window.location.assign(`/client/invoices/${invoiceId}`);
+          window.location.assign(`/client/invoices/${payload.invoice?.id ?? invoiceId}`);
           return;
         }
         setMessage(payload?.message ?? `Payment status: ${payload?.status ?? "pending"}`);
