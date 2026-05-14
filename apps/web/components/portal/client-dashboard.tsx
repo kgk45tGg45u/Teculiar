@@ -89,6 +89,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   const [selectedInvoice, setSelectedInvoice] = useState<ApiInvoice>();
   const [tickets, setTickets] = useState<ApiTicket[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
+  const [brandLogo, setBrandLogo] = useState("");
   const seenServiceStatuses = useRef(new Map<string, string>());
   const servicePollingReady = useRef(false);
   const servicesRef = useRef<ApiService[]>([]);
@@ -171,6 +172,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
     fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => Array.isArray(payload) && setInvoices(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/storefront/settings`).then(json).then((payload) => payload?.siteLogoUrl && setBrandLogo(payload.siteLogoUrl)).catch(() => undefined);
     fetch(`${API_BASE_URL}/cms/announcements`).then(json).then((payload) => payload?.length && setAnnouncements(payload)).catch(() => undefined);
   }, []);
 
@@ -182,7 +184,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   return (
     <div className={styles.page}>
       <aside className={styles.sidebar}>
-        <strong>CrimsonGrid</strong>
+        {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <strong>CrimsonGrid</strong>}
         <nav aria-label="Client">
           <a href="/client/services">Services</a>
           <a href="/client/domains">Domains</a>
@@ -766,7 +768,7 @@ function AddFunds() {
     }
     setMessage(await notifyResponse(response, "Funds added.", "Add funds failed."));
   }
-  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button>{message ? <p>{message}</p> : null}</form>;
+  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="SANDBOX">Sandbox</option><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
 function PaymentInfo() {

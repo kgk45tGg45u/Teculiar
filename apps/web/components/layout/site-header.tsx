@@ -7,10 +7,11 @@ import { ThemeToggle } from "../ui/theme-toggle";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
+  brandLogo?: string;
   locale: Locale;
 };
 
-export function SiteHeader({ locale }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
   const copy = dictionary[locale];
   const base = `/${locale}`;
 
@@ -18,8 +19,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
     <header className={styles.header}>
       <div className={`container ${styles.inner}`}>
         <Link className={styles.brand} href={base as Route}>
-          <Globe aria-hidden size={21} />
-          <span>Dezhost</span>
+          {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={21} /><span>Dezhost</span></>}
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">

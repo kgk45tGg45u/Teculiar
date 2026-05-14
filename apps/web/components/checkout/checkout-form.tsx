@@ -244,8 +244,8 @@ export function CheckoutForm({
       setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
       notify.info("Sandbox-Zahlung laeuft...");
       const paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutResponse.order.id}/pay`, {
-        method: paymentMethod,
-        paymentMethodId: "sandbox"
+        method: paymentMethod === "SANDBOX" ? "CREDIT_CARD" : paymentMethod,
+        paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout"
       });
       const redirectUrl = paymentResponse.paymentRedirectUrl ?? (paymentResponse.invoice as { paymentRedirectUrl?: string } | undefined)?.paymentRedirectUrl;
       if (redirectUrl) {
@@ -836,12 +836,14 @@ function splitProfilePhone(phone?: string) {
 }
 
 const defaultPaymentGateways: ApiPaymentGateway[] = [
+  { method: "SANDBOX", title: "Sandbox" },
   { method: "CREDIT_CARD", title: "Kredit-/Debitkarte" },
   { method: "PAYPAL", title: "PayPal" },
   { method: "SEPA", title: "SEPA Lastschrift" }
 ];
 
 function paymentMark(method: string) {
+  if (method === "SANDBOX") return "TEST";
   if (method === "PAYPAL") return "PayPal";
   if (method === "SEPA") return "SEPA";
   return "VISA · MC";

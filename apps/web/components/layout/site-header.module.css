@@ -28,6 +28,13 @@
   color: var(--crimson);
 }
 
+.brandLogo {
+  display: block;
+  max-height: 44px;
+  max-width: 180px;
+  object-fit: contain;
+}
+
 .nav {
   display: flex;
   align-items: center;

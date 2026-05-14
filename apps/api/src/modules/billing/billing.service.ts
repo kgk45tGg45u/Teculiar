@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { ExternalService } from "../external/external.service";
 import { BillingEngineService } from "./billing-engine.service";
@@ -313,9 +315,14 @@ export class BillingService {
     if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
       throw new BadRequestException("Amount must be greater than zero.");
     }
+    const user = await this.billing.findUserBillingProfile(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    const payment = paymentInputForGateway(input.method);
     const invoice = await this.createInvoice({
       buyerCountryCode: "DE",
-      customerSnapshot: { userId },
+      customerSnapshot: customerSnapshotFromBillingProfile(user),
       dueAt: new Date().toISOString(),
       lines: [{
         description: "Funds deposit",
@@ -328,7 +335,7 @@ export class BillingService {
       status: "UNPAID",
       userId
     });
-    const paid = await this.payInvoice(invoice.id, { method: input.method as never, paymentMethodId: "account-balance" }, { processLifecycle: false });
+    const paid = await this.payInvoice(invoice.id, payment, { processLifecycle: false });
     return {
       amountCents: input.amountCents,
       invoiceId: paid.status === "PAID" ? paid.id : invoice.id,
@@ -378,6 +385,27 @@ export class BillingService {
       this.billing.suspendServicesForInvoice(id)
     ]);
     return invoice;
+  }
+
+  async refundInvoice(id: string, input: { actorId?: string; reason?: string } = {}) {
+    const invoice = await this.billing.findInvoice(id);
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+    const snapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
+    const accountCreditCents = typeof snapshot.accountCreditCents === "number" ? snapshot.accountCreditCents : 0;
+    const refunded = await this.billing.refundInvoice(id);
+    if (accountCreditCents > 0) {
+      await this.billing.subtractUserBalance(invoice.userId, accountCreditCents);
+    }
+    await this.billing.createAuditLog({
+      action: "invoice.refunded",
+      actorId: input.actorId,
+      metadata: { accountCreditCents, reason: input.reason },
+      subject: "invoice",
+      subjectId: id
+    });
+    return refunded;
   }
 
   deleteInvoice(id: string) {
@@ -1013,7 +1041,8 @@ export class BillingService {
       invoiceCompanyPhone,
       invoiceVatNumber,
       invoicePaymentInstructions,
-      invoiceBankDetails
+      invoiceBankDetails,
+      siteLogoUrl
     ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
@@ -1030,7 +1059,8 @@ export class BillingService {
       this.billing.settingString("invoiceCompanyPhone"),
       this.billing.settingString("invoiceVatNumber"),
       this.billing.settingString("invoicePaymentInstructions"),
-      this.billing.settingString("invoiceBankDetails")
+      this.billing.settingString("invoiceBankDetails"),
+      this.billing.settingString("siteLogoUrl")
     ]);
 
     return {
@@ -1048,31 +1078,46 @@ export class BillingService {
       invoiceFooterLine3,
       invoicePaymentInstructions,
       invoiceVatNumber,
+      siteLogoUrl,
       ticketAutoCloseHours,
       vatPercent
     };
   }
 
   async storefrontPaymentGateways() {
-    const gateways = await this.billing.listPaymentGateways();
+    const [gateways, sandboxEnabled] = await Promise.all([
+      this.billing.listPaymentGateways(),
+      this.billing.settingNumber("sandboxGatewayEnabled", 1)
+    ]);
     const enabled = gateways.filter((gateway) => gateway.enabled);
-    const source = gateways.length ? enabled : defaultPaymentGateways();
+    const source = gateways.length ? enabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
+    const withSandbox = sandboxEnabled ? [...source, sandboxGateway()] : source;
 
-    return source.map((gateway) => ({
+    return withSandbox.map((gateway) => ({
       method: gateway.method,
       title: gatewayTitle(gateway.method)
     }));
   }
 
   async adminPaymentGateways() {
-    const gateways = await this.billing.listPaymentGateways();
+    const [gateways, sandboxEnabled] = await Promise.all([
+      this.billing.listPaymentGateways(),
+      this.billing.settingNumber("sandboxGatewayEnabled", 1)
+    ]);
     const byMethod = new Map(gateways.map((gateway) => [gateway.method, gateway]));
-    return defaultPaymentGateways().map((gateway) => byMethod.get(gateway.method) ?? gateway);
+    return defaultPaymentGateways().map((gateway) => gateway.method === "SANDBOX"
+      ? { ...gateway, enabled: Boolean(sandboxEnabled) }
+      : byMethod.get(gateway.method) ?? gateway);
   }
 
   async updatePaymentGateways(input: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }>) {
     const results = [];
     for (const gateway of input) {
+      if (gateway.method === "SANDBOX") {
+        await this.billing.upsertSettingNumber("sandboxGatewayEnabled", gateway.enabled ? 1 : 0);
+        results.push({ config: {}, enabled: Boolean(gateway.enabled), method: "SANDBOX", validation: { ok: true, message: "Sandbox gateway saved." } });
+        continue;
+      }
       const validation = await this.payments.validateConfig({
         config: gateway.config ?? {},
         enabled: Boolean(gateway.enabled),
@@ -1103,6 +1148,7 @@ export class BillingService {
     invoiceFooterLine3?: string;
     invoicePaymentInstructions?: string;
     invoiceVatNumber?: string;
+    siteLogoUrl?: string;
     ticketAutoCloseHours?: number;
     vatPercent?: number;
   }) {
@@ -1128,8 +1174,31 @@ export class BillingService {
       input.invoicePaymentInstructions === undefined
         ? undefined
         : this.billing.upsertSettingString("invoicePaymentInstructions", input.invoicePaymentInstructions),
-      input.invoiceBankDetails === undefined ? undefined : this.billing.upsertSettingString("invoiceBankDetails", input.invoiceBankDetails)
+      input.invoiceBankDetails === undefined ? undefined : this.billing.upsertSettingString("invoiceBankDetails", input.invoiceBankDetails),
+      input.siteLogoUrl === undefined ? undefined : this.billing.upsertSettingString("siteLogoUrl", input.siteLogoUrl)
     ]);
+  }
+
+  async uploadSiteLogo(file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    if (!file) {
+      throw new BadRequestException("Logo image is required.");
+    }
+    if (file.size > 2_000_000) {
+      throw new BadRequestException("Logo image must be smaller than 2 MB.");
+    }
+    if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.mimetype)) {
+      throw new BadRequestException("Logo must be PNG, JPG, WebP, or SVG.");
+    }
+    const dir = await webUploadsDir();
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="60" viewBox="0 0 180 60">',
+      `<image href="data:${file.mimetype};base64,${file.buffer.toString("base64")}" width="180" height="60" preserveAspectRatio="xMidYMid meet"/>`,
+      "</svg>"
+    ].join("");
+    await writeFile(join(dir, "site-logo.svg"), svg, "utf8");
+    const logoUrl = `/uploads/site-logo.svg?v=${Date.now()}`;
+    await this.billing.upsertSettingString("siteLogoUrl", logoUrl);
+    return { height: 60, logoUrl, width: 180 };
   }
 
   updateServiceStatus(id: string, status: string) {
@@ -1158,7 +1227,8 @@ export class BillingService {
       vatNumber,
       paymentInstructions,
       bankDetails,
-      footerLines
+      footerLines,
+      logoUrl
     ] = await Promise.all([
       this.billing.settingString("invoiceCompanyName"),
       this.billing.settingString("invoiceCompanyAddress"),
@@ -1170,7 +1240,8 @@ export class BillingService {
       this.billing.settingString("invoiceVatNumber"),
       this.billing.settingString("invoicePaymentInstructions"),
       this.billing.settingString("invoiceBankDetails"),
-      this.invoiceFooterLines()
+      this.invoiceFooterLines(),
+      this.billing.settingString("siteLogoUrl")
     ]);
 
     return {
@@ -1181,6 +1252,7 @@ export class BillingService {
       country,
       email,
       footerLines,
+      logoUrl,
       paymentInstructions,
       phone,
       vatNumber,
@@ -1462,12 +1534,17 @@ function pdfEscape(value: string) {
   return value.replace(/[\\()]/g, "\\$&");
 }
 
-function defaultPaymentGateways(): Array<{ config: Record<string, unknown>; enabled: boolean; method: PaymentMethodType }> {
+function defaultPaymentGateways(): Array<{ config: Record<string, unknown>; enabled: boolean; method: PaymentMethodType | "SANDBOX" }> {
   return [
+    sandboxGateway(),
     { config: {}, enabled: true, method: "CREDIT_CARD" },
     { config: {}, enabled: true, method: "PAYPAL" },
     { config: {}, enabled: true, method: "SEPA" }
   ];
+}
+
+function sandboxGateway() {
+  return { config: {}, enabled: true, method: "SANDBOX" as const };
 }
 
 function publicWebUrl() {
@@ -1482,6 +1559,43 @@ function gatewayTitle(method: string) {
   return {
     CREDIT_CARD: "Credit/debit card",
     PAYPAL: "Paypal",
+    SANDBOX: "Sandbox",
     SEPA: "SEPA Lastschrift"
   }[method] ?? method;
+}
+
+function paymentInputForGateway(method: string): PayInvoiceDto {
+  return method === "SANDBOX"
+    ? { method: "CREDIT_CARD", paymentMethodId: "sandbox" }
+    : { method, paymentMethodId: method.toLowerCase() } as PayInvoiceDto;
+}
+
+function customerSnapshotFromBillingProfile(user: {
+  contacts?: Array<{ address?: unknown; phone?: string | null }>;
+  countryCode?: string;
+  customerType?: string;
+  email: string;
+  id: string;
+  name?: string | null;
+  vatId?: string | null;
+}) {
+  const contact = user.contacts?.[0];
+  return {
+    address: isRecord(contact?.address) ? contact.address : undefined,
+    countryCode: user.countryCode ?? "DE",
+    customerType: user.customerType ?? "INDIVIDUAL",
+    email: user.email,
+    name: user.name ?? user.email,
+    phone: contact?.phone ?? undefined,
+    userId: user.id,
+    vatId: user.vatId ?? undefined
+  };
+}
+
+async function webUploadsDir() {
+  const dir = process.cwd().endsWith("apps/api")
+    ? resolve(process.cwd(), "../web/public/uploads")
+    : resolve(process.cwd(), "apps/web/public/uploads");
+  await mkdir(dir, { recursive: true });
+  return dir;
 }

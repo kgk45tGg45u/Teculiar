@@ -52,6 +52,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
   const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
   const logs = (await apiGetAuth<ApiActionLog[]>("/admin/dev/logs")) ?? [];
+  const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings")) ?? {};
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
@@ -61,7 +62,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   return (
     <div className={styles.page}>
       <aside className={styles.sidebar}>
-        <strong>CrimsonGrid</strong>
+        {settings.siteLogoUrl ? <img alt="Dezhost" className={styles.brandLogo} src={settings.siteLogoUrl} /> : <strong>CrimsonGrid</strong>}
         <nav>
           <a href="/admin">Home</a>
           <a href="/admin/clients">Clients</a>

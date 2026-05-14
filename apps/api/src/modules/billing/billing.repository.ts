@@ -278,7 +278,17 @@ export class BillingRepository {
   markInvoiceUnpaid(id: string) {
     return this.prisma.invoice.update({
       where: { id },
-      data: { status: "UNPAID" }
+      data: { paidAt: null, status: "UNPAID" }
+    });
+  }
+
+  async refundInvoice(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.transaction.updateMany({ where: { invoiceId: id }, data: { status: "REFUNDED" } });
+      return tx.invoice.update({
+        where: { id },
+        data: { status: "REFUNDED" }
+      });
     });
   }
 
@@ -505,6 +515,33 @@ export class BillingRepository {
       where: { id: userId },
       data: { balanceCents: { increment: amountCents } },
       select: { balanceCents: true, id: true }
+    });
+  }
+
+  subtractUserBalance(userId: string, amountCents: number) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { balanceCents: { decrement: amountCents } },
+      select: { balanceCents: true, id: true }
+    });
+  }
+
+  findUserBillingProfile(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        contacts: {
+          orderBy: { createdAt: "desc" },
+          select: { address: true, phone: true },
+          take: 1
+        },
+        countryCode: true,
+        customerType: true,
+        email: true,
+        id: true,
+        name: true,
+        vatId: true
+      }
     });
   }
 

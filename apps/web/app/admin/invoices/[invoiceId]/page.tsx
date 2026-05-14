@@ -3,6 +3,7 @@ import { API_BASE_URL, cycleLabel, money, type ApiInvoice, type AuthUser } from 
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminInvoiceActions } from "../../../../components/admin/admin-forms";
+import styles from "../../../../components/portal/client-dashboard.module.css";
 import { StatusPill } from "../../../../components/ui/status-pill";
 
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
@@ -15,29 +16,43 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
   if (!invoice) {
     return <main className="container"><h1>Invoice</h1><p>Not found.</p></main>;
   }
+  const customer = invoice.customerSnapshot ?? {};
+  const address = customer.address ?? {};
+  const showVat = (invoice.taxAmountCents ?? 0) > 0;
 
   return (
     <main className="container">
       <a href="/admin/invoices">Back to invoices</a>
-      <h1>Invoice {invoice.invoiceNumber}</h1>
-      <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : "warn"} />
-      <p>Issued {dateLabel(invoice.issuedAt)} / Due {dateLabel(invoice.dueAt)}{invoice.status === "PAID" ? ` / Paid ${dateLabel(invoice.paidAt)} / Gateway ${paymentGateway(invoice)}` : ""}</p>
-      <table className="table">
-        <thead><tr><th>Description</th><th>Cycle</th><th>Qty</th><th>Unit</th><th>VAT</th><th>Total</th></tr></thead>
-        <tbody>{(invoice.items ?? []).map((item) => (
-          <tr key={item.description}>
-            <td>{item.description}</td>
-            <td>{item.billingCycle ? cycleLabel(item.billingCycle) : "-"}</td>
-            <td>{item.quantity}</td>
-            <td>{money(item.unitAmountCents, invoice.currency)}</td>
-            <td>{money(item.taxAmountCents, invoice.currency)}</td>
-            <td>{money(item.totalCents, invoice.currency)}</td>
-          </tr>
-        ))}</tbody>
-      </table>
-      <p><strong>Total:</strong> {money(invoice.totalCents, invoice.currency)}</p>
-      <AdminInvoiceActions invoice={invoice} />
-      <p><a href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>PDF preview/download</a></p>
+      <section className={styles.invoice}>
+        <div className={styles.invoiceTop}>
+          <div><span className="eyebrow">Dezhost</span><h1>Rechnung {invoice.invoiceNumber}</h1></div>
+          <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : invoice.status === "REFUNDED" ? "neutral" : "warn"} />
+        </div>
+        <div className={styles.invoiceMeta}>
+          <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
+          <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />{invoice.status === "PAID" ? <>Bezahlt: {dateLabel(invoice.paidAt)}<br />Gateway: {paymentGateway(invoice)}<br /></> : null}E-Mail: {customer.email}</div>
+        </div>
+        <table className="table">
+          <thead><tr><th>Beschreibung</th><th>Cycle</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
+          <tbody>{(invoice.items ?? []).map((item) => (
+            <tr key={item.description}>
+              <td>{item.description}</td>
+              <td>{item.billingCycle ? cycleLabel(item.billingCycle) : "-"}</td>
+              <td>{item.quantity}</td>
+              <td>{money(item.unitAmountCents, invoice.currency)}</td>
+              <td>{money(item.totalCents, invoice.currency)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        <div className={styles.invoiceTotals}>
+          <span>Zwischensumme {money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</span>
+          {showVat ? <span>USt. {money(invoice.taxAmountCents ?? 0, invoice.currency)}</span> : null}
+          <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
+        </div>
+        <AdminInvoiceActions invoice={invoice} />
+        <p><a href={`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`}>PDF preview/download</a></p>
+        <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
+      </section>
     </main>
   );
 }

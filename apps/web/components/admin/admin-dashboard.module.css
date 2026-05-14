@@ -23,6 +23,14 @@
   margin-bottom: 36px;
 }
 
+.brandLogo {
+  display: block;
+  max-height: 48px;
+  max-width: 180px;
+  object-fit: contain;
+  margin-bottom: 36px;
+}
+
 .sidebar nav {
   display: grid;
   gap: 8px;

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, money, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
+import { ImageUploader } from "../ui/image-uploader";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
@@ -345,6 +346,15 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
     setMessage(await notifyResponse(response, "Marked unpaid. Services were not terminated.", "Mark unpaid failed."));
   }
 
+  async function refundInvoice() {
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/refund`, {
+      body: JSON.stringify({ reason: "Admin refund" }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(await notifyResponse(response, "Invoice refunded. Refresh to update status.", "Refund failed."));
+  }
+
   async function deleteInvoice() {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}`, {
       headers: authHeaders(),
@@ -358,6 +368,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       <div className={styles.inlineForm}>
         {invoice.status !== "PAID" ? <Button icon={CreditCard} type="button" onClick={markPaid}>Mark Paid</Button> : null}
         {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={markUnpaid}>Mark Unpaid</Button> : null}
+        {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={refundInvoice}>Refund</Button> : null}
         <Button icon={Trash2} type="button" variant="secondary" onClick={deleteInvoice}>Delete</Button>
       </div>
       {message ? <small>{message}</small> : null}
@@ -440,6 +451,7 @@ export function SettingsForm() {
     invoiceFooterLine3: "",
     invoicePaymentInstructions: "",
     invoiceVatNumber: "",
+    siteLogoUrl: "",
     ticketAutoCloseHours: 24,
     vatPercent: 19
   });
@@ -462,6 +474,7 @@ export function SettingsForm() {
         invoiceFooterLine3: payload.invoiceFooterLine3 ?? "",
         invoicePaymentInstructions: payload.invoicePaymentInstructions ?? "",
         invoiceVatNumber: payload.invoiceVatNumber ?? "",
+        siteLogoUrl: payload.siteLogoUrl ?? "",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
         vatPercent: payload.vatPercent ?? 19
       }))
@@ -485,6 +498,7 @@ export function SettingsForm() {
         invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
         invoicePaymentInstructions: String(formData.get("invoicePaymentInstructions") ?? ""),
         invoiceVatNumber: String(formData.get("invoiceVatNumber") ?? ""),
+        siteLogoUrl: settings.siteLogoUrl,
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
         vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
@@ -500,6 +514,13 @@ export function SettingsForm() {
       <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
       <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
       <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
+      <ImageUploader
+        action={`${API_BASE_URL}/admin/dev/assets/logo`}
+        headers={authHeaders()}
+        label="Website logo"
+        onUploaded={(payload) => setSettings({ ...settings, siteLogoUrl: String(payload.logoUrl ?? "") })}
+        previewUrl={settings.siteLogoUrl}
+      />
       <label>Company name<input value={settings.invoiceCompanyName} onChange={(event) => setSettings({ ...settings, invoiceCompanyName: event.target.value })} name="invoiceCompanyName" /></label>
       <label>Company address<input value={settings.invoiceCompanyAddress} onChange={(event) => setSettings({ ...settings, invoiceCompanyAddress: event.target.value })} name="invoiceCompanyAddress" /></label>
       <label>ZIP<input value={settings.invoiceCompanyZip} onChange={(event) => setSettings({ ...settings, invoiceCompanyZip: event.target.value })} name="invoiceCompanyZip" /></label>
@@ -568,7 +589,9 @@ export function PaymentGatewayForm() {
         <fieldset className={styles.form} key={gateway.method}>
           <label><input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" /> {gatewayTitle(gateway.method)}</label>
           <label>Gateway/provider<input defaultValue={String(gateway.config?.provider ?? gatewayProvider(gateway.method))} name={`${gateway.method}_provider`} readOnly /></label>
-          {gateway.method === "PAYPAL" ? (
+          {gateway.method === "SANDBOX" ? (
+            <p>Dummy gateway for checkout and client-area test payments. No external API call.</p>
+          ) : gateway.method === "PAYPAL" ? (
             <>
               <label>Mode<select defaultValue={String(gateway.config?.mode ?? "test")} name={`${gateway.method}_mode`}><option value="test">Sandbox</option><option value="live">Live</option></select></label>
               <label>Client ID<input defaultValue={String(gateway.config?.clientId ?? "")} name={`${gateway.method}_clientId`} /></label>
@@ -815,6 +838,9 @@ function gatewayTitle(method: string) {
 }
 
 function gatewayProvider(method: string) {
+  if (method === "SANDBOX") {
+    return "sandbox";
+  }
   return method === "PAYPAL" ? "paypal" : ["CREDIT_CARD", "SEPA"].includes(method) ? "mollie" : "sandbox";
 }
 

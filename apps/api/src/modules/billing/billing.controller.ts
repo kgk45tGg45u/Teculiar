@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { Res } from "@nestjs/common";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -113,6 +114,12 @@ export class BillingController {
   }
 
   @Roles("admin", "staff")
+  @Post("invoices/:id/refund")
+  refundInvoice(@Param("id") id: string, @Body() body: { actorId?: string; reason?: string }) {
+    return this.billing.refundInvoice(id, body);
+  }
+
+  @Roles("admin", "staff")
   @Delete("invoices/:id")
   deleteInvoice(@Param("id") id: string) {
     return this.billing.deleteInvoice(id);
@@ -217,6 +224,7 @@ export class BillingDevController {
       invoiceFooterLine3?: string;
       invoicePaymentInstructions?: string;
       invoiceVatNumber?: string;
+      siteLogoUrl?: string;
       ticketAutoCloseHours?: number;
       vatPercent?: number;
     }
@@ -229,6 +237,12 @@ export class BillingDevController {
     @Body() body: { gateways?: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }> }
   ) {
     return this.billing.updatePaymentGateways(body.gateways ?? []);
+  }
+
+  @Post("assets/logo")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadSiteLogo(@UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    return this.billing.uploadSiteLogo(file);
   }
 
   @Patch("services/:id/status")

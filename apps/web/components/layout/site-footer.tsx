@@ -5,7 +5,7 @@ import type { Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import styles from "./site-footer.module.css";
 
-export function SiteFooter({ locale }: { locale: Locale }) {
+export function SiteFooter({ brandLogo, locale }: { brandLogo?: string; locale: Locale }) {
   const isDe = locale === "de";
   const base = `/${locale}`;
 
@@ -51,8 +51,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
         <div className={styles.top}>
           <div className={styles.brand}>
             <div className={styles.brandName}>
-              <Globe aria-hidden size={20} />
-              <strong>Dezhost</strong>
+              {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={20} /><strong>Dezhost</strong></>}
             </div>
             <p className={styles.mission}>
               {isDe
