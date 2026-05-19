@@ -27,12 +27,17 @@ Base URL: `/api/v1`
 ## Products and Services
 
 - `GET /storefront/products`
+- `GET /storefront/products?category=webhosting` - public product list filtered by product category slug.
 - `GET /storefront/settings` - public checkout settings, including VAT percent.
 - `GET /storefront/payment-gateways` - public enabled payment methods for checkout. API credentials are not exposed.
 - `GET /products`
 - `POST /products`
-- `POST /admin/dev/products` - temporary unguarded product create endpoint until admin auth UI is wired.
-- `PATCH /admin/dev/products/:id` - temporary unguarded product update endpoint until admin auth UI is wired.
+- `POST /admin/dev/products` - temporary guarded product create endpoint.
+- `PATCH /admin/dev/products/:id` - temporary guarded product update endpoint.
+- `GET /admin/dev/product-categories` - temporary admin category list. Categories own the automation module used by products inside them.
+- `POST /admin/dev/product-categories` - temporary admin category create.
+- `PATCH /admin/dev/product-categories/:id` - temporary admin category update, including module selection.
+- `DELETE /admin/dev/product-categories/:id` - temporary admin category deactivate; linked products are moved out of the category.
 - `GET /products/:id`
 - `PATCH /products/:id`
 - `GET /services`
@@ -83,7 +88,7 @@ Lifecycle notes:
 - `GET /admin/dev/virtualmin/templates` - temporary admin helper for Virtualmin plans/templates.
 - `GET /admin/dev/virtualmin/plans/detect` - temporary admin helper that fetches Virtualmin plans server-side and shows real names/options for confirmation.
 - `POST /admin/dev/virtualmin/plans/sync` - temporary admin helper that saves confirmed Virtualmin hosting package names/options into products. Admin still sets billing-cycle prices.
-- `DELETE /admin/dev/products/:id` - temporary admin helper to deactivate a product.
+- `DELETE /admin/dev/products/:id` - temporary guarded admin helper to deactivate a product.
 - `GET /services/:id/hosting-panel` - active shared-hosting controls, usage, links, mailboxes, databases, FTP users, subdomains, and email-client instructions.
 - `POST /services/:id/hosting-panel` - active shared-hosting control action endpoint for add/remove/password actions.
 - `GET /billing/transactions`
@@ -93,13 +98,27 @@ Lifecycle notes:
 ## Tickets
 
 - `GET /tickets`
-- `POST /tickets`
-- `GET /tickets/:id`
-- `POST /tickets/:id/replies`
+- `POST /tickets` - creates a ticket with an 8-character public ticket id.
+- `GET /tickets/:id` - accepts database id or public ticket id. Client access is scoped to the ticket owner; staff can view all.
+- `POST /tickets/:id/replies` - staff replies set status `ANSWERED`; client replies set status `CUSTOMER_REPLY`.
+- `POST /tickets/:id/attachments` - guarded multipart upload. Field name: `files`. Allows PNG/JPG/WebP screenshots and PDF files only, max 5 files per upload.
+- `POST /tickets/:id/close` - client or staff closes the ticket.
 - `POST /tickets/:id/internal-notes`
 - `PATCH /tickets/:id/assign`
 - `PATCH /tickets/:id/status`
 - `GET /tickets/canned-replies`
+- `GET /admin/dev/tickets` - temporary guarded staff ticket list.
+- `POST /admin/dev/tickets/maintenance` - temporary guarded auto-close helper for answered tickets.
+
+## Knowledgebase
+
+- `GET /knowledgebase` - public published article list.
+- `GET /knowledgebase/suggest?q=terms` - public related article lookup used on the new ticket form.
+- `GET /knowledgebase/:slug` - public SEO-friendly article detail.
+- `GET /admin/dev/knowledgebase` - temporary guarded admin article list.
+- `POST /admin/dev/knowledgebase` - temporary guarded admin article create.
+- `PATCH /admin/dev/knowledgebase/:id` - temporary guarded admin article update.
+- `DELETE /admin/dev/knowledgebase/:id` - temporary guarded admin article delete.
 
 ## CMS
 

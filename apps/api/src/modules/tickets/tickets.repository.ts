@@ -7,9 +7,10 @@ import { CreateTicketDto } from "./dto/create-ticket.dto";
 export class TicketsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  createTicket(userId: string, dto: CreateTicketDto) {
+  createTicket(userId: string, publicId: string, dto: CreateTicketDto) {
     return this.prisma.ticket.create({
       data: {
+        publicId,
         userId,
         subject: dto.subject,
         department: dto.department as TicketDepartment,
@@ -35,18 +36,18 @@ export class TicketsRepository {
         department: filters.department ? (filters.department as TicketDepartment) : undefined,
         status: filters.status ? (filters.status as TicketStatus) : undefined
       },
-      include: { assignee: { select: publicUserSelect }, user: { select: publicUserSelect }, service: true },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }]
+      include: { assignee: { select: publicUserSelect }, user: { select: publicUserSelect }, service: { include: { product: true } } },
+      orderBy: { updatedAt: "desc" }
     });
   }
 
   findTicket(id: string) {
-    return this.prisma.ticket.findUnique({
-      where: { id },
+    return this.prisma.ticket.findFirst({
+      where: { OR: [{ id }, { publicId: id }] },
       include: {
-        attachments: true,
+        attachments: { orderBy: { createdAt: "asc" } },
         internalNotes: true,
-        replies: { include: { user: { select: publicUserSelect } }, orderBy: { createdAt: "desc" } },
+        replies: { include: { attachments: true, user: { select: publicUserSelect } }, orderBy: { createdAt: "asc" } },
         service: { include: { product: true } },
         user: { select: publicUserSelect }
       }
@@ -55,8 +56,20 @@ export class TicketsRepository {
 
   createReply(input: { ticketId: string; userId: string; body: string; internal: boolean }) {
     return this.prisma.ticketReply.create({
-      data: input
+      data: input,
+      include: { attachments: true, user: { select: publicUserSelect } }
     });
+  }
+
+  findReply(id: string) {
+    return this.prisma.ticketReply.findUnique({ where: { id } });
+  }
+
+  createAttachments(input: Array<{ fileName: string; mimeType: string; replyId?: string; sizeBytes: number; storageKey: string; ticketId: string }>) {
+    if (input.length === 0) {
+      return [];
+    }
+    return this.prisma.$transaction(input.map((data) => this.prisma.ticketAttachment.create({ data })));
   }
 
   touchTicket(ticketId: string, status: string) {
@@ -93,7 +106,7 @@ export class TicketsRepository {
 
   closeAnsweredOlderThan(cutoff: Date) {
     return this.prisma.ticket.updateMany({
-      where: { status: "WAITING_ON_CLIENT", updatedAt: { lte: cutoff } },
+      where: { status: { in: ["WAITING_ON_CLIENT", "ANSWERED"] }, updatedAt: { lte: cutoff } },
       data: { status: "CLOSED" }
     });
   }

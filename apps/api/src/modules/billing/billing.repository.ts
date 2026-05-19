@@ -158,8 +158,8 @@ export class BillingRepository {
     return this.prisma.invoice.findUnique({
       where: { id },
       include: {
-        items: { include: { domainRecord: true, orderItem: true, service: { include: { product: true, productPrice: true } } } },
-        order: { include: { items: { include: { domainRecords: true, product: true, service: { include: { product: true, productPrice: true } } } } } },
+        items: { include: { domainRecord: true, orderItem: true, service: { include: { product: { include: { category: true } }, productPrice: true } } } },
+        order: { include: { items: { include: { domainRecords: true, product: { include: { category: true } }, service: { include: { product: { include: { category: true } }, productPrice: true } } } } } },
         transactions: true,
         user: { select: publicUserSelect }
       }
@@ -343,7 +343,7 @@ export class BillingRepository {
       where: { id },
       include: {
         user: { select: publicUserSelect },
-        service: { include: { product: true } },
+        service: { include: { product: { include: { category: true } } } },
         productPrice: true,
         coupon: true
       }
@@ -381,7 +381,7 @@ export class BillingRepository {
       where: { status: "ACTIVE", nextInvoiceAt: { lte: until } },
       include: {
         user: { select: publicUserSelect },
-        service: { include: { product: true } },
+        service: { include: { product: { include: { category: true } } } },
         productPrice: true,
         coupon: true,
         invoices: { orderBy: { issuedAt: "desc" }, take: 1 }

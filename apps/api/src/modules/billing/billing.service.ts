@@ -522,10 +522,25 @@ export class BillingService {
     }
 
     const idempotencyKey = `invoice:${invoice.id}:service:${service.id}:${action}`;
-    const moduleName = service.moduleName ?? service.product?.provisioningModule ?? hostingModuleName(service.product?.type);
+    const moduleName = effectiveServiceModule(service);
     const existing = await this.billing.findModuleLogByKey(idempotencyKey);
     if (existing) {
       return { ok: existing.status !== "FAILED", pending: existing.status !== "SUCCEEDED" && existing.status !== "FAILED" };
+    }
+    if (!moduleName) {
+      await this.billing.createAuditLog({
+        action: "service.manual_action_required",
+        actorId: input.actorId,
+        metadata: { action },
+        subject: "service",
+        subjectId: service.id
+      });
+      if (item.orderItem?.id ?? item.orderItemId) {
+        await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "SKIPPED", {
+          errorMessage: "Manual provisioning required"
+        });
+      }
+      return { ok: true, pending: true };
     }
 
     const request = {
@@ -641,7 +656,7 @@ export class BillingService {
     }
 
     const request = domainModuleRequest(action, domain, item, invoice.customerSnapshot);
-    const moduleName = domain.registrarModule ?? domain.registrarProvider ?? "resellbiz";
+    const moduleName = canonicalModule(domain.registrarModule ?? domain.registrarProvider) ?? "resellbiz";
     await this.billing.createAuditLog({
       action: "domain.registrar_started",
       actorId: input.actorId,
@@ -662,7 +677,7 @@ export class BillingService {
     });
 
     try {
-      const result = await this.runDomainModule(action, request);
+      const result = await this.runDomainModule(moduleName, action, request);
       if (result.status === "FAILED") {
         await this.billing.failModuleLog(log.id, "Registrar module returned FAILED", result as Record<string, unknown>);
         await this.billing.setDomainLifecycleStatus(domain.id, "FAILED", { externalId: result.externalId });
@@ -744,9 +759,12 @@ export class BillingService {
     return this.external.virtualmin.provision(request as never);
   }
 
-  private async runDomainModule(action: string, request: Record<string, any>) {
+  private async runDomainModule(moduleName: string, action: string, request: Record<string, any>) {
     if (!this.external) {
       return { externalId: request.domain, metadata: { bypassed: true }, status: "ACTIVE" as const };
+    }
+    if (moduleName !== "resellbiz") {
+      return { externalId: request.domain, metadata: { moduleName, reason: "Domain module is not configured." }, status: "QUEUED" as const };
     }
     if (action === "transfer_domain") {
       return this.external.resellBiz.transfer(request as never);
@@ -1382,6 +1400,24 @@ function canRunActionForPaidInvoice(invoice: Record<string, any>, action: string
 
 function hostingModuleName(productType?: string) {
   return ["VPS", "DEDICATED_SERVER"].includes(productType ?? "") ? "hetzner" : "virtualmin";
+}
+
+function effectiveServiceModule(service: Record<string, any>) {
+  if (service.product?.category) {
+    return canonicalModule(service.product.category.provisioningModule);
+  }
+  return canonicalModule(service.moduleName) ?? canonicalModule(service.product?.provisioningModule) ?? hostingModuleName(service.product?.type);
+}
+
+function canonicalModule(value: unknown) {
+  const moduleName = String(value ?? "").trim().toLowerCase();
+  if (!moduleName || moduleName === "none") {
+    return undefined;
+  }
+  if (moduleName === "resell.biz") {
+    return "resellbiz";
+  }
+  return moduleName;
 }
 
 function hostingOptions(configuration: unknown, customerSnapshot?: unknown) {

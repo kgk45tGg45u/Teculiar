@@ -140,6 +140,8 @@ enum TicketStatus {
   OPEN
   WAITING_ON_CLIENT
   WAITING_ON_STAFF
+  ANSWERED
+  CUSTOMER_REPLY
   RESOLVED
   CLOSED
 }
@@ -217,6 +219,7 @@ model User {
   assignedTickets Ticket[]         @relation("TicketAssignee")
   ticketReplies   TicketReply[]
   internalNotes   TicketInternalNote[]
+  knowledgebaseArticles KnowledgebaseArticle[]
   contents        Content[]
   announcements   Announcement[]
   announcementReads AnnouncementRead[]
@@ -336,6 +339,7 @@ model EmailLog {
 
 model Product {
   id          String          @id @default(cuid())
+  categoryId  String?
   name        String
   slug        String          @unique
   type        ProductType
@@ -346,11 +350,27 @@ model Product {
   sortOrder   Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  category    ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   prices      ProductPrice[]
   configs     ProductConfig[]
   addOns      ProductAddOn[]
   orderItems  OrderItem[]
   services    Service[]
+
+  @@index([categoryId])
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  provisioningModule String?
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 }
 
 model ProductPrice {
@@ -778,6 +798,7 @@ model ServerInstance {
 
 model Ticket {
   id            String             @id @default(cuid())
+  publicId      String             @unique
   userId        String
   serviceId     String?
   assigneeId    String?
@@ -805,6 +826,7 @@ model TicketReply {
   createdAt DateTime @default(now())
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments TicketAttachment[]
 }
 
 model TicketInternalNote {
@@ -820,12 +842,17 @@ model TicketInternalNote {
 model TicketAttachment {
   id         String   @id @default(cuid())
   ticketId   String
+  replyId    String?
   fileName   String
   mimeType   String
   sizeBytes  Int
   storageKey String
   createdAt  DateTime @default(now())
   ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  reply      TicketReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([replyId])
 }
 
 model CannedReply {
@@ -835,6 +862,25 @@ model CannedReply {
   body       String
   active     Boolean          @default(true)
   createdAt  DateTime         @default(now())
+}
+
+model KnowledgebaseArticle {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  excerpt        String?
+  body           String
+  keywords       String[] @default([])
+  images         Json     @default("[]")
+  published      Boolean  @default(true)
+  seoTitle       String?
+  seoDescription String?
+  authorId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  author         User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([published, updatedAt])
 }
 
 model Content {

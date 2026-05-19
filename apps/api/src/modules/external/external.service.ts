@@ -12,8 +12,10 @@ export class ExternalService {
     readonly hetzner: HetznerProviderService
   ) {}
 
-  hostingProvider(productType: string): HostingProvider {
-    if (["VPS", "DEDICATED_SERVER"].includes(productType)) {
+  hostingProvider(moduleNameOrProductType: string | null | undefined, productType?: string): HostingProvider {
+    const moduleName = productType ? moduleNameOrProductType : undefined;
+    const type = productType ?? moduleNameOrProductType;
+    if (moduleName === "hetzner" || (!moduleName && ["VPS", "DEDICATED_SERVER"].includes(type ?? ""))) {
       return this.hetzner;
     }
 

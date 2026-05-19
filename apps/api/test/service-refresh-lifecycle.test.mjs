@@ -176,3 +176,117 @@ test("paid hosting invoice without provider module does not mark service active"
     ["order", "order-1", "PROVISIONING"]
   ]);
 });
+
+test("manual service creation uses category module before legacy product module", async () => {
+  const calls = [];
+  const products = {
+    createService: async () => ({ id: "service-1" }),
+    findProduct: async () => ({
+      category: { provisioningModule: "hetzner" },
+      id: "product-1",
+      provisioningModule: "virtualmin",
+      type: "SHARED_HOSTING"
+    }),
+    updateServiceStatus: async (id, status, externalId) => {
+      calls.push(["update", id, status, externalId]);
+      return { externalId, id, status };
+    }
+  };
+  const external = {
+    hostingProvider: (moduleName, productType) => {
+      calls.push(["provider", moduleName, productType]);
+      return {
+        provision: async (request) => {
+          calls.push(["provision", request.productType, request.serviceId]);
+          return { externalId: "host-1", status: "ACTIVE" };
+        }
+      };
+    }
+  };
+
+  const service = new ProductsService(products, external);
+  const result = await service.createService({
+    configuration: { domainName: "owner-example.com" },
+    productId: "product-1",
+    productPriceId: "price-1",
+    userId: "user-1"
+  });
+
+  assert.deepEqual(calls, [
+    ["provider", "hetzner", "SHARED_HOSTING"],
+    ["provision", "SHARED_HOSTING", "service-1"],
+    ["update", "service-1", "ACTIVE", "host-1"]
+  ]);
+  assert.equal(result.status, "ACTIVE");
+});
+
+test("paid service lifecycle uses category module before legacy product module", async () => {
+  const calls = [];
+  const invoice = {
+    customerSnapshot: { email: "owner@example.com", name: "Owner Example" },
+    dueAt: new Date(Date.now() + 60_000),
+    id: "invoice-hosting-category",
+    items: [
+      {
+        lifecycleAction: "create",
+        orderItem: { id: "item-1" },
+        service: {
+          configuration: { domainName: "owner-example.com" },
+          id: "service-1",
+          product: {
+            category: { provisioningModule: "hetzner" },
+            provisioningModule: "virtualmin",
+            type: "SHARED_HOSTING"
+          },
+          status: "PENDING"
+        },
+        type: "SERVICE"
+      }
+    ],
+    order: { id: "order-1", items: [] },
+    status: "PAID"
+  };
+  const billing = {
+    createAuditLog: async (input) => calls.push(["audit", input.action, input.metadata?.moduleName]),
+    createModuleLog: async (input) => {
+      calls.push(["module", input.action, input.moduleName]);
+      return { id: "log-1" };
+    },
+    failModuleLog: async () => calls.push(["fail"]),
+    findInvoiceForLifecycle: async () => invoice,
+    findModuleLogByKey: async () => null,
+    setOrderItemLifecycleStatus: async (id, status) => calls.push(["item", id, status]),
+    setOrderLifecycleStatus: async (id, status) => calls.push(["order", id, status]),
+    setServiceLifecycleStatus: async (id, status, input) => calls.push(["service", id, status, input.externalId]),
+    succeedModuleLog: async (id, response) => calls.push(["success", id, response.status])
+  };
+  const external = {
+    hetzner: {
+      provision: async () => {
+        calls.push(["hetzner"]);
+        return { externalId: "hz-1", status: "ACTIVE" };
+      }
+    },
+    virtualmin: {
+      provision: async () => {
+        calls.push(["virtualmin"]);
+        return { externalId: "vm-1", status: "ACTIVE" };
+      }
+    }
+  };
+  const { BillingService } = await import("../dist/modules/billing/billing.service.js");
+  const service = new BillingService(billing, {}, {}, external);
+
+  await service.onInvoicePaid("invoice-hosting-category", { source: "gateway" });
+
+  assert.deepEqual(calls, [
+    ["audit", "invoice.paid", undefined],
+    ["module", "create", "hetzner"],
+    ["hetzner"],
+    ["success", "log-1", "ACTIVE"],
+    ["service", "service-1", "ACTIVE", "hz-1"],
+    ["item", "item-1", "ACTIVE"],
+    ["audit", "service.activated", "hetzner"],
+    ["order", "order-1", "COMPLETE"]
+  ]);
+});

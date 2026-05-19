@@ -19,8 +19,8 @@ export class OrdersService {
     private readonly domainAvailability?: DomainAvailabilityService
   ) {}
 
-  async homepageProducts() {
-    const products = await this.orders.listHomepageProducts();
+  async homepageProducts(categorySlug?: string) {
+    const products = await this.orders.listHomepageProducts(categorySlug);
     const minimumDomainPrice = await this.domainPricing.minimumRegisterPrice();
     return products.map((product) =>
       product.type === "DOMAIN" && minimumDomainPrice !== undefined ? { ...product, minimumPriceCents: minimumDomainPrice } : product
@@ -405,6 +405,8 @@ export class OrdersService {
     productPriceId: string;
     type: string;
   }, customerSnapshot?: unknown, linkedServiceId?: string) {
+    const product = await this.orders.findProduct(item.productId);
+    const moduleName = product ? effectiveModule(product) : undefined;
     const service = linkedServiceId
       ? { id: linkedServiceId }
       : await this.orders.createServiceForItem(
@@ -424,7 +426,7 @@ export class OrdersService {
 
     if (item.type === "SHARED_HOSTING") {
       await this.orders.markItemProvisioning(item.id);
-      void this.finishHostingProvisioning(item, service.id, customerSnapshot);
+      void this.finishHostingProvisioning(item, service.id, customerSnapshot, moduleName);
       return { outcome: "pending" as const, service };
     }
 
@@ -447,6 +449,7 @@ export class OrdersService {
       await this.orders.createDomainRecord({
         domain: item.domainName,
         raw: metadata,
+        registrarModule: moduleName ?? "resellbiz",
         serviceId: service.id,
         status: "PENDING",
         userId
@@ -477,6 +480,7 @@ export class OrdersService {
       domain: item.domainName,
       externalId: provisioning.externalId,
       raw: provisioning.metadata,
+      registrarModule: moduleName ?? "resellbiz",
       serviceId: service.id,
       status: provisioning.status === "FAILED" ? "FAILED" : provisioning.status === "ACTIVE" ? "ACTIVE" : "PENDING",
       userId
@@ -520,23 +524,29 @@ export class OrdersService {
       type: string;
     },
     serviceId: string,
-    customerSnapshot?: unknown
+    customerSnapshot?: unknown,
+    moduleName?: string
   ) {
     try {
-      const provisioning = await this.external.virtualmin.provision({
+      if (!moduleName) {
+        await this.orders.markItemSkipped(item.id, "Manual provisioning required");
+        return;
+      }
+      const provider = this.external.hostingProvider(moduleName, item.type);
+      const provisioning = await provider.provision({
         options: hostingOptions(item.configuration, customerSnapshot),
         productType: item.type,
         serviceId
       });
       if (provisioning.status === "ACTIVE") {
-        await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, "virtualmin");
+        await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, moduleName);
         return;
       }
       if (provisioning.status === "FAILED") {
-        await this.orders.markItemFailed(item.id, "Virtualmin hosting provisioning failed");
+        await this.orders.markItemFailed(item.id, "Hosting provisioning failed");
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Virtualmin hosting provisioning failed";
+      const message = error instanceof Error ? error.message : "Hosting provisioning failed";
       await this.orders.markItemFailed(item.id, message);
     }
   }
@@ -686,6 +696,21 @@ function normalizedDomainYears(value?: string | number) {
 function domainProductFallbackCents(product: { prices?: Array<{ amountCents: number; billingCycle: string }> } | null | undefined, years: number) {
   const cycle = `YEAR_${years}`;
   return product?.prices?.find((price) => price.billingCycle === cycle)?.amountCents ?? product?.prices?.[0]?.amountCents ?? 0;
+}
+
+function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
+  if (product.category) {
+    return normalizeModule(product.category.provisioningModule);
+  }
+  return normalizeModule(product.provisioningModule) ?? (["VPS", "DEDICATED_SERVER"].includes(product.type ?? "") ? "hetzner" : "virtualmin");
+}
+
+function normalizeModule(value: string | null | undefined) {
+  const moduleName = String(value ?? "").trim();
+  if (!moduleName || moduleName === "none") {
+    return undefined;
+  }
+  return moduleName;
 }
 
 function nextBillingDate(date: Date, cycle: string) {

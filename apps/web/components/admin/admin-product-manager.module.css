@@ -1,5 +1,6 @@
 .stack,
-.form {
+.form,
+.categoryForm {
   display: grid;
   gap: 16px;
 }
@@ -88,7 +89,8 @@
   gap: 14px;
 }
 
-.form label {
+.form label,
+.categoryForm label {
   display: grid;
   gap: 8px;
   font-weight: 800;
@@ -96,7 +98,10 @@
 
 .form input,
 .form select,
-.form textarea {
+.form textarea,
+.categoryForm input,
+.categoryForm select,
+.categoryForm textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--border);
@@ -107,7 +112,8 @@
   font: inherit;
 }
 
-.form textarea {
+.form textarea,
+.categoryForm textarea {
   padding-top: 10px;
 }
 

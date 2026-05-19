@@ -24,14 +24,14 @@ export class OrdersRepository {
   findProduct(productId: string) {
     return this.prisma.product.findFirst({
       where: { id: productId, active: true },
-      include: { prices: { where: { active: true } }, configs: true }
+      include: { category: true, prices: { where: { active: true } }, configs: true }
     });
   }
 
   findProductByType(type: string) {
     return this.prisma.product.findFirst({
       where: { active: true, type: type as ProductType },
-      include: { prices: { where: { active: true } }, configs: true },
+      include: { category: true, prices: { where: { active: true } }, configs: true },
       orderBy: { sortOrder: "asc" }
     });
   }
@@ -46,10 +46,10 @@ export class OrdersRepository {
     });
   }
 
-  listHomepageProducts() {
+  listHomepageProducts(categorySlug?: string) {
     return this.prisma.product.findMany({
-      where: { active: true, homepageVisible: true },
-      include: { prices: { where: { active: true } }, configs: true },
+      where: { active: true, homepageVisible: true, category: categorySlug ? { active: true, slug: categorySlug } : undefined },
+      include: { category: true, prices: { where: { active: true } }, configs: true },
       orderBy: { sortOrder: "asc" }
     });
   }
@@ -102,11 +102,14 @@ export class OrdersRepository {
       orderBy: { createdAt: "asc" }
     });
     const items = [...order.items].sort((a, b) => pendingEntityPriority(a) - pendingEntityPriority(b));
+    const moduleByProductId = await this.productModulesForItems(items);
 
     for (const item of items) {
       const configuration = isRecord(item.configuration) ? item.configuration : {};
       let serviceId = typeof item.serviceId === "string" ? item.serviceId : undefined;
       let domainRecordId: string | undefined;
+      const hasProductModule = moduleByProductId.has(String(item.productId));
+      const productModule = hasProductModule ? moduleByProductId.get(String(item.productId)) : moduleNameForProductType(String(item.type));
 
       if (item.type !== "DOMAIN" && !serviceId) {
         const renewsAt = item.billingCycle === "ONE_TIME" ? undefined : addBillingCycle(new Date(), String(item.billingCycle));
@@ -115,7 +118,7 @@ export class OrdersRepository {
             billingCycle: item.billingCycle as BillingCycle,
             configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
             initialInvoiceId: invoiceId,
-            moduleName: moduleNameForProductType(String(item.type)),
+            moduleName: productModule ?? null,
             nextDueAt: renewsAt,
             orderId: order.id,
             orderItemId: String(item.id),
@@ -151,7 +154,7 @@ export class OrdersRepository {
             billingCycle: item.billingCycle as BillingCycle,
             configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
             initialInvoiceId: invoiceId,
-            moduleName: "resellbiz",
+            moduleName: hasProductModule ? productModule ?? null : "resellbiz",
             nextDueAt: renewsAt,
             orderId: order.id,
             orderItemId: String(item.id),
@@ -186,7 +189,7 @@ export class OrdersRepository {
             orderId: order.id,
             orderItemId: String(item.id),
             recurringAmountCents: Number(item.unitAmountCents ?? 0),
-            registrarModule: "resellbiz",
+            registrarModule: hasProductModule ? productModule ?? null : "resellbiz",
             registrationPeriodYears: yearsFromCycle(String(item.billingCycle)),
             serviceId: service.id,
             status: action === "transfer" ? "PENDING_TRANSFER" : "PENDING",
@@ -217,7 +220,7 @@ export class OrdersRepository {
     return this.prisma.order.findMany({
       include: {
         invoice: true,
-        items: { include: { product: true, service: true } },
+        items: { include: { product: { include: { category: true } }, service: { include: { product: { include: { category: true } } } } } },
         user: { select: publicUserSelect }
       },
       orderBy: { createdAt: "desc" }
@@ -229,7 +232,7 @@ export class OrdersRepository {
       where: { id },
       include: {
         invoice: { include: { items: true, transactions: true } },
-        items: { include: { product: true, service: true } },
+        items: { include: { product: { include: { category: true } }, service: { include: { product: { include: { category: true } } } } } },
         user: { select: publicUserSelect }
       }
     });
@@ -291,7 +294,7 @@ export class OrdersRepository {
       },
       include: {
         invoice: true,
-        items: { include: { product: true, service: true } },
+        items: { include: { product: { include: { category: true } }, service: { include: { product: { include: { category: true } } } } } },
         user: { select: publicUserSelect }
       }
     });
@@ -302,9 +305,11 @@ export class OrdersRepository {
     userId: string,
     status: string
   ) {
+    const moduleName = await this.moduleNameForProductId(item.productId);
     const service = await this.prisma.service.create({
       data: {
         configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
+        moduleName: moduleName ?? null,
         productId: item.productId,
         productPriceId: item.productPriceId,
         renewsAt: addBillingCycle(new Date(), item.billingCycle),
@@ -325,6 +330,7 @@ export class OrdersRepository {
   createDomainRecord(input: {
     domain: string;
     externalId?: string;
+    registrarModule?: string;
     raw?: Record<string, unknown>;
     serviceId: string;
     status: "ACTIVE" | "FAILED" | "PENDING";
@@ -335,6 +341,7 @@ export class OrdersRepository {
         dnsRecords: input.raw as Prisma.InputJsonValue,
         domain: input.domain,
         externalId: input.externalId,
+        registrarModule: input.registrarModule,
         serviceId: input.serviceId,
         status: input.status,
         userId: input.userId
@@ -399,6 +406,23 @@ export class OrdersRepository {
 
     return item;
   }
+
+  private async productModulesForItems(items: Array<Record<string, any>>) {
+    const productIds = [...new Set(items.map((item) => String(item.productId)).filter(Boolean))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { category: { select: { provisioningModule: true } }, id: true, provisioningModule: true, type: true }
+    });
+    return new Map(products.map((product) => [product.id, effectiveModule(product)]));
+  }
+
+  private async moduleNameForProductId(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { category: { select: { provisioningModule: true } }, id: true, provisioningModule: true, type: true }
+    });
+    return product ? effectiveModule(product) : undefined;
+  }
 }
 
 function pendingEntityPriority(item: Record<string, any>) {
@@ -407,6 +431,21 @@ function pendingEntityPriority(item: Record<string, any>) {
 
 function moduleNameForProductType(type: string) {
   return ["VPS", "DEDICATED_SERVER"].includes(type) ? "hetzner" : "virtualmin";
+}
+
+function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
+  if (product.category) {
+    return normalizeModule(product.category.provisioningModule);
+  }
+  return normalizeModule(product.provisioningModule) ?? moduleNameForProductType(product.type ?? "");
+}
+
+function normalizeModule(value: string | null | undefined) {
+  const moduleName = String(value ?? "").trim();
+  if (!moduleName || moduleName === "none") {
+    return undefined;
+  }
+  return moduleName;
 }
 
 function serviceDomainName(configuration: Record<string, unknown>) {

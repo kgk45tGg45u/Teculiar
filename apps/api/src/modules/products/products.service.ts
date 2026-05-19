@@ -35,6 +35,22 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     return this.products.listProducts();
   }
 
+  listCategories() {
+    return this.products.listCategories();
+  }
+
+  createCategory(dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+    return this.products.createCategory(dto);
+  }
+
+  updateCategory(id: string, dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+    return this.products.updateCategory(id, dto);
+  }
+
+  deleteCategory(id: string) {
+    return this.products.deleteCategory(id);
+  }
+
   createProduct(dto: CreateProductDto) {
     return this.products.createProduct(dto);
   }
@@ -96,7 +112,11 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     }
 
     const service = await this.products.createService(input);
-    const provider = this.external.hostingProvider(product.type);
+    const moduleName = effectiveModule(product);
+    if (!moduleName) {
+      return service;
+    }
+    const provider = this.external.hostingProvider(moduleName, product.type);
     const provisioning = await provider.provision({
       serviceId: service.id,
       productType: product.type,
@@ -224,7 +244,11 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
         return service;
       }
     }
-    const provider = this.external.hostingProvider(service.product.type);
+    const moduleName = effectiveModule(service.product);
+    if (!moduleName) {
+      return service;
+    }
+    const provider = this.external.hostingProvider(moduleName, service.product.type);
     if (!provider.status) {
       return service;
     }
@@ -254,7 +278,11 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException("Service is not provisioned yet");
     }
 
-    const provider = this.external.hostingProvider(service.product.type);
+    const moduleName = effectiveModule(service.product);
+    if (!moduleName) {
+      throw new BadRequestException("Service has no provisioning module");
+    }
+    const provider = this.external.hostingProvider(moduleName, service.product.type);
     return provider.restart(service.externalId);
   }
 
@@ -313,6 +341,21 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
     };
     return repository.completeReadyOrdersForService?.(serviceId) ?? Promise.resolve();
   }
+}
+
+function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
+  if (product.category) {
+    return normalizeModule(product.category.provisioningModule);
+  }
+  return normalizeModule(product.provisioningModule) ?? (["VPS", "DEDICATED_SERVER"].includes(product.type ?? "") ? "hetzner" : "virtualmin");
+}
+
+function normalizeModule(value: string | null | undefined) {
+  const moduleName = String(value ?? "").trim();
+  if (!moduleName || moduleName === "none") {
+    return undefined;
+  }
+  return moduleName;
 }
 
 function domainFromConfiguration(configuration: unknown) {

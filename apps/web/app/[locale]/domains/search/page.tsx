@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { apiGet, money, type ApiDomainSearch, type ApiDomainSearchResult } from "../../../../lib/api";
+import { apiGet, money, type ApiDomainSearch, type ApiDomainSearchResult, type ApiProduct } from "../../../../lib/api";
 import { getLocale } from "../../../../lib/i18n";
 import { Button } from "../../../../components/ui/button";
 import styles from "./domain-results.module.css";
@@ -24,22 +24,25 @@ export default async function DomainSearchPage({
   if (!result) {
     notFound();
   }
+  const products = await apiGet<ApiProduct[]>("/storefront/products");
+  const domainProduct = products?.find((product) => product.type === "DOMAIN");
+  const productId = result.productId ?? domainProduct?.id;
 
   return (
     <main className="section">
       <div className={`container ${styles.grid}`}>
-        <DomainResultCard locale={locale} result={result} />
+        <DomainResultCard locale={locale} productId={productId} result={result} />
         {result.suggestions.map((suggestion) => (
-          <DomainResultCard key={suggestion.domain} locale={locale} result={suggestion} />
+          <DomainResultCard key={suggestion.domain} locale={locale} productId={suggestion.productId ?? productId} result={suggestion} />
         ))}
       </div>
     </main>
   );
 }
 
-function DomainResultCard({ locale, result }: { locale: string; result: ApiDomainSearchResult }) {
-  const href = result.productId
-    ? `/${locale}/order/${result.productId}?domain=${encodeURIComponent(result.domain)}&domainAction=${result.action}`
+function DomainResultCard({ locale, productId, result }: { locale: string; productId?: string; result: ApiDomainSearchResult }) {
+  const href = productId
+    ? `/${locale}/order/${productId}?domain=${encodeURIComponent(result.domain)}&domainAction=${result.action}`
     : `/${locale}/domains`;
 
   return (

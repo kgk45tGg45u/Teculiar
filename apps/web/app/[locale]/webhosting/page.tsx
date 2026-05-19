@@ -1,7 +1,8 @@
-import { ArrowRight, Check, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
-import { apiGet, cycleLabel, money, type ApiProduct } from "../../../lib/api";
+import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
+import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
+import { HostingPackages } from "./hosting-packages";
 import styles from "./webhosting.module.css";
 
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -91,9 +92,8 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         }
       ];
 
-  // Load products from API, fall back to catalog
-  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products");
-  const hostingProducts = apiProducts?.filter((p) => p.type === "SHARED_HOSTING") ?? [];
+  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products?category=webhosting");
+  const hostingProducts = apiProducts?.length ? apiProducts : [];
 
   return (
     <>
@@ -132,60 +132,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
       </section>
 
       {/* Hosting product cards from admin */}
-      {hostingProducts.length > 0 && (
-        <section className={`section tight ${styles.packagesSection}`}>
-          <div className="container">
-            <span className="eyebrow">{isDe ? "Hosting-Pakete" : "Hosting packages"}</span>
-            <h2 className={styles.sectionTitle}>
-              {isDe ? "Wähle das Paket, das zu dir passt." : "Choose the package that fits you."}
-            </h2>
-            <div className={styles.packageGrid}>
-              {hostingProducts.map((product, i) => {
-                const sorted = [...product.prices].sort((a, b) => a.amountCents - b.amountCents);
-                const lowestPrice = sorted[0];
-                const setupFee = lowestPrice?.setupFeeCents ?? 0;
-                return (
-                  <div className={`${styles.packageCard} ${i === 1 ? styles.packageFeatured : ""}`} key={product.id}>
-                    {i === 1 && <span className={styles.packageBadge}>{isDe ? "Beliebt" : "Popular"}</span>}
-                    <h3>{product.name}</h3>
-                    {lowestPrice && (
-                      <div className={styles.packagePrice}>
-                        <strong>{money(lowestPrice.amountCents, lowestPrice.currency)}</strong>
-                        <span>/ {cycleLabel(lowestPrice.billingCycle)}</span>
-                      </div>
-                    )}
-                    {setupFee > 0 && lowestPrice && (
-                      <div className={styles.setupFee}>
-                        {isDe ? "Einrichtung" : "Setup"}: {money(setupFee, lowestPrice.currency)}
-                      </div>
-                    )}
-                    {setupFee === 0 && (
-                      <div className={styles.setupFree}>{isDe ? "Keine Einrichtungsgebühr" : "No setup fee"}</div>
-                    )}
-                    <p className={styles.packageDesc}>{product.description}</p>
-                    {product.prices.length > 1 && (
-                      <div className={styles.billingCycles}>
-                        {product.prices.map((p) => (
-                          <span key={p.id} className={styles.cycleChip}>
-                            {cycleLabel(p.billingCycle)}: {money(p.amountCents, p.currency)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <Button
-                      href={`/${locale}/order/${product.id}`}
-                      icon={ArrowRight}
-                      variant={i === 1 ? "primary" : "secondary"}
-                    >
-                      {isDe ? "Jetzt bestellen" : "Order now"}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
+      {hostingProducts.length > 0 ? <HostingPackages isDe={isDe} locale={locale} products={hostingProducts} /> : null}
 
       {/* Open-source badge */}
       <section className={`section tight ${styles.openSourceSection}`}>

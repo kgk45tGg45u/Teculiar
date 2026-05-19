@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "../../lib/api";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
 import styles from "./admin-product-manager.module.css";
@@ -17,15 +17,19 @@ type VirtualminOption = {
 export function AdminProductManager() {
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editing, setEditing] = useState<ApiProduct | undefined>();
+  const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
   const [virtualmin, setVirtualmin] = useState<{ plans: VirtualminOption[]; templates: VirtualminOption[] }>({ plans: [], templates: [] });
   const [module, setModule] = useState("resellbiz");
+  const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState("DOMAIN");
   const [selectedPlan, setSelectedPlan] = useState("");
   const [detectedPlans, setDetectedPlans] = useState<VirtualminOption[]>([]);
 
   useEffect(() => {
     void refreshProducts();
+    void refreshCategories();
     void detectVirtualminPlans();
   }, []);
 
@@ -49,11 +53,11 @@ export function AdminProductManager() {
             ...customFields(formData.get("customFields")),
             ...virtualminFields(formData)
           ],
+          categoryId: String(formData.get("categoryId") ?? "") || null,
           description: String(formData.get("description") ?? ""),
           homepageVisible: formData.get("homepageVisible") === "on",
           name: String(formData.get("name") ?? ""),
           prices,
-          provisioningModule: String(formData.get("provisioningModule") ?? ""),
           slug: String(formData.get("slug") ?? ""),
           type: String(formData.get("type") ?? "DOMAIN")
         }),
@@ -69,6 +73,7 @@ export function AdminProductManager() {
       setState({ kind: "ok", message: "Produkt gespeichert." });
       notify.success("Produkt gespeichert.");
       setEditing(undefined);
+      setCategoryId("");
       await refreshProducts();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Produkt fehlgeschlagen.";
@@ -94,6 +99,54 @@ export function AdminProductManager() {
     const response = await fetch(`${API_BASE_URL}/products`);
     const payload = await response.json().catch(() => []);
     setProducts(Array.isArray(payload) ? payload : []);
+  }
+
+  async function refreshCategories() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories`, { headers: authHeaders() });
+    const payload = await response.json().catch(() => []);
+    setCategories(Array.isArray(payload) ? payload : []);
+  }
+
+  async function saveCategory(formData: FormData) {
+    setState({ kind: "loading", message: "Speichere Kategorie..." });
+    const categoryId = String(formData.get("categoryId") ?? "");
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
+      body: JSON.stringify({
+        description: String(formData.get("categoryDescription") ?? ""),
+        name: String(formData.get("categoryName") ?? ""),
+        provisioningModule: String(formData.get("categoryModule") ?? "none"),
+        slug: String(formData.get("categorySlug") ?? ""),
+        sortOrder: Number(formData.get("categorySortOrder") ?? 0)
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: categoryId ? "PATCH" : "POST"
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const message = typeof payload.message === "string" ? payload.message : "Kategorie konnte nicht gespeichert werden.";
+      setState({ kind: "error", message });
+      notify.error(message);
+      return;
+    }
+    setState({ kind: "ok", message: "Kategorie gespeichert." });
+    notify.success("Kategorie gespeichert.");
+    setEditingCategory(undefined);
+    await refreshCategories();
+    await refreshProducts();
+  }
+
+  async function removeCategory(category: ApiProductCategory) {
+    setState({ kind: "loading", message: "Entferne Kategorie..." });
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories/${category.id}`, { headers: authHeaders(), method: "DELETE" });
+    if (!response.ok) {
+      setState({ kind: "error", message: "Kategorie konnte nicht entfernt werden." });
+      notify.error("Kategorie konnte nicht entfernt werden.");
+      return;
+    }
+    setState({ kind: "ok", message: "Kategorie entfernt." });
+    notify.success("Kategorie entfernt.");
+    await refreshCategories();
+    await refreshProducts();
   }
 
   async function detectVirtualminPlans() {
@@ -126,9 +179,76 @@ export function AdminProductManager() {
   }
 
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
+  const selectedCategory = categories.find((category) => category.id === categoryId);
+  const effectiveModule = selectedCategory ? selectedCategory.provisioningModule ?? "none" : module;
 
   return (
     <div className={styles.stack}>
+      <section className={styles.products}>
+        <h2>Product categories</h2>
+        <form action={saveCategory} className={styles.categoryForm} key={editingCategory?.id ?? "new-category"}>
+          <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
+          <div className={styles.grid}>
+            <label>
+              Name
+              <input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Webhosting" />
+            </label>
+            <label>
+              Slug
+              <input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" />
+            </label>
+            <label>
+              Modul
+              <select defaultValue={editingCategory?.provisioningModule ?? "none"} name="categoryModule">
+                <option value="virtualmin">Virtualmin</option>
+                <option value="resellbiz">ResellBiz</option>
+                <option value="hetzner">Hetzner</option>
+                <option value="none">Manuell</option>
+              </select>
+            </label>
+            <label>
+              Sortierung
+              <input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" />
+            </label>
+          </div>
+          <label>
+            Beschreibung
+            <textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} />
+          </label>
+          <div className={styles.actions}>
+            <Button type="submit">Kategorie speichern</Button>
+            {editingCategory ? <Button type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>Neue Kategorie</Button> : null}
+          </div>
+        </form>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Modul</th>
+                <th>Produkte</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => (
+                <tr key={category.id}>
+                  <td>{category.name}</td>
+                  <td>{category.slug}</td>
+                  <td>{moduleLabel(category.provisioningModule)}</td>
+                  <td>{category.products?.length ?? 0}</td>
+                  <td className={styles.actions}>
+                    <Button type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
+                    <Button type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className={styles.products}>
         <h2>Existing products</h2>
         <div className={styles.actions}>
@@ -154,6 +274,7 @@ export function AdminProductManager() {
               <tr>
                 <th>Name</th>
                 <th>Typ</th>
+                <th>Kategorie</th>
                 <th>Modul</th>
                 <th>Aktion</th>
               </tr>
@@ -163,11 +284,13 @@ export function AdminProductManager() {
                 <tr key={product.id}>
                   <td>{product.name}</td>
                   <td>{typeLabel(product.type)}</td>
-                  <td>{product.provisioningModule ?? "none"}</td>
+                  <td>{product.category?.name ?? "Keine"}</td>
+                  <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule)}</td>
                   <td className={styles.actions}>
                     <Button type="button" variant="secondary" onClick={() => {
                       setEditing(product);
-                      setModule(product.provisioningModule ?? "none");
+                      setCategoryId(product.categoryId ?? product.category?.id ?? "");
+                      setModule(product.category ? product.category.provisioningModule ?? "none" : product.provisioningModule ?? "none");
                       setType(product.type);
                       setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
                     }}>Edit</Button>
@@ -182,6 +305,7 @@ export function AdminProductManager() {
 
     <form action={submit} className={styles.form} key={editing?.id ?? "new"}>
       <input name="productId" type="hidden" value={editing?.id ?? ""} />
+      <input name="categoryModule" type="hidden" value={effectiveModule ?? "none"} />
       <div className={styles.grid}>
         <label>
           Name
@@ -200,11 +324,16 @@ export function AdminProductManager() {
           </select>
         </label>
         <label>
-          Modul
-          <select defaultValue={editing?.provisioningModule ?? "resellbiz"} name="provisioningModule" onChange={(event) => setModule(event.target.value)}>
-            <option value="resellbiz">ResellBiz</option>
-            <option value="virtualmin">Virtualmin</option>
-            <option value="none">Kein API</option>
+          Kategorie
+          <select defaultValue={editing?.categoryId ?? editing?.category?.id ?? ""} name="categoryId" onChange={(event) => {
+            const nextCategory = categories.find((category) => category.id === event.target.value);
+            setCategoryId(event.target.value);
+            setModule(nextCategory?.provisioningModule ?? "none");
+          }}>
+            <option value="">Keine Kategorie</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>{category.name}</option>
+            ))}
           </select>
         </label>
         {type === "DOMAIN" ? (
@@ -230,7 +359,7 @@ export function AdminProductManager() {
         Beschreibung
         <textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} />
       </label>
-      {module === "virtualmin" ? (
+      {effectiveModule === "virtualmin" ? (
         <section className={styles.virtualminBox}>
           <label>
             Virtualmin Plan
@@ -284,7 +413,7 @@ function customFields(value: FormDataEntryValue | null) {
 }
 
 function virtualminFields(formData: FormData) {
-  if (String(formData.get("provisioningModule") ?? "") !== "virtualmin") {
+  if (String(formData.get("categoryModule") ?? "") !== "virtualmin") {
     return [];
   }
 
@@ -308,4 +437,11 @@ function typeLabel(type: string) {
     SHARED_HOSTING: "Web hosting",
     VPS: "VPS"
   }[type] ?? type.toLowerCase().replace(/_/g, " ");
+}
+
+function moduleLabel(moduleName?: string | null) {
+  if (!moduleName || moduleName === "none") {
+    return "Manuell";
+  }
+  return moduleName === "resellbiz" ? "ResellBiz" : moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
 }

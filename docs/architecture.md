@@ -72,6 +72,8 @@ External providers are deliberately thin adapters:
 - `ResellBizProviderService` for domains.
 - `HetznerProviderService` for dedicated and cloud server provisioning.
 
+Product categories own the selected automation module. Products inherit their module from the category first, then fall back to legacy product-level module settings only when no category is assigned. `Webhosting` defaults to `virtualmin`, `Domain` defaults to `resellbiz`, and `IT Solutions` defaults to manual handling until a module is configured.
+
 The product module calls provider interfaces, not provider SDK details. That keeps migrations and failover practical.
 
 ## Localization and CMS

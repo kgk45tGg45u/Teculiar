@@ -57,6 +57,44 @@
   max-width: 680px;
 }
 
+.packageHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.packageHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.billingToggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.billingToggle button {
+  min-width: 96px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 760;
+}
+
+.billingToggle .toggleActive {
+  background: var(--crimson);
+  color: white;
+}
+
 .packageGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -72,6 +110,17 @@
   border-radius: 10px;
   background: var(--paper);
   align-content: start;
+}
+
+.packageLink {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.packageLink:hover {
+  border-color: rgba(177, 18, 38, 0.7);
+  transform: translateY(-2px);
 }
 
 .packageFeatured {
@@ -171,6 +220,20 @@
   font-size: 0.78rem;
   color: var(--muted);
   background: var(--surface);
+}
+
+.packageCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 4px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: var(--crimson);
+  color: #fff;
+  font-weight: 800;
 }
 
 /* Open source section */
@@ -418,6 +481,19 @@
 }
 
 @media (max-width: 860px) {
+  .packageHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .billingToggle {
+    width: 100%;
+  }
+
+  .billingToggle button {
+    flex: 1;
+  }
+
   .explainRow,
   .faqLayout {
     grid-template-columns: 1fr;

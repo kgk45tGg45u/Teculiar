@@ -1,4 +1,4 @@
-import { Bell, FileText, Package, Settings, Ticket, UsersRound } from "lucide-react";
+import { Bell, BookOpen, FileText, Package, Settings, Ticket, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
@@ -8,6 +8,7 @@ import {
   type ApiActionLog,
   type ApiClient,
   type ApiInvoice,
+  type ApiKnowledgebaseArticle,
   type ApiDomainPrice,
   type ApiOrder,
   type ApiProduct,
@@ -21,6 +22,7 @@ import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
+import { KnowledgebasePanel } from "./admin-support";
 import styles from "./admin-dashboard.module.css";
 
 type AdminView =
@@ -31,6 +33,7 @@ type AdminView =
   | "domain-prices"
   | "invoices"
   | "logs"
+  | "knowledgebase"
   | "payment-gateways"
   | "products"
   | "services"
@@ -55,6 +58,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings")) ?? {};
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
+  const knowledgebase = (await apiGetAuth<ApiKnowledgebaseArticle[]>("/admin/dev/knowledgebase")) ?? [];
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
@@ -74,6 +78,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
           <a href="/admin/invoices">Invoices</a>
           <a href="/admin/logs">Logs</a>
           <a href="/admin/tickets">Support Tickets</a>
+          <a href="/admin/knowledgebase">Knowledgebase</a>
           <a href="/admin/blog">Blog</a>
           <a href="/admin/announcements">Announcements</a>
           <a href="/admin/settings">Automation Settings</a>
@@ -118,6 +123,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "invoices" ? <InvoicesPanel invoices={invoices} /> : null}
         {view === "logs" ? <LogsPanel logs={logs} /> : null}
         {view === "tickets" ? <TicketsPanel tickets={tickets} /> : null}
+        {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
         {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
@@ -181,6 +187,7 @@ function ModuleGrid() {
     { title: "Orders", body: "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
     { title: "Billing", body: "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
     { title: "Support", body: "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
+    { title: "Knowledgebase", body: "Public help articles and ticket reply inserts.", href: "/admin/knowledgebase", icon: BookOpen },
     { title: "Blog", body: "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
     { title: "Products", body: "Products, services, pricing cycles.", href: "/admin/products", icon: Settings },
     { title: "Announcements", body: "Write client portal announcements.", href: "/admin/announcements", icon: Bell }
@@ -394,7 +401,7 @@ function TicketsPanel({ tickets }: { tickets: ApiTicket[] }) {
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
               <td>{ticket.department}</td>
-              <td>{ticket.subject}</td>
+              <td><a href={`/admin/tickets/${ticket.id}`}>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} {ticket.subject}</a></td>
               <td>
                 <StatusPill label={ticketLabel(ticket.status)} tone={ticket.status === "CLOSED" ? "neutral" : "warn"} />
               </td>
@@ -496,6 +503,7 @@ function adminTitle(view: AdminView) {
     "domain-prices": "Domain Prices",
     home: "Operations Console",
     invoices: "Invoices",
+    knowledgebase: "Knowledgebase",
     logs: "Logs",
     orders: "Orders",
     products: "Products/Services",
@@ -515,7 +523,7 @@ function stringValue(value: unknown) {
 }
 
 function ticketLabel(status: string) {
-  return { WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
+  return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
 }
 
 function dateLabel(value?: string | null) {

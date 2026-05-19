@@ -11,8 +11,8 @@ export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 
   @Get("storefront/products")
-  homepageProducts() {
-    return this.orders.homepageProducts();
+  homepageProducts(@Query("category") category?: string) {
+    return this.orders.homepageProducts(category);
   }
 
   @Get("storefront/domain-prices")

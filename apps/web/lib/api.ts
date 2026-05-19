@@ -1,4 +1,6 @@
 export type ApiProduct = {
+  category?: ApiProductCategory | null;
+  categoryId?: string | null;
   id: string;
   name: string;
   slug: string;
@@ -15,6 +17,17 @@ export type ApiProduct = {
     currency: string;
   }>;
   configs?: Array<{ key: string; label: string; values: unknown[]; required: boolean }>;
+};
+
+export type ApiProductCategory = {
+  active?: boolean;
+  description?: string | null;
+  id: string;
+  name: string;
+  products?: ApiProduct[];
+  provisioningModule?: string | null;
+  slug: string;
+  sortOrder?: number;
 };
 
 export type ApiPaymentGateway = {
@@ -150,11 +163,48 @@ export type ApiClient = {
 
 export type ApiTicket = {
   id: string;
+  publicId?: string;
+  createdAt?: string;
   department: string;
+  priority?: string;
   subject: string;
   status: string;
   updatedAt: string;
-  service?: { product?: { name: string } } | null;
+  user?: { email?: string; name?: string } | null;
+  service?: { id?: string; product?: { name: string } } | null;
+  replies?: Array<{
+    attachments?: ApiTicketAttachment[];
+    body: string;
+    createdAt: string;
+    id: string;
+    internal?: boolean;
+    user?: { email?: string; name?: string } | null;
+    userId?: string;
+  }>;
+  attachments?: ApiTicketAttachment[];
+};
+
+export type ApiTicketAttachment = {
+  fileName: string;
+  id: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+};
+
+export type ApiKnowledgebaseArticle = {
+  body: string;
+  createdAt?: string;
+  excerpt?: string | null;
+  id: string;
+  images?: string[] | unknown;
+  keywords?: string[];
+  published?: boolean;
+  seoDescription?: string | null;
+  seoTitle?: string | null;
+  slug: string;
+  title: string;
+  updatedAt?: string;
 };
 
 export type ApiActionLog = {

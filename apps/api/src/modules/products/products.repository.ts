@@ -10,20 +10,60 @@ export class ProductsRepository {
   listProducts() {
     return this.prisma.product.findMany({
       where: { active: true },
-      include: { prices: true, configs: true, addOns: { include: { addOn: true } } },
+      include: { category: true, prices: true, configs: true, addOns: { include: { addOn: true } } },
       orderBy: { sortOrder: "asc" }
     });
   }
 
-  createProduct(dto: CreateProductDto) {
+  listCategories() {
+    return this.prisma.productCategory.findMany({
+      where: { active: true },
+      include: { products: { where: { active: true }, orderBy: { sortOrder: "asc" } } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+    });
+  }
+
+  createCategory(dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+    return this.prisma.productCategory.create({
+      data: {
+        description: dto.description,
+        name: dto.name,
+        provisioningModule: normalizeModule(dto.provisioningModule),
+        slug: dto.slug,
+        sortOrder: dto.sortOrder ?? 0
+      }
+    });
+  }
+
+  updateCategory(id: string, dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+    return this.prisma.productCategory.update({
+      where: { id },
+      data: {
+        active: true,
+        description: dto.description,
+        name: dto.name,
+        provisioningModule: normalizeModule(dto.provisioningModule),
+        slug: dto.slug,
+        sortOrder: dto.sortOrder ?? 0
+      }
+    });
+  }
+
+  async deleteCategory(id: string) {
+    await this.prisma.product.updateMany({ where: { categoryId: id }, data: { categoryId: null } });
+    return this.prisma.productCategory.update({ where: { id }, data: { active: false } });
+  }
+
+  async createProduct(dto: CreateProductDto) {
     return this.prisma.product.create({
       data: {
+        categoryId: dto.categoryId || null,
         name: dto.name,
         slug: dto.slug,
         type: dto.type as ProductType,
         description: dto.description,
         homepageVisible: dto.homepageVisible ?? true,
-        provisioningModule: dto.provisioningModule,
+        provisioningModule: normalizeModule(dto.provisioningModule),
         prices: {
           create: productPrices(dto).map((price) => ({
             billingCycle: price.billingCycle as BillingCycle,
@@ -43,7 +83,7 @@ export class ProductsRepository {
             }
           : undefined
       },
-      include: { prices: true, configs: true }
+      include: { category: true, prices: true, configs: true }
     });
   }
 
@@ -54,10 +94,11 @@ export class ProductsRepository {
         where: { id },
         data: {
           active: true,
+          categoryId: dto.categoryId || null,
           description: dto.description,
           homepageVisible: dto.homepageVisible ?? true,
           name: dto.name,
-          provisioningModule: dto.provisioningModule,
+          provisioningModule: normalizeModule(dto.provisioningModule),
           slug: dto.slug,
           type: dto.type as ProductType,
           configs: {
@@ -110,10 +151,17 @@ export class ProductsRepository {
     slug: string;
   }) {
     const existing = await this.prisma.product.findUnique({ where: { slug: input.slug } });
+    const categoryId = await this.defaultCategoryId("webhosting", {
+      description: "Shared hosting packages provisioned through the selected hosting module.",
+      name: "Webhosting",
+      provisioningModule: "virtualmin",
+      sortOrder: 10
+    });
     if (!existing) {
       return this.prisma.product.create({
         data: {
           active: true,
+          categoryId,
           description: input.description,
           homepageVisible: true,
           name: input.name,
@@ -137,6 +185,7 @@ export class ProductsRepository {
       where: { id: existing.id },
       data: {
         active: true,
+        categoryId,
         description: input.description,
         name: input.name,
         provisioningModule: "virtualmin",
@@ -159,7 +208,7 @@ export class ProductsRepository {
   findProduct(id: string) {
     return this.prisma.product.findUnique({
       where: { id },
-      include: { prices: true, configs: true, addOns: { include: { addOn: true } } }
+      include: { category: true, prices: true, configs: true, addOns: { include: { addOn: true } } }
     });
   }
 
@@ -179,14 +228,14 @@ export class ProductsRepository {
         status: "ORDERED",
         configuration: input.configuration as Prisma.InputJsonValue
       },
-      include: { product: true, productPrice: true }
+      include: { product: { include: { category: true } }, productPrice: true }
     });
   }
 
   listServices(userId?: string) {
     return this.prisma.service.findMany({
       where: userId ? { userId } : undefined,
-      include: { domainRecords: userId ? { where: { userId } } : true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } },
+      include: { domainRecords: userId ? { where: { userId } } : true, product: { include: { category: true } }, productPrice: true, serviceAddOns: { include: { addOn: true } } },
       orderBy: { createdAt: "desc" }
     });
   }
@@ -194,7 +243,7 @@ export class ProductsRepository {
   findService(id: string, userId?: string) {
     return this.prisma.service.findUnique({
       where: { id },
-      include: { domainRecords: userId ? { where: { userId } } : true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+      include: { domainRecords: userId ? { where: { userId } } : true, product: { include: { category: true } }, productPrice: true, serviceAddOns: { include: { addOn: true } } }
     });
   }
 
@@ -213,7 +262,7 @@ export class ProductsRepository {
         startedAt: status === "ACTIVE" ? new Date() : undefined,
         status: status as ServiceStatus
       },
-      include: { domainRecords: true, product: true, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+      include: { domainRecords: true, product: { include: { category: true } }, productPrice: true, serviceAddOns: { include: { addOn: true } } }
     });
   }
 
@@ -269,6 +318,25 @@ export class ProductsRepository {
       data: { status: "PENDING_CANCEL", cancelAt }
     });
   }
+
+  private async defaultCategoryId(
+    slug: string,
+    input: { description?: string; name: string; provisioningModule?: string | null; sortOrder: number }
+  ) {
+    const category = await this.prisma.productCategory.upsert({
+      where: { slug },
+      create: {
+        active: true,
+        description: input.description,
+        name: input.name,
+        provisioningModule: normalizeModule(input.provisioningModule),
+        slug,
+        sortOrder: input.sortOrder
+      },
+      update: { active: true }
+    });
+    return category.id;
+  }
 }
 
 function productPrices(dto: CreateProductDto) {
@@ -295,4 +363,12 @@ function productPrices(dto: CreateProductDto) {
       setupFeeCents: dto.setupFeeCents ?? 0
     }
   ];
+}
+
+function normalizeModule(value: string | null | undefined) {
+  const moduleName = String(value ?? "").trim();
+  if (!moduleName || moduleName === "none") {
+    return null;
+  }
+  return moduleName;
 }

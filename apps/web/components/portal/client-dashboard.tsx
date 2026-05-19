@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Send, Server, UserRound, UsersRound, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
@@ -9,6 +9,7 @@ import {
   money,
   type ApiAnnouncement,
   type ApiInvoice,
+  type ApiKnowledgebaseArticle,
   type ApiService,
   type ApiTicket
 } from "../../lib/api";
@@ -18,7 +19,7 @@ import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
-type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "add-funds" | "payment" | "profile";
+type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";
 type ApiPaymentMethod = {
   automatic: boolean;
   createdAt: string;
@@ -67,12 +68,15 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   OVERDUE: "warn",
   OPEN: "warn",
   NEW: "warn",
+  ANSWERED: "good",
+  CUSTOMER_REPLY: "warn",
   WAITING_ON_CLIENT: "good",
   WAITING_ON_STAFF: "warn",
+  RESOLVED: "neutral",
   CLOSED: "neutral"
 };
 
-export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; view?: ClientView }) {
+export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const [profile, setProfile] = useState<{
     address?: { city?: string; line1?: string; postalCode?: string; state?: string };
     balanceCents?: number;
@@ -88,6 +92,8 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<ApiInvoice>();
   const [tickets, setTickets] = useState<ApiTicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<ApiTicket>();
+  const [knowledgebase, setKnowledgebase] = useState<ApiKnowledgebaseArticle[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [brandLogo, setBrandLogo] = useState("");
   const seenServiceStatuses = useRef(new Map<string, string>());
@@ -168,9 +174,18 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
   }, [invoiceId]);
 
   useEffect(() => {
+    if (!ticketId) {
+      return;
+    }
+    const headers = authHeaders("client");
+    fetch(`${API_BASE_URL}/tickets/${ticketId}`, { headers }).then(json).then((payload) => payload && setSelectedTicket(payload)).catch(() => undefined);
+  }, [ticketId]);
+
+  useEffect(() => {
     const headers = authHeaders("client");
     fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => Array.isArray(payload) && setInvoices(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/knowledgebase`).then(json).then((payload) => Array.isArray(payload) && setKnowledgebase(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/storefront/settings`).then(json).then((payload) => payload?.siteLogoUrl && setBrandLogo(payload.siteLogoUrl)).catch(() => undefined);
     fetch(`${API_BASE_URL}/cms/announcements`, { headers }).then(json).then((payload) => Array.isArray(payload) && setAnnouncements(payload)).catch(() => undefined);
@@ -191,6 +206,7 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
           <a href="/client/invoices">Rechnungen</a>
           <a className={styles.subNav} href="/client/billing/add-funds">Add Funds</a>
           <a href="/client/payments">Payments</a>
+          <a href="/client/knowledgebase">Knowledgebase</a>
           <a href="/client/tickets">Support Tickets</a>
           <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
           <a href="/client/profile">Profile</a>
@@ -242,8 +258,10 @@ export function ClientDashboard({ invoiceId, serviceId, view = "dashboard" }: { 
         {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
         {view === "invoices" && !invoiceId ? <InvoicesTable invoices={invoices} /> : null}
         {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} /> : null}
-        {view === "tickets" ? <TicketsTable tickets={tickets} /> : null}
-        {view === "new-ticket" ? <NewTicket services={serviceRows} /> : null}
+        {view === "tickets" && !ticketId ? <TicketsTable tickets={tickets} /> : null}
+        {ticketId ? <TicketThread ticket={selectedTicket} onTicketChange={setSelectedTicket} /> : null}
+        {view === "new-ticket" ? <NewTicket services={services} /> : null}
+        {view === "knowledgebase" ? <KnowledgebaseList articles={knowledgebase} /> : null}
         {view === "add-funds" ? <AddFunds /> : null}
         {view === "payment" ? <PaymentInfo /> : null}
         {view === "profile" ? <ProfileForm profile={profile} setProfile={setProfile} /> : null}
@@ -769,11 +787,178 @@ function PlanChange({ service }: { service: ApiService }) {
 }
 
 function TicketsTable({ tickets }: { tickets: ApiTicket[] }) {
-  return <section className={styles.block}><div className={styles.blockHeader}><div><span className="eyebrow">Support Tickets</span><h2>All Tickets</h2></div><Button href="/client/tickets/new" icon={Send}>New Ticket</Button></div><div className={styles.tableWrap}><table className="table"><thead><tr><th>Department</th><th>Subject</th><th>Status</th><th>Last Update</th></tr></thead><tbody>{tickets.map((ticket) => <tr key={ticket.id}><td>{ticket.department}</td><td><a href={`/client/tickets/${ticket.id}`}>#{ticket.id.slice(-6)} {ticket.subject}</a></td><td><StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} /></td><td>{dateLabel(ticket.updatedAt)}</td></tr>)}</tbody></table></div></section>;
+  return <section className={styles.block}><div className={styles.blockHeader}><div><span className="eyebrow">Support Tickets</span><h2>All Tickets</h2></div><Button href="/client/tickets/new" icon={Send}>New Ticket</Button></div><div className={styles.tableWrap}><table className="table"><thead><tr><th>ID</th><th>Department</th><th>Subject</th><th>Status</th><th>Last Update</th></tr></thead><tbody>{tickets.map((ticket) => <tr key={ticket.id}><td>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</td><td>{ticket.department}</td><td><a href={`/client/tickets/${ticket.id}`}>{ticket.subject}</a></td><td><StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} /></td><td>{dateLabel(ticket.updatedAt)}</td></tr>)}</tbody></table></div></section>;
 }
 
 function NewTicket({ services }: { services: ApiService[] }) {
-  return <section className={styles.module}><h2>New Ticket</h2><label>Department<select className="input"><option>Support</option><option>Sales</option><option>Abuse</option></select></label><label>Related service<select className="input">{services.map((service) => <option key={service.id}>{service.product.name}</option>)}</select></label><label>Subject<input className="input" placeholder="Short subject" /></label><label>Message<textarea className="input" rows={6} /></label><Button icon={Send} type="button" onClick={() => notify.info("Ticket action needs a connected ticket form.")}>Open Ticket</Button></section>;
+  const [message, setMessage] = useState("");
+  const [suggestions, setSuggestions] = useState<ApiKnowledgebaseArticle[]>([]);
+  const [text, setText] = useState({ body: "", subject: "" });
+  const query = `${text.subject} ${text.body}`.trim();
+
+  useEffect(() => {
+    if (query.length < 4) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      fetch(`${API_BASE_URL}/knowledgebase/suggest?q=${encodeURIComponent(query)}`).then(json).then((payload) => Array.isArray(payload) && setSuggestions(payload)).catch(() => undefined);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/tickets`, {
+      body: JSON.stringify({
+        body: String(formData.get("body") ?? ""),
+        department: String(formData.get("department") ?? "SUPPORT"),
+        priority: String(formData.get("priority") ?? "NORMAL"),
+        serviceId: String(formData.get("serviceId") ?? "") || undefined,
+        subject: String(formData.get("subject") ?? "")
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    const ticket = await response.clone().json().catch(() => undefined) as ApiTicket | undefined;
+    if (response.ok && ticket?.id) {
+      await uploadTicketFiles(ticket.id, filesFromForm(formData));
+      window.location.assign(`/client/tickets/${ticket.id}`);
+      return;
+    }
+    setMessage(await notifyResponse(response, "Ticket opened.", "Ticket failed."));
+  }
+
+  return (
+    <form action={submit} className={styles.module}>
+      <LifeBuoy aria-hidden />
+      <h2>New Ticket</h2>
+      <label>Department<select className="input" name="department"><option value="SUPPORT">Support</option><option value="SALES">Sales</option><option value="ABUSE">Abuse</option></select></label>
+      <label>Related service<select className="input" name="serviceId"><option value="">No related service</option>{services.map((service) => <option key={service.id} value={service.id}>{serviceListTitle(service)}</option>)}</select></label>
+      <label>Priority<select className="input" name="priority"><option value="NORMAL">Normal</option><option value="LOW">Low</option><option value="HIGH">High</option></select></label>
+      <label>Subject<input className="input" name="subject" onChange={(event) => setText((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" required /></label>
+      <label>Message<textarea className="input" name="body" onChange={(event) => setText((current) => ({ ...current, body: event.target.value }))} required rows={6} /></label>
+      <KnowledgebaseSuggestions articles={suggestions} />
+      <label>Files<input accept="image/png,image/jpeg,image/webp,application/pdf" className="input" multiple name="files" type="file" /></label>
+      <Button icon={Send} type="submit">Open Ticket</Button>
+      {message ? <p>{message}</p> : null}
+    </form>
+  );
+}
+
+function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArticle[] }) {
+  if (articles.length === 0) {
+    return null;
+  }
+  return (
+    <div className={styles.suggestions}>
+      <span className="eyebrow">Related articles</span>
+      {articles.map((article) => (
+        <a href={`/de/knowledgebase/${article.slug}`} key={article.id} target="_blank">
+          <strong>{article.title}</strong>
+          <span>{article.excerpt ?? previewText(article.body)}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function KnowledgebaseList({ articles }: { articles: ApiKnowledgebaseArticle[] }) {
+  return (
+    <section className={styles.block}>
+      <div className={styles.blockHeader}>
+        <div><span className="eyebrow">Knowledgebase</span><h2>Articles</h2></div>
+        <Button href="/de/knowledgebase" icon={BookOpen} variant="secondary">Public Help Center</Button>
+      </div>
+      <div className={styles.articleList}>
+        {articles.map((article) => (
+          <a href={`/de/knowledgebase/${article.slug}`} key={article.id}>
+            <BookOpen aria-hidden />
+            <div>
+              <h3>{article.title}</h3>
+              <p>{article.excerpt ?? previewText(article.body)}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TicketThread({ onTicketChange, ticket }: { onTicketChange: (ticket: ApiTicket) => void; ticket?: ApiTicket }) {
+  const [message, setMessage] = useState("");
+  if (!ticket) {
+    return <section className={styles.module}><h2>Ticket</h2><p>Loading ticket.</p></section>;
+  }
+  const currentTicket = ticket;
+
+  async function reply(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/tickets/${currentTicket.id}/replies`, {
+      body: JSON.stringify({ body: String(formData.get("body") ?? "") }),
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    const created = await response.clone().json().catch(() => undefined) as { id?: string } | undefined;
+    if (response.ok) {
+      await uploadTicketFiles(currentTicket.id, filesFromForm(formData), created?.id);
+      const refreshed = await fetch(`${API_BASE_URL}/tickets/${currentTicket.id}`, { headers: authHeaders("client") }).then(json).catch(() => undefined);
+      if (refreshed) {
+        onTicketChange(refreshed);
+      }
+    }
+    setMessage(await notifyResponse(response, "Reply sent.", "Reply failed."));
+  }
+
+  async function close() {
+    const response = await fetch(`${API_BASE_URL}/tickets/${currentTicket.id}/close`, { headers: authHeaders("client"), method: "POST" });
+    const refreshed = await response.clone().json().catch(() => undefined);
+    if (response.ok && refreshed) {
+      onTicketChange(refreshed);
+    }
+    setMessage(await notifyResponse(response, "Ticket closed.", "Close failed."));
+  }
+
+  return (
+    <section className={styles.module}>
+      <div className={styles.detailHeader}>
+        <div>
+          <span className="eyebrow">#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
+          <h2>{ticket.subject}</h2>
+        </div>
+        <StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} />
+      </div>
+      <div className={styles.ticketMeta}>
+        <span>{ticket.department}</span>
+        <span>{ticket.service?.product?.name ?? "No related service"}</span>
+        <span>{dateLabel(ticket.updatedAt)}</span>
+      </div>
+      <div className={styles.thread}>
+        {(ticket.replies ?? []).map((reply) => (
+          <article key={reply.id}>
+            <header><strong>{reply.user?.name ?? reply.user?.email ?? "Support"}</strong><span>{dateTimeLabel(reply.createdAt)}</span></header>
+            <p>{reply.body}</p>
+            <AttachmentList files={reply.attachments ?? []} />
+          </article>
+        ))}
+        <AttachmentList files={ticket.attachments ?? []} />
+      </div>
+      {ticket.status !== "CLOSED" ? (
+        <form action={reply} className={styles.inlineForm}>
+          <label>Reply<textarea className="input" name="body" required rows={4} /></label>
+          <label>Files<input accept="image/png,image/jpeg,image/webp,application/pdf" className="input" multiple name="files" type="file" /></label>
+          <Button icon={Send} type="submit">Send Reply</Button>
+          <Button type="button" variant="secondary" onClick={close}>Close Ticket</Button>
+        </form>
+      ) : null}
+      {message ? <p>{message}</p> : null}
+    </section>
+  );
+}
+
+function AttachmentList({ files }: { files: Array<{ fileName: string; id: string; storageKey: string }> }) {
+  if (files.length === 0) {
+    return null;
+  }
+  return <div className={styles.attachments}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank"><Paperclip aria-hidden size={14} />{file.fileName}</a>)}</div>;
 }
 
 function AddFunds() {
@@ -918,6 +1103,7 @@ function titleFor(view: ClientView) {
     "add-funds": "Add Funds",
     dashboard: "Dashboard",
     invoices: "My Invoices",
+    knowledgebase: "Knowledgebase",
     "new-ticket": "Open Ticket",
     payment: "Payments",
     profile: "Profile",
@@ -929,6 +1115,10 @@ function titleFor(view: ClientView) {
 
 function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
+}
+
+function dateTimeLabel(value?: string | null) {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
 }
 
 function announcementDateLabel(value?: string | null) {
@@ -972,7 +1162,33 @@ function stringConfig(configuration: unknown, key: string) {
 }
 
 function ticketLabel(status: string) {
-  return { WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
+  return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
+}
+
+function previewText(value: string) {
+  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function filesFromForm(formData: FormData) {
+  return formData.getAll("files").filter((file): file is File => typeof File !== "undefined" && file instanceof File && file.size > 0);
+}
+
+async function uploadTicketFiles(ticketId: string, files: File[], replyId?: string) {
+  if (files.length === 0) {
+    return;
+  }
+  const body = new FormData();
+  for (const file of files) {
+    body.append("files", file);
+  }
+  if (replyId) {
+    body.append("replyId", replyId);
+  }
+  await fetch(`${API_BASE_URL}/tickets/${ticketId}/attachments`, {
+    body,
+    headers: authHeaders("client"),
+    method: "POST"
+  });
 }
 
 async function json(response: Response) {

@@ -3,7 +3,7 @@ import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { CreateProductDto } from "./dto/create-product.dto";
+import { CreateProductDto, ProductCategoryDto } from "./dto/create-product.dto";
 import { ProductsService } from "./products.service";
 
 @Controller()
@@ -13,6 +13,34 @@ export class ProductsController {
   @Get("products")
   listProducts() {
     return this.products.listProducts();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Get("admin/dev/product-categories")
+  listCategoriesDev() {
+    return this.products.listCategories();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Post("admin/dev/product-categories")
+  createCategoryDev(@Body() dto: ProductCategoryDto) {
+    return this.products.createCategory(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Patch("admin/dev/product-categories/:id")
+  updateCategoryDev(@Param("id") id: string, @Body() dto: ProductCategoryDto) {
+    return this.products.updateCategory(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Delete("admin/dev/product-categories/:id")
+  deleteCategoryDev(@Param("id") id: string) {
+    return this.products.deleteCategory(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -21,6 +21,10 @@ export class CreateProductDto {
   description: string;
 
   @IsOptional()
+  @IsString()
+  categoryId?: string | null;
+
+  @IsOptional()
   @IsBoolean()
   homepageVisible?: boolean;
 
@@ -49,4 +53,24 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   configurableOptions?: Array<{ key: string; label: string; required?: boolean; values: unknown[] }>;
+}
+
+export class ProductCategoryDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  slug: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  provisioningModule?: string | null;
+
+  @IsInt()
+  @IsOptional()
+  sortOrder?: number;
 }

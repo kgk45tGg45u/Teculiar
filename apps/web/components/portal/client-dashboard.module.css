@@ -150,6 +150,94 @@
   gap: 12px;
 }
 
+.inlineForm label {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 8px;
+}
+
+.suggestions,
+.articleList,
+.thread,
+.attachments,
+.ticketMeta {
+  display: grid;
+  gap: 10px;
+}
+
+.suggestions {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.suggestions a,
+.articleList a {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+}
+
+.suggestions span,
+.articleList p,
+.ticketMeta,
+.thread header span {
+  color: var(--muted);
+}
+
+.articleList a {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.articleList h3,
+.articleList p {
+  margin: 0;
+}
+
+.ticketMeta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ticketMeta span,
+.thread article {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.thread article {
+  display: grid;
+  gap: 10px;
+}
+
+.thread header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.thread p {
+  white-space: pre-wrap;
+}
+
+.attachments {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.attachments a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .controlPanel,
 .subdomainBox {
   display: grid;

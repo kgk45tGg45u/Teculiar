@@ -6,6 +6,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { CmsModule } from "./modules/cms/cms.module";
 import { ExternalModule } from "./modules/external/external.module";
+import { KnowledgebaseModule } from "./modules/knowledgebase/knowledgebase.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -25,6 +26,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     ProductsModule,
     BillingModule,
     TicketsModule,
+    KnowledgebaseModule,
     CmsModule,
     ExternalModule,
     VirtualminClientModule
