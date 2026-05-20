@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
   authHeaders,
+  currentLocale,
   cycleLabel,
+  dateLabel as formatDate,
   money,
   type ApiAnnouncement,
   type ApiInvoice,
@@ -14,6 +16,7 @@ import {
   type ApiTicket
 } from "../../lib/api";
 import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
+import type { Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
@@ -21,6 +24,40 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";
+const clientCopy: Record<Locale, Record<string, string>> = {
+  de: {
+    accountBalance: "Kontostand",
+    addFunds: "Guthaben aufladen",
+    clientPortal: "Kundenbereich",
+    domains: "Domains",
+    invoices: "Rechnungen",
+    knowledgebase: "Wissensdatenbank",
+    newService: "Neuer Service",
+    newTicket: "Neues Ticket",
+    openInvoices: "Offene Rechnungen",
+    openTickets: "Offene Tickets",
+    payments: "Zahlungen",
+    profile: "Profil",
+    services: "Services",
+    tickets: "Support Tickets"
+  },
+  en: {
+    accountBalance: "Account Balance",
+    addFunds: "Add Funds",
+    clientPortal: "Client Portal",
+    domains: "Domains",
+    invoices: "Invoices",
+    knowledgebase: "Knowledgebase",
+    newService: "New Service",
+    newTicket: "New Ticket",
+    openInvoices: "Open Invoices",
+    openTickets: "Open Tickets",
+    payments: "Payments",
+    profile: "Profile",
+    services: "Services",
+    tickets: "Support Tickets"
+  }
+};
 type ApiPaymentMethod = {
   automatic: boolean;
   createdAt: string;
@@ -78,6 +115,8 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 };
 
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
+  const locale = currentLocale();
+  const copy = clientCopy[locale];
   const [profile, setProfile] = useState<{
     address?: { city?: string; line1?: string; postalCode?: string; state?: string };
     balanceCents?: number;
@@ -172,11 +211,11 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     const headers = authHeaders("client");
     fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => Array.isArray(payload) && setInvoices(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/knowledgebase`).then(json).then((payload) => Array.isArray(payload) && setKnowledgebase(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/knowledgebase?locale=${locale}`).then(json).then((payload) => Array.isArray(payload) && setKnowledgebase(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
     fetch(`${API_BASE_URL}/storefront/settings`).then(json).then((payload) => payload?.siteLogoUrl && setBrandLogo(payload.siteLogoUrl)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/cms/announcements`, { headers }).then(json).then((payload) => Array.isArray(payload) && setAnnouncements(payload)).catch(() => undefined);
-  }, []);
+    fetch(`${API_BASE_URL}/cms/announcements?locale=${locale}`, { headers }).then(json).then((payload) => Array.isArray(payload) && setAnnouncements(payload)).catch(() => undefined);
+  }, [locale]);
 
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
   const domainRows = domainRowsFromServices(services);
@@ -188,32 +227,32 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       <aside className={styles.sidebar}>
         {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <strong>CrimsonGrid</strong>}
         <nav aria-label="Client">
-          <a href="/client/services">Services</a>
-          <a href="/client/domains">Domains</a>
-          <a href="/client/invoices">Rechnungen</a>
-          <a className={styles.subNav} href="/client/billing/add-funds">Add Funds</a>
-          <a href="/client/payments">Payments</a>
-          <a href="/client/knowledgebase">Knowledgebase</a>
-          <a href="/client/tickets">Support Tickets</a>
-          <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
-          <a href="/client/profile">Profile</a>
+          <a href="/client/services">{copy.services}</a>
+          <a href="/client/domains">{copy.domains}</a>
+          <a href="/client/invoices">{copy.invoices}</a>
+          <a className={styles.subNav} href="/client/billing/add-funds">{copy.addFunds}</a>
+          <a href="/client/payments">{copy.payments}</a>
+          <a href="/client/knowledgebase">{copy.knowledgebase}</a>
+          <a href="/client/tickets">{copy.tickets}</a>
+          <a className={styles.subNav} href="/client/tickets/new">{copy.newTicket}</a>
+          <a href="/client/profile">{copy.profile}</a>
         </nav>
         <div className={styles.balanceCard}>
           <Wallet aria-hidden size={20} />
           <strong>{money(profile?.balanceCents ?? 0)}</strong>
-          <span>Account Balance</span>
+          <span>{copy.accountBalance}</span>
         </div>
       </aside>
 
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow">Client Portal</span>
-            <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view)}</h1>
+            <span className="eyebrow">{copy.clientPortal}</span>
+            <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view, locale)}</h1>
           </div>
           <div className={styles.headerActions}>
             <Button href="/de/pricing" icon={CreditCard}>
-              Neuer Service
+              {copy.newService}
             </Button>
             <LogoutButton scope="client" redirectTo="/client/login" />
           </div>
@@ -225,22 +264,22 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           <a className="metric" href="/client/services">
             <Server aria-hidden size={22} />
             <strong>{serviceRows.length}</strong>
-            <span>Services</span>
+            <span>{copy.services}</span>
           </a>
           <a className="metric" href="/client/domains">
             <Globe aria-hidden size={22} />
             <strong>{domainRows.length}</strong>
-            <span>Domains</span>
+            <span>{copy.domains}</span>
           </a>
           <a className="metric" href="/client/tickets">
             <LifeBuoy aria-hidden size={22} />
             <strong>{openTickets}</strong>
-            <span>Open Tickets</span>
+            <span>{copy.openTickets}</span>
           </a>
           <a className="metric" href="/client/invoices">
             <FileText aria-hidden size={22} />
             <strong>{openInvoices}</strong>
-            <span>Open Invoices</span>
+            <span>{copy.openInvoices}</span>
           </a>
         </section>
 
@@ -383,7 +422,7 @@ function ServicesTable({ services }: { services: ApiService[] }) {
                     <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
-                      <StatusPill label={serviceStatusLabel(service.status)} tone={statusTone[service.status] ?? "neutral"} />
+                      <StatusPill label={serviceStatusLabel(service.status, currentLocale())} tone={statusTone[service.status] ?? "neutral"} />
                     </td>
                   </tr>
                 ))}
@@ -429,7 +468,7 @@ function DomainsTable({ domains }: { domains: DomainRow[] }) {
                 <td><strong>{domain.domain}</strong></td>
                 <td>{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
                 <td>{dateLabel(domain.renewsAt)}</td>
-                <td><StatusPill label={serviceStatusLabel(domain.status)} tone={statusTone[domain.status] ?? "neutral"} /></td>
+                <td><StatusPill label={serviceStatusLabel(domain.status, currentLocale())} tone={statusTone[domain.status] ?? "neutral"} /></td>
               </tr>
             )) : (
               <tr><td colSpan={4}>Noch keine Domains.</td></tr>
@@ -464,7 +503,7 @@ function ServiceDetail({ service }: { service?: ApiService }) {
           <span className="eyebrow">Service</span>
           <h2>{serviceName(service)}</h2>
         </div>
-        <StatusPill label={serviceStatusLabel(service.status)} tone={statusTone[service.status] ?? "neutral"} />
+        <StatusPill label={serviceStatusLabel(service.status, currentLocale())} tone={statusTone[service.status] ?? "neutral"} />
       </div>
       <p>{serviceKind(service)}</p>
       <div className={styles.detailGrid}>
@@ -478,7 +517,7 @@ function ServiceDetail({ service }: { service?: ApiService }) {
         </div>
         <div>
           <span>Status</span>
-          <strong>{serviceStatusLabel(service.status)}</strong>
+          <strong>{serviceStatusLabel(service.status, currentLocale())}</strong>
         </div>
       </div>
       {service.product.type === "DOMAIN" ? <DomainRenewal service={service} /> : <PlanChange service={service} />}
@@ -723,7 +762,7 @@ function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
           <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
           <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
           <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-          <StatusPill label={invoiceStatusLabel(invoice.status)} tone={statusTone[invoice.status] ?? "neutral"} />
+          <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} />
           {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt)}</strong></div> : null}
           {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
           {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
@@ -747,7 +786,7 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
     <section className={styles.invoice}>
       <div className={styles.invoiceTop}>
         <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoice.invoiceNumber}</h2></div>
-        <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : "warn"} />
+        <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={invoice.status === "PAID" ? "good" : "warn"} />
       </div>
       <div className={styles.invoiceMeta}>
         <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
@@ -1131,31 +1170,46 @@ function ProfileForm({
   return <form action={submit} className={styles.module} key={profile?.email ?? "profile"}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label><label>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label><label>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label><label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label><label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label><label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label><label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label><label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label><label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
-function titleFor(view: ClientView) {
-  return {
-    "add-funds": "Add Funds",
-    dashboard: "Dashboard",
-    invoices: "My Invoices",
-    knowledgebase: "Knowledgebase",
-    "new-ticket": "Open Ticket",
-    payment: "Payments",
-    profile: "Profile",
-    domains: "Domains",
-    services: "Services",
-    tickets: "My Support Tickets"
-  }[view];
+function titleFor(view: ClientView, locale: Locale = currentLocale()) {
+  const labels = {
+    de: {
+      "add-funds": "Guthaben aufladen",
+      dashboard: "Dashboard",
+      domains: "Domains",
+      invoices: "Meine Rechnungen",
+      knowledgebase: "Wissensdatenbank",
+      "new-ticket": "Ticket eroeffnen",
+      payment: "Zahlungen",
+      profile: "Profil",
+      services: "Services",
+      tickets: "Meine Support Tickets"
+    },
+    en: {
+      "add-funds": "Add Funds",
+      dashboard: "Dashboard",
+      domains: "Domains",
+      invoices: "My Invoices",
+      knowledgebase: "Knowledgebase",
+      "new-ticket": "Open Ticket",
+      payment: "Payments",
+      profile: "Profile",
+      services: "Services",
+      tickets: "My Support Tickets"
+    }
+  } as const;
+  return labels[locale][view];
 }
 
 function dateLabel(value?: string | null) {
-  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "-";
+  return formatDate(value, currentLocale());
 }
 
 function dateTimeLabel(value?: string | null) {
-  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
+  return formatDate(value, currentLocale(), { dateStyle: "medium", timeStyle: "short" });
 }
 
 function announcementDateLabel(value?: string | null) {
-  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
+  return formatDate(value, currentLocale(), { dateStyle: "medium", timeStyle: "short" });
 }
 
 function serviceName(service: ApiService) {

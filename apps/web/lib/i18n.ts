@@ -1,14 +1,24 @@
 export type Locale = "de" | "en";
 
 export const locales: Locale[] = ["de", "en"];
+export const LOCALE_COOKIE = "dezhost_locale";
 
 export const localeNames: Record<Locale, string> = {
   de: "Deutsch",
   en: "English"
 };
 
-export function getLocale(value: string): Locale {
+export function getLocale(value?: string | null): Locale {
   return value === "en" ? "en" : "de";
+}
+
+export function browserLocale(value?: string | null): Locale {
+  return value?.toLowerCase().startsWith("en") ? "en" : "de";
+}
+
+export function localeFromAcceptLanguage(value?: string | null): Locale {
+  const first = value?.split(",").map((part) => part.trim()).filter(Boolean)[0];
+  return browserLocale(first);
 }
 
 export const dictionary = {

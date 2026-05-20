@@ -1,3 +1,5 @@
+import { LOCALE_COOKIE, browserLocale, type Locale } from "./i18n";
+
 export type ApiProduct = {
   category?: ApiProductCategory | null;
   categoryId?: string | null;
@@ -319,20 +321,63 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   }
 }
 
-export function money(cents: number, currency = "EUR") {
-  return new Intl.NumberFormat("de-DE", { currency, style: "currency" }).format(cents / 100);
+export function money(cents: number, currency = "EUR", locale: Locale = currentLocale()) {
+  const displayCurrency = displayCurrencyForLocale(currency, locale);
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "de-DE", {
+    currency: displayCurrency,
+    style: "currency"
+  }).format(cents / 100);
 }
 
-export function cycleLabel(cycle: string) {
-  return {
-    MONTHLY: "monthly",
-    QUARTERLY: "3 months",
-    SEMI_ANNUAL: "6 months",
-    YEAR_1: "yearly",
-    YEAR_2: "2 years",
-    YEAR_3: "3 years",
-    YEAR_4: "4 years"
-  }[cycle] ?? cycle.toLowerCase();
+export function displayCurrencyForLocale(currency = "EUR", locale: Locale = currentLocale()) {
+  return locale === "en" ? "USD" : currency;
+}
+
+export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
+  const labels = {
+    de: {
+      MONTHLY: "monatlich",
+      QUARTERLY: "3 Monate",
+      SEMI_ANNUAL: "6 Monate",
+      YEAR_1: "jaehrlich",
+      YEAR_2: "2 Jahre",
+      YEAR_3: "3 Jahre",
+      YEAR_4: "4 Jahre"
+    },
+    en: {
+      MONTHLY: "monthly",
+      QUARTERLY: "3 months",
+      SEMI_ANNUAL: "6 months",
+      YEAR_1: "yearly",
+      YEAR_2: "2 years",
+      YEAR_3: "3 years",
+      YEAR_4: "4 years"
+    }
+  } as const;
+  return labels[locale][cycle as keyof typeof labels.en] ?? cycle.toLowerCase().replaceAll("_", " ");
+}
+
+export function dateLabel(value?: string | null, locale: Locale = currentLocale(), options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }) {
+  return value ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "de-DE", options).format(new Date(value)) : "-";
+}
+
+export function currentLocale(): Locale {
+  if (typeof window === "undefined") {
+    return "de";
+  }
+  const saved = window.localStorage.getItem(LOCALE_COOKIE) ?? readCookie(LOCALE_COOKIE);
+  if (saved === "de" || saved === "en") {
+    return saved;
+  }
+  return browserLocale(window.navigator.language);
+}
+
+export function storeLocale(locale: Locale) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(LOCALE_COOKIE, locale);
+  setCookie(LOCALE_COOKIE, locale);
 }
 
 export type AuthUser = {

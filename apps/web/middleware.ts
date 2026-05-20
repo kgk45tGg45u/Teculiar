@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { LOCALE_COOKIE, localeFromAcceptLanguage, getLocale } from "./lib/i18n";
 
 const PUBLIC_FILE = /\.(.*)$/;
 const locales = ["de", "en"];
@@ -42,12 +43,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (locales.some((locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`))) {
-    return NextResponse.next();
+  const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
+  const locale = savedLocale ? getLocale(savedLocale) : localeFromAcceptLanguage(request.headers.get("accept-language"));
+
+  const pathLocale = locales.find((item) => pathname === `/${item}` || pathname.startsWith(`/${item}/`));
+  if (pathLocale) {
+    const response = NextResponse.next();
+    response.cookies.set(LOCALE_COOKIE, pathLocale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+    return response;
   }
 
   const url = request.nextUrl.clone();
-  url.pathname = `/de${pathname === "/" ? "" : pathname}`;
+  url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
   return NextResponse.redirect(url);
 }
 

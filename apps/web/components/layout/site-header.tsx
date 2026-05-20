@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { Globe, Menu } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { AccountMenu } from "./account-menu";
+import { LanguageToggle } from "./language-toggle";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
@@ -37,6 +38,7 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
         </nav>
 
         <div className={styles.actions}>
+          <LanguageToggle locale={locale} />
           <AccountMenu clientLabel={copy.nav.client} />
           <details className={styles.mobileMenu}>
             <summary aria-label="Menu">
