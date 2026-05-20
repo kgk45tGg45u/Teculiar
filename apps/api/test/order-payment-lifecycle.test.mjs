@@ -328,6 +328,34 @@ test("guest checkout password field has eye visibility toggle", async () => {
   assert.match(source, /aria-label=\{showPassword \? "Passwort verstecken" : "Passwort anzeigen"\}/);
 });
 
+test("client dashboard mobile layout puts smart cards before overview", async () => {
+  const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
+  const smartIndex = source.indexOf("<DashboardSmartCards");
+  const overviewIndex = source.indexOf('aria-label="Overview"');
+
+  assert.ok(smartIndex > 0);
+  assert.ok(overviewIndex > smartIndex);
+  assert.match(source, /className=\{styles\.balanceCard\}/);
+  assert.match(source, /hidingAnnouncementIds/);
+  assert.match(source, /window\.setTimeout/);
+  assert.match(css, /position:\s*sticky[\s\S]*top:\s*0/);
+  assert.match(css, /\.smartGrid/);
+  assert.match(css, /\.announcementHidden/);
+});
+
+test("client dashboard responsive CSS prevents page-wide overflow", async () => {
+  const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.page\s*\{[\s\S]*grid-template-columns:\s*240px minmax\(0, 1fr\)/);
+  assert.match(css, /\.main\s*\{[\s\S]*min-width:\s*0/);
+  assert.match(css, /\.headerActions/);
+  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.headerActions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.tableWrap\s*\{[\s\S]*max-width:\s*100%/);
+  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.smartGrid/);
+});
+
 test("domain prices use matching year row as yearly unit and multiply by years", async () => {
   const calls = [];
   const orders = {

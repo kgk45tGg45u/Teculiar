@@ -1,7 +1,8 @@
 .page {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
+  overflow-x: clip;
   background: var(--paper);
 }
 
@@ -9,7 +10,8 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 28px;
+  padding: 24px;
+  min-width: 0;
   border-right: 1px solid var(--border);
   background: var(--surface);
 }
@@ -31,12 +33,13 @@
 
 .sidebar nav {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .sidebar a {
-  padding: 10px 0;
+  padding: 8px 0;
   color: var(--muted);
+  font-size: 0.92rem;
   font-weight: 680;
 }
 
@@ -47,9 +50,10 @@
 
 .main {
   display: grid;
-  gap: 28px;
+  gap: 22px;
   align-content: start;
-  padding: 36px;
+  min-width: 0;
+  padding: 30px;
 }
 
 .header,
@@ -62,18 +66,174 @@
 
 .header h1,
 .blockHeader h2 {
-  margin: 10px 0 0;
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1;
+  margin: 8px 0 0;
+  font-size: clamp(1.65rem, 3vw, 2.55rem);
+  line-height: 1.08;
+}
+
+.header {
+  align-items: center;
+}
+
+.header > div:first-child {
+  min-width: 0;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.headerActions a,
+.headerActions button {
+  min-height: 38px;
+  padding-inline: 12px;
+  font-size: 0.84rem;
 }
 
 .block {
   display: grid;
-  gap: 18px;
+  gap: 14px;
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.balanceCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.balanceCard svg {
+  grid-row: span 2;
+  color: var(--crimson);
+}
+
+.balanceCard strong {
+  display: block;
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.balanceCard span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.smartGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.smartCard {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.noticeList {
+  display: grid;
+  gap: 10px;
+}
+
+.noticeCard,
+.knowledgeCard {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.noticeCard {
+  grid-template-columns: minmax(0, 1fr) auto;
+  transition: opacity 160ms ease, transform 160ms ease, max-height 180ms ease, margin 180ms ease, padding 180ms ease;
+}
+
+.announcementHidden {
+  max-height: 0;
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transform: translateY(-4px);
+}
+
+.noticeCard strong,
+.knowledgeCard strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.94rem;
+}
+
+.noticeCard span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 740;
+}
+
+.noticeCard p,
+.knowledgeCard p,
+.emptySmart {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.noticeActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.noticeActions a,
+.noticeActions button,
+.smartCard a[href="/client/knowledgebase"] {
+  min-height: 34px;
+  padding-inline: 10px;
+  font-size: 0.78rem;
+}
+
+.knowledgeCard {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.knowledgeCard svg {
+  color: var(--crimson);
+  margin-top: 1px;
 }
 
 .tableWrap {
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
 }
@@ -98,12 +258,13 @@
 
 .module {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   align-content: start;
-  padding: 24px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  min-width: 0;
 }
 
 .module h2,
@@ -116,11 +277,16 @@
   line-height: 1.6;
 }
 
+.module h2 {
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
+}
+
 .detailHeader {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
 }
 
 .detailGrid {
@@ -148,6 +314,7 @@
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
+  min-width: 0;
 }
 
 .inlineForm label {
@@ -192,6 +359,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  min-width: 0;
 }
 
 .articleList h3,
@@ -412,6 +580,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  min-width: 0;
 }
 
 .invoiceCards {
@@ -429,6 +598,7 @@
   padding: 16px;
   background: var(--surface);
   color: var(--ink);
+  min-width: 0;
 }
 
 .invoiceCard div {
@@ -482,24 +652,105 @@
 @media (max-width: 920px) {
   .page {
     grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    align-self: start;
     height: auto;
+    padding: 12px 14px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+
+  .sidebar strong,
+  .brandLogo {
+    display: none;
   }
 
   .sidebar nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    gap: 6px;
     overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar a {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .subNav {
+    padding-left: 10px !important;
   }
 
   .main {
-    padding: 24px 16px;
+    gap: 18px;
+    width: 100%;
+    padding: 18px 14px 28px;
   }
 
+  .header,
+  .blockHeader {
+    align-items: start;
+    gap: 10px;
+  }
+
+  .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .header h1,
+  .blockHeader h2 {
+    font-size: clamp(1.35rem, 7vw, 1.95rem);
+  }
+
+  .headerActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .headerActions a,
+  .headerActions button {
+    width: 100%;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 0.76rem;
+  }
+
+  .smartGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .smartGrid {
+    gap: 12px;
+  }
+
+  .overviewGrid :global(.metric) {
+    min-height: 110px;
+  }
+  
   .detailGrid,
   .entryRow,
   .usageGrid,
@@ -507,10 +758,87 @@
     grid-template-columns: 1fr;
   }
 
+  .balanceCard {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    width: fit-content;
+    margin-top: 10px;
+    padding: 9px 11px;
+  }
+
+  .balanceCard svg {
+    grid-row: auto;
+    width: 16px;
+    height: 16px;
+  }
+
+  .balanceCard strong {
+    font-size: 0.9rem;
+  }
+
+  .balanceCard span {
+    font-size: 0.72rem;
+  }
+
+  .smartCard,
+  .module {
+    padding: 15px;
+  }
+
+  .tableWrap {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .noticeCard {
+    grid-template-columns: 1fr;
+  }
+
+  .noticeActions {
+    justify-content: flex-start;
+  }
+
   .invoiceCard,
   .invoiceTop,
   .invoiceMeta {
     display: grid;
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .smartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding: 14px 10px 24px;
+  }
+
+  .sidebar {
+    padding: 10px;
+  }
+
+  .sidebar a {
+    min-height: 32px;
+    padding: 7px 9px;
+    font-size: 0.74rem;
+  }
+
+  .header h1,
+  .blockHeader h2 {
+    font-size: clamp(1.18rem, 6vw, 1.55rem);
+  }
+
+  .smartCard,
+  .module,
+  .invoice {
+    padding: 12px;
+  }
+
+  .noticeCard,
+  .knowledgeCard {
+    padding: 11px;
   }
 }

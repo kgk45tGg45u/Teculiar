@@ -198,7 +198,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           <a className={styles.subNav} href="/client/tickets/new">Neues Ticket</a>
           <a href="/client/profile">Profile</a>
         </nav>
-        <div className="metric">
+        <div className={styles.balanceCard}>
           <Wallet aria-hidden size={20} />
           <strong>{money(profile?.balanceCents ?? 0)}</strong>
           <span>Account Balance</span>
@@ -211,13 +211,17 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
             <span className="eyebrow">Client Portal</span>
             <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view)}</h1>
           </div>
-          <Button href="/de/pricing" icon={CreditCard}>
-            Neuer Service
-          </Button>
-          <LogoutButton scope="client" redirectTo="/client/login" />
+          <div className={styles.headerActions}>
+            <Button href="/de/pricing" icon={CreditCard}>
+              Neuer Service
+            </Button>
+            <LogoutButton scope="client" redirectTo="/client/login" />
+          </div>
         </header>
 
-        <section className="grid four" aria-label="Overview">
+        {view === "dashboard" && !serviceId ? <DashboardSmartCards announcements={announcements} knowledgebase={knowledgebase} setAnnouncements={setAnnouncements} /> : null}
+
+        <section className={styles.overviewGrid} aria-label="Overview">
           <a className="metric" href="/client/services">
             <Server aria-hidden size={22} />
             <strong>{serviceRows.length}</strong>
@@ -240,7 +244,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           </a>
         </section>
 
-        {(view === "dashboard" || view === "services") && !serviceId ? <Announcements announcements={announcements} setAnnouncements={setAnnouncements} /> : null}
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={serviceRows} /> : null}
         {view === "domains" ? <DomainsTable domains={domainRows} /> : null}
         {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
@@ -258,6 +261,23 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   );
 }
 
+function DashboardSmartCards({
+  announcements,
+  knowledgebase,
+  setAnnouncements
+}: {
+  announcements: ApiAnnouncement[];
+  knowledgebase: ApiKnowledgebaseArticle[];
+  setAnnouncements: (updater: (items: ApiAnnouncement[]) => ApiAnnouncement[]) => void;
+}) {
+  return (
+    <section className={styles.smartGrid}>
+      <Announcements announcements={announcements} setAnnouncements={setAnnouncements} />
+      <KnowledgebasePreview articles={knowledgebase.slice(0, 3)} />
+    </section>
+  );
+}
+
 function Announcements({
   announcements,
   setAnnouncements
@@ -265,6 +285,8 @@ function Announcements({
   announcements: ApiAnnouncement[];
   setAnnouncements: (updater: (items: ApiAnnouncement[]) => ApiAnnouncement[]) => void;
 }) {
+  const [hidingAnnouncementIds, setHidingAnnouncementIds] = useState<string[]>([]);
+
   async function markRead(item: ApiAnnouncement) {
     const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/read`, { headers: authHeaders("client"), method: "POST" });
     if (response.ok) {
@@ -275,38 +297,61 @@ function Announcements({
   async function hide(item: ApiAnnouncement) {
     const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/hide`, { headers: authHeaders("client"), method: "POST" });
     if (response.ok) {
-      setAnnouncements((items) => items.filter((row) => row.id !== item.id));
+      setHidingAnnouncementIds((ids) => [...ids, item.id]);
+      window.setTimeout(() => {
+        setAnnouncements((items) => items.filter((row) => row.id !== item.id));
+        setHidingAnnouncementIds((ids) => ids.filter((id) => id !== item.id));
+      }, 180);
     }
   }
 
   return (
-    <section className={styles.block}>
+    <section className={styles.smartCard}>
       <div className={styles.blockHeader}>
         <div>
           <span className="eyebrow">Latest announcements</span>
           <h2>News</h2>
         </div>
       </div>
-      <div className={styles.tableWrap}>
-        <table className="table">
-          <tbody>
-            {announcements.length ? announcements.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <strong>{item.title}</strong> {item.isRead ? <span>Read</span> : null}
-                  <br />
-                  {announcementDateLabel(item.publishedAt ?? item.createdAt)}
-                  {item.excerpt ? <><br />{item.excerpt}</> : null}
-                  {item.body ? <><br />{item.body}</> : null}
-                </td>
-                <td>
-                  <Button type="button" variant="secondary" onClick={() => markRead(item)}>Mark Read</Button>
-                  <Button type="button" variant="ghost" onClick={() => hide(item)}>Hide</Button>
-                </td>
-              </tr>
-            )) : <tr><td>Noch keine Announcements.</td></tr>}
-          </tbody>
-        </table>
+      <div className={styles.noticeList}>
+        {announcements.length ? announcements.slice(0, 3).map((item) => (
+          <article className={`${styles.noticeCard} ${hidingAnnouncementIds.includes(item.id) ? styles.announcementHidden : ""}`} key={item.id}>
+            <div>
+              <strong>{item.title}</strong>
+              <span>{announcementDateLabel(item.publishedAt ?? item.createdAt)}{item.isRead ? " · Read" : ""}</span>
+              <p>{item.excerpt ?? previewText(item.body ?? "")}</p>
+            </div>
+            <div className={styles.noticeActions}>
+              {!item.isRead ? <Button type="button" variant="secondary" onClick={() => markRead(item)}>Read</Button> : null}
+              <Button type="button" variant="ghost" onClick={() => hide(item)}>Hide</Button>
+            </div>
+          </article>
+        )) : <p className={styles.emptySmart}>No news right now.</p>}
+      </div>
+    </section>
+  );
+}
+
+function KnowledgebasePreview({ articles }: { articles: ApiKnowledgebaseArticle[] }) {
+  return (
+    <section className={styles.smartCard}>
+      <div className={styles.blockHeader}>
+        <div>
+          <span className="eyebrow">Knowledgebase</span>
+          <h2>Help</h2>
+        </div>
+        <Button href="/client/knowledgebase" icon={BookOpen} variant="secondary">All</Button>
+      </div>
+      <div className={styles.noticeList}>
+        {articles.length ? articles.map((article) => (
+          <a className={styles.knowledgeCard} href={`/de/knowledgebase/${article.slug}`} key={article.id}>
+            <BookOpen aria-hidden size={18} />
+            <div>
+              <strong>{article.title}</strong>
+              <p>{article.excerpt ?? previewText(article.body)}</p>
+            </div>
+          </a>
+        )) : <p className={styles.emptySmart}>Useful guides appear here.</p>}
       </div>
     </section>
   );

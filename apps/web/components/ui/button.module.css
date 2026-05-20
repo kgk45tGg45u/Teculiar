@@ -1,14 +1,15 @@
 .button {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  padding: 0 17px;
+  gap: 7px;
+  padding: 0 14px;
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  font-weight: 720;
+  font-size: 0.9rem;
+  font-weight: 740;
   letter-spacing: 0;
   transition:
     transform 160ms ease,
@@ -45,5 +46,8 @@
 @media (max-width: 520px) {
   .button {
     width: 100%;
+    min-height: 36px;
+    padding-inline: 11px;
+    font-size: 0.82rem;
   }
 }
