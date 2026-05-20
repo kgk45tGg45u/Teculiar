@@ -161,7 +161,7 @@ export class BillingStorefrontController {
 
   @Get("settings")
   settings() {
-    return this.billing.settings();
+    return this.billing.publicSettings();
   }
 
   @Get("payment-gateways")
@@ -210,6 +210,11 @@ export class BillingDevController {
   updateSettings(
     @Body()
     body: {
+      cronSecret?: string;
+      domainExpirationUpdateHours?: number;
+      domainPriceUpdateHours?: number;
+      domainStatusUpdateMinutes?: number;
+      hostingStatusUpdateMinutes?: number;
       invoiceBankDetails?: string;
       invoiceCompanyAddress?: string;
       invoiceCompanyCity?: string;
@@ -223,8 +228,26 @@ export class BillingDevController {
       invoiceFooterLine2?: string;
       invoiceFooterLine3?: string;
       invoicePaymentInstructions?: string;
+      invoiceReminderDaysBeforeDue?: number;
       invoiceVatNumber?: string;
+      mailboxCheckMinutes?: number;
+      salesImapEnabled?: boolean;
+      salesImapHost?: string;
+      salesImapMailbox?: string;
+      salesImapPassword?: string;
+      salesImapPort?: number;
+      salesImapSecure?: boolean;
+      salesImapUsername?: string;
+      salesMailboxAddress?: string;
       siteLogoUrl?: string;
+      supportImapEnabled?: boolean;
+      supportImapHost?: string;
+      supportImapMailbox?: string;
+      supportImapPassword?: string;
+      supportImapPort?: number;
+      supportImapSecure?: boolean;
+      supportImapUsername?: string;
+      supportMailboxAddress?: string;
       ticketAutoCloseHours?: number;
       vatPercent?: number;
     }

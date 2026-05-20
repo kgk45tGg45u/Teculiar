@@ -6,6 +6,7 @@ export type ProvisioningRequest = {
 
 export type ProvisioningResult = {
   externalId: string;
+  expiresAt?: string;
   status: "QUEUED" | "PROVISIONING" | "ACTIVE" | "FAILED";
   metadata?: Record<string, unknown>;
 };

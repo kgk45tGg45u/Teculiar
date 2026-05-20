@@ -90,6 +90,78 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
   ]);
 });
 
+test("logged-in storefront checkout can reuse the account email without password re-registration", async () => {
+  const calls = [];
+  const existingUser = { id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
+  const item = pricedHostingItem();
+  const orders = {
+    createOrder: async (input) => {
+      calls.push(["createOrder", input.userId]);
+      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    },
+    createPendingEntitiesForOrder: async () => undefined
+  };
+  const billing = {
+    createInvoice: async (input) => {
+      calls.push(["createInvoice", input.userId, input.orderSnapshot.pendingCheckout]);
+      return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
+    },
+    vatPercent: async () => 0
+  };
+  const users = {
+    findByEmail: async (email) => {
+      calls.push(["findByEmail", email]);
+      return existingUser;
+    },
+    findOrCreatePendingCheckoutUser: async () => {
+      throw new Error("logged-in checkout used pending checkout user");
+    }
+  };
+
+  const service = new OrdersService(orders, billing, {}, users, domainPricing());
+  service.priceItems = async () => [item];
+
+  await service.checkout(
+    { customer: { ...customer, password: "not-the-current-password" }, items: [{ productId: "hosting" }] },
+    { sub: "real-user" }
+  );
+
+  assert.deepEqual(calls, [
+    ["findByEmail", "bijans@test.com"],
+    ["createInvoice", "real-user", undefined],
+    ["createOrder", "real-user"]
+  ]);
+});
+
+test("logged-in storefront checkout does not require a password", async () => {
+  const existingUser = { id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
+  const item = pricedHostingItem();
+  const orders = {
+    createOrder: async (input) => ({ id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId }),
+    createPendingEntitiesForOrder: async () => undefined
+  };
+  const billing = {
+    createInvoice: async () => ({ id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 }),
+    vatPercent: async () => 0
+  };
+  const users = {
+    findByEmail: async () => existingUser,
+    findOrCreatePendingCheckoutUser: async () => {
+      throw new Error("logged-in checkout used pending checkout user");
+    }
+  };
+
+  const service = new OrdersService(orders, billing, {}, users, domainPricing());
+  service.priceItems = async () => [item];
+
+  await assert.doesNotReject(
+    service.checkout(
+      { customer: { ...customer, password: "" }, items: [{ productId: "hosting" }] },
+      { sub: "real-user" }
+    )
+  );
+});
+
 test("domain checkout requires registrant contact data before payment", async () => {
   const users = { findByEmail: async () => null };
   const service = new OrdersService({}, { vatPercent: async () => 0 }, {}, users, domainPricing());
@@ -213,13 +285,47 @@ test("checkout form locks logged-in checkout to profile email", async () => {
 
   assert.match(source, /const customerEmail = profile\?\.email \?\? String\(formData\.get\("email"\) \?\? ""\)\.trim\(\)\.toLowerCase\(\)/);
   assert.match(source, /email: customerEmail/);
-  assert.match(source, /readOnly=\{Boolean\(profile\)\}/);
+  assert.match(source, /profileCheckoutCustomer\(profile\)/);
 });
 
 test("checkout API requests include auth headers when present", async () => {
   const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /headers: \{ \.\.\.authHeaders\(\), "Content-Type": "application\/json" \}/);
+});
+
+test("site header swaps account link for signed-in account menu with logout", async () => {
+  const header = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
+  const menu = await readFile(new URL("../../web/components/layout/account-menu.tsx", import.meta.url), "utf8");
+
+  assert.match(header, /<AccountMenu clientLabel=\{copy\.nav\.client\} \/>/);
+  assert.match(menu, /Dashboard/);
+  assert.match(menu, /Log out/);
+  assert.match(menu, /clearAuth\(\)/);
+});
+
+test("portal and admin dashboards expose logout actions", async () => {
+  const client = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
+  const admin = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+
+  assert.match(client, /<LogoutButton scope="client"/);
+  assert.match(admin, /<LogoutButton scope="admin"/);
+});
+
+test("signed-in checkout uses profile data and hides contact fields", async () => {
+  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /getJson<ClientProfile>\("\/users\/me", authToken\("client"\)\)/);
+  assert.match(source, /profile \? profileCheckoutCustomer\(profile\)/);
+  assert.match(source, /\{!profile \? <ContactFields/);
+});
+
+test("guest checkout password field has eye visibility toggle", async () => {
+  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /showPassword/);
+  assert.match(source, /type=\{showPassword \? "text" : "password"\}/);
+  assert.match(source, /aria-label=\{showPassword \? "Passwort verstecken" : "Passwort anzeigen"\}/);
 });
 
 test("domain prices use matching year row as yearly unit and multiply by years", async () => {

@@ -358,8 +358,12 @@ const LEGACY_AUTH_COOKIE = "dezhost_access_token";
 const LEGACY_REFRESH_COOKIE = "dezhost_refresh_token";
 
 export function authHeaders(scope: AuthScope = currentScope()): Record<string, string> {
-  const token = browserToken(scope);
+  const token = authToken(scope);
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function authToken(scope: AuthScope = currentScope()) {
+  return browserToken(scope);
 }
 
 export function storeAuth(payload: AuthPayload, scope: AuthScope = "client") {

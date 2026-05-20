@@ -15,6 +15,7 @@ import {
 } from "../../lib/api";
 import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
+import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
@@ -123,16 +124,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         }
       }).catch(() => undefined);
     };
-    const loadServicesFresh = () => {
-      fetch(`${API_BASE_URL}/services?refresh=1`, { headers }).then(json).then((payload) => {
-        if (Array.isArray(payload)) {
-          applyServices(payload);
-        }
-      }).catch(() => undefined);
-    };
     loadServices();
-    const timer = window.setTimeout(loadServicesFresh, 240_000);
-    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -157,12 +149,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     const loadService = () => {
       fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then(applyService).catch(() => undefined);
     };
-    const loadServiceFresh = () => {
-      fetch(`${API_BASE_URL}/services/${serviceId}?refresh=1`, { headers }).then(json).then(applyService).catch(() => undefined);
-    };
     loadService();
-    const timer = window.setTimeout(loadServiceFresh, 240_000);
-    return () => window.clearTimeout(timer);
   }, [serviceId]);
 
   useEffect(() => {
@@ -227,6 +214,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           <Button href="/de/pricing" icon={CreditCard}>
             Neuer Service
           </Button>
+          <LogoutButton scope="client" redirectTo="/client/login" />
         </header>
 
         <section className="grid four" aria-label="Overview">

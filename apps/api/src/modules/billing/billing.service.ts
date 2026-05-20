@@ -842,7 +842,7 @@ export class BillingService {
 
     const invoice = await this.createInvoice({
       userId: subscription.userId,
-      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+      dueAt: subscription.nextInvoiceAt.toISOString(),
       status: "UNSENT",
       buyerCountryCode: subscription.user.countryCode,
       buyerVatId: subscription.user.vatId ?? undefined,
@@ -907,10 +907,10 @@ export class BillingService {
     const serviceIds = overdueInvoices.flatMap((invoice) =>
       invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
     );
-    const servicesToSuspend = await this.billing.servicesForEmailByIds([...new Set(serviceIds)]);
+    const servicesToSuspend = await this.billing.activeHostingServicesForEmailByIds([...new Set(serviceIds)]);
 
     await Promise.all(overdueInvoices.map((invoice) => this.billing.markInvoiceOverdue(invoice.id)));
-    const suspended = await this.billing.suspendServices([...new Set(serviceIds)]);
+    const suspended = await this.billing.suspendServices(servicesToSuspend.map((service) => service.id));
     for (const service of servicesToSuspend) {
       void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
     }
@@ -926,8 +926,8 @@ export class BillingService {
     };
   }
 
-  async sendInvoiceReminders(now = new Date()) {
-    const reminderInvoices = await this.billing.reminderInvoices(now);
+  async sendInvoiceReminders(now = new Date(), daysBeforeDue = 3) {
+    const reminderInvoices = await this.billing.reminderInvoices(daysBeforeDue, now);
     for (const invoice of reminderInvoices) {
       await this.dispatchInvoiceEmail("invoice_reminder", invoice);
     }
@@ -1101,11 +1101,45 @@ export class BillingService {
     return this.billing.settingNumber("vatPercent", 19);
   }
 
-  async settings() {
+  async publicSettings() {
+    const [vatPercent, siteLogoUrl] = await Promise.all([
+      this.vatPercent(),
+      this.billing.settingString("siteLogoUrl")
+    ]);
+
+    return { siteLogoUrl, vatPercent };
+  }
+
+  settings() {
+    return this.settingsPayload(true);
+  }
+
+  cronSettings() {
+    return this.settingsPayload(false);
+  }
+
+  cronLastRun(key: string) {
+    return this.billing.settingString(`cron.last.${key}`).then((value) => {
+      const date = value ? new Date(value) : undefined;
+      return date && Number.isFinite(date.getTime()) ? date : undefined;
+    });
+  }
+
+  markCronRun(key: string, date: Date) {
+    return this.billing.upsertSettingString(`cron.last.${key}`, date.toISOString());
+  }
+
+  private async settingsPayload(maskSecrets: boolean) {
     const [
       invoiceDaysAhead,
       ticketAutoCloseHours,
       vatPercent,
+      domainPriceUpdateHours,
+      domainExpirationUpdateHours,
+      domainStatusUpdateMinutes,
+      hostingStatusUpdateMinutes,
+      invoiceReminderDaysBeforeDue,
+      mailboxCheckMinutes,
       invoiceFooterLine1,
       invoiceFooterLine2,
       invoiceFooterLine3,
@@ -1119,11 +1153,34 @@ export class BillingService {
       invoiceVatNumber,
       invoicePaymentInstructions,
       invoiceBankDetails,
-      siteLogoUrl
+      siteLogoUrl,
+      cronSecret,
+      supportImapEnabled,
+      supportImapHost,
+      supportImapPort,
+      supportImapSecure,
+      supportImapUsername,
+      supportImapPassword,
+      supportImapMailbox,
+      supportMailboxAddress,
+      salesImapEnabled,
+      salesImapHost,
+      salesImapPort,
+      salesImapSecure,
+      salesImapUsername,
+      salesImapPassword,
+      salesImapMailbox,
+      salesMailboxAddress
     ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
       this.vatPercent(),
+      this.billing.settingNumber("domainPriceUpdateHours", 24),
+      this.billing.settingNumber("domainExpirationUpdateHours", 12),
+      this.billing.settingNumber("domainStatusUpdateMinutes", 15),
+      this.billing.settingNumber("hostingStatusUpdateMinutes", 15),
+      this.billing.settingNumber("invoiceReminderDaysBeforeDue", 3),
+      this.billing.settingNumber("mailboxCheckMinutes", 5),
       this.billing.settingString("invoiceFooterLine1"),
       this.billing.settingString("invoiceFooterLine2"),
       this.billing.settingString("invoiceFooterLine3"),
@@ -1137,10 +1194,32 @@ export class BillingService {
       this.billing.settingString("invoiceVatNumber"),
       this.billing.settingString("invoicePaymentInstructions"),
       this.billing.settingString("invoiceBankDetails"),
-      this.billing.settingString("siteLogoUrl")
+      this.billing.settingString("siteLogoUrl"),
+      this.billing.settingString("cronSecret"),
+      this.billing.settingNumber("supportImapEnabled", 0),
+      this.billing.settingString("supportImapHost"),
+      this.billing.settingNumber("supportImapPort", 993),
+      this.billing.settingNumber("supportImapSecure", 1),
+      this.billing.settingString("supportImapUsername"),
+      this.billing.settingString("supportImapPassword"),
+      this.billing.settingString("supportImapMailbox", "INBOX"),
+      this.billing.settingString("supportMailboxAddress", "support@dezhost.com"),
+      this.billing.settingNumber("salesImapEnabled", 0),
+      this.billing.settingString("salesImapHost"),
+      this.billing.settingNumber("salesImapPort", 993),
+      this.billing.settingNumber("salesImapSecure", 1),
+      this.billing.settingString("salesImapUsername"),
+      this.billing.settingString("salesImapPassword"),
+      this.billing.settingString("salesImapMailbox", "INBOX"),
+      this.billing.settingString("salesMailboxAddress", "sales@dezhost.com")
     ]);
 
     return {
+      cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
+      domainExpirationUpdateHours,
+      domainPriceUpdateHours,
+      domainStatusUpdateMinutes,
+      hostingStatusUpdateMinutes,
       invoiceBankDetails,
       invoiceCompanyAddress,
       invoiceCompanyCity,
@@ -1154,8 +1233,26 @@ export class BillingService {
       invoiceFooterLine2,
       invoiceFooterLine3,
       invoicePaymentInstructions,
+      invoiceReminderDaysBeforeDue,
       invoiceVatNumber,
+      mailboxCheckMinutes,
+      salesImapEnabled: Boolean(salesImapEnabled),
+      salesImapHost,
+      salesImapMailbox,
+      salesImapPassword: maskSecrets && salesImapPassword ? "********" : salesImapPassword,
+      salesImapPort,
+      salesImapSecure: Boolean(salesImapSecure),
+      salesImapUsername,
+      salesMailboxAddress,
       siteLogoUrl,
+      supportImapEnabled: Boolean(supportImapEnabled),
+      supportImapHost,
+      supportImapMailbox,
+      supportImapPassword: maskSecrets && supportImapPassword ? "********" : supportImapPassword,
+      supportImapPort,
+      supportImapSecure: Boolean(supportImapSecure),
+      supportImapUsername,
+      supportMailboxAddress,
       ticketAutoCloseHours,
       vatPercent
     };
@@ -1211,6 +1308,11 @@ export class BillingService {
   }
 
   updateSettings(input: {
+    cronSecret?: string;
+    domainExpirationUpdateHours?: number;
+    domainPriceUpdateHours?: number;
+    domainStatusUpdateMinutes?: number;
+    hostingStatusUpdateMinutes?: number;
     invoiceBankDetails?: string;
     invoiceCompanyAddress?: string;
     invoiceCompanyCity?: string;
@@ -1224,18 +1326,57 @@ export class BillingService {
     invoiceFooterLine2?: string;
     invoiceFooterLine3?: string;
     invoicePaymentInstructions?: string;
+    invoiceReminderDaysBeforeDue?: number;
     invoiceVatNumber?: string;
+    mailboxCheckMinutes?: number;
+    salesImapEnabled?: boolean;
+    salesImapHost?: string;
+    salesImapMailbox?: string;
+    salesImapPassword?: string;
+    salesImapPort?: number;
+    salesImapSecure?: boolean;
+    salesImapUsername?: string;
+    salesMailboxAddress?: string;
     siteLogoUrl?: string;
+    supportImapEnabled?: boolean;
+    supportImapHost?: string;
+    supportImapMailbox?: string;
+    supportImapPassword?: string;
+    supportImapPort?: number;
+    supportImapSecure?: boolean;
+    supportImapUsername?: string;
+    supportMailboxAddress?: string;
     ticketAutoCloseHours?: number;
     vatPercent?: number;
   }) {
     return Promise.all([
+      input.cronSecret === undefined || input.cronSecret === "********"
+        ? undefined
+        : this.billing.upsertSettingString("cronSecret", input.cronSecret),
+      input.domainPriceUpdateHours === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("domainPriceUpdateHours", positiveSetting(input.domainPriceUpdateHours, 24)),
+      input.domainExpirationUpdateHours === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("domainExpirationUpdateHours", positiveSetting(input.domainExpirationUpdateHours, 12)),
+      input.domainStatusUpdateMinutes === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("domainStatusUpdateMinutes", positiveSetting(input.domainStatusUpdateMinutes, 15)),
+      input.hostingStatusUpdateMinutes === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("hostingStatusUpdateMinutes", positiveSetting(input.hostingStatusUpdateMinutes, 15)),
+      input.invoiceReminderDaysBeforeDue === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("invoiceReminderDaysBeforeDue", positiveSetting(input.invoiceReminderDaysBeforeDue, 3)),
+      input.mailboxCheckMinutes === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("mailboxCheckMinutes", positiveSetting(input.mailboxCheckMinutes, 5)),
       input.invoiceDaysAhead === undefined
         ? undefined
-        : this.billing.upsertSettingNumber("invoiceDaysAhead", input.invoiceDaysAhead),
+        : this.billing.upsertSettingNumber("invoiceDaysAhead", positiveSetting(input.invoiceDaysAhead, 7)),
       input.ticketAutoCloseHours === undefined
         ? undefined
-        : this.billing.upsertSettingNumber("ticketAutoCloseHours", input.ticketAutoCloseHours),
+        : this.billing.upsertSettingNumber("ticketAutoCloseHours", positiveSetting(input.ticketAutoCloseHours, 24)),
       input.vatPercent === undefined ? undefined : this.billing.upsertSettingNumber("vatPercent", Math.max(0, input.vatPercent)),
       input.invoiceFooterLine1 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine1", input.invoiceFooterLine1),
       input.invoiceFooterLine2 === undefined ? undefined : this.billing.upsertSettingString("invoiceFooterLine2", input.invoiceFooterLine2),
@@ -1252,7 +1393,51 @@ export class BillingService {
         ? undefined
         : this.billing.upsertSettingString("invoicePaymentInstructions", input.invoicePaymentInstructions),
       input.invoiceBankDetails === undefined ? undefined : this.billing.upsertSettingString("invoiceBankDetails", input.invoiceBankDetails),
-      input.siteLogoUrl === undefined ? undefined : this.billing.upsertSettingString("siteLogoUrl", input.siteLogoUrl)
+      input.siteLogoUrl === undefined ? undefined : this.billing.upsertSettingString("siteLogoUrl", input.siteLogoUrl),
+      input.supportImapEnabled === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("supportImapEnabled", input.supportImapEnabled ? 1 : 0),
+      input.supportImapHost === undefined ? undefined : this.billing.upsertSettingString("supportImapHost", input.supportImapHost),
+      input.supportImapPort === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("supportImapPort", positiveSetting(input.supportImapPort, 993)),
+      input.supportImapSecure === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("supportImapSecure", input.supportImapSecure ? 1 : 0),
+      input.supportImapUsername === undefined
+        ? undefined
+        : this.billing.upsertSettingString("supportImapUsername", input.supportImapUsername),
+      input.supportImapPassword === undefined || input.supportImapPassword === "********"
+        ? undefined
+        : this.billing.upsertSettingString("supportImapPassword", input.supportImapPassword),
+      input.supportImapMailbox === undefined
+        ? undefined
+        : this.billing.upsertSettingString("supportImapMailbox", input.supportImapMailbox || "INBOX"),
+      input.supportMailboxAddress === undefined
+        ? undefined
+        : this.billing.upsertSettingString("supportMailboxAddress", input.supportMailboxAddress || "support@dezhost.com"),
+      input.salesImapEnabled === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("salesImapEnabled", input.salesImapEnabled ? 1 : 0),
+      input.salesImapHost === undefined ? undefined : this.billing.upsertSettingString("salesImapHost", input.salesImapHost),
+      input.salesImapPort === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("salesImapPort", positiveSetting(input.salesImapPort, 993)),
+      input.salesImapSecure === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("salesImapSecure", input.salesImapSecure ? 1 : 0),
+      input.salesImapUsername === undefined
+        ? undefined
+        : this.billing.upsertSettingString("salesImapUsername", input.salesImapUsername),
+      input.salesImapPassword === undefined || input.salesImapPassword === "********"
+        ? undefined
+        : this.billing.upsertSettingString("salesImapPassword", input.salesImapPassword),
+      input.salesImapMailbox === undefined
+        ? undefined
+        : this.billing.upsertSettingString("salesImapMailbox", input.salesImapMailbox || "INBOX"),
+      input.salesMailboxAddress === undefined
+        ? undefined
+        : this.billing.upsertSettingString("salesMailboxAddress", input.salesMailboxAddress || "sales@dezhost.com")
     ]);
   }
 
@@ -1431,6 +1616,11 @@ function formatEuro(cents: number) {
   return `${(cents / 100).toFixed(2)} EUR`;
 }
 
+function positiveSetting(value: unknown, fallback: number) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
 function paymentMethodLabel(method: string) {
   if (method === "CREDIT_CARD") {
     return "Credit/debit card";
@@ -1543,7 +1733,7 @@ function canRunActionForPaidInvoice(invoice: Record<string, any>, action: string
   if (!overdue) {
     return true;
   }
-  return ["create", "register_domain"].includes(action);
+  return ["create", "register_domain", "renew", "renew_domain", "unsuspend"].includes(action);
 }
 
 function hostingModuleName(productType?: string) {

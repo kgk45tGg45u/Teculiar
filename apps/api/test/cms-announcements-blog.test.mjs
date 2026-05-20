@@ -96,7 +96,7 @@ test("site chrome has collapsible mobile nav, footer theme toggle, and refined c
 
   assert.match(header, /<details className=\{styles\.mobileMenu\}/);
   assert.match(header, /<summary aria-label="Menu"/);
-  assert.match(header, /className=\{styles\.clientLogin\}/);
+  assert.match(header, /<AccountMenu clientLabel=\{copy\.nav\.client\} \/>/);
   assert.doesNotMatch(header, /<ThemeToggle/);
   assert.match(headerCss, /\.mobileMenu/);
   assert.match(headerCss, /position:\s*sticky/);

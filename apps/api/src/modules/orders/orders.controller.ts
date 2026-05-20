@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JwtAuthGuard, OptionalJwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AdminCreateOrderDto, CheckoutOrderDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
 import { OrdersService } from "./orders.service";
 
@@ -30,9 +30,10 @@ export class OrdersController {
     return this.orders.previewOrder(dto);
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Post("orders/checkout")
-  checkout(@Body() dto: CheckoutOrderDto) {
-    return this.orders.checkout(dto);
+  checkout(@Body() dto: CheckoutOrderDto, @Req() request: Request & { user?: { sub: string } }) {
+    return this.orders.checkout(dto, request.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

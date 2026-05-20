@@ -3,6 +3,7 @@ import { cycleLabel, money, type ApiOrder, type AuthUser } from "../../../../lib
 import { orderStatusLabel, serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
+import { LogoutButton } from "../../../../components/auth/logout-button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "../../../../components/ui/status-pill";
 
@@ -29,7 +30,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
 
   return (
     <main className="container">
-      <a href="/admin/orders">Back to orders</a>
+      <div className={styles.headerActions}><a href="/admin/orders">Back to orders</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <h1>Order {order.orderNumber}</h1>
       <StatusPill label={orderStatusLabel(order.status)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
       <section className={styles.panel}>

@@ -24,3 +24,16 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 }
+
+@Injectable()
+export class OptionalJwtAuthGuard extends JwtAuthGuard {
+  override canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<{ headers: Record<string, string>; user?: unknown }>();
+    const header = request.headers.authorization;
+    const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+    if (!token) {
+      return true;
+    }
+    return super.canActivate(context);
+  }
+}

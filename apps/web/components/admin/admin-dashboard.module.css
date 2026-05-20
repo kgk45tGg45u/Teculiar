@@ -70,6 +70,14 @@
   line-height: 1.55;
 }
 
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .module {
   display: grid;
   gap: 16px;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { API_BASE_URL, authHeaders, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
+import { Eye, EyeOff } from "lucide-react";
+import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
@@ -46,6 +47,7 @@ type ClientProfile = {
   phone?: string;
   vatId?: string;
 };
+type CountryOption = ReturnType<typeof countriesForLocale>[number];
 
 export function CheckoutForm({
   domainProduct,
@@ -62,6 +64,7 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState("CREDIT_CARD");
   const [domainUse, setDomainUse] = useState<"register" | "transfer" | "external">(initialDomainAction);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loggedInPassword, setLoggedInPassword] = useState("");
@@ -138,6 +141,18 @@ export function CheckoutForm({
   }, []);
 
   useEffect(() => {
+    if (!authToken("client")) {
+      return;
+    }
+    getJson<ClientProfile>("/users/me", authToken("client"))
+      .then((me) => {
+        setProfile(me);
+        setPhoneCountryCode(splitProfilePhone(me.phone).countryCode);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!selectablePrices.some((price) => priceSelectionKey(price, product.type) === priceSelection)) {
       setPriceSelection(selectablePrices[0] ? priceSelectionKey(selectablePrices[0], product.type) : "");
     }
@@ -156,7 +171,7 @@ export function CheckoutForm({
       notify.error(message);
       return;
     }
-    const submittedPassword = loggedInPassword || String(formData.get("password") ?? "");
+    const submittedPassword = profile ? "" : loggedInPassword || String(formData.get("password") ?? "");
     if (!profile && !isStrongPassword(submittedPassword)) {
       const message = "Passwort erfuellt die Regeln nicht.";
       setState({ status: "error", message });
@@ -228,7 +243,7 @@ export function CheckoutForm({
     }
 
     const body = {
-      customer: {
+      customer: profile ? profileCheckoutCustomer(profile) : {
         address: {
           city: formData.get("city"),
           line1: formData.get("address"),
@@ -630,112 +645,15 @@ export function CheckoutForm({
             </div>
           ) : null}
 
-          {/* Personal & contact info */}
-          <div className={styles.formSection} key={profile?.id ?? "guest"}>
-            <p className={styles.sectionLabel}>Persönliche Daten</p>
-            <div className={styles.grid}>
-              <label className={styles.fieldLabel}>
-                <span>Name <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profile?.name ?? ""} name="name" required />
-              </label>
-              <label className={styles.fieldLabel}>
-                <span>E-Mail <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profile?.email ?? ""} name="email" readOnly={Boolean(profile)} required type="email" />
-              </label>
-              {!profile ? (
-                <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
-                  <span>Passwort <span className={styles.required}>*</span></span>
-                  <div className={styles.passwordControl}>
-                    <input
-                      className={styles.input}
-                      maxLength={16}
-                      minLength={9}
-                      name="password"
-                      onChange={(event) => setPassword(event.target.value)}
-                      required
-                      type="password"
-                      value={password}
-                    />
-                    <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
-                      Generieren
-                    </button>
-                  </div>
-                  <PasswordRules password={password} />
-                </label>
-              ) : null}
-              <label className={styles.fieldLabel}>
-                <span>Telefon <span className={styles.required}>*</span></span>
-                <div className={styles.phoneField}>
-                  <input
-                    className={styles.input}
-                    aria-label="Ländervorwahl"
-                    name="phoneCountryCode"
-                    onChange={(event) => setPhoneCountryCode(event.target.value)}
-                    required
-                    value={phoneCountryCode}
-                  />
-                  <input className={styles.input} defaultValue={splitProfilePhone(profile?.phone).number} name="phone" required />
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Company info */}
-          <div className={styles.formSection}>
-            <p className={styles.sectionLabel}>Unternehmen <span className={styles.optionalBadge}>optional</span></p>
-            <div className={styles.grid}>
-              <label className={styles.fieldLabel}>
-                Firmenname
-                <input className={styles.input} name="companyName" placeholder="Nur für Geschäftskunden" />
-              </label>
-              <label className={styles.fieldLabel}>
-                USt-Id
-                <input className={styles.input} defaultValue={profile?.vatId ?? ""} name="vatId" placeholder="DE123456789" />
-              </label>
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className={styles.formSection}>
-            <p className={styles.sectionLabel}>Adresse</p>
-            <div className={styles.grid}>
-              <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
-                <span>Straße & Hausnummer <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profileAddress(profile).line1} name="address" required />
-              </label>
-              <label className={styles.fieldLabel}>
-                <span>PLZ <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profileAddress(profile).postalCode} name="postalCode" required />
-              </label>
-              <label className={styles.fieldLabel}>
-                <span>Stadt <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profileAddress(profile).city} name="city" required />
-              </label>
-              <label className={styles.fieldLabel}>
-                <span>Bundesland <span className={styles.required}>*</span></span>
-                <input className={styles.input} defaultValue={profileAddress(profile).state} name="state" required />
-              </label>
-              <label className={styles.fieldLabel}>
-                <span>Land <span className={styles.required}>*</span></span>
-                <select
-                  className={styles.input}
-                  defaultValue={profile?.countryCode ?? "DE"}
-                  name="countryCode"
-                  onChange={(event) => {
-                    const country = countries.find((item) => item.code === event.target.value);
-                    if (country) setPhoneCountryCode(country.phone);
-                  }}
-                  required
-                >
-                  {countries.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.flag} {country.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
+          {!profile ? <ContactFields
+            countries={countries}
+            password={password}
+            phoneCountryCode={phoneCountryCode}
+            setPassword={setPassword}
+            setPhoneCountryCode={setPhoneCountryCode}
+            setShowPassword={setShowPassword}
+            showPassword={showPassword}
+          /> : null}
 
           {/* Payment */}
           <div className={styles.formSection}>
@@ -791,6 +709,138 @@ function PasswordRules({ password }: { password: string }) {
         </span>
       ))}
     </div>
+  );
+}
+
+function ContactFields({
+  countries,
+  password,
+  phoneCountryCode,
+  setPassword,
+  setPhoneCountryCode,
+  setShowPassword,
+  showPassword
+}: {
+  countries: CountryOption[];
+  password: string;
+  phoneCountryCode: string;
+  setPassword: (password: string) => void;
+  setPhoneCountryCode: (code: string) => void;
+  setShowPassword: (show: boolean) => void;
+  showPassword: boolean;
+}) {
+  return (
+    <>
+      <div className={styles.formSection}>
+        <p className={styles.sectionLabel}>Persönliche Daten</p>
+        <div className={styles.grid}>
+          <label className={styles.fieldLabel}>
+            <span>Name <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="name" required />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>E-Mail <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="email" required type="email" />
+          </label>
+          <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
+            <span>Passwort <span className={styles.required}>*</span></span>
+            <div className={styles.passwordControl}>
+              <div className={styles.passwordInputWrap}>
+                <input
+                  className={styles.input}
+                  maxLength={16}
+                  minLength={9}
+                  name="password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? "Passwort verstecken" : "Passwort anzeigen"}
+                  className={styles.passwordToggle}
+                  onClick={() => setShowPassword(!showPassword)}
+                  type="button"
+                >
+                  {showPassword ? <EyeOff aria-hidden size={18} /> : <Eye aria-hidden size={18} />}
+                </button>
+              </div>
+              <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
+                Generieren
+              </button>
+            </div>
+            <PasswordRules password={password} />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>Telefon <span className={styles.required}>*</span></span>
+            <div className={styles.phoneField}>
+              <input
+                className={styles.input}
+                aria-label="Ländervorwahl"
+                name="phoneCountryCode"
+                onChange={(event) => setPhoneCountryCode(event.target.value)}
+                required
+                value={phoneCountryCode}
+              />
+              <input className={styles.input} name="phone" required />
+            </div>
+          </label>
+        </div>
+      </div>
+      <div className={styles.formSection}>
+        <p className={styles.sectionLabel}>Unternehmen <span className={styles.optionalBadge}>optional</span></p>
+        <div className={styles.grid}>
+          <label className={styles.fieldLabel}>
+            Firmenname
+            <input className={styles.input} name="companyName" placeholder="Nur für Geschäftskunden" />
+          </label>
+          <label className={styles.fieldLabel}>
+            USt-Id
+            <input className={styles.input} name="vatId" placeholder="DE123456789" />
+          </label>
+        </div>
+      </div>
+      <div className={styles.formSection}>
+        <p className={styles.sectionLabel}>Adresse</p>
+        <div className={styles.grid}>
+          <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
+            <span>Straße & Hausnummer <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="address" required />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>PLZ <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="postalCode" required />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>Stadt <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="city" required />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>Bundesland <span className={styles.required}>*</span></span>
+            <input className={styles.input} name="state" required />
+          </label>
+          <label className={styles.fieldLabel}>
+            <span>Land <span className={styles.required}>*</span></span>
+            <select
+              className={styles.input}
+              defaultValue="DE"
+              name="countryCode"
+              onChange={(event) => {
+                const country = countries.find((item) => item.code === event.target.value);
+                if (country) setPhoneCountryCode(country.phone);
+              }}
+              required
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -886,6 +936,20 @@ function profileAddress(profile?: ClientProfile) {
     line1: profile?.address?.line1 ?? "",
     postalCode: profile?.address?.postalCode ?? "",
     state: profile?.address?.state ?? ""
+  };
+}
+
+function profileCheckoutCustomer(profile: ClientProfile) {
+  return {
+    address: profileAddress(profile),
+    countryCode: profile.countryCode ?? "DE",
+    customerType: profile.customerType ?? "INDIVIDUAL",
+    email: profile.email,
+    companyName: "",
+    name: profile.name,
+    password: "",
+    phone: profile.phone ?? "",
+    vatId: profile.vatId ?? ""
   };
 }
 

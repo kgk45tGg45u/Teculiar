@@ -392,6 +392,36 @@
   gap: 8px;
 }
 
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordInputWrap .input {
+  padding-right: 48px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.passwordToggle:hover {
+  color: var(--crimson);
+  background: color-mix(in srgb, var(--crimson) 8%, transparent);
+}
+
 .generateButton {
   min-height: 44px;
   padding: 0 14px;

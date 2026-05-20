@@ -1,35 +1,14 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ExternalService } from "../external/external.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { ProductsRepository } from "./products.repository";
 
 @Injectable()
-export class ProductsService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(ProductsService.name);
-  private statusRefreshTimer?: NodeJS.Timeout;
-
+export class ProductsService {
   constructor(
     private readonly products: ProductsRepository,
     private readonly external: ExternalService
   ) {}
-
-  onModuleInit() {
-    if (process.env.NODE_ENV === "test") {
-      return;
-    }
-    this.statusRefreshTimer = setInterval(() => {
-      this.refreshAllServiceStatuses().catch((error: unknown) => {
-        this.logger.warn(`Daily service status refresh failed: ${error instanceof Error ? error.message : String(error)}`);
-      });
-    }, 24 * 60 * 60 * 1000);
-    this.statusRefreshTimer.unref?.();
-  }
-
-  onModuleDestroy() {
-    if (this.statusRefreshTimer) {
-      clearInterval(this.statusRefreshTimer);
-    }
-  }
 
   listProducts() {
     return this.products.listProducts();
@@ -136,6 +115,56 @@ export class ProductsService implements OnModuleInit, OnModuleDestroy {
 
   async refreshAllServiceStatuses() {
     const services = await this.products.listServices();
+    let refreshed = 0;
+    for (const service of services) {
+      await this.refreshService(service.id).catch(() => undefined);
+      refreshed += 1;
+    }
+    return { checked: services.length, refreshed };
+  }
+
+  async refreshAllDomainStatuses() {
+    const domains = await this.products.listDomainRecords();
+    let refreshed = 0;
+    for (const domain of domains) {
+      if (!this.external.resellBiz.status || ["CANCELLED"].includes(domain.status)) {
+        continue;
+      }
+      const status = await this.external.resellBiz.status(domain.domain).catch(() => undefined);
+      if (!status) {
+        continue;
+      }
+      const expiresAt = dateFromProvider(status);
+      const nextStatus = status.status === "ACTIVE" ? "ACTIVE" : status.status === "FAILED" ? "FAILED" : domain.status;
+      await this.products.updateDomainRecordStatus(domain.id, nextStatus, status.externalId, expiresAt);
+      if (domain.service?.product.type === "DOMAIN" && (nextStatus === "ACTIVE" || nextStatus === "FAILED")) {
+        await this.products.updateServiceStatus(domain.service.id, nextStatus, status.externalId);
+      }
+      refreshed += 1;
+    }
+    return { checked: domains.length, refreshed };
+  }
+
+  async refreshAllDomainExpirations() {
+    const domains = await this.products.listDomainRecords();
+    let refreshed = 0;
+    for (const domain of domains) {
+      if (!this.external.resellBiz.status || ["CANCELLED"].includes(domain.status)) {
+        continue;
+      }
+      const status = await this.external.resellBiz.status(domain.domain).catch(() => undefined);
+      const expiresAt = status ? dateFromProvider(status) : undefined;
+      if (!status || !expiresAt) {
+        continue;
+      }
+      await this.products.updateDomainRecordExpiration(domain.id, status.externalId, expiresAt);
+      refreshed += 1;
+    }
+    return { checked: domains.length, refreshed };
+  }
+
+  async refreshAllHostingStatuses() {
+    const services = await this.products.listServicesByProductType("SHARED_HOSTING");
     let refreshed = 0;
     for (const service of services) {
       await this.refreshService(service.id).catch(() => undefined);
@@ -372,6 +401,18 @@ function refreshDomainName(externalId: string | null | undefined, configuration:
     return configured;
   }
   return externalId;
+}
+
+function dateFromProvider(status: { expiresAt?: Date | string; metadata?: Record<string, unknown> }) {
+  const value = status.expiresAt ?? status.metadata?.expiresAt;
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : undefined;
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : undefined;
 }
 
 function customerPlanConfigs(plan: { id: string; limits?: Record<string, string | undefined> }) {

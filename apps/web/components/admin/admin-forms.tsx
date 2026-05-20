@@ -480,6 +480,11 @@ export function AnnouncementForm() {
 export function SettingsForm() {
   const [message, setMessage] = useState("");
   const [settings, setSettings] = useState({
+    cronSecret: "",
+    domainExpirationUpdateHours: 12,
+    domainPriceUpdateHours: 24,
+    domainStatusUpdateMinutes: 15,
+    hostingStatusUpdateMinutes: 15,
     invoiceBankDetails: "",
     invoiceCompanyAddress: "",
     invoiceCompanyCity: "",
@@ -493,8 +498,26 @@ export function SettingsForm() {
     invoiceFooterLine2: "",
     invoiceFooterLine3: "",
     invoicePaymentInstructions: "",
+    invoiceReminderDaysBeforeDue: 3,
     invoiceVatNumber: "",
+    mailboxCheckMinutes: 5,
+    salesImapEnabled: false,
+    salesImapHost: "",
+    salesImapMailbox: "INBOX",
+    salesImapPassword: "",
+    salesImapPort: 993,
+    salesImapSecure: true,
+    salesImapUsername: "",
+    salesMailboxAddress: "sales@dezhost.com",
     siteLogoUrl: "",
+    supportImapEnabled: false,
+    supportImapHost: "",
+    supportImapMailbox: "INBOX",
+    supportImapPassword: "",
+    supportImapPort: 993,
+    supportImapSecure: true,
+    supportImapUsername: "",
+    supportMailboxAddress: "support@dezhost.com",
     ticketAutoCloseHours: 24,
     vatPercent: 19
   });
@@ -503,6 +526,11 @@ export function SettingsForm() {
     void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
       .then((response) => response.json())
       .then((payload) => setSettings({
+        cronSecret: payload.cronSecret ?? "",
+        domainExpirationUpdateHours: payload.domainExpirationUpdateHours ?? 12,
+        domainPriceUpdateHours: payload.domainPriceUpdateHours ?? 24,
+        domainStatusUpdateMinutes: payload.domainStatusUpdateMinutes ?? 15,
+        hostingStatusUpdateMinutes: payload.hostingStatusUpdateMinutes ?? 15,
         invoiceBankDetails: payload.invoiceBankDetails ?? "",
         invoiceCompanyAddress: payload.invoiceCompanyAddress ?? "",
         invoiceCompanyCity: payload.invoiceCompanyCity ?? "",
@@ -516,8 +544,26 @@ export function SettingsForm() {
         invoiceFooterLine2: payload.invoiceFooterLine2 ?? "",
         invoiceFooterLine3: payload.invoiceFooterLine3 ?? "",
         invoicePaymentInstructions: payload.invoicePaymentInstructions ?? "",
+        invoiceReminderDaysBeforeDue: payload.invoiceReminderDaysBeforeDue ?? 3,
         invoiceVatNumber: payload.invoiceVatNumber ?? "",
+        mailboxCheckMinutes: payload.mailboxCheckMinutes ?? 5,
+        salesImapEnabled: Boolean(payload.salesImapEnabled),
+        salesImapHost: payload.salesImapHost ?? "",
+        salesImapMailbox: payload.salesImapMailbox ?? "INBOX",
+        salesImapPassword: payload.salesImapPassword ?? "",
+        salesImapPort: payload.salesImapPort ?? 993,
+        salesImapSecure: payload.salesImapSecure !== false,
+        salesImapUsername: payload.salesImapUsername ?? "",
+        salesMailboxAddress: payload.salesMailboxAddress ?? "sales@dezhost.com",
         siteLogoUrl: payload.siteLogoUrl ?? "",
+        supportImapEnabled: Boolean(payload.supportImapEnabled),
+        supportImapHost: payload.supportImapHost ?? "",
+        supportImapMailbox: payload.supportImapMailbox ?? "INBOX",
+        supportImapPassword: payload.supportImapPassword ?? "",
+        supportImapPort: payload.supportImapPort ?? 993,
+        supportImapSecure: payload.supportImapSecure !== false,
+        supportImapUsername: payload.supportImapUsername ?? "",
+        supportMailboxAddress: payload.supportMailboxAddress ?? "support@dezhost.com",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
         vatPercent: payload.vatPercent ?? 19
       }))
@@ -527,6 +573,11 @@ export function SettingsForm() {
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
+        cronSecret: String(formData.get("cronSecret") ?? ""),
+        domainExpirationUpdateHours: Number(formData.get("domainExpirationUpdateHours") ?? 12),
+        domainPriceUpdateHours: Number(formData.get("domainPriceUpdateHours") ?? 24),
+        domainStatusUpdateMinutes: Number(formData.get("domainStatusUpdateMinutes") ?? 15),
+        hostingStatusUpdateMinutes: Number(formData.get("hostingStatusUpdateMinutes") ?? 15),
         invoiceBankDetails: String(formData.get("invoiceBankDetails") ?? ""),
         invoiceCompanyAddress: String(formData.get("invoiceCompanyAddress") ?? ""),
         invoiceCompanyCity: String(formData.get("invoiceCompanyCity") ?? ""),
@@ -540,8 +591,26 @@ export function SettingsForm() {
         invoiceFooterLine2: String(formData.get("invoiceFooterLine2") ?? ""),
         invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
         invoicePaymentInstructions: String(formData.get("invoicePaymentInstructions") ?? ""),
+        invoiceReminderDaysBeforeDue: Number(formData.get("invoiceReminderDaysBeforeDue") ?? 3),
         invoiceVatNumber: String(formData.get("invoiceVatNumber") ?? ""),
+        mailboxCheckMinutes: Number(formData.get("mailboxCheckMinutes") ?? 5),
+        salesImapEnabled: formData.get("salesImapEnabled") === "on",
+        salesImapHost: String(formData.get("salesImapHost") ?? ""),
+        salesImapMailbox: String(formData.get("salesImapMailbox") ?? "INBOX"),
+        salesImapPassword: String(formData.get("salesImapPassword") ?? ""),
+        salesImapPort: Number(formData.get("salesImapPort") ?? 993),
+        salesImapSecure: formData.get("salesImapSecure") === "on",
+        salesImapUsername: String(formData.get("salesImapUsername") ?? ""),
+        salesMailboxAddress: String(formData.get("salesMailboxAddress") ?? "sales@dezhost.com"),
         siteLogoUrl: settings.siteLogoUrl,
+        supportImapEnabled: formData.get("supportImapEnabled") === "on",
+        supportImapHost: String(formData.get("supportImapHost") ?? ""),
+        supportImapMailbox: String(formData.get("supportImapMailbox") ?? "INBOX"),
+        supportImapPassword: String(formData.get("supportImapPassword") ?? ""),
+        supportImapPort: Number(formData.get("supportImapPort") ?? 993),
+        supportImapSecure: formData.get("supportImapSecure") === "on",
+        supportImapUsername: String(formData.get("supportImapUsername") ?? ""),
+        supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@dezhost.com"),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
         vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
@@ -554,8 +623,35 @@ export function SettingsForm() {
 
   return (
     <form action={submit} className={styles.form}>
+      <h3>Cron</h3>
+      <label>Cron secret<input value={settings.cronSecret} onChange={(event) => setSettings({ ...settings, cronSecret: event.target.value })} name="cronSecret" type="password" /></label>
+      <label>Update domain prices every hours<input min="1" value={settings.domainPriceUpdateHours} onChange={(event) => setSettings({ ...settings, domainPriceUpdateHours: Number(event.target.value) })} name="domainPriceUpdateHours" type="number" /></label>
+      <label>Update domain expiration dates every hours<input min="1" value={settings.domainExpirationUpdateHours} onChange={(event) => setSettings({ ...settings, domainExpirationUpdateHours: Number(event.target.value) })} name="domainExpirationUpdateHours" type="number" /></label>
+      <label>Update domain statuses every minutes<input min="1" value={settings.domainStatusUpdateMinutes} onChange={(event) => setSettings({ ...settings, domainStatusUpdateMinutes: Number(event.target.value) })} name="domainStatusUpdateMinutes" type="number" /></label>
+      <label>Update hosting service statuses every minutes<input min="1" value={settings.hostingStatusUpdateMinutes} onChange={(event) => setSettings({ ...settings, hostingStatusUpdateMinutes: Number(event.target.value) })} name="hostingStatusUpdateMinutes" type="number" /></label>
       <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
+      <label>Create invoice reminders days before due date<input min="1" value={settings.invoiceReminderDaysBeforeDue} onChange={(event) => setSettings({ ...settings, invoiceReminderDaysBeforeDue: Number(event.target.value) })} name="invoiceReminderDaysBeforeDue" type="number" /></label>
       <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
+      <label>Check support and sales mailboxes every minutes<input min="1" value={settings.mailboxCheckMinutes} onChange={(event) => setSettings({ ...settings, mailboxCheckMinutes: Number(event.target.value) })} name="mailboxCheckMinutes" type="number" /></label>
+      <h3>Support mailbox IMAP</h3>
+      <label><span><input checked={settings.supportImapEnabled} onChange={(event) => setSettings({ ...settings, supportImapEnabled: event.target.checked })} name="supportImapEnabled" type="checkbox" /> Enable support mailbox</span></label>
+      <label>Support mailbox address<input value={settings.supportMailboxAddress} onChange={(event) => setSettings({ ...settings, supportMailboxAddress: event.target.value })} name="supportMailboxAddress" type="email" /></label>
+      <label>Support IMAP host<input value={settings.supportImapHost} onChange={(event) => setSettings({ ...settings, supportImapHost: event.target.value })} name="supportImapHost" /></label>
+      <label>Support IMAP port<input value={settings.supportImapPort} onChange={(event) => setSettings({ ...settings, supportImapPort: Number(event.target.value) })} name="supportImapPort" type="number" /></label>
+      <label><span><input checked={settings.supportImapSecure} onChange={(event) => setSettings({ ...settings, supportImapSecure: event.target.checked })} name="supportImapSecure" type="checkbox" /> Support IMAP TLS/SSL</span></label>
+      <label>Support IMAP username<input value={settings.supportImapUsername} onChange={(event) => setSettings({ ...settings, supportImapUsername: event.target.value })} name="supportImapUsername" /></label>
+      <label>Support IMAP password<input value={settings.supportImapPassword} onChange={(event) => setSettings({ ...settings, supportImapPassword: event.target.value })} name="supportImapPassword" type="password" /></label>
+      <label>Support IMAP mailbox<input value={settings.supportImapMailbox} onChange={(event) => setSettings({ ...settings, supportImapMailbox: event.target.value })} name="supportImapMailbox" /></label>
+      <h3>Sales mailbox IMAP</h3>
+      <label><span><input checked={settings.salesImapEnabled} onChange={(event) => setSettings({ ...settings, salesImapEnabled: event.target.checked })} name="salesImapEnabled" type="checkbox" /> Enable sales mailbox</span></label>
+      <label>Sales mailbox address<input value={settings.salesMailboxAddress} onChange={(event) => setSettings({ ...settings, salesMailboxAddress: event.target.value })} name="salesMailboxAddress" type="email" /></label>
+      <label>Sales IMAP host<input value={settings.salesImapHost} onChange={(event) => setSettings({ ...settings, salesImapHost: event.target.value })} name="salesImapHost" /></label>
+      <label>Sales IMAP port<input value={settings.salesImapPort} onChange={(event) => setSettings({ ...settings, salesImapPort: Number(event.target.value) })} name="salesImapPort" type="number" /></label>
+      <label><span><input checked={settings.salesImapSecure} onChange={(event) => setSettings({ ...settings, salesImapSecure: event.target.checked })} name="salesImapSecure" type="checkbox" /> Sales IMAP TLS/SSL</span></label>
+      <label>Sales IMAP username<input value={settings.salesImapUsername} onChange={(event) => setSettings({ ...settings, salesImapUsername: event.target.value })} name="salesImapUsername" /></label>
+      <label>Sales IMAP password<input value={settings.salesImapPassword} onChange={(event) => setSettings({ ...settings, salesImapPassword: event.target.value })} name="salesImapPassword" type="password" /></label>
+      <label>Sales IMAP mailbox<input value={settings.salesImapMailbox} onChange={(event) => setSettings({ ...settings, salesImapMailbox: event.target.value })} name="salesImapMailbox" /></label>
+      <h3>Invoice branding</h3>
       <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
       <ImageUploader
         action={`${API_BASE_URL}/admin/dev/assets/logo`}
@@ -577,7 +673,6 @@ export function SettingsForm() {
       <label>Invoice footer line 3<input value={settings.invoiceFooterLine3} onChange={(event) => setSettings({ ...settings, invoiceFooterLine3: event.target.value })} name="invoiceFooterLine3" /></label>
       <label>Payment instructions<textarea value={settings.invoicePaymentInstructions} onChange={(event) => setSettings({ ...settings, invoicePaymentInstructions: event.target.value })} name="invoicePaymentInstructions" rows={3} /></label>
       <label>Bank details<textarea value={settings.invoiceBankDetails} onChange={(event) => setSettings({ ...settings, invoiceBankDetails: event.target.value })} name="invoiceBankDetails" rows={3} /></label>
-      <p>Admin dashboard runs maintenance on open: close answered tickets, create upcoming invoices, mark overdue invoices, suspend services with overdue unpaid invoices.</p>
       <Button icon={Save} type="submit">Save Settings</Button>
       {message ? <p>{message}</p> : null}
     </form>

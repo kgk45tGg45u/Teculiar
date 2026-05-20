@@ -104,14 +104,14 @@ export class OrdersService {
     };
   }
 
-  async checkout(dto: CheckoutOrderDto) {
-    if (!dto.customer.password) {
-      throw new BadRequestException("Password is required");
-    }
-
+  async checkout(dto: CheckoutOrderDto, authUser?: { sub: string }) {
     const email = dto.customer.email.trim().toLowerCase();
     const existing = await this.users.findByEmail(email);
-    if (existing && !(await compare(dto.customer.password, existing.passwordHash))) {
+    const isLoggedInAccount = Boolean(authUser?.sub && existing?.id === authUser.sub);
+    if (!isLoggedInAccount && !dto.customer.password) {
+      throw new BadRequestException("Password is required");
+    }
+    if (existing && !isLoggedInAccount && !(await compare(dto.customer.password, existing.passwordHash))) {
       throw new BadRequestException("Email is already registered. Please log in before ordering.");
     }
 

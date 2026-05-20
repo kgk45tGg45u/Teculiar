@@ -50,13 +50,14 @@ test("service refresh does not return another client's service", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("client dashboard schedules one delayed service refresh instead of polling", async () => {
+test("client dashboard does not trigger provider refresh on load", async () => {
   const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /setInterval\(loadServices,\s*20_000\)/);
   assert.doesNotMatch(source, /setInterval\(loadService,\s*20_000\)/);
-  assert.match(source, /setTimeout\(loadServicesFresh,\s*240_000\)/);
-  assert.match(source, /setTimeout\(loadServiceFresh,\s*240_000\)/);
+  assert.doesNotMatch(source, /refresh=1/);
+  assert.doesNotMatch(source, /loadServicesFresh/);
+  assert.doesNotMatch(source, /loadServiceFresh/);
 });
 
 test("active hosting service is not kept active when Virtualmin cannot find it", async () => {

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, Globe, Menu } from "lucide-react";
+import { Globe, Menu } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
+import { AccountMenu } from "./account-menu";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
@@ -36,10 +37,7 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
         </nav>
 
         <div className={styles.actions}>
-          <Link className={styles.clientLogin} href="/client">
-            {copy.nav.client}
-            <ArrowRight aria-hidden size={14} />
-          </Link>
+          <AccountMenu clientLabel={copy.nav.client} />
           <details className={styles.mobileMenu}>
             <summary aria-label="Menu">
               <Menu aria-hidden size={18} />

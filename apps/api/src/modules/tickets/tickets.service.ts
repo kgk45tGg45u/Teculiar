@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { EmailService } from "../email/email.service";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
+import { fetchUnreadImapMessages, type ImapMailboxConfig } from "./imap-mailbox";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
 import { TicketsRepository } from "./tickets.repository";
 
@@ -95,6 +96,35 @@ export class TicketsService {
     return this.tickets.closeAnsweredOlderThan(cutoff);
   }
 
+  async importMailboxTickets(settings: Record<string, unknown>) {
+    let imported = 0;
+    let skipped = 0;
+    for (const mailbox of mailboxConfigs(settings)) {
+      const messages = await fetchUnreadImapMessages(mailbox).catch(() => []);
+      for (const message of messages) {
+        const sender = message.from?.toLowerCase();
+        if (!sender) {
+          skipped += 1;
+          continue;
+        }
+        const user = await this.tickets.findUserByEmail(sender);
+        if (!user) {
+          skipped += 1;
+          continue;
+        }
+        const department = departmentFor(message.to, mailbox);
+        await this.createTicket(user.id, {
+          body: message.body || "(empty email)",
+          department,
+          priority: "NORMAL",
+          subject: message.subject || `Email from ${sender}`
+        });
+        imported += 1;
+      }
+    }
+    return { imported, skipped };
+  }
+
   async closeTicket(ticketId: string, userId: string, staff = false) {
     const ticket = await this.tickets.findTicket(ticketId);
     if (!ticket) {
@@ -177,4 +207,48 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function mailboxConfigs(settings: Record<string, unknown>): ImapMailboxConfig[] {
+  return [
+    {
+      address: stringValue(settings.supportMailboxAddress) ?? "support@dezhost.com",
+      department: "SUPPORT",
+      enabled: Boolean(settings.supportImapEnabled),
+      host: stringValue(settings.supportImapHost),
+      mailbox: stringValue(settings.supportImapMailbox) ?? "INBOX",
+      password: stringValue(settings.supportImapPassword),
+      port: numberValue(settings.supportImapPort, 993),
+      secure: settings.supportImapSecure !== false,
+      username: stringValue(settings.supportImapUsername)
+    },
+    {
+      address: stringValue(settings.salesMailboxAddress) ?? "sales@dezhost.com",
+      department: "SALES",
+      enabled: Boolean(settings.salesImapEnabled),
+      host: stringValue(settings.salesImapHost),
+      mailbox: stringValue(settings.salesImapMailbox) ?? "INBOX",
+      password: stringValue(settings.salesImapPassword),
+      port: numberValue(settings.salesImapPort, 993),
+      secure: settings.salesImapSecure !== false,
+      username: stringValue(settings.salesImapUsername)
+    }
+  ];
+}
+
+function departmentFor(to: string | undefined, fallback: ImapMailboxConfig) {
+  const recipients = String(to ?? "").toLowerCase();
+  const fallbackAddress = fallback.address.toLowerCase();
+  if (recipients.includes("sales@dezhost.com") || (fallback.department === "SALES" && recipients.includes(fallbackAddress))) {
+    return "SALES";
+  }
+  if (recipients.includes("support@dezhost.com") || (fallback.department === "SUPPORT" && recipients.includes(fallbackAddress))) {
+    return "SUPPORT";
+  }
+  return fallback.department;
+}
+
+function numberValue(value: unknown, fallback: number) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
 }

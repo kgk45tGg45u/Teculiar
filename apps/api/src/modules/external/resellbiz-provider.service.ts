@@ -117,8 +117,9 @@ export class ResellBizProviderService implements DomainProvider {
 
     return {
       externalId: String(summary.orderId),
+      expiresAt: summary.expiresAt,
       status: /active|invoicepaid|transfer complete/.test(statusText) ? ("ACTIVE" as const) : /failed|deleted|expired/.test(statusText) ? ("FAILED" as const) : ("QUEUED" as const),
-      metadata: { raw: summary.raw, status: statusText }
+      metadata: { expiresAt: summary.expiresAt, raw: summary.raw, status: statusText }
     };
   }
 }

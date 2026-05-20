@@ -3,6 +3,7 @@ import { cycleLabel, money, type ApiService, type AuthUser } from "../../../../l
 import { serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminServiceStatusForm } from "../../../../components/admin/admin-forms";
+import { LogoutButton } from "../../../../components/auth/logout-button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "../../../../components/ui/status-pill";
 
@@ -20,7 +21,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
 
   return (
     <main className="container">
-      <a href="/admin/services">Back to services</a>
+      <div className={styles.headerActions}><a href="/admin/services">Back to services</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <h1>{service.product.name}</h1>
       <StatusPill label={serviceStatusLabel(service.status)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
       <section className={styles.panel}>

@@ -240,6 +240,22 @@ export class ProductsRepository {
     });
   }
 
+  listServicesByProductType(type: string) {
+    return this.prisma.service.findMany({
+      where: { product: { type: type as ProductType } },
+      include: { domainRecords: true, product: { include: { category: true } }, productPrice: true, serviceAddOns: { include: { addOn: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  listDomainRecords() {
+    return this.prisma.domainRecord.findMany({
+      where: { status: { notIn: ["CANCELLED"] } },
+      include: { service: { include: { product: true } } },
+      orderBy: { updatedAt: "asc" }
+    });
+  }
+
   findService(id: string, userId?: string) {
     return this.prisma.service.findUnique({
       where: { id },
@@ -266,14 +282,22 @@ export class ProductsRepository {
     });
   }
 
-  updateDomainRecordStatus(id: string, status: string, externalId?: string) {
+  updateDomainRecordStatus(id: string, status: string, externalId?: string, expiresAt?: Date) {
     return this.prisma.domainRecord.update({
       where: { id },
       data: {
         externalId,
+        expiresAt,
         registrationDate: status === "ACTIVE" ? new Date() : undefined,
         status: status as never
       }
+    });
+  }
+
+  updateDomainRecordExpiration(id: string, externalId?: string, expiresAt?: Date) {
+    return this.prisma.domainRecord.update({
+      where: { id },
+      data: { externalId, expiresAt }
     });
   }
 

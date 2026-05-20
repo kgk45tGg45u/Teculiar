@@ -29,6 +29,13 @@ export class TicketsRepository {
     });
   }
 
+  findUserByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { email: true, id: true, name: true }
+    });
+  }
+
   listTickets(filters: { status?: string; department?: string; userId?: string }) {
     return this.prisma.ticket.findMany({
       where: {

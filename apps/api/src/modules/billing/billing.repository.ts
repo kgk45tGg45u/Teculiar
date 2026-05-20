@@ -378,7 +378,7 @@ export class BillingRepository {
     until.setDate(until.getDate() + invoiceDaysAhead);
 
     return this.prisma.subscription.findMany({
-      where: { status: "ACTIVE", nextInvoiceAt: { lte: until } },
+      where: { status: "ACTIVE", nextInvoiceAt: { lte: until }, service: { status: "ACTIVE" } },
       include: {
         user: { select: publicUserSelect },
         service: { include: { product: { include: { category: true } } } },
@@ -430,10 +430,14 @@ export class BillingRepository {
     });
   }
 
-  reminderInvoices(now = new Date()) {
-    const until = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3);
+  reminderInvoices(daysBeforeDue: number, now = new Date()) {
+    const target = new Date(now);
+    target.setDate(target.getDate() + daysBeforeDue);
+    target.setHours(0, 0, 0, 0);
+    const until = new Date(target);
+    until.setDate(until.getDate() + 1);
     return this.prisma.invoice.findMany({
-      where: { dueAt: { gte: now, lte: until }, status: { in: ["UNPAID", "OVERDUE"] } },
+      where: { dueAt: { gte: target, lt: until }, status: { in: ["UNPAID", "OVERDUE"] } },
       include: { items: true, order: true, user: { select: publicUserSelect } },
       orderBy: { dueAt: "asc" }
     });
@@ -449,8 +453,8 @@ export class BillingRepository {
     }
 
     return this.prisma.service.updateMany({
-      where: { id: { in: serviceIds }, status: { notIn: ["TERMINATED", "CANCELLED"] } },
-      data: { status: "SUSPENDED", suspendedAt: new Date() }
+      where: { id: { in: serviceIds }, product: { type: "SHARED_HOSTING" }, status: "ACTIVE" },
+      data: { moduleStatus: "payment_issue", status: "SUSPENDED", suspendedAt: new Date() }
     });
   }
 
@@ -473,6 +477,16 @@ export class BillingRepository {
     }
     return this.prisma.service.findMany({
       where: { id: { in: ids } },
+      include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
+    });
+  }
+
+  activeHostingServicesForEmailByIds(ids: string[]) {
+    if (ids.length === 0) {
+      return [];
+    }
+    return this.prisma.service.findMany({
+      where: { id: { in: ids }, product: { type: "SHARED_HOSTING" }, status: "ACTIVE" },
       include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
     });
   }

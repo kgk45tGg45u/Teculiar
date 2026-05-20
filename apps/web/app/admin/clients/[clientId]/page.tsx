@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { money, type ApiClient, type ApiProduct, type AuthUser } from "../../../../lib/api";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { ClientDetailModals } from "../../../../components/admin/admin-forms";
+import { LogoutButton } from "../../../../components/auth/logout-button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "../../../../components/ui/status-pill";
 
@@ -21,7 +22,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
 
   return (
     <main className="container">
-      <a href="/admin/clients">Back to clients</a>
+      <div className={styles.headerActions}><a href="/admin/clients">Back to clients</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <h1>{client.name}</h1>
       <p>{client.email}</p>
       <ClientDetailModals client={client} products={products} />

@@ -1,8 +1,6 @@
 import { Bell, BookOpen, FileText, Mail, Package, Settings, Ticket, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
-  API_BASE_URL,
-  ADMIN_AUTH_COOKIE,
   cycleLabel,
   money,
   type ApiActionLog,
@@ -20,6 +18,7 @@ import {
 import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
+import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
 import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, EmailSettingsForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
@@ -50,8 +49,6 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     redirect("/admin/login" as never);
   }
-
-  await runMaintenance();
 
   const orders = (await apiGetAuth<ApiOrder[]>("/orders/admin")) ?? [];
   const clients = (await apiGetAuth<ApiClient[]>("/users")) ?? [];
@@ -90,7 +87,7 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
           <a href="/admin/knowledgebase">Knowledgebase</a>
           <a href="/admin/blog">Blog</a>
           <a href="/admin/announcements">Announcements</a>
-          <a href="/admin/settings">Automation Settings</a>
+          <a href="/admin/settings">Settings</a>
         </nav>
       </aside>
       <main className={styles.main}>
@@ -100,9 +97,12 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
             <h1>{adminTitle(view)}</h1>
             <p>Clients, orders, billing, support, products, announcements, and automation.</p>
           </div>
-          <Button href="/de" variant="secondary">
-            Website
-          </Button>
+          <div className={styles.headerActions}>
+            <Button href="/de" variant="secondary">
+              Website
+            </Button>
+            <LogoutButton scope="admin" redirectTo="/admin/login" />
+          </div>
         </header>
 
         <section className="grid four">
@@ -508,8 +508,8 @@ function SettingsPanel() {
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Automation</span>
-          <h2>Cron Settings</h2>
+          <span className="eyebrow">System</span>
+          <h2>Settings</h2>
         </div>
       </div>
       <SettingsForm />
@@ -541,7 +541,7 @@ function adminTitle(view: AdminView) {
     orders: "Orders",
     products: "Products/Services",
     services: "Services",
-    settings: "Automation Settings",
+    settings: "Settings",
     "payment-gateways": "Payment Gateways",
     tickets: "Support Tickets"
   }[view];
@@ -580,19 +580,4 @@ function dateTimeLabel(value?: string | null) {
 
 function paymentGateway(invoice: ApiInvoice) {
   return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
-}
-
-async function runMaintenance() {
-  const { cookies } = await import("next/headers");
-  const token = (await cookies()).get(ADMIN_AUTH_COOKIE)?.value;
-  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-  const billing = await fetch(`${API_BASE_URL}/admin/dev/billing/maintenance`, { method: "POST", cache: "no-store", headers })
-    .then((response) => (response.ok ? response.json() : null))
-    .catch(() => null);
-  await fetch(`${API_BASE_URL}/admin/dev/tickets/maintenance`, {
-      body: JSON.stringify({ closeAfterHours: billing?.ticketCloseHours ?? 24 }),
-      cache: "no-store",
-      headers: { "Content-Type": "application/json", ...(headers ?? {}) },
-      method: "POST"
-    }).catch(() => null);
 }

@@ -51,6 +51,10 @@ npm run dev:full
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
 - `npm --workspace @crimson/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
 
+## Cron
+
+Run `https://YOUR_API_HOST/api/v1/cron` every 5 minutes with the configured cron secret. Full setup: [docs/cron.md](docs/cron.md).
+
 ## Design Direction
 
 The UI intentionally avoids cloning existing German providers. It uses a conversion-focused section flow, clean readable typography, crisp cards, and a small palette:

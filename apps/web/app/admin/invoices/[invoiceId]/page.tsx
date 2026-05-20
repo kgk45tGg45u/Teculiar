@@ -3,6 +3,7 @@ import { API_BASE_URL, cycleLabel, money, type ApiInvoice, type AuthUser } from 
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminInvoiceActions } from "../../../../components/admin/admin-forms";
+import { LogoutButton } from "../../../../components/auth/logout-button";
 import styles from "../../../../components/portal/client-dashboard.module.css";
 import { StatusPill } from "../../../../components/ui/status-pill";
 
@@ -22,7 +23,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
 
   return (
     <main className="container">
-      <a href="/admin/invoices">Back to invoices</a>
+      <div className="inlineForm"><a href="/admin/invoices">Back to invoices</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <section className={styles.invoice}>
         <div className={styles.invoiceTop}>
           <div><span className="eyebrow">Dezhost</span><h1>Rechnung {invoice.invoiceNumber}</h1></div>

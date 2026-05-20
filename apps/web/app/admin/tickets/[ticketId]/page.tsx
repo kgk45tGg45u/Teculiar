@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminTicketThread } from "../../../../components/admin/admin-support";
+import { LogoutButton } from "../../../../components/auth/logout-button";
 import { type ApiKnowledgebaseArticle, type ApiTicket, type AuthUser } from "../../../../lib/api";
 import { apiGetAuth } from "../../../../lib/server-api";
 
@@ -17,7 +18,7 @@ export default async function AdminTicketPage({ params }: { params: Promise<{ ti
 
   return (
     <main className="container">
-      <a href="/admin/tickets">Back to tickets</a>
+      <div className="inlineForm"><a href="/admin/tickets">Back to tickets</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <AdminTicketThread articles={articles} initialTicket={ticket} />
     </main>
   );

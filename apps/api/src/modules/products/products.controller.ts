@@ -54,7 +54,7 @@ export class ProductsController {
   @Roles("admin", "staff")
   @Get("admin/dev/services")
   listServicesDev() {
-    return this.products.listServicesFresh();
+    return this.products.listServices();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
