@@ -220,6 +220,52 @@ export type ApiActionLog = {
   subjectId?: string | null;
 };
 
+export type ApiEmailLog = {
+  createdAt: string;
+  id: string;
+  payload?: {
+    from?: string;
+    html?: string;
+    recipientType?: "admin" | "client" | string;
+    smtpDelivery?: { error?: string; mode?: string; response?: string; status?: string };
+    text?: string;
+  } | null;
+  sentAt?: string | null;
+  status: string;
+  subject: string;
+  template?: string | null;
+  to: string;
+  user?: { email?: string; id: string; name?: string } | null;
+};
+
+export type ApiEmailAdminSettings = {
+  events: Array<{
+    body: string;
+    defaultRecipients: Array<"admin" | "client">;
+    enabled: boolean;
+    key: string;
+    recipients: Array<"admin" | "client">;
+    subject: string;
+    trigger: string;
+  }>;
+  logs: ApiEmailLog[];
+  placeholders: Array<{ description: string; key: string }>;
+  smtp: {
+    adminEmails?: string[];
+    enabled?: boolean;
+    fromEmail?: string;
+    fromName?: string;
+    host?: string;
+    password?: string;
+    port?: number;
+    replyTo?: string;
+    secure?: boolean;
+    username?: string;
+  };
+  templateHtml: string;
+  testVariables: Record<string, unknown>;
+};
+
 export type ApiAnnouncement = {
   body?: string;
   id: string;

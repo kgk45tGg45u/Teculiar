@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { EmailService } from "../email/email.service";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
@@ -7,7 +8,10 @@ import { TicketsRepository } from "./tickets.repository";
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly tickets: TicketsRepository) {}
+  constructor(
+    private readonly tickets: TicketsRepository,
+    private readonly emails?: EmailService
+  ) {}
 
   async createTicket(userId: string, dto: CreateTicketDto) {
     if (dto.priority === "URGENT" && !dto.paid) {
@@ -16,7 +20,10 @@ export class TicketsService {
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
-        return await this.tickets.createTicket(userId, generateTicketPublicId(), dto);
+        const ticket = await this.tickets.createTicket(userId, generateTicketPublicId(), dto);
+        const fullTicket = await this.tickets.findTicket(ticket.id);
+        void this.dispatchTicketEmail("ticket_opened", fullTicket ?? ticket, { ticket_content: dto.body }).catch(() => undefined);
+        return ticket;
       } catch (error) {
         if (!isUniqueCollision(error) || attempt === 7) {
           throw error;
@@ -62,6 +69,7 @@ export class TicketsService {
     });
 
     await this.tickets.touchTicket(ticket.id, staff ? "ANSWERED" : "CUSTOMER_REPLY");
+    void this.dispatchTicketEmail("ticket_answered", ticket, { ticket_reply: dto.body }).catch(() => undefined);
     return reply;
   }
 
@@ -69,8 +77,13 @@ export class TicketsService {
     return this.tickets.assignTicket(ticketId, staffId);
   }
 
-  updateStatus(ticketId: string, status: string) {
-    return this.tickets.updateStatus(ticketId, status);
+  async updateStatus(ticketId: string, status: string) {
+    const ticket = await this.tickets.updateStatus(ticketId, status);
+    if (status === "CLOSED") {
+      const fullTicket = await this.tickets.findTicket(ticketId);
+      void this.dispatchTicketEmail("ticket_closed", fullTicket ?? ticket).catch(() => undefined);
+    }
+    return ticket;
   }
 
   listCannedReplies(department?: string) {
@@ -88,7 +101,9 @@ export class TicketsService {
       throw new NotFoundException("Ticket not found");
     }
     this.assertTicketAccess(ticket, userId, staff);
-    return this.tickets.updateStatus(ticket.id, "CLOSED");
+    const closed = await this.tickets.updateStatus(ticket.id, "CLOSED");
+    void this.dispatchTicketEmail("ticket_closed", ticket).catch(() => undefined);
+    return closed;
   }
 
   async attachFiles(ticketId: string, userId: string, files?: UploadedTicketFile[], staff = false, replyId?: string) {
@@ -114,6 +129,32 @@ export class TicketsService {
       throw new NotFoundException("Ticket not found");
     }
   }
+
+  private async dispatchTicketEmail(eventKey: string, ticket: Record<string, any> | null | undefined, extra: Record<string, unknown> = {}) {
+    if (!this.emails || !ticket) {
+      return [];
+    }
+    const user = isRecord(ticket.user) ? ticket.user : {};
+    const firstReply = Array.isArray(ticket.replies) ? ticket.replies.find((reply) => !reply.internal) : undefined;
+    return this.emails.dispatch(eventKey, {
+      context: {
+        customer_email: stringValue(user.email),
+        customer_name: stringValue(user.name) ?? stringValue(user.email),
+        ticket_content: stringValue(extra.ticket_content) ?? stringValue(firstReply?.body),
+        ticket_id: ticket.publicId ?? ticket.id,
+        ticket_reply: stringValue(extra.ticket_reply),
+        ticket_status: ticket.status,
+        ticket_subject: ticket.subject,
+        ...extra
+      },
+      user: {
+        email: stringValue(user.email),
+        id: ticket.userId,
+        locale: stringValue(user.locale),
+        name: stringValue(user.name) ?? stringValue(user.email)
+      }
+    });
+  }
 }
 
 const TICKET_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -128,4 +169,12 @@ export function generateTicketPublicId() {
 
 function isUniqueCollision(error: unknown) {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }

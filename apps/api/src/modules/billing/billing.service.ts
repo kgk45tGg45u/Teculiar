@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
+import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
@@ -17,7 +18,8 @@ export class BillingService {
     private readonly billing: BillingRepository,
     private readonly engine: BillingEngineService,
     private readonly payments: AbstractPaymentService,
-    private readonly external?: ExternalService
+    private readonly external?: ExternalService,
+    private readonly emails?: EmailService
   ) {}
 
   async createInvoice(dto: CreateInvoiceDto) {
@@ -73,6 +75,10 @@ export class BillingService {
       metadata: { status: invoice.status, totalCents: invoice.totalCents },
       subject: "invoice",
       subjectId: invoice.id
+    }).catch(() => undefined);
+    void this.dispatchInvoiceEmail("new_invoice", invoice, {
+      customerSnapshot: dto.customerSnapshot,
+      userId: dto.userId
     }).catch(() => undefined);
     return invoice;
   }
@@ -373,6 +379,7 @@ export class BillingService {
   }
 
   async markInvoiceUnpaid(id: string, input: { actorId?: string; reason?: string } = {}) {
+    const lifecycleInvoice = await this.billing.findInvoiceForLifecycle(id);
     const invoice = await this.billing.markInvoiceUnpaid(id);
     await Promise.all([
       this.billing.createAuditLog({
@@ -384,6 +391,12 @@ export class BillingService {
       }),
       this.billing.suspendServicesForInvoice(id)
     ]);
+    const lifecycleUser = lifecycleInvoice?.user;
+    for (const item of lifecycleInvoice?.items ?? []) {
+      if (item.service) {
+        void this.dispatchServiceEmail("hosting_account_suspended", { ...item.service, status: "SUSPENDED", user: lifecycleUser }).catch(() => undefined);
+      }
+    }
     return invoice;
   }
 
@@ -405,6 +418,7 @@ export class BillingService {
       subject: "invoice",
       subjectId: id
     });
+    void this.dispatchInvoiceEmail("refund_request_sent", refunded, { customerSnapshot: invoice.customerSnapshot, userId: invoice.userId }).catch(() => undefined);
     return refunded;
   }
 
@@ -473,10 +487,25 @@ export class BillingService {
     if (accountCreditCents > 0) {
       const paid = await this.billing.finalizeFundsDepositInvoice(invoiceId);
       await this.billing.addUserBalance(paid.userId, accountCreditCents);
+      void this.dispatchInvoiceEmail("payment_successful", paid).catch(() => undefined);
       return paid;
     }
     const paid = await this.billing.markInvoicePaid(invoiceId);
-    await this.materializePaidCheckoutUser(invoiceId);
+    const materializedUser = await this.materializePaidCheckoutUser(invoiceId);
+    if (isRecord(materializedUser)) {
+      void this.emails?.dispatch("welcome", {
+        context: {
+          customer_email: stringFrom(materializedUser.email),
+          customer_name: stringFrom(materializedUser.name) ?? stringFrom(materializedUser.email)
+        },
+        user: {
+          email: stringFrom(materializedUser.email),
+          id: stringFrom(materializedUser.id),
+          name: stringFrom(materializedUser.name) ?? stringFrom(materializedUser.email)
+        }
+      }).catch(() => undefined);
+    }
+    void this.dispatchInvoiceEmail("payment_successful", paid).catch(() => undefined);
     if (options.processLifecycle !== false) {
       await this.onInvoicePaid(invoiceId, { actorId: input.actorId, source: input.source ?? "system" });
     }
@@ -600,6 +629,15 @@ export class BillingService {
         subject: "service",
         subjectId: service.id
       });
+      if (active && action === "create") {
+        void this.dispatchServiceEmail("hosting_account_information", {
+          ...service,
+          externalId: result.externalId,
+          renewsAt: nextServiceDueDate(service, invoice.paidAt ?? invoice.dueAt ?? new Date()),
+          status: "ACTIVE",
+          user: invoice.user
+        }).catch(() => undefined);
+      }
       return { ok: true, pending: !active };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Service module failed";
@@ -724,6 +762,15 @@ export class BillingService {
         subject: "domain",
         subjectId: domain.id
       });
+      if (active) {
+        void this.dispatchDomainEmail("domain_information", {
+          ...domain,
+          externalId: result.externalId,
+          service: item.service,
+          status: "ACTIVE",
+          user: invoice.user
+        }).catch(() => undefined);
+      }
       return { ok: true, pending: !active };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registrar module failed";
@@ -860,9 +907,13 @@ export class BillingService {
     const serviceIds = overdueInvoices.flatMap((invoice) =>
       invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
     );
+    const servicesToSuspend = await this.billing.servicesForEmailByIds([...new Set(serviceIds)]);
 
     await Promise.all(overdueInvoices.map((invoice) => this.billing.markInvoiceOverdue(invoice.id)));
     const suspended = await this.billing.suspendServices([...new Set(serviceIds)]);
+    for (const service of servicesToSuspend) {
+      void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
+    }
 
     return {
       balancePaidInvoices: automaticPayments.paid,
@@ -873,6 +924,14 @@ export class BillingService {
       suspendedServices: suspended.count,
       ticketCloseHours
     };
+  }
+
+  async sendInvoiceReminders(now = new Date()) {
+    const reminderInvoices = await this.billing.reminderInvoices(now);
+    for (const invoice of reminderInvoices) {
+      await this.dispatchInvoiceEmail("invoice_reminder", invoice);
+    }
+    return { invoiceReminders: reminderInvoices.length };
   }
 
   private async payInvoicesFromAccountBalance() {
@@ -1219,8 +1278,97 @@ export class BillingService {
     return { height: 60, logoUrl, width: 180 };
   }
 
-  updateServiceStatus(id: string, status: string) {
-    return this.billing.setServiceStatus(id, status);
+  async updateServiceStatus(id: string, status: string) {
+    const service = await this.billing.setServiceStatus(id, status);
+    if (status === "ACTIVE") {
+      void this.dispatchServiceEmail("hosting_account_information", service).catch(() => undefined);
+    }
+    if (status === "SUSPENDED") {
+      void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
+    }
+    if (status === "TERMINATED") {
+      void this.dispatchServiceEmail("hosting_account_terminated", service).catch(() => undefined);
+    }
+    return service;
+  }
+
+  private async dispatchInvoiceEmail(eventKey: string, invoiceInput: Record<string, any>, options: { customerSnapshot?: unknown; userId?: string } = {}) {
+    if (!this.emails) {
+      return [];
+    }
+    const invoice = invoiceInput.customerSnapshot && invoiceInput.invoiceNumber
+      ? invoiceInput
+      : await this.billing.findInvoice(invoiceInput.id);
+    if (!invoice) {
+      return [];
+    }
+    const snapshot = asRecord(options.customerSnapshot ?? invoice.customerSnapshot);
+    const user = asRecord(invoice.user);
+    return this.emails.dispatch(eventKey, {
+      context: {
+        customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
+        customer_name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email),
+        invoice_due_date: invoice.dueAt ? formatDateLabel(invoice.dueAt) : "",
+        invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
+        invoice_total_amount: formatEuro(invoice.totalCents),
+        order_number: stringFrom(invoice.order?.orderNumber),
+        service: invoice.items?.map((item: Record<string, any>) => item.description).filter(Boolean).join(", ")
+      },
+      teamId: invoice.teamId,
+      user: {
+        email: stringFrom(user.email) ?? stringFrom(snapshot.email),
+        id: stringFrom(user.id) ?? options.userId ?? invoice.userId,
+        locale: stringFrom(user.locale),
+        name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email)
+      }
+    });
+  }
+
+  private async dispatchServiceEmail(eventKey: string, service: Record<string, any>) {
+    if (!this.emails) {
+      return [];
+    }
+    const user = asRecord(service.user);
+    const product = asRecord(service.product);
+    const domain = service.domainRecords?.[0]?.domain ?? asRecord(service.configuration).domainName;
+    return this.emails.dispatch(eventKey, {
+      context: {
+        customer_email: stringFrom(user.email),
+        customer_name: stringFrom(user.name) ?? stringFrom(user.email),
+        domain: stringFrom(domain),
+        service: stringFrom(product.name) ?? service.id
+      },
+      teamId: service.teamId,
+      user: {
+        email: stringFrom(user.email),
+        id: service.userId,
+        locale: stringFrom(user.locale),
+        name: stringFrom(user.name) ?? stringFrom(user.email)
+      }
+    });
+  }
+
+  private async dispatchDomainEmail(eventKey: string, domain: Record<string, any>) {
+    if (!this.emails) {
+      return [];
+    }
+    const user = asRecord(domain.user);
+    const service = asRecord(domain.service);
+    const product = asRecord(service.product);
+    return this.emails.dispatch(eventKey, {
+      context: {
+        customer_email: stringFrom(user.email),
+        customer_name: stringFrom(user.name) ?? stringFrom(user.email),
+        domain: stringFrom(domain.domain),
+        service: stringFrom(product.name)
+      },
+      user: {
+        email: stringFrom(user.email),
+        id: domain.userId,
+        locale: stringFrom(user.locale),
+        name: stringFrom(user.name) ?? stringFrom(user.email)
+      }
+    });
   }
 
   private async invoiceFooterLines() {
@@ -1539,6 +1687,18 @@ function requiredString(value: unknown, label: string) {
 
 function optionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function stringFrom(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function asRecord(value: unknown): Record<string, any> {
+  return isRecord(value) ? value : {};
+}
+
+function formatDateLabel(value: Date | string) {
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

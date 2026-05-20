@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
 import { BillingService } from "../billing/billing.service";
+import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { UsersRepository } from "../users/users.repository";
 import { DomainAvailabilityService } from "./domain-availability.service";
@@ -16,7 +17,8 @@ export class OrdersService {
     private readonly external: ExternalService,
     private readonly users: UsersRepository,
     private readonly domainPricing: DomainPricingService,
-    private readonly domainAvailability?: DomainAvailabilityService
+    private readonly domainAvailability?: DomainAvailabilityService,
+    private readonly emails?: EmailService
   ) {}
 
   async homepageProducts(categorySlug?: string) {
@@ -181,6 +183,7 @@ export class OrdersService {
       subject: "order",
       subjectId: order.id
     });
+    void this.dispatchOrderEmail(order, invoice, customerSnapshot(dto.customer, email)).catch(() => undefined);
 
     return { invoice, order };
   }
@@ -245,6 +248,7 @@ export class OrdersService {
       subject: "order",
       subjectId: order.id
     });
+    void this.dispatchOrderEmail(order, invoice, snapshot).catch(() => undefined);
     return { invoice, order };
   }
 
@@ -336,6 +340,27 @@ export class OrdersService {
 
     const pricedItems = await Promise.all(items.map((item) => this.priceItem(item)));
     return applyFreeDomainDiscount(pricedItems);
+  }
+
+  private async dispatchOrderEmail(order: Record<string, any>, invoice: Record<string, any>, snapshot: Record<string, unknown>) {
+    if (!this.emails) {
+      return [];
+    }
+    return this.emails.dispatch("order_confirmation", {
+      context: {
+        customer_email: stringOrUndefined(snapshot.email),
+        customer_name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email),
+        invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
+        invoice_total_amount: formatEuro(invoice.totalCents),
+        order_number: order.orderNumber,
+        service: Array.isArray(order.items) ? order.items.map((item) => item.description).filter(Boolean).join(", ") : ""
+      },
+      user: {
+        email: stringOrUndefined(snapshot.email),
+        id: order.userId,
+        name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email)
+      }
+    });
   }
 
   private async priceItem(item: OrderItemDto): Promise<PricedOrderItem> {
@@ -814,6 +839,14 @@ function requiredString(value: unknown, label: string) {
 
 function optionalString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function stringOrUndefined(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function formatEuro(cents: number) {
+  return `${(cents / 100).toFixed(2)} EUR`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

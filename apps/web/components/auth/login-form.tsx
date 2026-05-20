@@ -11,6 +11,7 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
   const params = useSearchParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
 
   async function submit(formData: FormData) {
     setError("");
@@ -70,6 +71,17 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
     window.location.assign("/admin");
   }
 
+  async function requestReset(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset/request`, {
+      body: JSON.stringify({ email: String(formData.get("resetEmail") ?? "") }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    const message = response.ok ? "If the account exists, a reset email was logged or sent." : "Password reset failed.";
+    setResetMessage(message);
+    response.ok ? notify.success(message) : notify.error(message);
+  }
+
   return (
     <main className={styles.shell}>
       <section className={styles.card}>
@@ -106,6 +118,19 @@ export function LoginForm({ admin = false }: { admin?: boolean }) {
                 <input minLength={12} name="adminPassword" required type="password" />
               </label>
               <Button type="submit" variant="secondary">{loading ? "Bitte warten..." : "Create admin"}</Button>
+            </form>
+          </details>
+        ) : null}
+        {!admin ? (
+          <details>
+            <summary>Forgot password?</summary>
+            <form action={requestReset} className={styles.form}>
+              <label>
+                E-Mail
+                <input name="resetEmail" required type="email" />
+              </label>
+              <Button type="submit" variant="secondary">Send reset link</Button>
+              {resetMessage ? <p>{resetMessage}</p> : null}
             </form>
           </details>
         ) : null}

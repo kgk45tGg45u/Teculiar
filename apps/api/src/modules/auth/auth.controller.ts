@@ -31,6 +31,16 @@ export class AuthController {
     return this.auth.refresh(dto.refreshToken, request.ip, request.header("user-agent"));
   }
 
+  @Post("password-reset/request")
+  requestPasswordReset(@Body() body: { email: string }) {
+    return this.auth.requestPasswordReset(body.email ?? "");
+  }
+
+  @Post("password-reset/confirm")
+  confirmPasswordReset(@Body() body: { password: string; token: string }) {
+    return this.auth.confirmPasswordReset(body.token ?? "", body.password ?? "");
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post("logout")
   logout(@Body() dto: RefreshTokenDto) {

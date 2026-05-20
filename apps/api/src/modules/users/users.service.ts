@@ -1,10 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { hash } from "bcryptjs";
+import { EmailService } from "../email/email.service";
 import { UsersRepository } from "./users.repository";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly users: UsersRepository) {}
+  constructor(
+    private readonly users: UsersRepository,
+    private readonly emails?: EmailService
+  ) {}
 
   async getMe(userId: string) {
     const user = await this.users.findById(userId);
@@ -29,10 +33,15 @@ export class UsersService {
     phone?: string;
     vatId?: string;
   }) {
-    return this.users.createClient({
+    const client = await this.users.createClient({
       ...input,
       passwordHash: await hash(input.password, 12)
     });
+    void this.emails?.dispatch("welcome", {
+      context: { customer_email: client.email, customer_name: client.name },
+      user: { email: client.email, id: client.id, name: client.name }
+    }).catch(() => undefined);
+    return client;
   }
 
   updateClient(userId: string, input: {

@@ -5,6 +5,7 @@ import { CsrfMiddleware } from "./common/middleware/csrf.middleware";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { CmsModule } from "./modules/cms/cms.module";
+import { EmailModule } from "./modules/email/email.module";
 import { ExternalModule } from "./modules/external/external.module";
 import { KnowledgebaseModule } from "./modules/knowledgebase/knowledgebase.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
@@ -25,6 +26,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     OrdersModule,
     ProductsModule,
     BillingModule,
+    EmailModule,
     TicketsModule,
     KnowledgebaseModule,
     CmsModule,

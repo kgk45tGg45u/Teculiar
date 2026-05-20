@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
-import { createHash, createHmac, randomBytes, randomUUID } from "crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
+import { EmailService } from "../email/email.service";
 import { UsersRepository } from "../users/users.repository";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
@@ -16,7 +17,8 @@ type TokenUser = {
 export class AuthService {
   constructor(
     private readonly jwt: JwtService,
-    private readonly users: UsersRepository
+    private readonly users: UsersRepository,
+    private readonly emails?: EmailService
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
@@ -37,6 +39,10 @@ export class AuthService {
       metadata: { email: user.email, ipAddress },
       subject: "user",
       subjectId: user.id
+    }).catch(() => undefined);
+    void this.emails?.dispatch("welcome", {
+      context: { customer_email: user.email, customer_name: dto.name },
+      user: { email: user.email, id: user.id, name: dto.name }
     }).catch(() => undefined);
 
     return this.issueTokens(
@@ -70,8 +76,54 @@ export class AuthService {
       subject: "user",
       subjectId: user.id
     }).catch(() => undefined);
+    void this.emails?.dispatch("welcome", {
+      context: { customer_email: user.email, customer_name: dto.name },
+      user: { email: user.email, id: user.id, name: dto.name }
+    }).catch(() => undefined);
 
     return this.issueTokens({ id: user.id, email: user.email, roles: ["admin"] }, ipAddress, userAgent);
+  }
+
+  async requestPasswordReset(rawEmail: string) {
+    const email = rawEmail.trim().toLowerCase();
+    const user = await this.users.findByEmail(email);
+    if (!user) {
+      return { ok: true };
+    }
+
+    const passwordResetLink = this.passwordResetLink(user);
+    void this.emails?.dispatch("password_reset", {
+      context: {
+        customer_email: user.email,
+        customer_name: user.name ?? user.email,
+        password_reset_link: passwordResetLink
+      },
+      user: { email: user.email, id: user.id, name: user.name ?? user.email }
+    }).catch(() => undefined);
+    void this.users.createAuditLog({
+      action: "user.password_reset_requested",
+      actorId: user.id,
+      metadata: { email: user.email },
+      subject: "user",
+      subjectId: user.id
+    }).catch(() => undefined);
+    return { ok: true };
+  }
+
+  async confirmPasswordReset(token: string, password: string) {
+    if (password.length < 12) {
+      throw new BadRequestException("Password must be at least 12 characters.");
+    }
+    const payload = await this.verifyPasswordResetToken(token);
+    await this.users.updatePasswordHash(payload.id, await hash(password, 12));
+    await this.users.createAuditLog({
+      action: "user.password_reset_completed",
+      actorId: payload.id,
+      metadata: { email: payload.email },
+      subject: "user",
+      subjectId: payload.id
+    });
+    return { ok: true };
   }
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
@@ -179,6 +231,45 @@ export class AuthService {
   private hashToken(token: string) {
     return createHash("sha256").update(token).digest("hex");
   }
+
+  private passwordResetLink(user: { email: string; id: string; passwordHash: string }) {
+    const expiresAt = Date.now() + 1000 * 60 * 60;
+    const payload = Buffer.from(JSON.stringify({ email: user.email, exp: expiresAt, id: user.id, nonce: randomUUID() })).toString("base64url");
+    const signature = this.passwordResetSignature(payload, user.passwordHash);
+    const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    return `${baseUrl}/reset-password?token=${encodeURIComponent(`${payload}.${signature}`)}`;
+  }
+
+  private async verifyPasswordResetToken(token: string) {
+    const [payload, signature] = token.split(".");
+    if (!payload || !signature) {
+      throw new BadRequestException("Invalid password reset token.");
+    }
+    let decoded: { email?: string; exp?: number; id?: string };
+    try {
+      decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { email?: string; exp?: number; id?: string };
+    } catch {
+      throw new BadRequestException("Invalid password reset token.");
+    }
+    if (!decoded.email || !decoded.id || !decoded.exp || decoded.exp < Date.now()) {
+      throw new BadRequestException("Invalid password reset token.");
+    }
+    const user = await this.users.findByEmail(decoded.email);
+    if (!user || user.id !== decoded.id) {
+      throw new BadRequestException("Invalid password reset token.");
+    }
+    const expected = this.passwordResetSignature(payload, user.passwordHash);
+    if (!safeEqual(signature, expected)) {
+      throw new BadRequestException("Invalid password reset token.");
+    }
+    return { email: user.email, id: user.id };
+  }
+
+  private passwordResetSignature(payload: string, passwordHash: string) {
+    return createHmac("sha256", process.env.JWT_ACCESS_SECRET ?? "dev-password-reset-secret")
+      .update(`${payload}.${passwordHash}`)
+      .digest("base64url");
+  }
 }
 
 const base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -241,4 +332,10 @@ function decodeBase32(secret: string) {
 
   const bytes = bits.match(/.{1,8}/g)?.filter((byte) => byte.length === 8) ?? [];
   return Buffer.from(bytes.map((byte) => Number.parseInt(byte, 2)));
+}
+
+function safeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }

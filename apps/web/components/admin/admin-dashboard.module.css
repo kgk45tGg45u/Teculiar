@@ -157,6 +157,63 @@
   color: var(--ink);
 }
 
+.emailSubnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 24px;
+}
+
+.emailSubnav a {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.emailSubnav a[aria-current="page"] {
+  border-color: var(--crimson);
+  color: var(--crimson);
+  background: rgba(177, 18, 38, 0.08);
+}
+
+.emailSplit {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+
+.templatePreview {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.templatePreview > div {
+  display: grid;
+  gap: 8px;
+}
+
+.templatePreview strong {
+  color: var(--muted);
+}
+
+.frameDesktop,
+.frameMobile {
+  width: 100%;
+  height: 560px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.frameMobile {
+  width: min(100%, 390px);
+  justify-self: start;
+}
+
 .blogList,
 .aiBox {
   display: grid;
@@ -368,5 +425,10 @@
 
   .invoiceCard {
     grid-template-columns: 1fr;
+  }
+
+  .emailSplit {
+    grid-template-columns: 1fr;
+    padding: 0 16px 16px;
   }
 }

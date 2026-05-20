@@ -430,6 +430,15 @@ export class BillingRepository {
     });
   }
 
+  reminderInvoices(now = new Date()) {
+    const until = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 3);
+    return this.prisma.invoice.findMany({
+      where: { dueAt: { gte: now, lte: until }, status: { in: ["UNPAID", "OVERDUE"] } },
+      include: { items: true, order: true, user: { select: publicUserSelect } },
+      orderBy: { dueAt: "asc" }
+    });
+  }
+
   markInvoiceOverdue(id: string) {
     return this.prisma.invoice.update({ where: { id }, data: { status: "OVERDUE" } });
   }
@@ -453,7 +462,18 @@ export class BillingRepository {
         startedAt: status === "ACTIVE" ? new Date() : undefined,
         suspendedAt: status === "SUSPENDED" ? new Date() : undefined,
         cancelledAt: ["CANCELLED", "TERMINATED"].includes(status) ? new Date() : undefined
-      }
+      },
+      include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
+    });
+  }
+
+  servicesForEmailByIds(ids: string[]) {
+    if (ids.length === 0) {
+      return [];
+    }
+    return this.prisma.service.findMany({
+      where: { id: { in: ids } },
+      include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
     });
   }
 

@@ -305,11 +305,16 @@ export class UsersRepository {
   revokeRefreshSessionByHash(tokenHash: string) {
     return this.prisma.refreshSession.updateMany({ where: { tokenHash }, data: { revokedAt: new Date() } });
   }
+
+  updatePasswordHash(userId: string, passwordHash: string) {
+    return this.prisma.user.update({ where: { id: userId }, data: { passwordHash }, select: { id: true } });
+  }
 }
 
 const authUserSelect = {
   email: true,
   id: true,
+  name: true,
   passwordHash: true,
   totpEnabled: true,
   totpSecret: true,

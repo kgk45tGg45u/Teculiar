@@ -1,4 +1,4 @@
-import { Bell, BookOpen, FileText, Package, Settings, Ticket, UsersRound } from "lucide-react";
+import { Bell, BookOpen, FileText, Mail, Package, Settings, Ticket, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import {
   API_BASE_URL,
@@ -7,6 +7,7 @@ import {
   money,
   type ApiActionLog,
   type ApiClient,
+  type ApiEmailAdminSettings,
   type ApiInvoice,
   type ApiKnowledgebaseArticle,
   type ApiDomainPrice,
@@ -20,7 +21,7 @@ import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
-import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, EmailSettingsForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
 import styles from "./admin-dashboard.module.css";
@@ -31,6 +32,7 @@ type AdminView =
   | "clients"
   | "orders"
   | "domain-prices"
+  | "emails"
   | "invoices"
   | "logs"
   | "knowledgebase"
@@ -41,7 +43,9 @@ type AdminView =
   | "announcements"
   | "settings";
 
-export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
+export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
+
+export async function AdminDashboard({ emailSection = "emails", view = "home" }: { emailSection?: EmailAdminSection; view?: AdminView }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     redirect("/admin/login" as never);
@@ -59,6 +63,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
   const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
   const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
   const knowledgebase = (await apiGetAuth<ApiKnowledgebaseArticle[]>("/admin/dev/knowledgebase")) ?? [];
+  const emailSettings = (await apiGetAuth<ApiEmailAdminSettings>("/admin/dev/emails")) ?? emptyEmailSettings();
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
@@ -75,6 +80,10 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
           <a href="/admin/services">Services</a>
           <a href="/admin/products">Products/Services</a>
           <a href="/admin/payment-gateways">Payment Gateways</a>
+          <a href="/admin/emails">Emails</a>
+          <a href="/admin/emails/settings">Email Settings</a>
+          <a href="/admin/emails/template">Email Template</a>
+          <a href="/admin/emails/logs">Email Logs</a>
           <a href="/admin/invoices">Invoices</a>
           <a href="/admin/logs">Logs</a>
           <a href="/admin/tickets">Support Tickets</a>
@@ -127,6 +136,7 @@ export async function AdminDashboard({ view = "home" }: { view?: AdminView }) {
         {view === "blog" ? <BlogPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
         {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
+        {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} /> : null}
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
       </main>
@@ -186,6 +196,7 @@ function ModuleGrid() {
     { title: "Clients", body: "Clients, contacts, segments, email logs.", href: "/admin/clients", icon: UsersRound },
     { title: "Orders", body: "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
     { title: "Billing", body: "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
+    { title: "Emails", body: "SMTP settings, templates, and local outbox.", href: "/admin/emails", icon: Mail },
     { title: "Support", body: "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
     { title: "Knowledgebase", body: "Public help articles and ticket reply inserts.", href: "/admin/knowledgebase", icon: BookOpen },
     { title: "Blog", body: "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
@@ -216,6 +227,27 @@ function PaymentGatewaysPanel() {
         </div>
       </div>
       <PaymentGatewayForm />
+    </section>
+  );
+}
+
+function EmailsPanel({ section, settings }: { section: EmailAdminSection; settings: ApiEmailAdminSettings }) {
+  const title = {
+    emails: "Emails",
+    logs: "Email Logs",
+    settings: "Email Settings",
+    template: "Email Template"
+  }[section];
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Messaging</span>
+          <h2>{title}</h2>
+        </div>
+        <StatusPill label={`${settings.logs.length} outbox logs`} tone={settings.logs.length ? "good" : "neutral"} />
+      </div>
+      <EmailSettingsForm initial={settings} section={section} />
     </section>
   );
 }
@@ -501,6 +533,7 @@ function adminTitle(view: AdminView) {
     blog: "Blog",
     clients: "Clients",
     "domain-prices": "Domain Prices",
+    emails: "Emails",
     home: "Operations Console",
     invoices: "Invoices",
     knowledgebase: "Knowledgebase",
@@ -512,6 +545,17 @@ function adminTitle(view: AdminView) {
     "payment-gateways": "Payment Gateways",
     tickets: "Support Tickets"
   }[view];
+}
+
+function emptyEmailSettings(): ApiEmailAdminSettings {
+  return {
+    events: [],
+    logs: [],
+    placeholders: [],
+    smtp: {},
+    templateHtml: "",
+    testVariables: {}
+  };
 }
 
 function serviceKindLabel(type: string) {
