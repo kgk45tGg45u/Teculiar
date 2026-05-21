@@ -4,7 +4,7 @@ import LinkExtension from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, Save, Trash2, Undo2 } from "lucide-react";
+import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { serviceStatusLabel } from "../../lib/status-labels";
@@ -479,6 +479,7 @@ export function AnnouncementForm() {
 
 export function SettingsForm() {
   const [message, setMessage] = useState("");
+  const [lastCronRun, setLastCronRun] = useState("");
   const [settings, setSettings] = useState({
     cronSecret: "",
     domainExpirationUpdateHours: 12,
@@ -621,9 +622,29 @@ export function SettingsForm() {
     setMessage(await notifyResponse(response, "Settings saved.", "Settings failed."));
   }
 
+  async function runCron() {
+    setLastCronRun("Running cron...");
+    const response = await fetch(`${API_BASE_URL}/cron/admin/run`, {
+      headers: authHeaders(),
+      method: "POST"
+    });
+    const payload = (await response.json().catch(() => ({}))) as { ran?: unknown[]; skipped?: unknown[] };
+    if (!response.ok) {
+      const text = "Cron run failed.";
+      setLastCronRun(text);
+      notify.error(text);
+      return;
+    }
+    const text = `Cron finished. Ran ${payload.ran?.length ?? 0}; skipped ${payload.skipped?.length ?? 0}.`;
+    setLastCronRun(text);
+    notify.success(text);
+  }
+
   return (
     <form action={submit} className={styles.form}>
       <h3>Cron</h3>
+      <Button icon={RefreshCw} type="button" variant="secondary" onClick={runCron}>Run Cron Now</Button>
+      {lastCronRun ? <p>{lastCronRun}</p> : null}
       <label>Cron secret<input value={settings.cronSecret} onChange={(event) => setSettings({ ...settings, cronSecret: event.target.value })} name="cronSecret" type="password" /></label>
       <label>Update domain prices every hours<input min="1" value={settings.domainPriceUpdateHours} onChange={(event) => setSettings({ ...settings, domainPriceUpdateHours: Number(event.target.value) })} name="domainPriceUpdateHours" type="number" /></label>
       <label>Update domain expiration dates every hours<input min="1" value={settings.domainExpirationUpdateHours} onChange={(event) => setSettings({ ...settings, domainExpirationUpdateHours: Number(event.target.value) })} name="domainExpirationUpdateHours" type="number" /></label>

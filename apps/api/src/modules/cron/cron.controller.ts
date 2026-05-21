@@ -1,4 +1,7 @@
-import { Controller, Get, Headers, Post, Query } from "@nestjs/common";
+import { Controller, Get, Headers, Post, Query, UseGuards } from "@nestjs/common";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CronService } from "./cron.service";
 
 @Controller("cron")
@@ -13,6 +16,13 @@ export class CronController {
   @Post()
   runPost(@Headers("authorization") authorization?: string, @Headers("x-cron-secret") headerSecret?: string, @Query("token") querySecret?: string) {
     return this.cron.runAuthorized(secretFrom(authorization, headerSecret, querySecret));
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff")
+  @Post("admin/run")
+  runAdmin() {
+    return this.cron.run();
   }
 }
 

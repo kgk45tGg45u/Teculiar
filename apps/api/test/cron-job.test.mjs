@@ -85,6 +85,16 @@ test("cron secret is not JWT auth but must match configured secret", async () =>
   assert.deepEqual(await service.runAuthorized("top-secret"), { ok: true, ran: [], skipped: [] });
 });
 
+test("admin cron endpoint is role protected and runs without cron secret", async () => {
+  const cronController = await readFile(new URL("../src/modules/cron/cron.controller.ts", import.meta.url), "utf8");
+
+  assert.match(cronController, /UseGuards\(JwtAuthGuard, RolesGuard\)/);
+  assert.match(cronController, /@Roles\("admin", "staff"\)/);
+  assert.match(cronController, /@Post\("admin\/run"\)/);
+  assert.match(cronController, /runAdmin\(\)/);
+  assert.match(cronController, /this\.cron\.run\(\)/);
+});
+
 test("admin/client dashboards no longer trigger maintenance or provider refresh on page load", async () => {
   const adminDashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
   const clientDashboard = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
@@ -123,3 +133,11 @@ test("settings page exposes every cron timing and IMAP mailbox field", async () 
   }
 });
 
+test("settings page has a manual cron run button", async () => {
+  const adminForms = await readFile(new URL("../../web/components/admin/admin-forms.tsx", import.meta.url), "utf8");
+
+  assert.match(adminForms, /runCron/);
+  assert.match(adminForms, /\/cron\/admin\/run/);
+  assert.match(adminForms, /Run Cron Now/);
+  assert.match(adminForms, /lastCronRun/);
+});
