@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { money, type ApiClient, type ApiProduct, type AuthUser } from "../../../../lib/api";
+import { invoiceDisplayNumber, money, type ApiClient, type ApiProduct, type AuthUser } from "../../../../lib/api";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { ClientDetailModals } from "../../../../components/admin/admin-forms";
 import { LogoutButton } from "../../../../components/auth/logout-button";
@@ -63,7 +63,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
           <thead><tr><th>Invoice</th><th>Status</th><th>Due</th><th>Total</th></tr></thead>
           <tbody>{(client.invoices ?? []).map((invoice) => (
             <tr key={invoice.id}>
-              <td><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></td>
+              <td><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></td>
               <td><StatusPill label={invoice.status.toLowerCase()} tone={invoice.status === "PAID" ? "good" : "warn"} /></td>
               <td>{dateLabel(invoice.dueAt)}</td>
               <td>{money(invoice.totalCents, invoice.currency)}</td>

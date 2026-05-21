@@ -45,7 +45,14 @@ export type ApiOrder = {
   currency: string;
   createdAt: string;
   user?: { email: string; name: string };
-  invoice?: { id: string; invoiceNumber: string; status: string; totalCents: number };
+  invoice?: {
+    finalInvoiceNumber?: string | null;
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    tempInvoiceNumber?: string | null;
+    totalCents: number;
+  };
   items: Array<{
     id: string;
     description: string;
@@ -327,6 +334,10 @@ export function money(cents: number, currency = "EUR", locale: Locale = currentL
     currency: displayCurrency,
     style: "currency"
   }).format(cents / 100);
+}
+
+export function invoiceDisplayNumber(invoice: Pick<ApiInvoice, "finalInvoiceNumber" | "tempInvoiceNumber" | "invoiceNumber" | "status">) {
+  return invoice.status === "PAID" ? invoice.finalInvoiceNumber ?? invoice.invoiceNumber : invoice.tempInvoiceNumber ?? invoice.invoiceNumber;
 }
 
 export function displayCurrencyForLocale(currency = "EUR", locale: Locale = currentLocale()) {

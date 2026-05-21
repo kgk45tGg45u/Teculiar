@@ -8,6 +8,7 @@ import {
   currentLocale,
   cycleLabel,
   dateLabel as formatDate,
+  invoiceDisplayNumber,
   money,
   type ApiAnnouncement,
   type ApiInvoice,
@@ -757,7 +758,7 @@ function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
         <article className={styles.invoiceCard} key={invoice.id}>
           <div>
             <span>Invoice</span>
-            <strong><a href={`/client/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></strong>
+            <strong><a href={`/client/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong>
           </div>
           <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
           <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
@@ -785,7 +786,7 @@ function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
   return (
     <section className={styles.invoice}>
       <div className={styles.invoiceTop}>
-        <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoice.invoiceNumber}</h2></div>
+        <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoiceDisplayNumber(invoice)}</h2></div>
         <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={invoice.status === "PAID" ? "good" : "warn"} />
       </div>
       <div className={styles.invoiceMeta}>
@@ -823,7 +824,7 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `invoice-${invoice.invoiceNumber}.pdf`;
+    link.download = `invoice-${invoiceDisplayNumber(invoice)}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
     setMessage("");

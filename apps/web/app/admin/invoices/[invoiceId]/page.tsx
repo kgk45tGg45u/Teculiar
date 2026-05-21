@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { API_BASE_URL, cycleLabel, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
+import { API_BASE_URL, cycleLabel, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminInvoiceActions } from "../../../../components/admin/admin-forms";
@@ -26,7 +26,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
       <div className="inlineForm"><a href="/admin/invoices">Back to invoices</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <section className={styles.invoice}>
         <div className={styles.invoiceTop}>
-          <div><span className="eyebrow">Dezhost</span><h1>Rechnung {invoice.invoiceNumber}</h1></div>
+          <div><span className="eyebrow">Dezhost</span><h1>Rechnung {invoiceDisplayNumber(invoice)}</h1></div>
           <StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : invoice.status === "REFUNDED" ? "neutral" : "warn"} />
         </div>
         <div className={styles.invoiceMeta}>

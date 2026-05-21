@@ -168,3 +168,74 @@ test("Resell.biz test API uses safe fallback nameservers for default registratio
   assert.match(source, /ns1\.domain\.com/);
   assert.match(source, /ns2\.domain\.com/);
 });
+
+test("failed Resell.biz paid lifecycle keeps domain service pending and logs failure", async () => {
+  const calls = [];
+  const invoice = {
+    customerSnapshot: {
+      address: { city: "Berlin", line1: "Example Str. 1", postalCode: "10115" },
+      countryCode: "DE",
+      email: "owner@example.com",
+      name: "Owner Example",
+      phone: "+49 30123456"
+    },
+    dueAt: new Date(Date.now() + 60_000),
+    id: "invoice-domain-fail",
+    items: [
+      {
+        domainRecord: {
+          domain: "broken-example.com",
+          id: "domain-1",
+          registrarModule: "resellbiz",
+          registrationPeriodYears: 1,
+          status: "PENDING",
+          type: "register"
+        },
+        lifecycleAction: "register",
+        orderItem: { id: "item-1" },
+        service: { id: "service-1", product: { type: "DOMAIN" }, status: "PENDING" },
+        type: "DOMAIN"
+      }
+    ],
+    order: { id: "order-1", items: [] },
+    paidAt: new Date(),
+    status: "PAID"
+  };
+  const billing = {
+    createAuditLog: async (input) => calls.push(["audit", input.action, input.metadata?.error]),
+    createModuleLog: async (input) => {
+      calls.push(["module", input.action, input.moduleName]);
+      return { id: "log-1" };
+    },
+    failModuleLog: async (id, message) => calls.push(["fail-log", id, message]),
+    findInvoiceForLifecycle: async () => invoice,
+    findModuleLogByKey: async () => null,
+    setDomainLifecycleStatus: async (id, status) => calls.push(["domain", id, status]),
+    setOrderItemLifecycleStatus: async (id, status, input) => calls.push(["item", id, status, input.errorMessage]),
+    setOrderLifecycleStatus: async (id, status, notes) => calls.push(["order", id, status, notes]),
+    setServiceLifecycleStatus: async (id, status) => calls.push(["service", id, status]),
+    succeedModuleLog: async () => calls.push(["unexpected-success"])
+  };
+  const external = {
+    resellBiz: {
+      register: async () => {
+        throw new Error("test registrar outage");
+      }
+    }
+  };
+
+  const service = new BillingService(billing, {}, {}, external);
+  await service.onInvoicePaid("invoice-domain-fail", { source: "gateway" });
+
+  assert.deepEqual(calls, [
+    ["audit", "invoice.paid", undefined],
+    ["audit", "domain.registrar_started", undefined],
+    ["module", "register_domain", "resellbiz"],
+    ["fail-log", "log-1", "test registrar outage"],
+    ["domain", "domain-1", "PENDING"],
+    ["service", "service-1", "PROVISIONING"],
+    ["item", "item-1", "FAILED", "test registrar outage"],
+    ["audit", "domain.registrar_failed", "test registrar outage"],
+    ["order", "order-1", "PROVISIONING", "At least one paid invoice action failed."]
+  ]);
+});

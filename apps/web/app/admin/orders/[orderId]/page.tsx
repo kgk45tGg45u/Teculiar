@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { cycleLabel, money, type ApiOrder, type AuthUser } from "../../../../lib/api";
+import { cycleLabel, invoiceDisplayNumber, money, type ApiOrder, type AuthUser } from "../../../../lib/api";
 import { orderStatusLabel, serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
@@ -45,7 +45,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
           <tbody>
             <tr><th>ID</th><td>{order.id}</td></tr>
             <tr><th>Status</th><td>{orderStatusLabel(order.status)}</td></tr>
-            <tr><th>Invoice</th><td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{order.invoice.invoiceNumber}</a> : "-"}</td></tr>
+            <tr><th>Invoice</th><td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td></tr>
             <tr><th>Total</th><td>{money(order.totalCents, order.currency)}</td></tr>
             <tr><th>Created</th><td>{dateLabel(order.createdAt)}</td></tr>
           </tbody>

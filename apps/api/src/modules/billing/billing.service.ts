@@ -594,7 +594,7 @@ export class BillingService {
       const result = await this.runServiceModule(moduleName, action, request, service);
       if (result.status === "FAILED") {
         await this.billing.failModuleLog(log.id, "Service module returned FAILED", result as Record<string, unknown>);
-        await this.billing.setServiceLifecycleStatus(service.id, "FAILED");
+        await this.billing.setServiceLifecycleStatus(service.id, "PROVISIONING");
         if (item.orderItem?.id ?? item.orderItemId) {
           await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", {
             errorMessage: "Service module returned FAILED"
@@ -642,7 +642,7 @@ export class BillingService {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Service module failed";
       await this.billing.failModuleLog(log.id, message);
-      await this.billing.setServiceLifecycleStatus(service.id, "FAILED");
+      await this.billing.setServiceLifecycleStatus(service.id, "PROVISIONING");
       if (item.orderItem?.id ?? item.orderItemId) {
         await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", { errorMessage: message });
       }
@@ -718,9 +718,9 @@ export class BillingService {
       const result = await this.runDomainModule(moduleName, action, request);
       if (result.status === "FAILED") {
         await this.billing.failModuleLog(log.id, "Registrar module returned FAILED", result as Record<string, unknown>);
-        await this.billing.setDomainLifecycleStatus(domain.id, "FAILED", { externalId: result.externalId });
+        await this.billing.setDomainLifecycleStatus(domain.id, "PENDING", { externalId: result.externalId });
         if (item.service?.id ?? item.serviceId) {
-          await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "FAILED", { externalId: result.externalId });
+          await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "PROVISIONING", { externalId: result.externalId });
         }
         if (item.orderItem?.id ?? item.orderItemId) {
           await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", {
@@ -775,9 +775,9 @@ export class BillingService {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registrar module failed";
       await this.billing.failModuleLog(log.id, message);
-      await this.billing.setDomainLifecycleStatus(domain.id, "FAILED");
+      await this.billing.setDomainLifecycleStatus(domain.id, "PENDING");
       if (item.service?.id ?? item.serviceId) {
-        await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "FAILED");
+        await this.billing.setServiceLifecycleStatus(item.service?.id ?? item.serviceId, "PROVISIONING");
       }
       if (item.orderItem?.id ?? item.orderItemId) {
         await this.billing.setOrderItemLifecycleStatus(item.orderItem?.id ?? item.orderItemId, "FAILED", { errorMessage: message });

@@ -19,7 +19,7 @@ export default function PaymentReturnPage() {
       .then((response) => response.json().then((payload) => ({ ok: response.ok, payload })))
       .then(({ ok, payload }) => {
         if (ok && payload.status === "PAID") {
-          window.location.assign(`/client/invoices/${payload.invoice?.id ?? invoiceId}`);
+          window.location.assign(`/client?invoice=${encodeURIComponent(payload.invoice?.id ?? invoiceId)}`);
           return;
         }
         setMessage(payload?.message ?? `Payment status: ${payload?.status ?? "pending"}`);

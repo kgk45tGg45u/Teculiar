@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   cycleLabel,
   dateLabel as formatDate,
+  invoiceDisplayNumber,
   money,
   type ApiActionLog,
   type ApiClient,
@@ -141,7 +142,7 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
           <a href="/admin/knowledgebase">{copy.knowledgebase}</a>
           <a href="/admin/blog">Blog</a>
           <a href="/admin/announcements">{copy.announcements}</a>
-          <a href="/admin/settings">{copy.settings}</a>
+          <a href="/admin/settings">Settings</a>
         </nav>
       </aside>
       <main className={styles.main}>
@@ -362,7 +363,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                   <details>
                     <summary><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></summary>
                     <div className={styles.orderDetails}>
-                      <p><strong>Invoice:</strong> {order.invoice?.invoiceNumber ?? "-"} ({order.invoice?.status ?? "no invoice"})</p>
+                      <p><strong>Invoice:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? "no invoice"})</p>
                       <p><strong>Status:</strong> {orderStatusLabel(order.status, locale)}</p>
                       <OrderStatusForm orderId={order.id} status={order.status} />
                       <table className="table">
@@ -383,7 +384,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                 <td>
                   <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
                 </td>
-                <td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{order.invoice.invoiceNumber}</a> : "-"}</td>
+                <td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td>
                 <td>{order.items.map((item) => item.description).join(", ")}</td>
                 <td>{money(order.totalCents, order.currency, locale)}</td>
               </tr>
@@ -462,7 +463,7 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
       <div className={styles.invoiceCards}>
         {invoices.map((invoice) => (
           <div className={styles.invoiceCard} id={`invoice-${invoice.id}`} key={invoice.id}>
-            <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoice.invoiceNumber}</a></strong></div>
+            <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong></div>
             <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt, locale)}</strong></div>
             <div><span>Due</span><strong>{dateLabel(invoice.dueAt, locale)}</strong></div>
             {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt, locale)}</strong></div> : null}
