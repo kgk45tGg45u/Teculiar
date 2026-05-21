@@ -11,7 +11,7 @@ export function Hero({ locale }: { locale: Locale }) {
       <div className="container">
         <span className="eyebrow">
           <ShieldCheck aria-hidden size={16} />
-          {isDe ? "Unabhängiges Hosting aus Deutschland" : "Independent hosting from Germany"}
+          {isDe ? "Schnell und sicheres Hosting aus Deutschland" : "Fast and secure hosting from Germany"}
         </span>
         <h1 className="display">
           {isDe ? "Brauchst du Raum?" : "Need some space?"}
@@ -23,10 +23,10 @@ export function Hero({ locale }: { locale: Locale }) {
         </p>
         <div className={styles.actions}>
           <Button href={`/${locale}/webhosting`} icon={ArrowRight}>
-            {isDe ? "Hosting ansehen" : "View hosting"}
+            {isDe ? "Hosting-packete ansehen" : "View hosting"}
           </Button>
           <Button href={`/${locale}/kontakt`} variant="secondary" icon={MessageCircle}>
-            {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+            {isDe ? "Kostenlose Beratung" : "Get free consultation"}
           </Button>
         </div>
         <div className={styles.signal}>
