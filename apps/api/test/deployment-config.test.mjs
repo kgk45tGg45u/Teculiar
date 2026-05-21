@@ -18,7 +18,7 @@ test("preview deployment files describe Vercel, Render, and Neon wiring", async 
   assert.match(vercel, /"buildCommand": "npm --workspace @crimson\/web run build"/);
   assert.match(vercel, /"framework": "nextjs"/);
 
-  for (const key of ["DATABASE_URL", "NEXT_PUBLIC_API_URL", "APP_URL", "PUBLIC_WEB_URL", "PUBLIC_API_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"]) {
+  for (const key of ["DATABASE_URL", "NEXT_PUBLIC_API_URL", "APP_URL", "PUBLIC_WEB_URL", "PUBLIC_API_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "EMERGENCY_ADMIN_EMAIL", "EMERGENCY_ADMIN_PASSWORD"]) {
     assert.match(envExample, new RegExp(`^${key}=`, "m"));
   }
 

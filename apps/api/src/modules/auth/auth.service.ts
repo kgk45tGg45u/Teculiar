@@ -130,6 +130,10 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const user = await this.users.findByEmail(email);
     if (!user || !(await compare(dto.password, user.passwordHash))) {
+      const emergency = await this.tryEmergencyAdminLogin(email, dto.password, ipAddress, userAgent);
+      if (emergency) {
+        return emergency;
+      }
       void this.users.createAuditLog({
         action: "user.login_failed",
         metadata: { email, ipAddress, userAgent },
@@ -157,6 +161,22 @@ export class AuthService {
       subjectId: user.id
     }).catch(() => undefined);
     return this.issueTokens({ id: user.id, email: user.email, roles }, ipAddress, userAgent);
+  }
+
+  private async tryEmergencyAdminLogin(email: string, password: string, ipAddress?: string, userAgent?: string) {
+    const emergencyEmail = process.env.EMERGENCY_ADMIN_EMAIL?.trim().toLowerCase();
+    const emergencyPassword = process.env.EMERGENCY_ADMIN_PASSWORD;
+    if (!emergencyEmail || !emergencyPassword || email !== emergencyEmail || !secureEquals(password, emergencyPassword)) {
+      return null;
+    }
+
+    void this.users.createAuditLog({
+      action: "user.emergency_admin_login_succeeded",
+      metadata: { email: emergencyEmail, ipAddress, userAgent },
+      subject: "user"
+    }).catch(() => undefined);
+
+    return this.issueEmergencyAdminTokens(emergencyEmail);
   }
 
   async refresh(refreshToken: string, ipAddress?: string, userAgent?: string) {
@@ -223,6 +243,29 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      tokenType: "Bearer",
+      user
+    };
+  }
+
+  private async issueEmergencyAdminTokens(email: string) {
+    const user = { id: "emergency-admin", email, roles: ["admin"] };
+    const expiresIn = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
+    const accessToken = await this.jwt.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+        roles: user.roles
+      },
+      {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn
+      }
+    );
+
+    return {
+      accessToken,
+      refreshToken: `emergency-${randomUUID()}${randomUUID()}`,
       tokenType: "Bearer",
       user
     };
@@ -338,4 +381,10 @@ function safeEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function secureEquals(left: string, right: string) {
+  const leftHash = createHash("sha256").update(left).digest();
+  const rightHash = createHash("sha256").update(right).digest();
+  return timingSafeEqual(leftHash, rightHash);
 }

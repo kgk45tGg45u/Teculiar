@@ -36,6 +36,13 @@ Set these required environment variables:
 - `JWT_REFRESH_SECRET`: generated secret
 - `CRON_SECRET`: generated secret
 
+Optional emergency admin recovery:
+
+- `EMERGENCY_ADMIN_EMAIL`: temporary admin login email
+- `EMERGENCY_ADMIN_PASSWORD`: strong temporary password
+
+Use these only when locked out. Login at `/admin/login`, create or reset a real admin account, then remove both variables and redeploy Render.
+
 Keep Resell.biz on the test API for preview:
 
 - `RESELLBIZ_API_BASE_URL=https://test.httpapi.com`
@@ -95,3 +102,5 @@ Completed setup:
 - Confirmed storefront products endpoint responds.
 
 Vercel preview env is not set because the Vercel project is not connected to the GitHub repository yet. Connect GitHub in Vercel project settings, then add `NEXT_PUBLIC_API_URL` for preview branches.
+
+Emergency admin recovery is available through Render env vars. It is disabled when `EMERGENCY_ADMIN_EMAIL` or `EMERGENCY_ADMIN_PASSWORD` is missing.

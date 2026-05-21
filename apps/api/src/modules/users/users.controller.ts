@@ -11,7 +11,14 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get("me")
-  me(@Req() request: Request & { user: { sub: string } }) {
+  me(@Req() request: Request & { user: { email?: string; roles?: string[]; sub: string } }) {
+    if (request.user.sub === "emergency-admin") {
+      return {
+        email: request.user.email ?? process.env.EMERGENCY_ADMIN_EMAIL ?? "emergency-admin",
+        id: request.user.sub,
+        roles: request.user.roles ?? ["admin"]
+      };
+    }
     return this.users.getMe(request.user.sub);
   }
 
