@@ -2,6 +2,7 @@ import { Body, Controller, Get, Patch, Post, Query, UseGuards } from "@nestjs/co
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import type { EmailLayoutBlock } from "./email-layouts";
 import { EmailService } from "./email.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,7 +23,7 @@ export class EmailAdminController {
 
   @Patch()
   updateSettings(@Body() body: {
-    events?: Array<{ body?: string; enabled?: boolean; key: string; recipients?: string[]; subject?: string }>;
+    events?: Array<{ body?: string; enabled?: boolean; key: string; layoutBlocks?: EmailLayoutBlock[]; recipients?: string[]; subject?: string }>;
     smtp?: {
       adminEmails?: string[] | string;
       enabled?: boolean;

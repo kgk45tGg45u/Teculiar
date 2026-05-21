@@ -9,6 +9,7 @@ import { EmailService } from "../dist/modules/email/email.service.js";
 test("email module exposes admin settings, placeholders, logs, and admin UI route", async () => {
   const appModule = await readFile(new URL("../src/app.module.ts", import.meta.url), "utf8");
   const controller = await readFile(new URL("../src/modules/email/email.controller.ts", import.meta.url), "utf8");
+  const layouts = await readFile(new URL("../src/modules/email/email-layouts.ts", import.meta.url), "utf8");
   const placeholders = await readFile(new URL("../src/modules/email/email-placeholders.ts", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
 
@@ -22,6 +23,9 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
   assert.match(placeholders, /invoice_total_amount/);
   assert.match(placeholders, /password_reset_link/);
   assert.match(placeholders, /ticket_content/);
+  assert.match(layouts, /new_invoice/);
+  assert.match(layouts, /invoiceTable/);
+  assert.match(layouts, /renderEmailLayout/);
   assert.match(dashboard, /href="\/admin\/emails"/);
   assert.match(dashboard, /href="\/admin\/emails\/settings"/);
   assert.match(dashboard, /href="\/admin\/emails\/template"/);
@@ -34,10 +38,14 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
 });
 
 test("email template admin UI has live code preview and mobile desktop frames", async () => {
-  const forms = await readFile(new URL("../../web/components/admin/admin-forms.tsx", import.meta.url), "utf8");
+  const forms = await readFile(new URL("../../web/components/admin/email-admin-editor.tsx", import.meta.url), "utf8");
 
   assert.match(forms, /EmailTemplateEditor/);
-  assert.match(forms, /srcDoc=\{previewHtml\}/);
+  assert.match(forms, /EmailBlockPalette/);
+  assert.match(forms, /draggable/);
+  assert.match(forms, /layoutBlocks/);
+  assert.match(forms, /EmailPreviewFrames html=\{previewHtml\}/);
+  assert.match(forms, /srcDoc=\{html\}/);
   assert.match(forms, /mobile/i);
   assert.match(forms, /desktop/i);
 });
@@ -65,6 +73,50 @@ test("email dispatch honors enabled flag and client-only recipient defaults", as
   assert.equal(logs[0].payload.from, "Dezhost <support@example.test>");
   assert.equal(logs[0].payload.recipientType, "client");
   assert.match(logs[0].payload.html, /example\.com/);
+});
+
+test("email dispatch renders modular event layouts inside the main template", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", adminEmails: [] }],
+    ["emailEventConfigs", { new_invoice: { enabled: true, recipients: ["client"] } }],
+    ["emailLayoutBlocks", {
+      new_invoice: [
+        {
+          id: "invoice-summary",
+          rows: [
+            { label: "Invoice", value: "{{invoice_number}}" },
+            { label: "Total", value: "{{invoice_total_amount}}" }
+          ],
+          title: "Invoice summary",
+          type: "keyValueTable"
+        },
+        {
+          columns: ["Service", "Amount"],
+          id: "invoice-lines",
+          rows: [{ cells: ["{{service}}", "{{invoice_total_amount}}"] }],
+          title: "Invoice lines",
+          type: "invoiceTable"
+        }
+      ]
+    }]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  await email.dispatch("new_invoice", {
+    context: {
+      invoice_number: "N-200001",
+      invoice_total_amount: "49.00 EUR",
+      service: "Managed Hosting"
+    },
+    user: { email: "client@example.test", id: "user-1", name: "Ada" }
+  });
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0].payload.html, /Invoice summary/);
+  assert.match(logs[0].payload.html, /<table role="presentation"/);
+  assert.match(logs[0].payload.html, /Managed Hosting/);
+  assert.match(logs[0].payload.html, /49\.00 EUR/);
 });
 
 test("password reset request emits reset link email without revealing missing accounts", async () => {

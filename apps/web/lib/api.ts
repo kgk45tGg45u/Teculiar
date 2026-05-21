@@ -247,12 +247,25 @@ export type ApiEmailLog = {
   user?: { email?: string; id: string; name?: string } | null;
 };
 
+export type ApiEmailLayoutBlock = {
+  columns?: string[];
+  content?: string;
+  href?: string;
+  id: string;
+  rows?: Array<{ cells?: string[]; label?: string; value?: string }>;
+  title?: string;
+  tone?: "danger" | "default" | "success" | "warning";
+  type: "button" | "divider" | "invoiceTable" | "keyValueTable" | "notice" | "text";
+};
+
 export type ApiEmailAdminSettings = {
+  blockLibrary?: Array<{ description: string; label: string; type: ApiEmailLayoutBlock["type"] }>;
   events: Array<{
     body: string;
     defaultRecipients: Array<"admin" | "client">;
     enabled: boolean;
     key: string;
+    layoutBlocks: ApiEmailLayoutBlock[];
     recipients: Array<"admin" | "client">;
     subject: string;
     trigger: string;

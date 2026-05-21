@@ -222,6 +222,87 @@
   justify-self: start;
 }
 
+.emailDesigner {
+  display: grid;
+  grid-template-columns: 220px minmax(420px, 0.95fr) minmax(360px, 1.05fr);
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+
+.emailEventList {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.emailEventList button,
+.emailBlockPalette button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.emailEventList button[aria-current="page"] {
+  border-color: var(--crimson);
+  background: rgba(177, 18, 38, 0.08);
+}
+
+.emailEventList span,
+.emailBuilderBlock span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.emailBlockPalette {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.emailBlockPalette button {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.emailBlockList {
+  display: grid;
+  gap: 10px;
+  min-height: 80px;
+}
+
+.emailBuilderBlock {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.emailBuilderBlock summary {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  cursor: grab;
+}
+
+.emailBuilderBlock summary button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--muted);
+}
+
 .blogList,
 .aiBox {
   display: grid;
@@ -438,5 +519,14 @@
   .emailSplit {
     grid-template-columns: 1fr;
     padding: 0 16px 16px;
+  }
+
+  .emailDesigner {
+    grid-template-columns: 1fr;
+    padding: 0 16px 16px;
+  }
+
+  .emailBlockPalette {
+    grid-template-columns: 1fr;
   }
 }

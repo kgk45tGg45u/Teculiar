@@ -4,6 +4,7 @@ import net from "node:net";
 import tls from "node:tls";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, type EmailRecipientType } from "./email-events";
+import { EMAIL_LAYOUT_BLOCK_LIBRARY, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailLayoutBlock } from "./email-layouts";
 import { EMAIL_PLACEHOLDERS } from "./email-placeholders";
 
 type EmailUser = {
@@ -24,6 +25,15 @@ type EmailEventConfig = {
   recipients?: EmailRecipientType[];
 };
 
+type EmailEventPatch = {
+  body?: string;
+  enabled?: boolean;
+  key: string;
+  layoutBlocks?: EmailLayoutBlock[];
+  recipients?: string[];
+  subject?: string;
+};
+
 type EmailSmtpSettings = {
   adminEmails?: string[] | string;
   enabled?: boolean;
@@ -42,9 +52,10 @@ export class EmailService {
   constructor(private readonly prisma: PrismaService) {}
 
   async adminSettings() {
-    const [smtp, eventConfigs, templateHtml, testVariables, templates, logs] = await Promise.all([
+    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
+      this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.settingJson<Record<string, unknown>>("emailTestVariables", defaultTestVariables()),
       Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, "de"))),
@@ -55,10 +66,12 @@ export class EmailService {
       events: EMAIL_EVENTS.map((event, index) => ({
         ...event,
         enabled: eventConfigs[event.key]?.enabled ?? true,
+        layoutBlocks: normalizeEmailLayoutBlocks(layoutConfigs[event.key], event.key, templates[index]?.body ?? event.body),
         recipients: eventConfigs[event.key]?.recipients ?? event.defaultRecipients,
         body: templates[index]?.body ?? event.body,
         subject: templates[index]?.subject ?? event.subject
       })),
+      blockLibrary: EMAIL_LAYOUT_BLOCK_LIBRARY,
       logs,
       placeholders: EMAIL_PLACEHOLDERS,
       smtp: publicSmtp(smtp),
@@ -68,7 +81,7 @@ export class EmailService {
   }
 
   async updateSettings(input: {
-    events?: Array<{ body?: string; enabled?: boolean; key: string; recipients?: string[]; subject?: string }>;
+    events?: EmailEventPatch[];
     smtp?: EmailSmtpSettings;
     templateHtml?: string;
     testVariables?: Record<string, unknown>;
@@ -85,6 +98,8 @@ export class EmailService {
     }
     if (input.events) {
       const configs: Record<string, EmailEventConfig> = {};
+      const currentLayouts = await this.layoutConfigs();
+      const layouts: Record<string, EmailLayoutBlock[]> = { ...currentLayouts };
       for (const event of input.events) {
         const definition = emailEventDefinition(event.key);
         if (!definition) {
@@ -107,8 +122,12 @@ export class EmailService {
             subject: event.subject ?? definition.subject
           }
         }));
+        if (Array.isArray(event.layoutBlocks)) {
+          layouts[event.key] = normalizeEmailLayoutBlocks(event.layoutBlocks, event.key, event.body ?? definition.body);
+        }
       }
       tasks.push(this.upsertSetting("emailEventConfigs", configs));
+      tasks.push(this.upsertSetting("emailLayoutBlocks", layouts));
     }
 
     await Promise.all(tasks);
@@ -132,9 +151,10 @@ export class EmailService {
       return [];
     }
 
-    const [smtp, configs, templateHtml, template] = await Promise.all([
+    const [smtp, configs, layoutConfigs, templateHtml, template] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
+      this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.templateFor(eventKey, locale(input.user?.locale))
     ]);
@@ -151,7 +171,8 @@ export class EmailService {
       customer_name: input.user?.name ?? input.context?.customer_name ?? input.user?.email
     });
     const subject = renderText(template?.subject ?? definition.subject, context);
-    const content = renderHtml(template?.body ?? definition.body, context);
+    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? definition.body);
+    const content = renderEmailLayout(layoutBlocks, context);
     const html = renderShell(templateHtml, { ...context, content, subject });
     const text = stripHtml(content);
     const recipients = this.recipients(config.recipients ?? definition.defaultRecipients, input.user, smtp);
@@ -264,6 +285,10 @@ export class EmailService {
     return configs;
   }
 
+  private async layoutConfigs() {
+    return this.settingJson<Record<string, EmailLayoutBlock[]>>("emailLayoutBlocks", {});
+  }
+
   private async smtpSettings() {
     const [smtp, invoiceCompanyEmail] = await Promise.all([
       this.settingJson<EmailSmtpSettings>("emailSmtp", {}),
@@ -369,10 +394,6 @@ function normalizeContext(value: Record<string, unknown>) {
 
 function renderText(template: string, context: Record<string, string>) {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => context[key] ?? "");
-}
-
-function renderHtml(template: string, context: Record<string, string>) {
-  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => escapeHtml(context[key] ?? "").replace(/\n/g, "<br />"));
 }
 
 function renderShell(template: string, context: Record<string, string>) {
