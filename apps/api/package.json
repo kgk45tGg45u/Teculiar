@@ -5,6 +5,7 @@
   "scripts": {
     "prestart": "npm --workspace @crimson/shared run build",
     "start": "nest start",
+    "start:prod": "node dist/main.js",
     "prestart:dev": "npm --workspace @crimson/shared run build",
     "start:dev": "nest start --watch",
     "prebuild": "npm --workspace @crimson/shared run build",

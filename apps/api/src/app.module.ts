@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { CsrfMiddleware } from "./common/middleware/csrf.middleware";
+import { HealthController } from "./health.controller";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { CmsModule } from "./modules/cms/cms.module";
@@ -34,7 +35,8 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     CronModule,
     ExternalModule,
     VirtualminClientModule
-  ]
+  ],
+  controllers: [HealthController]
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

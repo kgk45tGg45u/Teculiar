@@ -11,3 +11,5 @@ generated
 prisma/migrations/dev
 .npm-cache
 .agents
+.vercel
+.neon
