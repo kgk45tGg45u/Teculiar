@@ -1,59 +1,86 @@
 .page {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 242px minmax(0, 1fr);
+  gap: 14px;
   overflow-x: clip;
-  background: var(--paper);
+  background: var(--bg);
+  padding-right: 18px;
 }
 
 .sidebar {
   position: sticky;
-  top: 0;
-  height: 100vh;
-  padding: 24px;
+  top: 18px;
+  height: calc(100vh - 36px);
+  margin: 18px 0 18px 18px;
+  padding: 18px 12px;
   min-width: 0;
-  border-right: 1px solid var(--border);
-  background: var(--surface);
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: var(--sidebar);
+  box-shadow: var(--shadow-soft);
+  color: var(--surface);
 }
 
 .sidebar strong {
   display: block;
-  color: var(--crimson);
-  font-size: 1.1rem;
-  margin-bottom: 36px;
+  color: var(--surface);
+  font-size: 1rem;
+  margin: 3px 6px 28px;
 }
 
 .brandLogo {
   display: block;
-  max-height: 48px;
-  max-width: 180px;
+  max-height: 42px;
+  max-width: 168px;
   object-fit: contain;
-  margin-bottom: 36px;
+  margin: 0 6px 28px;
 }
 
 .sidebar nav {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .sidebar a {
-  padding: 8px 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  font-weight: 680;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.84rem;
+  font-weight: 720;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar a:hover {
+  background: rgba(216, 241, 255, 0.1);
+  color: var(--surface);
+  transform: translateX(1px);
+}
+
+.sidebar a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .subNav {
-  padding-left: 18px !important;
-  font-size: 0.9rem;
+  padding-left: 24px !important;
+  font-size: 0.8rem;
 }
 
 .main {
   display: grid;
-  gap: 22px;
+  gap: 16px;
   align-content: start;
   min-width: 0;
-  padding: 30px;
+  padding: 18px 0 28px;
 }
 
 .header,
@@ -61,14 +88,15 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 20px;
+  gap: 14px;
 }
 
 .header h1,
 .blockHeader h2 {
-  margin: 8px 0 0;
-  font-size: clamp(1.65rem, 3vw, 2.55rem);
-  line-height: 1.08;
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: clamp(1.15rem, 2vw, 1.7rem);
+  line-height: 1.12;
 }
 
 .header {
@@ -89,9 +117,9 @@
 
 .headerActions a,
 .headerActions button {
-  min-height: 38px;
+  min-height: 34px;
   padding-inline: 12px;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
 }
 
 .block {
@@ -102,7 +130,7 @@
 .overviewGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -111,28 +139,28 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 4px 10px;
   align-items: center;
-  margin-top: 18px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--paper);
+  margin-top: 24px;
+  padding: 12px;
+  border: 1px solid rgba(216, 241, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(216, 241, 255, 0.06);
 }
 
 .balanceCard svg {
   grid-row: span 2;
-  color: var(--crimson);
+  color: var(--accent);
 }
 
 .balanceCard strong {
   display: block;
   margin: 0;
-  color: var(--ink);
-  font-size: 1.05rem;
+  color: var(--surface);
+  font-size: 0.98rem;
 }
 
 .balanceCard span {
-  color: var(--muted);
-  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.74rem;
   font-weight: 760;
 }
 
@@ -146,11 +174,12 @@
 .smartCard {
   display: grid;
   align-content: start;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .noticeList {
@@ -161,12 +190,12 @@
 .noticeCard,
 .knowledgeCard {
   display: grid;
-  gap: 12px;
-  padding: 13px;
+  gap: 10px;
+  padding: 12px;
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: 8px;
-  background: var(--paper);
-  color: var(--ink);
+  background: color-mix(in srgb, var(--surface-muted) 46%, var(--surface));
+  color: var(--text);
 }
 
 .noticeCard {
@@ -226,7 +255,7 @@
 }
 
 .knowledgeCard svg {
-  color: var(--crimson);
+  color: var(--accent);
   margin-top: 1px;
 }
 
@@ -235,7 +264,9 @@
   max-width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .actions {
@@ -249,21 +280,22 @@
   height: 34px;
   align-items: center;
   justify-content: center;
-  color: var(--ink);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--surface);
   cursor: pointer;
 }
 
 .module {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   align-content: start;
-  padding: 20px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
   min-width: 0;
 }
 
@@ -274,11 +306,12 @@
 
 .module p {
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .module h2 {
-  font-size: clamp(1.35rem, 2.5vw, 2rem);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
 }
 
 .detailHeader {
@@ -298,10 +331,10 @@
 .detailGrid div {
   display: grid;
   gap: 6px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .detailGrid span {
@@ -333,17 +366,17 @@
 }
 
 .suggestions {
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .suggestions a,
 .articleList a {
   display: grid;
   gap: 6px;
-  color: var(--ink);
+  color: var(--text);
 }
 
 .suggestions span,
@@ -355,7 +388,7 @@
 
 .articleList a {
   grid-template-columns: auto minmax(0, 1fr);
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -376,7 +409,7 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .thread article {
@@ -440,9 +473,9 @@
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 14px;
-  background: var(--paper);
-  color: var(--ink);
+  padding: 12px;
+  background: var(--surface);
+  color: var(--text);
   font: inherit;
   font-weight: 800;
 }
@@ -455,14 +488,14 @@
   overflow: hidden;
   height: 9px;
   border-radius: 999px;
-  background: var(--border);
+  background: var(--surface-muted);
 }
 
 .usageTrack span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--crimson);
+  background: var(--accent);
 }
 
 .controlGrid {
@@ -483,7 +516,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
-  background: var(--paper);
+  background: var(--surface);
   color: var(--muted);
   font-weight: 700;
 }
@@ -514,7 +547,7 @@
 .entryRow details summary,
 .actionDetails summary {
   cursor: pointer;
-  color: var(--crimson);
+  color: var(--accent);
   font-weight: 800;
 }
 
@@ -535,7 +568,7 @@
 }
 
 .warn {
-  color: var(--crimson) !important;
+  color: var(--danger) !important;
 }
 
 .modalBackdrop {
@@ -544,21 +577,23 @@
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 20px;
-  background: var(--paper);
+  padding: 18px;
+  background: rgba(6, 20, 38, 0.52);
+  animation: electric-fade 160ms ease;
 }
 
 .modal {
   display: grid;
   width: min(760px, 100%);
   max-height: calc(100vh - 40px);
-  gap: 16px;
+  gap: 12px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 22px;
+  border-radius: 10px;
+  padding: 18px;
   background: var(--surface);
-  box-shadow: 0 12px 40px rgba(17, 18, 23, 0.12);
+  box-shadow: var(--shadow);
+  animation: electric-pop 170ms ease;
 }
 
 .closeButton {
@@ -566,8 +601,8 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -575,11 +610,12 @@
 
 .invoice {
   display: grid;
-  gap: 22px;
-  padding: 32px;
+  gap: 16px;
+  padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
   min-width: 0;
 }
 
@@ -591,13 +627,13 @@
 .invoiceCard {
   display: grid;
   grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)) auto;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   background: var(--surface);
-  color: var(--ink);
+  color: var(--text);
   min-width: 0;
 }
 
@@ -653,6 +689,8 @@
   .page {
     grid-template-columns: 1fr;
     width: 100%;
+    gap: 0;
+    padding-right: 0;
   }
 
   .sidebar {
@@ -661,9 +699,11 @@
     z-index: 15;
     align-self: start;
     height: auto;
+    margin: 0;
     padding: 12px 14px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+    border-radius: 0;
     box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 8%, transparent);
   }
 
@@ -687,9 +727,9 @@
     flex: 0 0 auto;
     min-height: 34px;
     padding: 8px 10px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(216, 241, 255, 0.16);
     border-radius: 999px;
-    background: var(--paper);
+    background: rgba(216, 241, 255, 0.06);
     font-size: 0.78rem;
     white-space: nowrap;
   }

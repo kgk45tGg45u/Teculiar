@@ -69,16 +69,16 @@ textarea {
 }
 
 .container {
-  width: min(1180px, calc(100% - 40px));
+  width: min(1120px, calc(100% - 36px));
   margin: 0 auto;
 }
 
 .section {
-  padding: 92px 0;
+  padding: 64px 0;
 }
 
 .section.tight {
-  padding: 56px 0;
+  padding: 40px 0;
 }
 
 .eyebrow {
@@ -94,23 +94,23 @@ textarea {
 
 .display {
   max-width: 820px;
-  margin: 18px 0 0;
-  font-size: clamp(3rem, 6vw, 6.4rem);
-  line-height: 0.96;
+  margin: 14px 0 0;
+  font-size: clamp(2.6rem, 5vw, 4.8rem);
+  line-height: 1;
   letter-spacing: 0;
 }
 
 .lead {
-  max-width: 720px;
-  margin: 24px 0 0;
+  max-width: 660px;
+  margin: 18px 0 0;
   color: var(--muted);
-  font-size: clamp(1.08rem, 2vw, 1.35rem);
-  line-height: 1.58;
+  font-size: clamp(0.98rem, 1.5vw, 1.14rem);
+  line-height: 1.55;
 }
 
 .grid {
   display: grid;
-  gap: 20px;
+  gap: 14px;
 }
 
 .grid.two {
@@ -477,20 +477,54 @@ textarea {
 
 .metric {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.metric:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.metric:has(svg) {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 11px;
+  align-items: start;
+}
+
+.metric svg {
+  color: var(--accent);
+}
+
+.metric:has(svg) svg {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 7px;
+  background: var(--accent-soft);
 }
 
 .metric strong {
-  font-size: 2rem;
+  color: var(--text);
+  font-size: 1.35rem;
   line-height: 1;
 }
 
 .metric span {
   color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 720;
 }
 
 .form-row {
@@ -534,9 +568,13 @@ textarea.input {
 
 .table th,
 .table td {
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   text-align: left;
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
 }
 
 .table th {

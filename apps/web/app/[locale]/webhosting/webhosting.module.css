@@ -1,12 +1,12 @@
 .hero {
-  padding: 82px 0 56px;
+  padding: 64px 0 42px;
   border-bottom: 1px solid var(--border);
 }
 
 .hero h1 {
   max-width: 780px;
   margin: 18px 0 20px;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
   line-height: 1;
 }
 
@@ -105,7 +105,7 @@
   position: relative;
   display: grid;
   gap: 14px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--paper);
@@ -119,13 +119,13 @@
 }
 
 .packageLink:hover {
-  border-color: rgba(177, 18, 38, 0.7);
+  border-color: rgba(0, 119, 182, 0.7);
   transform: translateY(-2px);
 }
 
 .packageFeatured {
   border-color: var(--crimson);
-  background: linear-gradient(180deg, rgba(177, 18, 38, 0.03), var(--paper));
+  background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
 }
 
 .packageCard h3 {
@@ -281,7 +281,7 @@
 .explainRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 64px;
+  gap: 36px;
   align-items: start;
 }
 
@@ -329,7 +329,7 @@
 .featureCard {
   display: grid;
   gap: 12px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -391,7 +391,7 @@
 .faqLayout {
   display: grid;
   grid-template-columns: 1fr 1.6fr;
-  gap: 64px;
+  gap: 36px;
   align-items: start;
 }
 
@@ -449,11 +449,11 @@
 
 /* CTA */
 .ctaSection {
-  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+  background: linear-gradient(135deg, rgba(0, 119, 182, 0.04), transparent 60%);
 }
 
 .ctaInner {
-  padding: 48px;
+  padding: 30px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--paper);
@@ -497,7 +497,7 @@
   .explainRow,
   .faqLayout {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 28px;
   }
 
   .useCaseGrid {

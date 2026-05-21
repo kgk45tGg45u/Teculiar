@@ -1,7 +1,7 @@
 .heading {
   max-width: 760px;
   margin: 16px 0 34px;
-  font-size: clamp(2rem, 4vw, 3.6rem);
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
   line-height: 1.04;
   letter-spacing: 0;
 }
@@ -18,7 +18,7 @@
 }
 
 .cardLink:hover article {
-  border-color: rgba(177, 18, 38, 0.7);
+  border-color: rgba(0, 119, 182, 0.7);
   transform: translateY(-2px);
 }
 
@@ -29,9 +29,9 @@
   align-items: center;
   justify-content: center;
   color: var(--crimson);
-  border: 1px solid rgba(177, 18, 38, 0.26);
+  border: 1px solid rgba(0, 119, 182, 0.26);
   border-radius: 8px;
-  background: rgba(177, 18, 38, 0.07);
+  background: rgba(0, 119, 182, 0.07);
 }
 
 .price {

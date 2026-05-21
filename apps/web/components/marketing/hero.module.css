@@ -1,22 +1,22 @@
 .hero {
-  min-height: calc(100vh - 74px);
+  min-height: min(680px, calc(100vh - 62px));
   display: flex;
   align-items: center;
-  padding-bottom: 54px;
+  padding-bottom: 36px;
 }
 
 .actions {
   display: flex;
   gap: 12px;
-  margin-top: 34px;
+  margin-top: 24px;
 }
 
 .signal {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
-  max-width: 780px;
-  margin-top: 72px;
+  max-width: 720px;
+  margin-top: 42px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -26,15 +26,15 @@
 .signal div {
   display: grid;
   gap: 8px;
-  min-height: 120px;
+  min-height: 94px;
   align-content: center;
-  padding: 22px;
+  padding: 16px;
   background: var(--paper);
 }
 
 .signal strong {
   color: var(--crimson);
-  font-size: 2.1rem;
+  font-size: 1.6rem;
   line-height: 1;
 }
 

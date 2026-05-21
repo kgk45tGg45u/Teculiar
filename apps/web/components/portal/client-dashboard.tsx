@@ -37,6 +37,7 @@ const clientCopy: Record<Locale, Record<string, string>> = {
     newTicket: "Neues Ticket",
     openInvoices: "Offene Rechnungen",
     openTickets: "Offene Tickets",
+    overview: "Uebersicht",
     payments: "Zahlungen",
     profile: "Profil",
     services: "Services",
@@ -53,6 +54,7 @@ const clientCopy: Record<Locale, Record<string, string>> = {
     newTicket: "New Ticket",
     openInvoices: "Open Invoices",
     openTickets: "Open Tickets",
+    overview: "Overview",
     payments: "Payments",
     profile: "Profile",
     services: "Services",
@@ -228,15 +230,16 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       <aside className={styles.sidebar}>
         {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <strong>CrimsonGrid</strong>}
         <nav aria-label="Client">
-          <a href="/client/services">{copy.services}</a>
-          <a href="/client/domains">{copy.domains}</a>
-          <a href="/client/invoices">{copy.invoices}</a>
-          <a className={styles.subNav} href="/client/billing/add-funds">{copy.addFunds}</a>
-          <a href="/client/payments">{copy.payments}</a>
-          <a href="/client/knowledgebase">{copy.knowledgebase}</a>
-          <a href="/client/tickets">{copy.tickets}</a>
-          <a className={styles.subNav} href="/client/tickets/new">{copy.newTicket}</a>
-          <a href="/client/profile">{copy.profile}</a>
+          <a aria-current={clientNavCurrent(view, "dashboard")} href="/client">{copy.overview}</a>
+          <a aria-current={clientNavCurrent(view, "services")} href="/client/services">{copy.services}</a>
+          <a aria-current={clientNavCurrent(view, "domains")} href="/client/domains">{copy.domains}</a>
+          <a aria-current={clientNavCurrent(view, "invoices")} href="/client/invoices">{copy.invoices}</a>
+          <a aria-current={clientNavCurrent(view, "add-funds")} className={styles.subNav} href="/client/billing/add-funds">{copy.addFunds}</a>
+          <a aria-current={clientNavCurrent(view, "payment")} href="/client/payments">{copy.payments}</a>
+          <a aria-current={clientNavCurrent(view, "knowledgebase")} href="/client/knowledgebase">{copy.knowledgebase}</a>
+          <a aria-current={clientNavCurrent(view, "tickets")} href="/client/tickets">{copy.tickets}</a>
+          <a aria-current={clientNavCurrent(view, "new-ticket")} className={styles.subNav} href="/client/tickets/new">{copy.newTicket}</a>
+          <a aria-current={clientNavCurrent(view, "profile")} href="/client/profile">{copy.profile}</a>
         </nav>
         <div className={styles.balanceCard}>
           <Wallet aria-hidden size={20} />
@@ -299,6 +302,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       </main>
     </div>
   );
+}
+
+function clientNavCurrent(current: ClientView, target: ClientView) {
+  return current === target ? "page" : undefined;
 }
 
 function DashboardSmartCards({

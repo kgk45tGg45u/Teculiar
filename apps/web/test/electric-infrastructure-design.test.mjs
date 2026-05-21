@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const globals = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const button = readFileSync(new URL("../components/ui/button.tsx", import.meta.url), "utf8");
 const card = readFileSync(new URL("../components/ui/card.tsx", import.meta.url), "utf8");
+const clientDashboardCss = readFileSync(new URL("../components/portal/client-dashboard.module.css", import.meta.url), "utf8");
+const clientDashboardTsx = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
+const adminDashboardCss = readFileSync(new URL("../components/admin/admin-dashboard.module.css", import.meta.url), "utf8");
+const adminDashboardTsx = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+const siteHeaderCss = readFileSync(new URL("../components/layout/site-header.module.css", import.meta.url), "utf8");
 
 const uiFiles = [
   "../components/ui/badge.tsx",
@@ -80,3 +85,57 @@ test("electric infrastructure readme tracks done and remaining work", () => {
   assert.match(doc, /Remaining/);
   assert.match(doc, /Changelog/);
 });
+
+test("phase 3 admin and client shells use compact electric sidebar", () => {
+  for (const css of [clientDashboardCss, adminDashboardCss]) {
+    assert.match(css, /\.page\s*\{[\s\S]*background:\s*var\(--bg\)/);
+    assert.match(css, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
+    assert.match(css, /\.sidebar a\s*\{[\s\S]*min-height:\s*34px/);
+    assert.match(css, /\.sidebar a\[aria-current="page"\]/);
+    assert.match(css, /\.main\s*\{[\s\S]*gap:\s*16px/);
+  }
+
+  assert.match(clientDashboardTsx, /aria-current=\{clientNavCurrent/);
+  assert.match(adminDashboardTsx, /aria-current=\{adminNavCurrent/);
+});
+
+test("phase 4 and 5 dashboards match compact card and table density", () => {
+  for (const css of [clientDashboardCss, adminDashboardCss]) {
+    assert.match(css, /\.module\s*\{[\s\S]*padding:\s*16px/);
+    assert.match(css, /\.tableWrap|\.panel\s*\{/);
+    assert.match(css, /box-shadow:\s*var\(--shadow-soft\)/);
+  }
+
+  assert.match(globals, /\.metric\s*\{[\s\S]*padding:\s*12px/);
+  assert.match(globals, /\.table th,\n\.table td\s*\{[\s\S]*padding:\s*8px 12px/);
+});
+
+test("phase 6 public surfaces are compact and non-red branded", () => {
+  assert.match(globals, /\.section\s*\{[\s\S]*padding:\s*64px 0/);
+  assert.match(globals, /\.display\s*\{[\s\S]*font-size:\s*clamp\(2\.6rem/);
+  assert.match(siteHeaderCss, /\.inner\s*\{[\s\S]*min-height:\s*62px/);
+});
+
+test("css does not keep old crimson rgb brand accents", () => {
+  const root = new URL("../", import.meta.url);
+  const cssFiles = listCssFiles(root);
+  for (const file of cssFiles) {
+    assert.doesNotMatch(readFileSync(file, "utf8"), /rgba\(177,\s*18,\s*38/i, file.pathname);
+  }
+});
+
+function listCssFiles(dir) {
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".next") {
+      continue;
+    }
+    const url = new URL(`${entry.name}${entry.isDirectory() ? "/" : ""}`, dir);
+    if (entry.isDirectory()) {
+      files.push(...listCssFiles(url));
+    } else if (entry.name.endsWith(".css")) {
+      files.push(url);
+    }
+  }
+  return files;
+}

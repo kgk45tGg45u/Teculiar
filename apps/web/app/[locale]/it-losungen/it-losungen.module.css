@@ -1,12 +1,12 @@
 .hero {
-  padding: 82px 0 56px;
+  padding: 64px 0 42px;
   border-bottom: 1px solid var(--border);
 }
 
 .hero h1 {
   max-width: 780px;
   margin: 18px 0 20px;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
   line-height: 1;
 }
 
@@ -28,7 +28,7 @@
 .intro {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 64px;
+  gap: 36px;
   align-items: center;
 }
 
@@ -199,9 +199,9 @@
 .ctaInner {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 40px;
+  gap: 28px;
   align-items: center;
-  padding: 40px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--paper);
@@ -222,12 +222,12 @@
 @media (max-width: 860px) {
   .intro {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 28px;
   }
 
   .ctaInner {
     grid-template-columns: 1fr;
-    padding: 28px;
+    padding: 20px;
   }
 
   .accordionBody {

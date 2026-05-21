@@ -126,24 +126,24 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
       <aside className={styles.sidebar}>
         {settings.siteLogoUrl ? <img alt="Dezhost" className={styles.brandLogo} src={settings.siteLogoUrl} /> : <strong>CrimsonGrid</strong>}
         <nav>
-          <a href="/admin">{copy.home}</a>
-          <a href="/admin/clients">{copy.clients}</a>
-          <a href="/admin/orders">{copy.orders}</a>
-          <a href="/admin/domain-prices">{copy.domainPrices}</a>
-          <a href="/admin/services">{copy.services}</a>
-          <a href="/admin/products">{copy.products}</a>
-          <a href="/admin/payment-gateways">{copy.paymentGateways}</a>
-          <a href="/admin/emails">{copy.emails}</a>
-          <a href="/admin/emails/settings">{copy.emailSettings}</a>
-          <a href="/admin/emails/template">{copy.emailTemplate}</a>
-          <a href="/admin/emails/logs">{copy.emailLogs}</a>
-          <a href="/admin/invoices">{copy.invoices}</a>
-          <a href="/admin/logs">{copy.logs}</a>
-          <a href="/admin/tickets">{copy.tickets}</a>
-          <a href="/admin/knowledgebase">{copy.knowledgebase}</a>
-          <a href="/admin/blog">Blog</a>
-          <a href="/admin/announcements">{copy.announcements}</a>
-          <a href="/admin/settings">Settings</a>
+          <a aria-current={adminNavCurrent(view, "home")} href="/admin">{copy.home}</a>
+          <a aria-current={adminNavCurrent(view, "clients")} href="/admin/clients">{copy.clients}</a>
+          <a aria-current={adminNavCurrent(view, "orders")} href="/admin/orders">{copy.orders}</a>
+          <a aria-current={adminNavCurrent(view, "domain-prices")} href="/admin/domain-prices">{copy.domainPrices}</a>
+          <a aria-current={adminNavCurrent(view, "services")} href="/admin/services">{copy.services}</a>
+          <a aria-current={adminNavCurrent(view, "products")} href="/admin/products">{copy.products}</a>
+          <a aria-current={adminNavCurrent(view, "payment-gateways")} href="/admin/payment-gateways">{copy.paymentGateways}</a>
+          <a aria-current={adminNavCurrent(view, "emails", emailSection, "emails")} href="/admin/emails">{copy.emails}</a>
+          <a aria-current={adminNavCurrent(view, "emails", emailSection, "settings")} href="/admin/emails/settings">{copy.emailSettings}</a>
+          <a aria-current={adminNavCurrent(view, "emails", emailSection, "template")} href="/admin/emails/template">{copy.emailTemplate}</a>
+          <a aria-current={adminNavCurrent(view, "emails", emailSection, "logs")} href="/admin/emails/logs">{copy.emailLogs}</a>
+          <a aria-current={adminNavCurrent(view, "invoices")} href="/admin/invoices">{copy.invoices}</a>
+          <a aria-current={adminNavCurrent(view, "logs")} href="/admin/logs">{copy.logs}</a>
+          <a aria-current={adminNavCurrent(view, "tickets")} href="/admin/tickets">{copy.tickets}</a>
+          <a aria-current={adminNavCurrent(view, "knowledgebase")} href="/admin/knowledgebase">{copy.knowledgebase}</a>
+          <a aria-current={adminNavCurrent(view, "blog")} href="/admin/blog">Blog</a>
+          <a aria-current={adminNavCurrent(view, "announcements")} href="/admin/announcements">{copy.announcements}</a>
+          <a aria-current={adminNavCurrent(view, "settings")} href="/admin/settings">Settings</a>
         </nav>
       </aside>
       <main className={styles.main}>
@@ -198,6 +198,13 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
       </main>
     </div>
   );
+}
+
+function adminNavCurrent(current: AdminView, target: AdminView, currentEmailSection?: EmailAdminSection, targetEmailSection?: EmailAdminSection) {
+  if (targetEmailSection) {
+    return current === target && currentEmailSection === targetEmailSection ? "page" : undefined;
+  }
+  return current === target ? "page" : undefined;
 }
 
 function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDomainPrice[] }) {

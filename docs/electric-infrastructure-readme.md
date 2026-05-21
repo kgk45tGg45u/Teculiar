@@ -29,9 +29,57 @@ Done:
   - `TopBar`
 - Added `apps/web/components/ui/index.ts` barrel exports.
 
+## Phase 3
+
+Done:
+- Restyled client and admin app shells with compact `--bg` workspace, dark `--sidebar` navigation, rounded sticky sidebar, smaller page headers, compact actions, and active nav states.
+- Added `aria-current="page"` to client/admin sidebar links for visual active states only.
+
+## Phase 4
+
+Done:
+- Restyled client dashboard surfaces with compact metric cards, tighter overview grid, smaller headings, denser tables, softer card shadows, compact modals, and Electric Infrastructure status/usage colors.
+- Kept client fetches, forms, links, payment return behavior, invoices, tickets, and service actions unchanged.
+
+## Phase 5
+
+Done:
+- Restyled admin dashboard surfaces with dense sidebar, compact metrics/modules/panels/forms/tables, smaller admin typography, tighter invoice/client rows, and Electric Infrastructure active states.
+- Kept admin data loading, access-control redirect, forms, actions, and routes unchanged.
+
+## Phase 6
+
+Done:
+- Made public marketing, pricing, domain, auth, checkout, knowledgebase, and content pages more compact through global section/type density and broad CSS module spacing reductions.
+- Replaced old raw crimson RGB accents in CSS with Electric Infrastructure accent tones. Red remains reserved for danger/error tokens.
+
 ## Changelog
 
 - `apps/web/app/globals.css`
+- `apps/web/app/[locale]/blog/blog.module.css`
+- `apps/web/app/[locale]/domains/domains.module.css`
+- `apps/web/app/[locale]/domains/pricing/domain-pricing.module.css`
+- `apps/web/app/[locale]/it-losungen/it-losungen.module.css`
+- `apps/web/app/[locale]/knowledgebase/knowledgebase.module.css`
+- `apps/web/app/[locale]/kontakt/kontakt.module.css`
+- `apps/web/app/[locale]/legal/legal.module.css`
+- `apps/web/app/[locale]/pricing/pricing.module.css`
+- `apps/web/app/[locale]/product-pages.module.css`
+- `apps/web/app/[locale]/uber-uns/uber-uns.module.css`
+- `apps/web/app/[locale]/webdesign/webdesign.module.css`
+- `apps/web/app/[locale]/webhosting/webhosting.module.css`
+- `apps/web/components/admin/admin-dashboard.tsx`
+- `apps/web/components/admin/admin-dashboard.module.css`
+- `apps/web/components/auth/login-form.module.css`
+- `apps/web/components/checkout/checkout-form.module.css`
+- `apps/web/components/layout/site-header.module.css`
+- `apps/web/components/layout/site-footer.module.css`
+- `apps/web/components/marketing/domain-search.module.css`
+- `apps/web/components/marketing/hero.module.css`
+- `apps/web/components/marketing/platform-section.module.css`
+- `apps/web/components/marketing/product-grid.module.css`
+- `apps/web/components/portal/client-dashboard.tsx`
+- `apps/web/components/portal/client-dashboard.module.css`
 - `apps/web/components/ui/button.tsx`
 - `apps/web/components/ui/button.module.css`
 - `apps/web/components/ui/card.tsx`
@@ -54,12 +102,11 @@ Done:
 
 ## Remaining
 
-- Phase 3: Restyle client/admin app shell, sidebar, top bar, active nav states.
-- Phase 4: Restyle client dashboard pages one by one.
-- Phase 5: Restyle admin pages one by one.
-- Phase 6: Restyle public marketing, pricing, domain, auth, and support pages.
+- Browser visual QA against real data and screenshots.
+- Optional per-page polish after viewing client/admin/public pages in the browser.
+- Fix/replace the `next lint` script for Next 16 if lint must run in CI.
 
 ## Notes
 
 - No business logic, API calls, routing, auth, payment logic, invoice logic, admin actions, or form behavior changed.
-- Current shared components are visual foundations. Page-by-page adoption should happen in later phases.
+- `npm --workspace @crimson/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.

@@ -19,7 +19,7 @@
 .item {
   display: grid;
   gap: 14px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -90,15 +90,15 @@
 
 /* Callout */
 .callout {
-  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+  background: linear-gradient(135deg, rgba(0, 119, 182, 0.04), transparent 60%);
 }
 
 .calloutInner {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 48px;
+  gap: 30px;
   align-items: center;
-  padding: 48px;
+  padding: 30px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--paper);
@@ -132,7 +132,7 @@
 
   .calloutInner {
     grid-template-columns: 1fr;
-    padding: 32px;
+    padding: 24px;
   }
 
   .calloutActions {

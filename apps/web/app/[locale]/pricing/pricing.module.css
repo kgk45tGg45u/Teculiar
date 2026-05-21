@@ -1,12 +1,12 @@
 .hero {
-  padding: 82px 0 56px;
+  padding: 64px 0 42px;
   border-bottom: 1px solid var(--border);
 }
 
 .hero h1 {
   max-width: 780px;
   margin: 18px 0 20px;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
   line-height: 1;
 }
 
@@ -73,7 +73,7 @@
   position: relative;
   display: grid;
   gap: 16px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--paper);
@@ -82,7 +82,7 @@
 
 .productCard.featured {
   border-color: var(--crimson);
-  background: linear-gradient(180deg, rgba(177, 18, 38, 0.03), var(--paper));
+  background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
 }
 
 .productCard h3 {
@@ -138,7 +138,7 @@
   position: relative;
   display: grid;
   gap: 16px;
-  padding: 32px;
+  padding: 24px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--paper);
@@ -191,7 +191,7 @@
 .oneTimeLayout {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 64px;
+  gap: 36px;
   align-items: start;
 }
 
@@ -246,9 +246,9 @@
 .hourlyInner {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 48px;
+  gap: 30px;
   align-items: center;
-  padding: 40px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--paper);
@@ -293,7 +293,7 @@
   display: grid;
   gap: 16px;
   max-width: 640px;
-  padding: 40px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -322,12 +322,12 @@
   .supportGrid,
   .oneTimeLayout {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 28px;
   }
 
   .hourlyInner {
     grid-template-columns: 1fr;
-    padding: 28px;
+    padding: 20px;
   }
 }
 

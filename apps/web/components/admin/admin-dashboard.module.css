@@ -1,73 +1,100 @@
 .page {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 14px;
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(177, 18, 38, 0.07), transparent 260px),
-    var(--paper);
+  background: var(--bg);
+  padding-right: 18px;
 }
 
 .sidebar {
   position: sticky;
-  top: 0;
-  height: 100vh;
-  padding: 28px;
-  border-right: 1px solid var(--border);
-  background: var(--surface);
+  top: 18px;
+  height: calc(100vh - 36px);
+  margin: 18px 0 18px 18px;
+  padding: 18px 12px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: var(--sidebar);
+  box-shadow: var(--shadow-soft);
+  color: var(--surface);
 }
 
 .sidebar strong {
   display: block;
-  color: var(--crimson);
-  font-size: 1.1rem;
-  margin-bottom: 36px;
+  color: var(--surface);
+  font-size: 1rem;
+  margin: 3px 6px 28px;
 }
 
 .brandLogo {
   display: block;
-  max-height: 48px;
-  max-width: 180px;
+  max-height: 42px;
+  max-width: 168px;
   object-fit: contain;
-  margin-bottom: 36px;
+  margin: 0 6px 28px;
 }
 
 .sidebar nav {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .sidebar a {
-  padding: 10px 0;
-  color: var(--muted);
-  font-weight: 680;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 720;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar a:hover {
+  background: rgba(216, 241, 255, 0.1);
+  color: var(--surface);
+  transform: translateX(1px);
+}
+
+.sidebar a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .main {
   display: grid;
-  gap: 30px;
+  gap: 16px;
   align-content: start;
-  padding: 36px;
+  padding: 18px 0 28px;
 }
 
 .header {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 24px;
+  gap: 14px;
 }
 
 .header h1 {
-  margin: 10px 0 14px;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
-  line-height: 0.98;
+  margin: 5px 0 8px;
+  color: var(--text);
+  font-size: clamp(1.25rem, 2.4vw, 1.9rem);
+  line-height: 1.1;
 }
 
 .header p {
   max-width: 680px;
   margin: 0;
   color: var(--muted);
-  font-size: 1.1rem;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .headerActions {
@@ -80,17 +107,28 @@
 
 .module {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   align-content: start;
-  min-height: 190px;
-  padding: 24px;
+  min-height: 154px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--paper);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.module:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .module svg {
-  color: var(--crimson);
+  color: var(--accent);
 }
 
 .module h2,
@@ -100,34 +138,41 @@
 
 .module p {
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.module h2 {
+  font-size: 1.05rem;
 }
 
 .panel {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--paper);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .panelHeader {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 20px;
-  padding: 24px;
+  gap: 14px;
+  padding: 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .panelHeader h2 {
-  margin: 8px 0 0;
-  font-size: 1.8rem;
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 1.18rem;
 }
 
 .form {
   display: grid;
-  gap: 16px;
-  padding: 24px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .form label {
@@ -141,12 +186,12 @@
 .form select,
 .form textarea {
   width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
-  color: var(--ink);
+  min-height: 38px;
+  padding: 8px 10px;
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .inlineForm {
@@ -157,19 +202,19 @@
 }
 
 .inlineForm select {
-  min-height: 42px;
+  min-height: 36px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0 10px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .emailSubnav {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 0 24px;
+  padding: 0 16px;
 }
 
 .emailSubnav a {
@@ -181,16 +226,16 @@
 }
 
 .emailSubnav a[aria-current="page"] {
-  border-color: var(--crimson);
-  color: var(--crimson);
-  background: rgba(177, 18, 38, 0.08);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 
 .emailSplit {
   display: grid;
   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
   gap: 16px;
-  padding: 0 24px 24px;
+  padding: 0 16px 16px;
 }
 
 .templatePreview {
@@ -226,7 +271,7 @@
   display: grid;
   grid-template-columns: 220px minmax(420px, 0.95fr) minmax(360px, 1.05fr);
   gap: 16px;
-  padding: 0 24px 24px;
+  padding: 0 16px 16px;
 }
 
 .emailEventList {
@@ -244,14 +289,14 @@
   border-radius: 8px;
   padding: 10px 12px;
   background: var(--surface);
-  color: var(--ink);
+  color: var(--text);
   text-align: left;
   cursor: pointer;
 }
 
 .emailEventList button[aria-current="page"] {
-  border-color: var(--crimson);
-  background: rgba(177, 18, 38, 0.08);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .emailEventList span,
@@ -299,7 +344,7 @@
   height: 32px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--paper);
+  background: var(--surface);
   color: var(--muted);
 }
 
@@ -365,21 +410,21 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
 }
 
 .editorToolbar button:hover,
 .activeTool {
-  border-color: var(--crimson);
-  color: var(--crimson);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .editor :global(.ProseMirror) {
   min-height: 260px;
   padding: 14px;
-  color: var(--ink);
+  color: var(--text);
   direction: ltr;
   line-height: 1.6;
   outline: 0;
@@ -416,20 +461,20 @@
 
 .invoiceCards {
   display: grid;
-  gap: 12px;
-  padding: 24px;
+  gap: 10px;
+  padding: 16px;
 }
 
 .invoiceCard {
   display: grid;
   grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)) auto;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   background: var(--surface);
-  color: var(--ink);
+  color: var(--text);
 }
 
 .invoiceCard div {
@@ -444,8 +489,8 @@
 
 .clientList {
   display: grid;
-  gap: 12px;
-  padding: 24px;
+  gap: 10px;
+  padding: 16px;
 }
 
 .clientRow {
@@ -459,7 +504,7 @@
   grid-template-columns: 1.4fr auto 1.6fr repeat(4, minmax(0, 1fr));
   gap: 12px;
   align-items: center;
-  padding: 16px;
+  padding: 12px;
   cursor: pointer;
 }
 
@@ -474,8 +519,8 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .lineEditor {
@@ -494,13 +539,17 @@
 @media (max-width: 720px) {
   .page {
     grid-template-columns: 1fr;
+    gap: 0;
+    padding-right: 0;
   }
 
   .sidebar {
     position: static;
     height: auto;
+    margin: 0;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+    border-radius: 0;
   }
 
   .main {

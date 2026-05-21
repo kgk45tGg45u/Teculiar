@@ -1,12 +1,12 @@
 .hero {
-  padding: 82px 0 56px;
+  padding: 64px 0 42px;
   border-bottom: 1px solid var(--border);
 }
 
 .hero h1 {
   max-width: 780px;
   margin: 18px 0 20px;
-  font-size: clamp(2.4rem, 5vw, 4.8rem);
+  font-size: clamp(2.2rem, 4.2vw, 3.8rem);
   line-height: 1;
 }
 
@@ -115,7 +115,7 @@
 .featureCard {
   display: grid;
   gap: 12px;
-  padding: 28px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -201,15 +201,15 @@
 
 /* CTA */
 .ctaSection {
-  background: linear-gradient(135deg, rgba(177, 18, 38, 0.04), transparent 60%);
+  background: linear-gradient(135deg, rgba(0, 119, 182, 0.04), transparent 60%);
 }
 
 .ctaInner {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 40px;
+  gap: 28px;
   align-items: center;
-  padding: 48px;
+  padding: 30px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--paper);
@@ -241,7 +241,7 @@
 
   .ctaInner {
     grid-template-columns: 1fr;
-    padding: 32px;
+    padding: 24px;
   }
 }
 
