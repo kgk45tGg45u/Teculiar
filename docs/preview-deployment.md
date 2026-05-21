@@ -76,3 +76,22 @@ Then open:
 - `https://YOUR_VERCEL_APP.vercel.app/admin`
 
 Storefront payment flow note: successful payment should redirect clients to the dashboard quickly. Domain and hosting provisioning must stay in the background, and services become active only after module create succeeds.
+
+## Current Preview
+
+Live services:
+
+- Vercel web: `https://dezhost-preview.vercel.app`
+- Render API: `https://dezhost-api-preview.onrender.com/api/v1`
+- Neon project: `sweet-hill-51730672`
+
+Completed setup:
+
+- Created Vercel project `dezhost-preview`.
+- Set Vercel production and development env `NEXT_PUBLIC_API_URL=https://dezhost-api-preview.onrender.com/api/v1`.
+- Deployed Vercel production from the CLI.
+- Confirmed Render health endpoint: `https://dezhost-api-preview.onrender.com/api/v1/health`.
+- Confirmed API CORS allows `https://dezhost-preview.vercel.app`.
+- Confirmed storefront products endpoint responds.
+
+Vercel preview env is not set because the Vercel project is not connected to the GitHub repository yet. Connect GitHub in Vercel project settings, then add `NEXT_PUBLIC_API_URL` for preview branches.
