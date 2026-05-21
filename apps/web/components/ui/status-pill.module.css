@@ -1,29 +1,35 @@
 .pill {
   display: inline-flex;
-  min-height: 28px;
+  min-height: 24px;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 740;
+  font-size: 0.74rem;
+  font-weight: 780;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .good {
-  color: var(--ink);
-  background: rgba(17, 18, 23, 0.04);
+  color: var(--success);
+  background: rgba(8, 116, 67, 0.1);
+  border-color: rgba(8, 116, 67, 0.26);
 }
 
 .warn {
-  color: var(--crimson);
-  background: rgba(177, 18, 38, 0.08);
-  border-color: rgba(177, 18, 38, 0.25);
+  color: var(--warning);
+  background: rgba(154, 91, 0, 0.1);
+  border-color: rgba(154, 91, 0, 0.3);
 }
 
 .neutral {
   color: var(--muted);
+  background: var(--surface-muted);
 }
 
-:root[data-theme="dark"] .good {
-  background: rgba(255, 255, 255, 0.08);
+.danger {
+  color: var(--danger);
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.28);
 }

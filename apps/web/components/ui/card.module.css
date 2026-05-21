@@ -2,26 +2,40 @@
   display: flex;
   min-height: 100%;
   flex-direction: column;
-  gap: 22px;
-  padding: 28px;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--paper);
-  box-shadow: none;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .card h3 {
   margin: 0;
-  font-size: 1.3rem;
+  color: var(--text);
+  font-size: 1.05rem;
+  line-height: 1.22;
 }
 
 .card p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  line-height: 1.48;
 }
 
 .selected {
-  border-color: rgba(177, 18, 38, 0.6);
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--surface), var(--accent-soft));
   box-shadow: var(--shadow);
 }

@@ -2,7 +2,7 @@ import styles from "./status-pill.module.css";
 
 type StatusPillProps = {
   label: string;
-  tone?: "good" | "warn" | "neutral";
+  tone?: "good" | "warn" | "neutral" | "danger";
 };
 
 export function StatusPill({ label, tone = "neutral" }: StatusPillProps) {
