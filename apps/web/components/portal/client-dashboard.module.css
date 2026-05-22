@@ -2,10 +2,10 @@
   display: grid;
   min-height: 100vh;
   grid-template-columns: 242px minmax(0, 1fr);
-  gap: 14px;
+  gap: clamp(16px, 1.6vw, 26px);
   overflow-x: clip;
   background: var(--bg);
-  padding-right: 18px;
+  padding-right: clamp(18px, 2vw, 32px);
 }
 
 .sidebar {
@@ -77,10 +77,12 @@
 
 .main {
   display: grid;
+  width: 100%;
+  max-width: 1680px;
   gap: 16px;
   align-content: start;
   min-width: 0;
-  padding: 18px 0 28px;
+  padding: clamp(18px, 2vw, 24px) 0 32px;
 }
 
 .header,
@@ -129,9 +131,46 @@
 
 .overviewGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, 190px);
+  justify-content: space-between;
+  justify-self: center;
+  width: min(100%, 980px);
+  gap: clamp(18px, 3vw, 46px);
   min-width: 0;
+}
+
+.overviewGrid :global(.metric) {
+  width: 190px;
+  aspect-ratio: 1.04 / 1;
+}
+
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: portal-spin 780ms linear infinite;
+}
+
+.loadingInline,
+.loadingBlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 760;
+}
+
+.loadingBlock {
+  min-height: 92px;
+}
+
+@keyframes portal-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .balanceCard {
@@ -166,15 +205,22 @@
 
 .smartGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  align-items: stretch;
+  justify-self: center;
+  width: min(100%, 820px);
+  gap: clamp(22px, 3vw, 34px);
+  padding-inline: clamp(10px, 2vw, 26px);
   min-width: 0;
 }
 
 .smartCard {
   display: grid;
   align-content: start;
+  aspect-ratio: 1.12 / 1;
   gap: 12px;
+  min-height: 0;
+  overflow: auto;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -185,6 +231,8 @@
 .noticeList {
   display: grid;
   gap: 10px;
+  min-height: 0;
+  overflow: auto;
 }
 
 .noticeCard,
@@ -257,6 +305,49 @@
 .knowledgeCard svg {
   color: var(--accent);
   margin-top: 1px;
+}
+
+.dashboardFeed {
+  display: grid;
+  justify-self: center;
+  width: min(100%, 980px);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.feedList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.feedItem {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-height: 126px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-muted) 46%, var(--surface));
+  color: var(--text);
+}
+
+.feedItem span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 740;
+}
+
+.feedItem p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .tableWrap {
@@ -359,7 +450,7 @@
 .suggestions,
 .articleList,
 .thread,
-.attachments,
+.attachmentLinks,
 .ticketMeta {
   display: grid;
   gap: 10px;
@@ -381,8 +472,7 @@
 
 .suggestions span,
 .articleList p,
-.ticketMeta,
-.thread header span {
+.ticketMeta {
   color: var(--muted);
 }
 
@@ -404,38 +494,101 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.ticketCards {
+  display: grid;
+  gap: 10px;
+}
+
+.ticketCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ticketCard:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.ticketCard div {
+  display: grid;
+  gap: 5px;
+}
+
+.ticketCard div:last-child {
+  justify-items: end;
+}
+
+.ticketCard span,
+.ticketCard small,
+.ticketCard time {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 740;
+}
+
+.ticketCard strong {
+  font-size: 0.98rem;
+}
+
 .ticketMeta span,
-.thread article {
+.ticketMessage {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
 
-.thread article {
+.ticketMessage {
   display: grid;
   gap: 10px;
 }
 
-.thread header {
+.ticketMessage header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
 }
 
-.thread p {
+.ticketMessage header div {
+  display: grid;
+  gap: 4px;
+}
+
+.ticketMessage header span,
+.ticketMeta {
+  color: var(--muted);
+}
+
+.ticketMessage p {
+  margin: 0;
   white-space: pre-wrap;
 }
 
-.attachments {
+.attachmentLinks {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.attachments a {
+.attachmentLinks a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--ink);
+  color: var(--accent-text);
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -621,17 +774,17 @@
 
 .invoiceCards {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .invoiceCard {
   display: grid;
-  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr)) auto;
-  gap: 10px;
+  grid-template-columns: minmax(220px, 1.25fr) repeat(2, minmax(120px, 0.65fr)) minmax(120px, 0.65fr) auto auto;
+  gap: 12px;
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 13px 15px;
   background: var(--surface);
   color: var(--text);
   min-width: 0;
@@ -642,9 +795,80 @@
   gap: 4px;
 }
 
-.invoiceCard span {
+.invoiceCard span,
+.invoiceCard small {
   color: var(--muted);
   font-weight: 700;
+}
+
+.invoiceCard small {
+  font-size: 0.75rem;
+}
+
+.invoiceCardLead strong,
+.invoiceCardTotal strong {
+  font-size: 1rem;
+}
+
+.invoiceListStatus {
+  justify-items: end;
+}
+
+.invoicePaper {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.invoiceActionBar {
+  position: sticky;
+  top: 18px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.invoiceActionBar > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.invoiceActionBar span,
+.invoiceActionBar small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 740;
+}
+
+.invoiceActionBar strong {
+  color: var(--text);
+  font-size: 1.25rem;
+}
+
+.invoiceActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.invoiceSheet {
+  display: grid;
+  gap: 18px;
+  max-width: 980px;
+  min-width: 0;
+  padding: clamp(22px, 4vw, 54px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .invoiceTop,
@@ -658,11 +882,100 @@
   margin: 8px 0 0;
 }
 
+.invoiceLetterhead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.invoiceLetterhead div {
+  display: grid;
+  gap: 4px;
+}
+
+.invoiceLetterhead strong {
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.invoiceLetterhead span,
+.invoiceSender,
+.invoiceMetaGrid span,
+.invoiceIntro,
+.invoiceNote {
+  color: var(--muted);
+}
+
+.invoiceSender {
+  margin-top: 8px;
+  font-size: 0.74rem;
+  text-decoration: underline;
+}
+
+.invoiceRecipient {
+  display: grid;
+  min-height: 116px;
+  align-content: start;
+  gap: 3px;
+}
+
+.invoiceTitleRow {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.invoiceTitleRow h2 {
+  margin: 6px 0 0;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+}
+
+.invoiceMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 8px 18px;
+  justify-content: start;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.invoiceIntro {
+  margin: 0;
+}
+
+.invoiceTable th,
+.invoiceTable td {
+  padding: 10px 8px;
+}
+
 .invoiceTotals {
   display: grid;
   justify-content: end;
   gap: 8px;
   text-align: right;
+}
+
+.invoiceTotals span {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.invoiceTotals > strong {
+  border-top: 1px solid var(--text);
+  padding-top: 8px;
+  font-size: 1.08rem;
+}
+
+.invoiceNote {
+  margin: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  line-height: 1.55;
 }
 
 .pdfLink {
@@ -779,8 +1092,10 @@
   }
 
   .overviewGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 190px));
+    justify-content: space-evenly;
+    width: 100%;
+    gap: 14px;
   }
 
   .smartGrid {
@@ -788,6 +1103,7 @@
   }
 
   .overviewGrid :global(.metric) {
+    width: min(100%, 190px);
     min-height: 110px;
   }
   
@@ -820,6 +1136,7 @@
   }
 
   .smartCard,
+  .dashboardFeed,
   .module {
     padding: 15px;
   }
@@ -839,15 +1156,48 @@
 
   .invoiceCard,
   .invoiceTop,
-  .invoiceMeta {
+  .invoiceMeta,
+  .invoiceActionBar,
+  .invoiceLetterhead,
+  .invoiceTitleRow,
+  .ticketCard {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .ticketCard div:last-child {
+    justify-items: start;
+  }
+
+  .invoiceActions {
+    justify-content: stretch;
+  }
+
+  .invoiceActions > * {
+    width: 100%;
+  }
+
+  .invoiceMetaGrid {
+    grid-template-columns: repeat(2, auto);
   }
 }
 
 @media (max-width: 700px) {
   .smartGrid {
     grid-template-columns: 1fr;
+  }
+
+  .overviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 170px));
+  }
+
+  .overviewGrid :global(.metric) {
+    width: min(100%, 170px);
+  }
+
+  .smartCard {
+    aspect-ratio: auto;
+    min-height: 250px;
   }
 }
 
@@ -872,8 +1222,11 @@
   }
 
   .smartCard,
+  .dashboardFeed,
   .module,
-  .invoice {
+  .invoice,
+  .invoiceSheet,
+  .invoiceActionBar {
     padding: 12px;
   }
 

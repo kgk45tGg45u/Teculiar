@@ -102,7 +102,8 @@ test("admin/client dashboards no longer trigger maintenance or provider refresh 
   assert.doesNotMatch(adminDashboard, /runMaintenance\(/);
   assert.doesNotMatch(adminDashboard, /billing\/maintenance/);
   assert.doesNotMatch(adminDashboard, /tickets\/maintenance/);
-  assert.doesNotMatch(clientDashboard, /refresh=1/);
+  assert.doesNotMatch(clientDashboard, /setInterval\(loadServices/);
+  assert.match(clientDashboard, /view === "services" && !serviceId/);
   assert.match(adminDashboard, /href="\/admin\/settings">Settings<\/a>/);
   assert.match(adminDashboard, /settings: "Settings"/);
 });

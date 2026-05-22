@@ -28,6 +28,18 @@ export class BillingController {
     return this.billing.getInvoice(id, request.user);
   }
 
+  @Get("invoices/:id/html")
+  async invoiceHtml(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Res() response: Response
+  ) {
+    const html = await this.billing.invoiceHtml(id, request.user);
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    response.setHeader("Content-Disposition", `inline; filename="invoice-${id}.html"`);
+    response.send(html);
+  }
+
   @Get("invoices/:id/pdf")
   async invoicePdf(
     @Param("id") id: string,

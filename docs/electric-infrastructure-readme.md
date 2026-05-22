@@ -65,6 +65,23 @@ Done:
 - Added checkout copy for German and English, using the existing locale helper.
 - Documented locale precedence in `docs/localization.md`.
 
+## Client Portal Invoice Follow-Up
+
+Done:
+- Bounded the client portal content width while keeping the workspace wide.
+- Made dashboard announcement and knowledgebase cards equal-sized with a slightly-wide card ratio.
+- Added compact loading spinners for service/domain counts, invoice/ticket counters, smart cards, tables, and detail panes.
+- Added portal data cache and fetch timeout fallback so page navigation cannot leave counters spinning forever if one request stalls.
+- Fixed Products & Services hosting subtitles so the title stays the product name and the subtitle is the related domain.
+- Added one-time service-page status probes through the existing server refresh path so Virtualmin can activate hosting before showing the control panel.
+- Added the ordered hosting domain as the fourth service detail box.
+- Moved announcements and knowledgebase items into one combined bottom dashboard box.
+- Fixed dashboard metric cards to fixed near-square widths instead of stretching across wide screens.
+- Reworked support tickets into fully clickable cards and message containers with compact attachment links.
+- Reworked client invoice rows and invoice detail into a formal German invoice layout with a clearer pay action area.
+- Added protected invoice HTML rendering at `/billing/invoices/:id/html`; PDF downloads now render from the same snapshot-based invoice HTML.
+- Kept invoice seller, footer, and item data snapshot-based so later admin setting changes do not alter old invoices.
+
 ## Changelog
 
 - `apps/web/app/globals.css`
@@ -100,6 +117,8 @@ Done:
 - `apps/web/components/ui/card.module.css`
 - `apps/web/components/ui/status-pill.tsx`
 - `apps/web/components/ui/status-pill.module.css`
+- `apps/web/lib/api.ts`
+- `apps/web/test/client-dashboard-polish.test.mjs`
 - `apps/web/components/ui/badge.tsx`
 - `apps/web/components/ui/status-badge.tsx`
 - `apps/web/components/ui/form-controls.tsx`
@@ -114,7 +133,12 @@ Done:
 - `apps/web/test/electric-infrastructure-design.test.mjs`
 - `apps/web/test/checkout-smart-form.test.mjs`
 - `apps/api/src/modules/billing/billing.controller.ts`
+- `apps/api/src/modules/billing/invoice-document.ts`
 - `apps/api/src/modules/billing/billing.service.ts`
+- `apps/api/test/invoice-html-pdf.test.mjs`
+- `apps/api/test/cron-job.test.mjs`
+- `apps/api/test/order-payment-lifecycle.test.mjs`
+- `apps/api/test/service-refresh-lifecycle.test.mjs`
 - `docs/electric-infrastructure-readme.md`
 - `docs/localization.md`
 

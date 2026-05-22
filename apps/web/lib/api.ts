@@ -122,6 +122,7 @@ export type ApiInvoice = {
     companyName?: string;
     country?: string;
     email?: string;
+    logoUrl?: string;
     paymentInstructions?: string;
     phone?: string;
     vatNumber?: string;
@@ -137,6 +138,8 @@ export type ApiInvoice = {
     taxRate: number;
     totalCents: number;
     unitAmountCents: number;
+    servicePeriodEnd?: string | null;
+    servicePeriodStart?: string | null;
   }>;
   transactions?: Array<{
     createdAt: string;
@@ -150,6 +153,7 @@ export type ApiInvoice = {
   paidAt?: string | null;
   subtotalCents?: number;
   taxAmountCents?: number;
+  taxReason?: string | null;
   totalCents: number;
   currency: string;
 };

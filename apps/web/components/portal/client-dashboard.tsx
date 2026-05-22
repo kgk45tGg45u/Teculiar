@@ -93,6 +93,53 @@ type HostingPanel = {
 };
 type Usage = { limit: string; percent: number; used: string };
 type PanelEntry = { address?: string; fields: Record<string, string>; name: string; usage?: Usage };
+type LoadingKey = "services" | "invoices" | "tickets" | "knowledgebase" | "announcements" | "profile";
+type ClientProfile = {
+  address?: { city?: string; line1?: string; postalCode?: string; state?: string };
+  balanceCents?: number;
+  countryCode?: string;
+  customerType?: string;
+  email?: string;
+  name?: string;
+  phone?: string;
+  vatId?: string | null;
+};
+type PortalDataCache = {
+  announcementsByLocale?: Partial<Record<Locale, ApiAnnouncement[]>>;
+  brandLogo?: string;
+  invoices?: ApiInvoice[];
+  knowledgebaseByLocale?: Partial<Record<Locale, ApiKnowledgebaseArticle[]>>;
+  profile?: ClientProfile;
+  services?: ApiService[];
+  tickets?: ApiTicket[];
+};
+type DashboardFeedItem = {
+  date?: string | null;
+  excerpt: string;
+  href?: string;
+  id: string;
+  title: string;
+};
+
+const PORTAL_LOADING_TIMEOUT_MS = 4500;
+
+const initialLoading: Record<LoadingKey, boolean> = {
+  announcements: true,
+  invoices: true,
+  knowledgebase: true,
+  profile: true,
+  services: true,
+  tickets: true
+};
+const allLoaded: Record<LoadingKey, boolean> = {
+  announcements: false,
+  invoices: false,
+  knowledgebase: false,
+  profile: false,
+  services: false,
+  tickets: false
+};
+const portalDataCache: PortalDataCache = {};
 
 const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   ACTIVE: "good",
@@ -120,16 +167,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
   const copy = clientCopy[locale];
-  const [profile, setProfile] = useState<{
-    address?: { city?: string; line1?: string; postalCode?: string; state?: string };
-    balanceCents?: number;
-    countryCode?: string;
-    customerType?: string;
-    email?: string;
-    name?: string;
-    phone?: string;
-    vatId?: string | null;
-  }>();
+  const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
   const [invoices, setInvoices] = useState<ApiInvoice[]>([]);
@@ -139,9 +177,37 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const [knowledgebase, setKnowledgebase] = useState<ApiKnowledgebaseArticle[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [brandLogo, setBrandLogo] = useState("");
+  const [loading, setLoading] = useState<Record<LoadingKey, boolean>>(initialLoading);
   const seenServiceStatuses = useRef(new Map<string, string>());
   const servicePollingReady = useRef(false);
   const servicesRef = useRef<ApiService[]>([]);
+  const finishLoading = (key: LoadingKey) => setLoading((current) => ({ ...current, [key]: false }));
+
+  usePortalLoadingFallback(setLoading);
+
+  useEffect(() => {
+    applyPortalCache(locale, {
+      setAnnouncements,
+      setBrandLogo,
+      setInvoices,
+      setKnowledgebase,
+      setProfile,
+      setServices,
+      setTickets
+    });
+    if (portalDataCache.services) {
+      servicesRef.current = portalDataCache.services;
+    }
+    setLoading((current) => ({
+      ...current,
+      announcements: !(portalDataCache.announcementsByLocale?.[locale]),
+      invoices: !(portalDataCache.invoices),
+      knowledgebase: !(portalDataCache.knowledgebaseByLocale?.[locale]),
+      profile: !(portalDataCache.profile),
+      services: !(portalDataCache.services),
+      tickets: !(portalDataCache.tickets)
+    }));
+  }, [locale]);
 
   useEffect(() => {
     const headers = authHeaders("client");
@@ -160,14 +226,15 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       setServices(payload);
     };
     const loadServices = () => {
-      fetch(`${API_BASE_URL}/services`, { headers }).then(json).then((payload) => {
+      fetchPortalJson<ApiService[]>(serviceListUrl(view, serviceId), { headers }).then((payload) => {
         if (Array.isArray(payload)) {
+          portalDataCache.services = payload;
           applyServices(payload);
         }
-      }).catch(() => undefined);
+      }).catch(() => undefined).finally(() => finishLoading("services"));
     };
     loadServices();
-  }, []);
+  }, [serviceId, view]);
 
   useEffect(() => {
     if (!serviceId) {
@@ -184,12 +251,13 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       setSelectedService(service);
       setServices((current) => {
         const next = current.some((item) => item.id === service.id) ? current.map((item) => item.id === service.id ? service : item) : [service, ...current];
+        portalDataCache.services = next;
         servicesRef.current = next;
         return next;
       });
     };
     const loadService = () => {
-      fetch(`${API_BASE_URL}/services/${serviceId}`, { headers }).then(json).then(applyService).catch(() => undefined);
+      fetchPortalJson<ApiService>(serviceDetailUrl(serviceId), { headers }).then(applyService).catch(() => undefined).finally(() => finishLoading("services"));
     };
     loadService();
   }, [serviceId]);
@@ -199,7 +267,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       return;
     }
     const headers = authHeaders("client");
-    fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers }).then(json).then((payload) => payload && setSelectedInvoice(payload)).catch(() => undefined);
+    fetchPortalJson<ApiInvoice>(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers }).then((payload) => payload && setSelectedInvoice(payload)).catch(() => undefined).finally(() => finishLoading("invoices"));
   }, [invoiceId]);
 
   useEffect(() => {
@@ -207,17 +275,47 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       return;
     }
     const headers = authHeaders("client");
-    fetch(`${API_BASE_URL}/tickets/${ticketId}`, { headers }).then(json).then((payload) => payload && setSelectedTicket(payload)).catch(() => undefined);
+    fetchPortalJson<ApiTicket>(`${API_BASE_URL}/tickets/${ticketId}`, { headers }).then((payload) => payload && setSelectedTicket(payload)).catch(() => undefined).finally(() => finishLoading("tickets"));
   }, [ticketId]);
 
   useEffect(() => {
     const headers = authHeaders("client");
-    fetch(`${API_BASE_URL}/billing/invoices`, { headers }).then(json).then((payload) => Array.isArray(payload) && setInvoices(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/tickets`, { headers }).then(json).then((payload) => Array.isArray(payload) && setTickets(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/knowledgebase?locale=${locale}`).then(json).then((payload) => Array.isArray(payload) && setKnowledgebase(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/users/me`, { headers }).then(json).then((payload) => payload && setProfile(payload)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/storefront/settings`).then(json).then((payload) => payload?.siteLogoUrl && setBrandLogo(payload.siteLogoUrl)).catch(() => undefined);
-    fetch(`${API_BASE_URL}/cms/announcements?locale=${locale}`, { headers }).then(json).then((payload) => Array.isArray(payload) && setAnnouncements(payload)).catch(() => undefined);
+    fetchPortalJson<ApiInvoice[]>(`${API_BASE_URL}/billing/invoices`, { headers }).then((payload) => {
+      if (Array.isArray(payload)) {
+        portalDataCache.invoices = payload;
+        setInvoices(payload);
+      }
+    }).catch(() => undefined).finally(() => finishLoading("invoices"));
+    fetchPortalJson<ApiTicket[]>(`${API_BASE_URL}/tickets`, { headers }).then((payload) => {
+      if (Array.isArray(payload)) {
+        portalDataCache.tickets = payload;
+        setTickets(payload);
+      }
+    }).catch(() => undefined).finally(() => finishLoading("tickets"));
+    fetchPortalJson<ApiKnowledgebaseArticle[]>(`${API_BASE_URL}/knowledgebase?locale=${locale}`).then((payload) => {
+      if (Array.isArray(payload)) {
+        portalDataCache.knowledgebaseByLocale = { ...(portalDataCache.knowledgebaseByLocale ?? {}), [locale]: payload };
+        setKnowledgebase(payload);
+      }
+    }).catch(() => undefined).finally(() => finishLoading("knowledgebase"));
+    fetchPortalJson<ClientProfile>(`${API_BASE_URL}/users/me`, { headers }).then((payload) => {
+      if (payload) {
+        portalDataCache.profile = payload;
+        setProfile(payload);
+      }
+    }).catch(() => undefined).finally(() => finishLoading("profile"));
+    fetchPortalJson<{ siteLogoUrl?: string }>(`${API_BASE_URL}/storefront/settings`).then((payload) => {
+      if (payload?.siteLogoUrl) {
+        portalDataCache.brandLogo = payload.siteLogoUrl;
+        setBrandLogo(payload.siteLogoUrl);
+      }
+    }).catch(() => undefined);
+    fetchPortalJson<ApiAnnouncement[]>(`${API_BASE_URL}/cms/announcements?locale=${locale}`, { headers }).then((payload) => {
+      if (Array.isArray(payload)) {
+        portalDataCache.announcementsByLocale = { ...(portalDataCache.announcementsByLocale ?? {}), [locale]: payload };
+        setAnnouncements(payload);
+      }
+    }).catch(() => undefined).finally(() => finishLoading("announcements"));
   }, [locale]);
 
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
@@ -262,40 +360,39 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           </div>
         </header>
 
-        {view === "dashboard" && !serviceId ? <DashboardSmartCards announcements={announcements} knowledgebase={knowledgebase} setAnnouncements={setAnnouncements} /> : null}
-
         <section className={styles.overviewGrid} aria-label="Overview">
           <a className="metric" href="/client/services">
             <Server aria-hidden size={22} />
-            <strong>{serviceRows.length}</strong>
+            <MetricValue loading={loading.services} label="Loading services" value={serviceRows.length} />
             <span>{copy.services}</span>
           </a>
           <a className="metric" href="/client/domains">
             <Globe aria-hidden size={22} />
-            <strong>{domainRows.length}</strong>
+            <MetricValue loading={loading.services} label="Loading domains" value={domainRows.length} />
             <span>{copy.domains}</span>
           </a>
           <a className="metric" href="/client/tickets">
             <LifeBuoy aria-hidden size={22} />
-            <strong>{openTickets}</strong>
+            <MetricValue loading={loading.tickets} label="Loading tickets" value={openTickets} />
             <span>{copy.openTickets}</span>
           </a>
           <a className="metric" href="/client/invoices">
             <FileText aria-hidden size={22} />
-            <strong>{openInvoices}</strong>
+            <MetricValue loading={loading.invoices} label="Loading invoices" value={openInvoices} />
             <span>{copy.openInvoices}</span>
           </a>
         </section>
 
-        {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable services={serviceRows} /> : null}
-        {view === "domains" ? <DomainsTable domains={domainRows} /> : null}
-        {serviceId ? <ServiceDetail service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
-        {view === "invoices" && !invoiceId ? <InvoicesTable invoices={invoices} /> : null}
-        {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} /> : null}
-        {view === "tickets" && !ticketId ? <TicketsTable tickets={tickets} /> : null}
-        {ticketId ? <TicketThread ticket={selectedTicket} onTicketChange={setSelectedTicket} /> : null}
+        {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable loading={loading.services} services={serviceRows} /> : null}
+        {view === "dashboard" && !serviceId ? <DashboardKnowledgeFeed announcements={announcements} knowledgebase={knowledgebase} loading={loading.announcements || loading.knowledgebase} /> : null}
+        {view === "domains" ? <DomainsTable domains={domainRows} loading={loading.services} /> : null}
+        {serviceId ? <ServiceDetail loading={loading.services} service={selectedService ?? services.find((service) => service.id === serviceId)} /> : null}
+        {view === "invoices" && !invoiceId ? <InvoicesTable invoices={invoices} loading={loading.invoices} /> : null}
+        {invoiceId ? <InvoiceDetail invoice={selectedInvoice ?? invoices.find((invoice) => invoice.id === invoiceId)} loading={loading.invoices} /> : null}
+        {view === "tickets" && !ticketId ? <TicketsTable loading={loading.tickets} tickets={tickets} /> : null}
+        {ticketId ? <TicketThread loading={loading.tickets} ticket={selectedTicket} onTicketChange={setSelectedTicket} /> : null}
         {view === "new-ticket" ? <NewTicket services={services} /> : null}
-        {view === "knowledgebase" ? <KnowledgebaseList articles={knowledgebase} /> : null}
+        {view === "knowledgebase" ? <KnowledgebaseList articles={knowledgebase} loading={loading.knowledgebase} /> : null}
         {view === "add-funds" ? <AddFunds /> : null}
         {view === "payment" ? <PaymentInfo /> : null}
         {view === "profile" ? <ProfileForm profile={profile} setProfile={setProfile} /> : null}
@@ -308,103 +405,157 @@ function clientNavCurrent(current: ClientView, target: ClientView) {
   return current === target ? "page" : undefined;
 }
 
-function DashboardSmartCards({
+function serviceListUrl(view: ClientView, serviceId?: string) {
+  return view === "services" && !serviceId ? `${API_BASE_URL}/services?refresh=1` : `${API_BASE_URL}/services`;
+}
+
+function serviceDetailUrl(serviceId: string) {
+  return `${API_BASE_URL}/services/${serviceId}?refresh=1`;
+}
+
+function usePortalLoadingFallback(setLoading: (loading: Record<LoadingKey, boolean>) => void) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLoading(allLoaded), PORTAL_LOADING_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [setLoading]);
+}
+
+function applyPortalCache(
+  locale: Locale,
+  setters: {
+    setAnnouncements: (items: ApiAnnouncement[]) => void;
+    setBrandLogo: (url: string) => void;
+    setInvoices: (items: ApiInvoice[]) => void;
+    setKnowledgebase: (items: ApiKnowledgebaseArticle[]) => void;
+    setProfile: (profile: ClientProfile) => void;
+    setServices: (items: ApiService[]) => void;
+    setTickets: (items: ApiTicket[]) => void;
+  }
+) {
+  if (portalDataCache.services) {
+    setters.setServices(portalDataCache.services);
+  }
+  if (portalDataCache.invoices) {
+    setters.setInvoices(portalDataCache.invoices);
+  }
+  if (portalDataCache.tickets) {
+    setters.setTickets(portalDataCache.tickets);
+  }
+  const articles = portalDataCache.knowledgebaseByLocale?.[locale];
+  if (articles) {
+    setters.setKnowledgebase(articles);
+  }
+  const announcements = portalDataCache.announcementsByLocale?.[locale];
+  if (announcements) {
+    setters.setAnnouncements(announcements);
+  }
+  if (portalDataCache.profile) {
+    setters.setProfile(portalDataCache.profile);
+  }
+  if (portalDataCache.brandLogo) {
+    setters.setBrandLogo(portalDataCache.brandLogo);
+  }
+}
+
+async function fetchPortalJson<T>(url: string, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), PORTAL_LOADING_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    return await json(response) as T | null;
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function MetricValue({ label, loading, value }: { label: string; loading: boolean; value: number }) {
+  return <strong>{loading ? <LoadingSpinner label={label} /> : value}</strong>;
+}
+
+function LoadingSpinner({ label }: { label: string }) {
+  return <span aria-label={label} className={styles.spinner} role="status" />;
+}
+
+function LoadingBlock({ title }: { title: string }) {
+  return (
+    <section className={styles.module}>
+      <div className={styles.loadingBlock}>
+        <LoadingSpinner label={`Loading ${title.toLowerCase()}`} />
+        <div>
+          <h2>{title}</h2>
+          <p>Loading data.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LoadingTableRow({ colSpan, label }: { colSpan: number; label: string }) {
+  return <tr><td colSpan={colSpan}><span className={styles.loadingInline}><LoadingSpinner label={label} />Loading...</span></td></tr>;
+}
+
+function DashboardKnowledgeFeed({
   announcements,
   knowledgebase,
-  setAnnouncements
+  loading
 }: {
   announcements: ApiAnnouncement[];
   knowledgebase: ApiKnowledgebaseArticle[];
-  setAnnouncements: (updater: (items: ApiAnnouncement[]) => ApiAnnouncement[]) => void;
+  loading: boolean;
 }) {
+  const items = dashboardFeedItems(announcements, knowledgebase);
   return (
-    <section className={styles.smartGrid}>
-      <Announcements announcements={announcements} setAnnouncements={setAnnouncements} />
-      <KnowledgebasePreview articles={knowledgebase.slice(0, 3)} />
-    </section>
-  );
-}
-
-function Announcements({
-  announcements,
-  setAnnouncements
-}: {
-  announcements: ApiAnnouncement[];
-  setAnnouncements: (updater: (items: ApiAnnouncement[]) => ApiAnnouncement[]) => void;
-}) {
-  const [hidingAnnouncementIds, setHidingAnnouncementIds] = useState<string[]>([]);
-
-  async function markRead(item: ApiAnnouncement) {
-    const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/read`, { headers: authHeaders("client"), method: "POST" });
-    if (response.ok) {
-      setAnnouncements((items) => items.map((row) => row.id === item.id ? { ...row, isRead: true, readAt: new Date().toISOString() } : row));
-    }
-  }
-
-  async function hide(item: ApiAnnouncement) {
-    const response = await fetch(`${API_BASE_URL}/cms/announcements/${item.id}/hide`, { headers: authHeaders("client"), method: "POST" });
-    if (response.ok) {
-      setHidingAnnouncementIds((ids) => [...ids, item.id]);
-      window.setTimeout(() => {
-        setAnnouncements((items) => items.filter((row) => row.id !== item.id));
-        setHidingAnnouncementIds((ids) => ids.filter((id) => id !== item.id));
-      }, 180);
-    }
-  }
-
-  return (
-    <section className={styles.smartCard}>
+    <section className={styles.dashboardFeed}>
       <div className={styles.blockHeader}>
         <div>
-          <span className="eyebrow">Latest announcements</span>
-          <h2>News</h2>
+          <span className="eyebrow">Portal</span>
+          <h2>Announcements and Knowledgebase articles</h2>
         </div>
       </div>
-      <div className={styles.noticeList}>
-        {announcements.length ? announcements.slice(0, 3).map((item) => (
-          <article className={`${styles.noticeCard} ${hidingAnnouncementIds.includes(item.id) ? styles.announcementHidden : ""}`} key={item.id}>
-            <div>
-              <strong>{item.title}</strong>
-              <span>{announcementDateLabel(item.publishedAt ?? item.createdAt)}{item.isRead ? " · Read" : ""}</span>
-              <p>{item.excerpt ?? previewText(item.body ?? "")}</p>
-            </div>
-            <div className={styles.noticeActions}>
-              {!item.isRead ? <Button type="button" variant="secondary" onClick={() => markRead(item)}>Read</Button> : null}
-              <Button type="button" variant="ghost" onClick={() => hide(item)}>Hide</Button>
-            </div>
-          </article>
-        )) : <p className={styles.emptySmart}>No news right now.</p>}
-      </div>
-    </section>
-  );
-}
-
-function KnowledgebasePreview({ articles }: { articles: ApiKnowledgebaseArticle[] }) {
-  return (
-    <section className={styles.smartCard}>
-      <div className={styles.blockHeader}>
-        <div>
-          <span className="eyebrow">Knowledgebase</span>
-          <h2>Help</h2>
-        </div>
-        <Button href="/client/knowledgebase" icon={BookOpen} variant="secondary">All</Button>
-      </div>
-      <div className={styles.noticeList}>
-        {articles.length ? articles.map((article) => (
-          <a className={styles.knowledgeCard} href={`/de/knowledgebase/${article.slug}`} key={article.id}>
-            <BookOpen aria-hidden size={18} />
-            <div>
-              <strong>{article.title}</strong>
-              <p>{article.excerpt ?? previewText(article.body)}</p>
-            </div>
+      <div className={styles.feedList}>
+        {loading ? <span className={styles.loadingInline}><LoadingSpinner label="Loading articles" />Loading articles...</span> : null}
+        {!loading && items.map((item) => item.href ? (
+          <a className={styles.feedItem} href={item.href} key={item.id}>
+            <strong>{item.title}</strong>
+            <span>{announcementDateLabel(item.date)}</span>
+            <p>{item.excerpt}</p>
           </a>
-        )) : <p className={styles.emptySmart}>Useful guides appear here.</p>}
+        ) : (
+          <article className={styles.feedItem} key={item.id}>
+            <strong>{item.title}</strong>
+            <span>{announcementDateLabel(item.date)}</span>
+            <p>{item.excerpt}</p>
+          </article>
+        ))}
+        {!loading && !items.length ? <p className={styles.emptySmart}>No articles right now.</p> : null}
       </div>
     </section>
   );
 }
 
-function ServicesTable({ services }: { services: ApiService[] }) {
+function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowledgebaseArticle[]): DashboardFeedItem[] {
+  return [
+    ...announcements.map((item) => ({
+      date: item.publishedAt ?? item.createdAt,
+      excerpt: item.excerpt ?? previewText(item.body ?? ""),
+      id: `announcement-${item.id}`,
+      title: item.title
+    })),
+    ...articles.map((item) => ({
+      date: item.updatedAt ?? item.createdAt,
+      excerpt: item.excerpt ?? previewText(item.body),
+      href: `/de/knowledgebase/${item.slug}`,
+      id: `article-${item.id}`,
+      title: item.title
+    }))
+  ]
+    .sort((a, b) => dateValue(b.date) - dateValue(a.date))
+    .slice(0, 6);
+}
+
+function ServicesTable({ loading, services }: { loading: boolean; services: ApiService[] }) {
   return (
     <section className={styles.block} id="services">
           <div className={styles.blockHeader}>
@@ -424,7 +575,8 @@ function ServicesTable({ services }: { services: ApiService[] }) {
                 </tr>
               </thead>
               <tbody>
-                {services.map((service) => (
+                {loading ? <tr><td colSpan={4}><span className={styles.loadingInline}><LoadingSpinner label="Loading services" />Loading...</span></td></tr> : null}
+                {!loading && services.map((service) => (
                   <tr key={service.id}>
                     <td><a href={`/client/services/${service.id}`}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
                     <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
@@ -434,6 +586,7 @@ function ServicesTable({ services }: { services: ApiService[] }) {
                     </td>
                   </tr>
                 ))}
+                {!loading && services.length === 0 ? <tr><td colSpan={4}>No services yet.</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -451,7 +604,7 @@ type DomainRow = {
   status: string;
 };
 
-function DomainsTable({ domains }: { domains: DomainRow[] }) {
+function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boolean }) {
   return (
     <section className={styles.block} id="domains">
       <div className={styles.blockHeader}>
@@ -471,16 +624,16 @@ function DomainsTable({ domains }: { domains: DomainRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {domains.length ? domains.map((domain) => (
+            {loading ? <LoadingTableRow colSpan={4} label="Loading domains" /> : null}
+            {!loading && domains.length ? domains.map((domain) => (
               <tr key={domain.id}>
                 <td><strong>{domain.domain}</strong></td>
                 <td>{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
                 <td>{dateLabel(domain.renewsAt)}</td>
                 <td><StatusPill label={serviceStatusLabel(domain.status, currentLocale())} tone={statusTone[domain.status] ?? "neutral"} /></td>
               </tr>
-            )) : (
-              <tr><td colSpan={4}>Noch keine Domains.</td></tr>
-            )}
+            )) : null}
+            {!loading && domains.length === 0 ? <tr><td colSpan={4}>Noch keine Domains.</td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -488,7 +641,7 @@ function DomainsTable({ domains }: { domains: DomainRow[] }) {
   );
 }
 
-function ServiceDetail({ service }: { service?: ApiService }) {
+function ServiceDetail({ loading, service }: { loading: boolean; service?: ApiService }) {
   const [panel, setPanel] = useState<HostingPanel>();
   const [modal, setModal] = useState<"admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains" | undefined>();
   const isActiveHosting = service?.product.type === "SHARED_HOSTING" && service.status === "ACTIVE";
@@ -501,7 +654,7 @@ function ServiceDetail({ service }: { service?: ApiService }) {
   }, [isActiveHosting, service]);
 
   if (!service) {
-    return <section className={styles.module}><h2>Service</h2><p>Loading...</p></section>;
+    return loading ? <LoadingBlock title="Service" /> : <section className={styles.module}><h2>Service</h2><p>Service not found.</p></section>;
   }
 
   return (
@@ -518,6 +671,10 @@ function ServiceDetail({ service }: { service?: ApiService }) {
         <div>
           <span>Pricing</span>
           <strong>{money(service.productPrice.amountCents, service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</strong>
+        </div>
+        <div>
+          <span>Domain</span>
+          <strong>{serviceDomainLabel(service)}</strong>
         </div>
         <div>
           <span>Next Due Date</span>
@@ -581,7 +738,7 @@ function UsageGraph({ icon, label, usage }: { icon: "bandwidth" | "disk"; label:
     <div>
       <Icon aria-hidden />
       <span>{label}</span>
-      <strong>{usage ? `${usage.used} / ${usage.limit}` : "Loading"}</strong>
+      <strong>{usage ? `${usage.used} / ${usage.limit}` : <LoadingSpinner label={`Loading ${label.toLowerCase()}`} />}</strong>
       <div className={styles.usageTrack}><span style={{ width: `${usage?.percent ?? 0}%` }} /></div>
     </div>
   );
@@ -758,62 +915,108 @@ function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => 
     .catch(() => undefined);
 }
 
-function InvoicesTable({ invoices }: { invoices: ApiInvoice[] }) {
+function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading: boolean }) {
   return (
     <section className={styles.invoiceCards}>
-      {invoices.map((invoice) => (
+      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label="Loading invoices" />Loading invoices...</span></section> : null}
+      {!loading && invoices.map((invoice) => (
         <article className={styles.invoiceCard} key={invoice.id}>
-          <div>
+          <div className={styles.invoiceCardLead}>
             <span>Invoice</span>
             <strong><a href={`/client/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong>
+            {invoice.status === "PAID" ? <small>Paid {dateLabel(invoice.paidAt)} · {paymentGateway(invoice)}</small> : null}
           </div>
-          <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
-          <div><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
-          <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-          <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} />
-          {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt)}</strong></div> : null}
-          {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
+          <div className={styles.invoiceCardMeta}><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
+          <div className={styles.invoiceCardMeta}><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+          <div className={styles.invoiceCardTotal}><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
+          <div className={styles.invoiceListStatus}><StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} /></div>
           {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
             <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
           ) : null}
         </article>
       ))}
+      {!loading && invoices.length === 0 ? <section className={styles.module}><p>No invoices yet.</p></section> : null}
     </section>
   );
 }
 
-function InvoiceDetail({ invoice }: { invoice?: ApiInvoice }) {
+function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: boolean }) {
   if (!invoice) {
-    return <section className={styles.module}><h2>Invoice</h2><p>Loading...</p></section>;
+    return loading ? <LoadingBlock title="Invoice" /> : <section className={styles.module}><h2>Invoice</h2><p>Invoice not found.</p></section>;
   }
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
+  const seller = invoice.sellerSnapshot ?? {};
   const showVat = (invoice.taxAmountCents ?? 0) > 0;
+  const payable = invoice.status === "UNPAID" || invoice.status === "OVERDUE";
 
   return (
-    <section className={styles.invoice}>
-      <div className={styles.invoiceTop}>
-        <div><span className="eyebrow">Dezhost</span><h2>Rechnung {invoiceDisplayNumber(invoice)}</h2></div>
-        <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={invoice.status === "PAID" ? "good" : "warn"} />
+    <section className={styles.invoicePaper}>
+      <div className={styles.invoiceActionBar}>
+        <div>
+          <span>{payable ? "Payment due" : "Invoice ready"}</span>
+          <strong>{money(invoice.totalCents, invoice.currency)}</strong>
+          <small>Due {dateLabel(invoice.dueAt)}</small>
+        </div>
+        <div className={styles.invoiceActions}>
+          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay invoice</Button> : null}
+          <InvoiceHtmlButton invoice={invoice} />
+          <PdfDownloadButton invoice={invoice} />
+        </div>
       </div>
-      <div className={styles.invoiceMeta}>
-        <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
-        <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />{invoice.status === "PAID" ? <>Bezahlt: {dateLabel(invoice.paidAt)}<br />Gateway: {paymentGateway(invoice)}<br /></> : null}E-Mail: {customer.email}</div>
+
+      <div className={styles.invoiceSheet}>
+        <header className={styles.invoiceLetterhead}>
+          <div>
+            <strong>{seller.companyName || "Dezhost"}</strong>
+            <span>{[seller.address, seller.zip, seller.city, seller.country].filter(Boolean).join(", ")}</span>
+          </div>
+          <div>
+            {seller.vatNumber ? <span>USt-IdNr. {seller.vatNumber}</span> : null}
+            {seller.email ? <span>{seller.email}</span> : null}
+            {seller.phone ? <span>{seller.phone}</span> : null}
+          </div>
+        </header>
+
+        <div className={styles.invoiceSender}>{[seller.companyName, seller.address, seller.zip, seller.city].filter(Boolean).join(", ")}</div>
+        <div className={styles.invoiceRecipient}>
+          <strong>{customer.companyName || customer.name}</strong>
+          {customer.companyName && customer.name ? <span>{customer.name}</span> : null}
+          <span>{address.line1}</span>
+          <span>{address.postalCode} {address.city}</span>
+          <span>{customer.countryCode}</span>
+          {customer.vatId ? <span>USt-IdNr. {customer.vatId}</span> : null}
+        </div>
+
+        <div className={styles.invoiceTitleRow}>
+          <div><span className="eyebrow">Rechnung</span><h2>Rechnung {invoiceDisplayNumber(invoice)}</h2></div>
+          <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={invoice.status === "PAID" ? "good" : "warn"} />
+        </div>
+
+        <div className={styles.invoiceMetaGrid}>
+          <span>Rechnungsdatum</span><strong>{dateLabel(invoice.issuedAt)}</strong>
+          <span>Faellig am</span><strong>{dateLabel(invoice.dueAt)}</strong>
+          {invoice.status === "PAID" ? <><span>Bezahlt am</span><strong>{dateLabel(invoice.paidAt)}</strong><span>Zahlungsart</span><strong>{paymentGateway(invoice)}</strong></> : null}
+          <span>E-Mail</span><strong>{customer.email}</strong>
+        </div>
+
+        <p className={styles.invoiceIntro}>Vielen Dank fuer Ihren Auftrag. Wir berechnen folgende Leistungen gemaess Bestellung.</p>
+
+        <table className={`table ${styles.invoiceTable}`}>
+          <thead><tr><th>Beschreibung</th><th>Zeitraum</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
+          <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{itemPeriod(item)}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
+        </table>
+
+        <div className={styles.invoiceTotals}>
+          <span>Zwischensumme <strong>{money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</strong></span>
+          {showVat ? <span>USt. <strong>{money(invoice.taxAmountCents ?? 0, invoice.currency)}</strong></span> : null}
+          <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
+        </div>
+
+        {invoice.taxAmountCents === 0 && invoice.taxReason ? <p className={styles.invoiceNote}>{invoice.taxReason}</p> : null}
+        {seller.paymentInstructions || seller.bankDetails ? <p className={styles.invoiceNote}>{seller.paymentInstructions}<br />{seller.bankDetails}</p> : null}
+        <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
       </div>
-      <table className="table">
-        <thead><tr><th>Beschreibung</th><th>Cycle</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
-        <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{item.billingCycle ? cycleLabel(item.billingCycle) : "-"}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
-      </table>
-      <div className={styles.invoiceTotals}>
-        <span>Zwischensumme {money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</span>
-        {showVat ? <span>USt. {money(invoice.taxAmountCents ?? 0, invoice.currency)}</span> : null}
-        <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
-      </div>
-      {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
-        <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
-      ) : null}
-      <PdfDownloadButton invoice={invoice} />
-      <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
     </section>
   );
 }
@@ -838,6 +1041,24 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
     notify.success("PDF ready.");
   }
   return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={download}>Download PDF</Button>{message ? <span>{message}</span> : null}</div>;
+}
+
+function InvoiceHtmlButton({ invoice }: { invoice: ApiInvoice }) {
+  const [message, setMessage] = useState("");
+  async function openHtml() {
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/html`, { headers: authHeaders("client") });
+    if (!response.ok) {
+      setMessage("HTML failed.");
+      notify.error("HTML failed.");
+      return;
+    }
+    const blob = new Blob([await response.text()], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    setMessage("");
+  }
+  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={openHtml}>HTML ansehen</Button>{message ? <span>{message}</span> : null}</div>;
 }
 
 function DomainRenewal({ service }: { service: ApiService }) {
@@ -866,8 +1087,34 @@ function PlanChange({ service }: { service: ApiService }) {
   return <div className={styles.inlineForm}><Button type="button" onClick={submit}>Upgrade/Downgrade</Button>{message ? <p>{message}</p> : null}</div>;
 }
 
-function TicketsTable({ tickets }: { tickets: ApiTicket[] }) {
-  return <section className={styles.block}><div className={styles.blockHeader}><div><span className="eyebrow">Support Tickets</span><h2>All Tickets</h2></div><Button href="/client/tickets/new" icon={Send}>New Ticket</Button></div><div className={styles.tableWrap}><table className="table"><thead><tr><th>ID</th><th>Department</th><th>Subject</th><th>Status</th><th>Last Update</th></tr></thead><tbody>{tickets.map((ticket) => <tr key={ticket.id}><td>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</td><td>{ticket.department}</td><td><a href={`/client/tickets/${ticket.id}`}>{ticket.subject}</a></td><td><StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} /></td><td>{dateLabel(ticket.updatedAt)}</td></tr>)}</tbody></table></div></section>;
+function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTicket[] }) {
+  return (
+    <section className={styles.block}>
+      <div className={styles.blockHeader}>
+        <div><span className="eyebrow">Support Tickets</span><h2>All Tickets</h2></div>
+        <Button href="/client/tickets/new" icon={Send}>New Ticket</Button>
+      </div>
+      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label="Loading tickets" />Loading tickets...</span></section> : null}
+      {!loading && tickets.length ? (
+        <div className={styles.ticketCards}>
+          {tickets.map((ticket) => (
+            <a className={styles.ticketCard} href={`/client/tickets/${ticket.id}`} key={ticket.id}>
+              <div>
+                <span>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
+                <strong>{ticket.subject}</strong>
+                <small>{ticket.department} · {ticket.service?.product?.name ?? "No related service"}</small>
+              </div>
+              <div>
+                <StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} />
+                <time>{dateLabel(ticket.updatedAt)}</time>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {!loading && tickets.length === 0 ? <section className={styles.module}><p>No tickets yet.</p></section> : null}
+    </section>
+  );
 }
 
 function NewTicket({ services }: { services: ApiService[] }) {
@@ -942,7 +1189,7 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
   );
 }
 
-function KnowledgebaseList({ articles }: { articles: ApiKnowledgebaseArticle[] }) {
+function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseArticle[]; loading: boolean }) {
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
@@ -950,7 +1197,8 @@ function KnowledgebaseList({ articles }: { articles: ApiKnowledgebaseArticle[] }
         <Button href="/de/knowledgebase" icon={BookOpen} variant="secondary">Public Help Center</Button>
       </div>
       <div className={styles.articleList}>
-        {articles.map((article) => (
+        {loading ? <span className={styles.loadingInline}><LoadingSpinner label="Loading knowledgebase" />Loading articles...</span> : null}
+        {!loading && articles.map((article) => (
           <a href={`/de/knowledgebase/${article.slug}`} key={article.id}>
             <BookOpen aria-hidden />
             <div>
@@ -959,15 +1207,16 @@ function KnowledgebaseList({ articles }: { articles: ApiKnowledgebaseArticle[] }
             </div>
           </a>
         ))}
+        {!loading && articles.length === 0 ? <p className={styles.emptySmart}>No articles yet.</p> : null}
       </div>
     </section>
   );
 }
 
-function TicketThread({ onTicketChange, ticket }: { onTicketChange: (ticket: ApiTicket) => void; ticket?: ApiTicket }) {
+function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; onTicketChange: (ticket: ApiTicket) => void; ticket?: ApiTicket }) {
   const [message, setMessage] = useState("");
   if (!ticket) {
-    return <section className={styles.module}><h2>Ticket</h2><p>Loading ticket.</p></section>;
+    return loading ? <LoadingBlock title="Ticket" /> : <section className={styles.module}><h2>Ticket</h2><p>Ticket not found.</p></section>;
   }
   const currentTicket = ticket;
 
@@ -1012,14 +1261,21 @@ function TicketThread({ onTicketChange, ticket }: { onTicketChange: (ticket: Api
         <span>{dateLabel(ticket.updatedAt)}</span>
       </div>
       <div className={styles.thread}>
+        <TicketMessage
+          attachments={ticket.attachments ?? []}
+          body={ticket.subject}
+          meta={`${ticket.department} · ${dateTimeLabel(ticket.createdAt ?? ticket.updatedAt)}`}
+          title="Ticket opened"
+        />
         {(ticket.replies ?? []).map((reply) => (
-          <article key={reply.id}>
-            <header><strong>{reply.user?.name ?? reply.user?.email ?? "Support"}</strong><span>{dateTimeLabel(reply.createdAt)}</span></header>
-            <p>{reply.body}</p>
-            <AttachmentList files={reply.attachments ?? []} />
-          </article>
+          <TicketMessage
+            attachments={reply.attachments ?? []}
+            body={reply.body}
+            key={reply.id}
+            meta={dateTimeLabel(reply.createdAt)}
+            title={reply.user?.name ?? reply.user?.email ?? "Support"}
+          />
         ))}
-        <AttachmentList files={ticket.attachments ?? []} />
       </div>
       {ticket.status !== "CLOSED" ? (
         <form action={reply} className={styles.inlineForm}>
@@ -1034,11 +1290,26 @@ function TicketThread({ onTicketChange, ticket }: { onTicketChange: (ticket: Api
   );
 }
 
+function TicketMessage({ attachments, body, meta, title }: { attachments: Array<{ fileName: string; id: string; storageKey: string }>; body: string; meta: string; title: string }) {
+  return (
+    <article className={styles.ticketMessage}>
+      <header>
+        <div>
+          <strong>{title}</strong>
+          <span>{meta}</span>
+        </div>
+      </header>
+      <p>{body}</p>
+      <AttachmentList files={attachments} />
+    </article>
+  );
+}
+
 function AttachmentList({ files }: { files: Array<{ fileName: string; id: string; storageKey: string }> }) {
   if (files.length === 0) {
     return null;
   }
-  return <div className={styles.attachments}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank"><Paperclip aria-hidden size={14} />{file.fileName}</a>)}</div>;
+  return <div className={styles.attachmentLinks}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank"><Paperclip aria-hidden size={13} />{file.fileName}</a>)}</div>;
 }
 
 function AddFunds() {
@@ -1220,8 +1491,24 @@ function announcementDateLabel(value?: string | null) {
   return formatDate(value, currentLocale(), { dateStyle: "medium", timeStyle: "short" });
 }
 
+function dateValue(value?: string | null) {
+  const date = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(date) ? date : 0;
+}
+
+function itemPeriod(item: NonNullable<ApiInvoice["items"]>[number]) {
+  if (item.servicePeriodStart || item.servicePeriodEnd) {
+    return [dateLabel(item.servicePeriodStart), dateLabel(item.servicePeriodEnd)].filter((value) => value !== "-").join(" - ");
+  }
+  return item.billingCycle ? cycleLabel(item.billingCycle) : "-";
+}
+
+function primaryServiceDomain(service: ApiService) {
+  return service.domainRecords?.find((record) => record.domain)?.domain ?? stringConfig(service.configuration, "domainName");
+}
+
 function serviceName(service: ApiService) {
-  return service.domainRecords?.[0]?.domain ?? stringConfig(service.configuration, "domainName") ?? service.product.name;
+  return service.product.type === "DOMAIN" ? primaryServiceDomain(service) ?? service.product.name : service.product.name;
 }
 
 function serviceListTitle(service: ApiService) {
@@ -1232,7 +1519,11 @@ function serviceListSubtitle(service: ApiService) {
   if (service.product.type === "DOMAIN") {
     return "Domain";
   }
-  return serviceKind(service);
+  return primaryServiceDomain(service) ?? "";
+}
+
+function serviceDomainLabel(service: ApiService) {
+  return primaryServiceDomain(service) ?? "-";
 }
 
 function serviceKind(service: ApiService) {
@@ -1240,10 +1531,10 @@ function serviceKind(service: ApiService) {
     return "Domain";
   }
   if (service.product.type === "SHARED_HOSTING") {
-    return `${service.product.name} Hosting`;
+    return service.product.name;
   }
   if (service.product.type === "VPS") {
-    return `VPS hosting: ${service.product.name}`;
+    return `VPS: ${service.product.name}`;
   }
   return service.product.type;
 }

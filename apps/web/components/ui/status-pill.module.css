@@ -7,14 +7,15 @@
   border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 780;
+  letter-spacing: 0;
   line-height: 1;
   white-space: nowrap;
 }
 
 .good {
   color: var(--success);
-  background: rgba(8, 116, 67, 0.1);
-  border-color: rgba(8, 116, 67, 0.26);
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border));
 }
 
 .warn {

@@ -330,20 +330,22 @@ test("guest checkout password field has eye visibility toggle", async () => {
   assert.match(source, /aria-label=\{showPassword \? copy\.hidePassword : copy\.showPassword\}/);
 });
 
-test("client dashboard mobile layout puts smart cards before overview", async () => {
+test("client dashboard puts combined feed below services", async () => {
   const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
-  const smartIndex = source.indexOf("<DashboardSmartCards");
+  const feedIndex = source.indexOf("<DashboardKnowledgeFeed");
+  const servicesIndex = source.indexOf("<ServicesTable");
   const overviewIndex = source.indexOf('aria-label="Overview"');
 
-  assert.ok(smartIndex > 0);
-  assert.ok(overviewIndex > smartIndex);
+  assert.ok(overviewIndex > 0);
+  assert.ok(servicesIndex > overviewIndex);
+  assert.ok(feedIndex > servicesIndex);
   assert.match(source, /className=\{styles\.balanceCard\}/);
-  assert.match(source, /hidingAnnouncementIds/);
-  assert.match(source, /window\.setTimeout/);
+  assert.match(source, /Announcements and Knowledgebase articles/);
+  assert.match(source, /dashboardFeedItems/);
   assert.match(css, /position:\s*sticky[\s\S]*top:\s*0/);
-  assert.match(css, /\.smartGrid/);
-  assert.match(css, /\.announcementHidden/);
+  assert.match(css, /\.dashboardFeed/);
+  assert.match(css, /\.feedItem/);
 });
 
 test("client dashboard responsive CSS prevents page-wide overflow", async () => {
@@ -354,8 +356,8 @@ test("client dashboard responsive CSS prevents page-wide overflow", async () => 
   assert.match(css, /\.headerActions/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.headerActions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.tableWrap\s*\{[\s\S]*max-width:\s*100%/);
-  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.smartGrid/);
+  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 190px\)\)/);
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 170px\)\)/);
 });
 
 test("domain prices use matching year row as yearly unit and multiply by years", async () => {

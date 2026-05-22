@@ -50,12 +50,15 @@ test("service refresh does not return another client's service", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("client dashboard does not trigger provider refresh on load", async () => {
+test("client dashboard only probes provider from service pages once", async () => {
   const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /setInterval\(loadServices,\s*20_000\)/);
   assert.doesNotMatch(source, /setInterval\(loadService,\s*20_000\)/);
-  assert.doesNotMatch(source, /refresh=1/);
+  assert.match(source, /function serviceListUrl/);
+  assert.match(source, /view === "services" && !serviceId/);
+  assert.match(source, /\/services\?refresh=1/);
+  assert.match(source, /\/services\/\$\{serviceId\}\?refresh=1/);
   assert.doesNotMatch(source, /loadServicesFresh/);
   assert.doesNotMatch(source, /loadServiceFresh/);
 });

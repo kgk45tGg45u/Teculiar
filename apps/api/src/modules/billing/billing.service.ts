@@ -9,6 +9,7 @@ import { BillingRepository } from "./billing.repository";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { CreateSubscriptionDto } from "./dto/create-subscription.dto";
 import { PayInvoiceDto } from "./dto/pay-invoice.dto";
+import { renderInvoiceDocument, renderInvoicePdfFromHtml } from "./invoice-document";
 import { addBillingCycle } from "./platform-rules";
 import { AbstractPaymentService } from "./processors/abstract-payment.service";
 
@@ -192,36 +193,14 @@ export class BillingService {
     return invoice;
   }
 
-  async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
+  async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
-    const seller = isRecord(invoice.sellerSnapshot) ? invoice.sellerSnapshot : {};
-    const buyer = isRecord(invoice.customerSnapshot) ? invoice.customerSnapshot : {};
-    const buyerAddress = isRecord(buyer.address) ? buyer.address : {};
-    const lines = [
-      seller.companyName ? String(seller.companyName) : "Company",
-      [seller.address, seller.zip, seller.city, seller.country].filter(Boolean).join(", "),
-      seller.vatNumber ? `USt-IdNr: ${seller.vatNumber}` : "",
-      "",
-      buyer.name ? String(buyer.name) : "",
-      [buyerAddress.line1, buyerAddress.postalCode, buyerAddress.city, buyer.countryCode].filter(Boolean).join(", "),
-      "",
-      `Rechnung ${invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber}`,
-      `Status: ${invoice.status}`,
-      `Datum: ${invoice.issuedAt.toISOString().slice(0, 10)}`,
-      `Faellig: ${invoice.dueAt.toISOString().slice(0, 10)}`,
-      "",
-      ...invoice.items.map((item) => `${item.description}${item.billingCycle ? ` (${formatBillingCycle(item.billingCycle)})` : ""}  ${item.quantity} x ${formatEuro(item.unitAmountCents)} = ${formatEuro(item.totalCents)}`),
-      "",
-      `Zwischensumme: ${formatEuro(invoice.subtotalCents)}`,
-      invoice.taxAmountCents > 0 ? `USt.: ${formatEuro(invoice.taxAmountCents)}` : "",
-      `Gesamt: ${formatEuro(invoice.totalCents)}`,
-      seller.paymentInstructions ? `Zahlung: ${seller.paymentInstructions}` : "",
-      seller.bankDetails ? `Bank: ${seller.bankDetails}` : "",
-      "",
-      ...(Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string") : [])
-    ].filter(Boolean);
+    return renderInvoiceDocument(invoice).html;
+  }
 
-    return createSimplePdf(lines);
+  async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
+    const html = await this.invoiceHtml(id, user);
+    return renderInvoicePdfFromHtml(html);
   }
 
   async sendInvoice(id: string) {
@@ -1640,19 +1619,6 @@ function paymentMethodLabel(method: string) {
   return method;
 }
 
-function formatBillingCycle(cycle: string) {
-  return {
-    MONTHLY: "monthly",
-    QUARTERLY: "quarterly",
-    SEMI_ANNUAL: "semi-annual",
-    YEAR_1: "annually",
-    YEAR_2: "2 years",
-    YEAR_3: "3 years",
-    YEAR_4: "4 years",
-    ONE_TIME: "one time"
-  }[cycle] ?? cycle.toLowerCase();
-}
-
 type LifecycleItem = {
   domainRecord?: Record<string, any> | null;
   domainRecordId?: string | null;
@@ -1899,31 +1865,6 @@ function formatDateLabel(value: Date | string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function createSimplePdf(lines: string[]) {
-  const escaped = lines.map((line, index) => `BT /F1 10 Tf 50 ${780 - index * 16} Td (${pdfEscape(line)}) Tj ET`).join("\n");
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${Buffer.byteLength(escaped)} >> stream\n${escaped}\nendstream endobj`
-  ];
-  let offset = "%PDF-1.4\n".length;
-  const xref = ["0000000000 65535 f "];
-  const body = objects.map((object) => {
-    xref.push(`${String(offset).padStart(10, "0")} 00000 n `);
-    offset += Buffer.byteLength(`${object}\n`);
-    return object;
-  }).join("\n");
-  const start = Buffer.byteLength(`%PDF-1.4\n${body}\n`);
-  const pdf = `%PDF-1.4\n${body}\nxref\n0 ${xref.length}\n${xref.join("\n")}\ntrailer << /Root 1 0 R /Size ${xref.length} >>\nstartxref\n${start}\n%%EOF`;
-  return Buffer.from(pdf);
-}
-
-function pdfEscape(value: string) {
-  return value.replace(/[\\()]/g, "\\$&");
 }
 
 function defaultPaymentGateways(): Array<{ config: Record<string, unknown>; enabled: boolean; method: PaymentMethodType | "SANDBOX" }> {
