@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
+import { getLocale, type Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
 import styles from "./checkout-form.module.css";
@@ -48,6 +49,7 @@ type ClientProfile = {
   vatId?: string;
 };
 type CountryOption = ReturnType<typeof countriesForLocale>[number];
+type ProfileField = "address" | "city" | "countryCode" | "name" | "phone" | "postalCode" | "state";
 
 export function CheckoutForm({
   domainProduct,
@@ -82,7 +84,12 @@ export function CheckoutForm({
   const [domainPrices, setDomainPrices] = useState<ApiDomainPrice[]>([]);
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: "idle" });
   const [vatPercent, setVatPercent] = useState(0);
+  const [termsUrl, setTermsUrl] = useState("");
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
+  const uiLocale = checkoutLocale(locale);
+  const copy = checkoutCopy[uiLocale];
+  const termsHref = termsUrl || `/${checkoutLocale(locale)}/legal/agb`;
+  const missingProfile = profile ? missingProfileFields(profile) : [];
   const domainPriceAction = domainCheck.status === "ok" ? domainCheck.action : initialDomainAction;
   const selectablePrices = useMemo(
     () => (product.type === "DOMAIN" ? domainSelectablePrices(product, domainPrices, domainNameInput, domainPriceAction) : product.prices),
@@ -124,9 +131,15 @@ export function CheckoutForm({
 
   useEffect(() => {
     void Promise.all([
-      getJson<{ vatPercent: number }>("/storefront/settings")
-        .then((settings) => setVatPercent(settings.vatPercent ?? 0))
-        .catch(() => setVatPercent(0)),
+      getJson<{ termsUrl?: string; vatPercent: number }>("/storefront/settings")
+        .then((settings) => {
+          setVatPercent(settings.vatPercent ?? 0);
+          setTermsUrl(settings.termsUrl ?? "");
+        })
+        .catch(() => {
+          setVatPercent(0);
+          setTermsUrl("");
+        }),
       getJson<ApiPaymentGateway[]>("/storefront/payment-gateways")
         .then((gateways) => {
           const next = gateways.length ? gateways : defaultPaymentGateways;
@@ -166,21 +179,33 @@ export function CheckoutForm({
 
   async function submit(formData: FormData) {
     if (!selectedPrice) {
-      const message = "Kein Preis fuer dieses Produkt gefunden.";
+      const message = copy.noPrice;
+      setState({ status: "error", message });
+      notify.error(message);
+      return;
+    }
+    if (formData.get("acceptedTerms") !== "on") {
+      const message = copy.termsRequired;
+      setState({ status: "error", message });
+      notify.error(message);
+      return;
+    }
+    if (profile && missingProfileFields(profile).length > 0 && formData.get("confirmProfileCompletion") !== "on") {
+      const message = copy.profileConfirmRequired;
       setState({ status: "error", message });
       notify.error(message);
       return;
     }
     const submittedPassword = profile ? "" : loggedInPassword || String(formData.get("password") ?? "");
     if (!profile && !isStrongPassword(submittedPassword)) {
-      const message = "Passwort erfuellt die Regeln nicht.";
+      const message = copy.passwordWeak;
       setState({ status: "error", message });
       notify.error(message);
       return;
     }
 
-    setState({ status: "loading", message: "Bestellung wird erstellt..." });
-    notify.info("Bestellung wird erstellt...");
+    setState({ status: "loading", message: copy.orderCreating });
+    notify.info(copy.orderCreating);
     const customerEmail = profile?.email ?? String(formData.get("email") ?? "").trim().toLowerCase();
     const domainName = String(formData.get("domainName") ?? "").trim().toLowerCase();
     const hostingDomainName = String(formData.get("hostingDomainName") ?? domainName).trim().toLowerCase();
@@ -242,13 +267,12 @@ export function CheckoutForm({
       });
     }
 
-    const body = {
-      customer: profile ? profileCheckoutCustomer(profile) : {
+    const customer = profile ? profileCheckoutCustomer(profile, formData) : {
         address: {
-          city: formData.get("city"),
-          line1: formData.get("address"),
-          postalCode: formData.get("postalCode"),
-          state: formData.get("state")
+          city: String(formData.get("city") ?? ""),
+          line1: String(formData.get("address") ?? ""),
+          postalCode: String(formData.get("postalCode") ?? ""),
+          state: String(formData.get("state") ?? "")
         },
         countryCode: String(formData.get("countryCode") ?? "DE"),
         customerType: String(formData.get("companyName") ?? "").trim() ? "BUSINESS" : "INDIVIDUAL",
@@ -258,22 +282,31 @@ export function CheckoutForm({
         password: submittedPassword,
         phone,
         vatId: String(formData.get("vatId") ?? "")
-      },
+      };
+    if (profile && missingCheckoutCustomerFields(customer).length > 0) {
+      const message = copy.profileMissingError;
+      setState({ status: "error", message });
+      notify.error(message);
+      return;
+    }
+
+    const body = {
+      customer,
       items
     };
 
     try {
       const checkoutResponse = await postJson<{ order: { id: string } }>("/orders/checkout", body);
-      notify.success("Bestellung erstellt.");
-      setState({ status: "loading", message: "Sandbox-Zahlung laeuft..." });
-      notify.info("Sandbox-Zahlung laeuft...");
+      notify.success(copy.orderCreated);
+      setState({ status: "loading", message: copy.paymentRunning });
+      notify.info(copy.paymentRunning);
       const paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutResponse.order.id}/pay`, {
         method: paymentMethod === "SANDBOX" ? "CREDIT_CARD" : paymentMethod,
         paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout"
       });
       const redirectUrl = paymentResponse.paymentRedirectUrl ?? (paymentResponse.invoice as { paymentRedirectUrl?: string } | undefined)?.paymentRedirectUrl;
       if (redirectUrl) {
-        notify.info("Weiterleitung zum Zahlungsanbieter...");
+        notify.info(copy.paymentRedirect);
         window.location.assign(redirectUrl);
         return;
       }
@@ -284,19 +317,19 @@ export function CheckoutForm({
         });
         storeAuth(auth);
       }
-      notify.success("Zahlung erfolgreich.");
+      notify.success(copy.paymentSuccess);
       if (items.some((item) => hostingProducts.some((hosting) => hosting.id === item.productId) || product.type === "SHARED_HOSTING")) {
-        notify.info("Hosting account is being activated.");
+        notify.info(copy.hostingActivating);
       }
       setState({
         status: "success",
-        message: "Bezahlt. Weiterleitung ins Kundenportal...",
+        message: copy.portalRedirect,
         orderId: checkoutResponse.order.id
       });
-      notify.success("Bezahlt. Weiterleitung ins Kundenportal...");
+      notify.success(copy.portalRedirect);
       window.location.assign(`/client?order=${checkoutResponse.order.id}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Bestellung fehlgeschlagen.";
+      const message = error instanceof Error ? error.message : copy.orderFailed;
       setState({ status: "error", message });
       notify.error(message);
     }
@@ -305,13 +338,13 @@ export function CheckoutForm({
   async function checkDomain(domain: string) {
     const clean = domain.trim().toLowerCase();
     if (!clean) {
-      const message = "Domain fehlt.";
+      const message = copy.domainMissing;
       setDomainCheck({ status: "error", message });
       notify.error(message);
       return;
     }
     setDomainCheck({ status: "loading" });
-    notify.info("Domainpruefung laeuft...");
+    notify.info(copy.domainCheckLoading);
     try {
       const years = yearsFromCycle(selectedPrice?.billingCycle);
       const result = await getJson<{ action: "register" | "transfer"; available: boolean; domain: string; price: { amountCents: number } }>(
@@ -325,16 +358,16 @@ export function CheckoutForm({
         domain: result.domain,
         priceCents: result.price.amountCents
       });
-      notify.success(`${result.domain} wird ${result.available ? "registriert" : "transferiert"}.`);
+      notify.success(copy.domainCheckSuccess(result.domain, result.available));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Domainpruefung fehlgeschlagen.";
+      const message = error instanceof Error ? error.message : copy.domainCheckFailed;
       setDomainCheck({ status: "error", message });
       notify.error(message);
     }
   }
 
   async function loginClient() {
-    setState({ status: "loading", message: "Login laeuft..." });
+    setState({ status: "loading", message: copy.loginRunning });
     try {
       const auth = await postJson<AuthPayload>("/auth/login", { email: loginEmail, password: loginPassword });
       storeAuth(auth);
@@ -345,9 +378,9 @@ export function CheckoutForm({
       setPassword("");
       setLoginOpen(false);
       setState({ status: "idle" });
-      notify.success("Login erfolgreich.");
+      notify.success(copy.loginSuccess);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Login fehlgeschlagen.";
+      const message = error instanceof Error ? error.message : copy.loginFailed;
       setState({ status: "error", message });
       notify.error(message);
     }
@@ -359,14 +392,14 @@ export function CheckoutForm({
         {/* ── LEFT: Order Summary ── */}
         <aside className={styles.summary}>
           <div className={styles.summaryHeader}>
-            <span className={styles.summaryEyebrow}>Ihre Bestellung</span>
+            <span className={styles.summaryEyebrow}>{copy.orderEyebrow}</span>
             <h1 className={styles.summaryTitle}>{product.name}</h1>
             {product.description ? <p className={styles.summaryDesc}>{product.description}</p> : null}
           </div>
 
           <div className={styles.billingCycleRow}>
             <label className={styles.fieldLabel}>
-              Abrechnungszeitraum
+              {copy.billingCycle}
               <select
                 className={styles.cycleSelect}
                 value={priceSelection}
@@ -379,7 +412,7 @@ export function CheckoutForm({
               >
                 {selectablePrices.map((price) => (
                   <option key={priceSelectionKey(price, product.type)} value={priceSelectionKey(price, product.type)}>
-                    {cycleLabel(price.billingCycle)}
+                    {cycleLabel(price.billingCycle, uiLocale)}
                     {product.type === "DOMAIN" && price.amountCents > 0 ? ` — ${money(price.amountCents, price.currency)}` : ""}
                     {product.type === "DOMAIN" ? "" : ` — ${money(price.amountCents, price.currency)}`}
                   </option>
@@ -389,7 +422,7 @@ export function CheckoutForm({
           </div>
 
           <div className={styles.orderSummary}>
-            <p className={styles.summarySubheading}>Zusammenfassung</p>
+            <p className={styles.summarySubheading}>{copy.summary}</p>
             {summary.lines.map((line) => (
               <div className={styles.summaryLine} key={line.id}>
                 <div className={styles.summaryLineInfo}>
@@ -403,20 +436,20 @@ export function CheckoutForm({
                       className={styles.iconButton}
                       type="button"
                       onClick={() => focusByName(needsDomain ? "domainName" : "hostingDomainName")}
-                      title="Domain bearbeiten"
+                      title={copy.editDomain}
                     >
                       ✎
                     </button>
                   ) : null}
                   {line.kind === "hostingAddon" ? (
-                    <button className={styles.iconButton} type="button" onClick={() => setShowHostingOffer(true)} title="Hosting bearbeiten">
+                    <button className={styles.iconButton} type="button" onClick={() => setShowHostingOffer(true)} title={copy.editHosting}>
                       ✎
                     </button>
                   ) : null}
                   {line.removable ? (
                     <button
                       className={styles.removeButton}
-                      aria-label={`${line.label} entfernen`}
+                      aria-label={`${line.label} ${copy.remove}`}
                       type="button"
                       onClick={() => {
                         if (line.kind === "hostingAddon") setAddHosting(false);
@@ -432,20 +465,20 @@ export function CheckoutForm({
 
             {summary.vatCents > 0 ? (
               <div className={styles.summaryVat}>
-                <span>MwSt. {vatPercent}%</span>
+                <span>{copy.vat} {vatPercent}%</span>
                 <span>{money(summary.vatCents)}</span>
               </div>
             ) : null}
 
             <div className={styles.summaryTotal}>
-              <span>Gesamtbetrag</span>
+              <span>{copy.total}</span>
               <strong>{money(summary.totalCents)}</strong>
             </div>
           </div>
 
           {needsDomain && hostingProducts.length > 0 ? (
             <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(true)}>
-              + Hosting hinzufügen
+              {copy.addHosting}
             </Button>
           ) : null}
         </aside>
@@ -458,28 +491,28 @@ export function CheckoutForm({
             {profile ? (
               <div className={styles.loggedInBadge}>
                 <span className={styles.loggedInIcon}>✓</span>
-                <span>Eingeloggt als <strong>{profile.email}</strong></span>
+                <span>{copy.loggedInAs} <strong>{profile.email}</strong></span>
               </div>
             ) : (
               <>
                 <div className={styles.loginToggleRow}>
-                  <span className={styles.loginHint}>Bereits Kunde?</span>
+                  <span className={styles.loginHint}>{copy.existingCustomer}</span>
                   <button className={styles.linkButton} type="button" onClick={() => setLoginOpen(!loginOpen)}>
-                    {loginOpen ? "Abbrechen" : "Einloggen"}
+                    {loginOpen ? copy.cancel : copy.login}
                   </button>
                 </div>
                 {loginOpen ? (
                   <div className={styles.loginGrid}>
                     <label className={styles.fieldLabel}>
-                      E-Mail
-                      <input className={styles.input} name="loginEmail" onChange={(event) => setLoginEmail(event.target.value)} type="email" value={loginEmail} />
+                      {copy.email}
+                      <input autoComplete="email" className={styles.input} name="loginEmail" onChange={(event) => setLoginEmail(event.target.value)} type="email" value={loginEmail} />
                     </label>
                     <label className={styles.fieldLabel}>
-                      Passwort
-                      <input className={styles.input} name="loginPassword" onChange={(event) => setLoginPassword(event.target.value)} type="password" value={loginPassword} />
+                      {copy.password}
+                      <input autoComplete="current-password" className={styles.input} name="loginPassword" onChange={(event) => setLoginPassword(event.target.value)} type="password" value={loginPassword} />
                     </label>
                     <Button type="button" onClick={loginClient}>
-                      Einloggen
+                      {copy.login}
                     </Button>
                   </div>
                 ) : null}
@@ -490,45 +523,51 @@ export function CheckoutForm({
           {/* Domain section */}
           {needsDomain ? (
             <div className={styles.formSection}>
-              <p className={styles.sectionLabel}>Domain</p>
+              <p className={styles.sectionLabel}>{copy.domain}</p>
               <label className={styles.fieldLabel}>
-                <span>Domain-Name <span className={styles.required}>*</span></span>
-                <input
-                  className={styles.input}
-                  name="domainName"
-                  onBlur={() => checkDomain(domainNameInput)}
-                  onChange={(event) => {
-                    setDomainNameInput(event.target.value);
-                    setDomainCheck({ status: "idle" });
-                  }}
-                  placeholder="example.de"
-                  required
-                  value={domainNameInput}
-                />
+                <span>{copy.domainName} <span className={styles.required}>*</span></span>
+                <div className={styles.domainCheckRow}>
+                  <input
+                    autoComplete="off"
+                    className={styles.input}
+                    name="domainName"
+                    onBlur={() => checkDomain(domainNameInput)}
+                    onChange={(event) => {
+                      setDomainNameInput(event.target.value);
+                      setDomainCheck({ status: "idle" });
+                    }}
+                    placeholder="example.de"
+                    required
+                    value={domainNameInput}
+                  />
+                  <Button className={styles.domainActionButton} size="sm" type="button" variant="secondary" onClick={() => checkDomain(domainNameInput)}>
+                    {copy.domainCheck}
+                  </Button>
+                </div>
               </label>
-              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>Prüfe Domain…</p> : null}
+              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>{copy.domainChecking}</p> : null}
               {domainCheck.status === "ok" ? (
                 <p className={domainCheck.available ? styles.available : styles.unavailable}>
-                  {domainCheck.available ? "✓" : "✕"} {domainCheck.domain} wird {domainCheck.action === "register" ? "registriert" : "transferiert"}.
+                  {domainCheck.available ? "✓" : "✕"} {copy.domainCheckResult(domainCheck.domain, domainCheck.action)}
                 </p>
               ) : null}
               {(domainCheck.status === "ok" ? domainCheck.action : initialDomainAction) === "transfer" ? (
                 <label className={styles.fieldLabel}>
-                  <span>Auth-Code <span className={styles.required}>*</span></span>
-                  <input className={styles.input} name="transferAuthCode" required />
+                  <span>{copy.authCode} <span className={styles.required}>*</span></span>
+                  <input autoComplete="off" className={styles.input} name="transferAuthCode" required />
                 </label>
               ) : null}
               {showNameServers ? (
                 <label className={styles.fieldLabel}>
-                  Name-Server
-                  <input className={styles.input} name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
+                  {copy.nameServers}
+                  <input autoComplete="off" className={styles.input} name="nameServers" placeholder="ns1.dezhost.test, ns2.dezhost.test" />
                   <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(false)}>
-                    Eigene Name-Server ausblenden
+                    {copy.hideNameServers}
                   </button>
                 </label>
               ) : (
                 <button className={styles.linkButton} type="button" onClick={() => setShowNameServers(true)}>
-                  + Eigene Name-Server hinzufügen
+                  {copy.addNameServers}
                 </button>
               )}
             </div>
@@ -537,50 +576,53 @@ export function CheckoutForm({
           {/* Hosting domain section */}
           {needsHostingDomain ? (
             <div className={styles.formSection}>
-              <p className={styles.sectionLabel}>Domain für Hosting</p>
+              <p className={styles.sectionLabel}>{copy.hostingDomain}</p>
               <label className={styles.fieldLabel}>
-                <span>Domain <span className={styles.required}>*</span></span>
-                <input
-                  className={styles.input}
-                  name="hostingDomainName"
-                  onChange={(event) => {
-                    setHostingDomain(event.target.value);
-                    setDomainCheck({ status: "idle" });
-                  }}
-                  placeholder="example.de"
-                  required
-                  value={hostingDomain}
-                />
+                <span>{copy.domain} <span className={styles.required}>*</span></span>
+                <div className={styles.domainCheckRow}>
+                  <input
+                    autoComplete="off"
+                    className={styles.input}
+                    name="hostingDomainName"
+                    onChange={(event) => {
+                      setHostingDomain(event.target.value);
+                      setDomainCheck({ status: "idle" });
+                    }}
+                    placeholder="example.de"
+                    required
+                    value={hostingDomain}
+                  />
+                  <Button className={styles.domainActionButton} size="sm" type="button" variant="secondary" onClick={() => checkDomain(hostingDomain)}>
+                    {copy.domainCheck}
+                  </Button>
+                </div>
               </label>
-              <Button type="button" variant="secondary" onClick={() => checkDomain(hostingDomain)}>
-                Domain prüfen
-              </Button>
-              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>Prüfe Domain…</p> : null}
+              {domainCheck.status === "loading" ? <p className={styles.statusMsg}>{copy.domainChecking}</p> : null}
               {domainCheck.status === "ok" && domainCheck.available ? (
-                <p className={styles.available}>✓ {domainCheck.domain} ist verfügbar und kann zur Bestellung hinzugefügt werden.</p>
+                <p className={styles.available}>✓ {copy.domainAvailable(domainCheck.domain)}</p>
               ) : null}
               {domainCheck.status === "ok" && !domainCheck.available ? (
                 <div className={styles.choiceGrid}>
-                  <p className={styles.unavailable}>✕ {domainCheck.domain} ist nicht verfügbar.</p>
+                  <p className={styles.unavailable}>✕ {copy.domainUnavailable(domainCheck.domain)}</p>
                   <label className={styles.radioLabel}>
                     <input checked={domainUse === "transfer"} onChange={() => setDomainUse("transfer")} type="radio" />
-                    Domain zu Dezhost transferieren
+                    {copy.transferDomain}
                   </label>
                   <label className={styles.radioLabel}>
                     <input checked={domainUse === "external"} onChange={() => setDomainUse("external")} type="radio" />
-                    Domain extern belassen
+                    {copy.keepExternal}
                   </label>
                 </div>
               ) : null}
               {domainUse === "transfer" ? (
                 <label className={styles.fieldLabel}>
-                  <span>Auth-Code <span className={styles.required}>*</span></span>
-                  <input className={styles.input} name="hostingTransferAuthCode" required />
+                  <span>{copy.authCode} <span className={styles.required}>*</span></span>
+                  <input autoComplete="off" className={styles.input} name="hostingTransferAuthCode" required />
                 </label>
               ) : null}
-              {freeDomainEligible ? <p className={styles.available}>✓ Diese Domain ist bei Jahreslaufzeit kostenlos enthalten.</p> : null}
+              {freeDomainEligible ? <p className={styles.available}>✓ {copy.freeDomainIncluded}</p> : null}
               {domainCheck.status === "ok" && selectedPrice?.billingCycle.startsWith("YEAR_") && domainCheck.priceCents > 1500 ? (
-                <p className={styles.unavailable}>Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos enthalten.</p>
+                <p className={styles.unavailable}>{copy.freeDomainLimit}</p>
               ) : null}
             </div>
           ) : null}
@@ -590,10 +632,10 @@ export function CheckoutForm({
             <div className={styles.modalBackdrop}>
               <section className={styles.hostingModal}>
                 <div className={styles.modalHeader}>
-                  <h2 className={styles.modalTitle}>Hosting hinzufügen</h2>
-                  <button className={styles.modalClose} type="button" onClick={() => setShowHostingOffer(false)} aria-label="Schließen">✕</button>
+                  <h2 className={styles.modalTitle}>{copy.addHostingTitle}</h2>
+                  <button className={styles.modalClose} type="button" onClick={() => setShowHostingOffer(false)} aria-label={copy.close}>✕</button>
                 </div>
-                <p className={styles.modalDesc}>Eine Domain allein zeigt noch keine Website. Buche direkt ein passendes Hosting-Paket dazu.</p>
+                <p className={styles.modalDesc}>{copy.hostingUpsell}</p>
                 <div className={styles.hostingCards}>
                   {hostingProducts.map((hosting) => (
                     <label className={selectedHostingId === hosting.id ? styles.hostingCardSelected : styles.hostingCard} key={hosting.id}>
@@ -623,7 +665,7 @@ export function CheckoutForm({
                       >
                         {hosting.prices.map((price) => (
                           <option key={price.id} value={price.id}>
-                            {cycleLabel(price.billingCycle)} — {money(price.amountCents, price.currency)}
+                            {cycleLabel(price.billingCycle, uiLocale)} — {money(price.amountCents, price.currency)}
                           </option>
                         ))}
                       </select>
@@ -631,14 +673,14 @@ export function CheckoutForm({
                   ))}
                 </div>
                 {selectedHostingPrice?.billingCycle.startsWith("YEAR_") ? (
-                  <p className={styles.available}>✓ Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR.</p>
+                  <p className={styles.available}>✓ {copy.yearlyFreeDomain}</p>
                 ) : null}
                 <div className={styles.modalActions}>
-                  <Button type="button" onClick={() => { setAddHosting(true); setShowHostingOffer(false); notify.info("Hosting wurde zur Bestellung hinzugefuegt."); }}>
-                    Hosting hinzufügen
+                  <Button type="button" onClick={() => { setAddHosting(true); setShowHostingOffer(false); notify.info(copy.hostingAdded); }}>
+                    {copy.addHostingTitle}
                   </Button>
                   <Button type="button" variant="secondary" onClick={() => setShowHostingOffer(false)}>
-                    Nur Domain
+                    {copy.domainOnly}
                   </Button>
                 </div>
               </section>
@@ -646,6 +688,7 @@ export function CheckoutForm({
           ) : null}
 
           {!profile ? <ContactFields
+            copy={copy}
             countries={countries}
             password={password}
             phoneCountryCode={phoneCountryCode}
@@ -654,10 +697,18 @@ export function CheckoutForm({
             setShowPassword={setShowPassword}
             showPassword={showPassword}
           /> : null}
+          {profile && missingProfile.length > 0 ? <ProfileCompletionFields
+            copy={copy}
+            countries={countries}
+            missingFields={missingProfile}
+            phoneCountryCode={phoneCountryCode}
+            profile={profile}
+            setPhoneCountryCode={setPhoneCountryCode}
+          /> : null}
 
           {/* Payment */}
           <div className={styles.formSection}>
-            <p className={styles.sectionLabel}>Zahlungsmethode</p>
+            <p className={styles.sectionLabel}>{copy.paymentMethod}</p>
             <div className={styles.paymentGrid}>
               {paymentGateways.map((gateway) => (
                 <label className={paymentMethod === gateway.method ? styles.paymentSelected : styles.paymentCard} key={gateway.method}>
@@ -676,12 +727,18 @@ export function CheckoutForm({
 
           {/* Submit */}
           <div className={styles.submitRow}>
-            <Button type="submit">Kostenpflichtig bestellen</Button>
+            <label className={styles.termsCheck}>
+              <input name="acceptedTerms" required type="checkbox" />
+              <span>
+                {copy.termsPrefix} <a href={termsHref} rel="noreferrer" target="_blank">{copy.termsLink}</a>{copy.termsSuffix}
+              </span>
+            </label>
+            <Button type="submit">{copy.submit}</Button>
             {state.status !== "idle" ? (
               <p className={`${styles.statusMsg} ${styles[state.status]}`}>
                 {state.message}
                 {state.status === "success" ? (
-                  <> <a href={`/client?order=${state.orderId}`} className={styles.portalLink}>Zum Portal →</a></>
+                  <> <a href={`/client?order=${state.orderId}`} className={styles.portalLink}>{copy.portalLink} →</a></>
                 ) : null}
               </p>
             ) : null}
@@ -692,13 +749,13 @@ export function CheckoutForm({
   );
 }
 
-function PasswordRules({ password }: { password: string }) {
+function PasswordRules({ copy, password }: { copy: CheckoutCopy; password: string }) {
   const rules = [
-    { label: "9–16 Zeichen", passed: password.length >= 9 && password.length <= 16 },
-    { label: "Großbuchstaben", passed: /[A-Z]/.test(password) },
-    { label: "Kleinbuchstaben", passed: /[a-z]/.test(password) },
-    { label: "Zahlen", passed: /\d/.test(password) },
-    { label: "Sonderzeichen", passed: /[~*!@$#%_+.?:,{}]/.test(password) }
+    { label: copy.passwordRuleLength, passed: password.length >= 9 && password.length <= 16 },
+    { label: copy.passwordRuleUpper, passed: /[A-Z]/.test(password) },
+    { label: copy.passwordRuleLower, passed: /[a-z]/.test(password) },
+    { label: copy.passwordRuleNumber, passed: /\d/.test(password) },
+    { label: copy.passwordRuleSpecial, passed: /[~*!@$#%_+.?:,{}]/.test(password) }
   ];
 
   return (
@@ -713,6 +770,7 @@ function PasswordRules({ password }: { password: string }) {
 }
 
 function ContactFields({
+  copy,
   countries,
   password,
   phoneCountryCode,
@@ -721,6 +779,7 @@ function ContactFields({
   setShowPassword,
   showPassword
 }: {
+  copy: CheckoutCopy;
   countries: CountryOption[];
   password: string;
   phoneCountryCode: string;
@@ -732,21 +791,22 @@ function ContactFields({
   return (
     <>
       <div className={styles.formSection}>
-        <p className={styles.sectionLabel}>Persönliche Daten</p>
+        <p className={styles.sectionLabel}>{copy.personalData}</p>
         <div className={styles.grid}>
           <label className={styles.fieldLabel}>
-            <span>Name <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="name" required />
+            <span>{copy.name} <span className={styles.required}>*</span></span>
+            <input autoComplete="name" className={styles.input} name="name" required />
           </label>
           <label className={styles.fieldLabel}>
-            <span>E-Mail <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="email" required type="email" />
+            <span>{copy.email} <span className={styles.required}>*</span></span>
+            <input autoComplete="email" className={styles.input} name="email" required type="email" />
           </label>
           <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
-            <span>Passwort <span className={styles.required}>*</span></span>
+            <span>{copy.password} <span className={styles.required}>*</span></span>
             <div className={styles.passwordControl}>
               <div className={styles.passwordInputWrap}>
                 <input
+                  autoComplete="new-password"
                   className={styles.input}
                   maxLength={16}
                   minLength={9}
@@ -757,7 +817,7 @@ function ContactFields({
                   value={password}
                 />
                 <button
-                  aria-label={showPassword ? "Passwort verstecken" : "Passwort anzeigen"}
+                  aria-label={showPassword ? copy.hidePassword : copy.showPassword}
                   className={styles.passwordToggle}
                   onClick={() => setShowPassword(!showPassword)}
                   type="button"
@@ -766,62 +826,66 @@ function ContactFields({
                 </button>
               </div>
               <button className={styles.generateButton} onClick={() => setPassword(generatePassword())} type="button">
-                Generieren
+                {copy.generate}
               </button>
             </div>
-            <PasswordRules password={password} />
+            <PasswordRules copy={copy} password={password} />
           </label>
           <label className={styles.fieldLabel}>
-            <span>Telefon <span className={styles.required}>*</span></span>
+            <span>{copy.phone} <span className={styles.required}>*</span></span>
             <div className={styles.phoneField}>
               <input
+                autoComplete="tel-country-code"
                 className={styles.input}
-                aria-label="Ländervorwahl"
+                aria-label={copy.phoneCode}
+                inputMode="tel"
                 name="phoneCountryCode"
                 onChange={(event) => setPhoneCountryCode(event.target.value)}
                 required
+                type="tel"
                 value={phoneCountryCode}
               />
-              <input className={styles.input} name="phone" required />
+              <input autoComplete="tel-national" className={styles.input} inputMode="tel" name="phone" required type="tel" />
             </div>
           </label>
         </div>
       </div>
       <div className={styles.formSection}>
-        <p className={styles.sectionLabel}>Unternehmen <span className={styles.optionalBadge}>optional</span></p>
+        <p className={styles.sectionLabel}>{copy.company} <span className={styles.optionalBadge}>{copy.optional}</span></p>
         <div className={styles.grid}>
           <label className={styles.fieldLabel}>
-            Firmenname
-            <input className={styles.input} name="companyName" placeholder="Nur für Geschäftskunden" />
+            {copy.companyName}
+            <input autoComplete="organization" className={styles.input} name="companyName" placeholder={copy.companyPlaceholder} />
           </label>
           <label className={styles.fieldLabel}>
-            USt-Id
-            <input className={styles.input} name="vatId" placeholder="DE123456789" />
+            {copy.vatId}
+            <input autoComplete="off" className={styles.input} name="vatId" placeholder="DE123456789" />
           </label>
         </div>
       </div>
       <div className={styles.formSection}>
-        <p className={styles.sectionLabel}>Adresse</p>
+        <p className={styles.sectionLabel}>{copy.addressTitle}</p>
         <div className={styles.grid}>
           <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
-            <span>Straße & Hausnummer <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="address" required />
+            <span>{copy.street} <span className={styles.required}>*</span></span>
+            <input autoComplete="street-address" className={styles.input} name="address" required />
           </label>
           <label className={styles.fieldLabel}>
-            <span>PLZ <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="postalCode" required />
+            <span>{copy.postalCode} <span className={styles.required}>*</span></span>
+            <input autoComplete="postal-code" className={styles.input} name="postalCode" required />
           </label>
           <label className={styles.fieldLabel}>
-            <span>Stadt <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="city" required />
+            <span>{copy.city} <span className={styles.required}>*</span></span>
+            <input autoComplete="address-level2" className={styles.input} name="city" required />
           </label>
           <label className={styles.fieldLabel}>
-            <span>Bundesland <span className={styles.required}>*</span></span>
-            <input className={styles.input} name="state" required />
+            <span>{copy.state} <span className={styles.required}>*</span></span>
+            <input autoComplete="address-level1" className={styles.input} name="state" required />
           </label>
           <label className={styles.fieldLabel}>
-            <span>Land <span className={styles.required}>*</span></span>
+            <span>{copy.country} <span className={styles.required}>*</span></span>
             <select
+              autoComplete="country"
               className={styles.input}
               defaultValue="DE"
               name="countryCode"
@@ -841,6 +905,109 @@ function ContactFields({
         </div>
       </div>
     </>
+  );
+}
+
+function ProfileCompletionFields({
+  copy,
+  countries,
+  missingFields,
+  phoneCountryCode,
+  profile,
+  setPhoneCountryCode
+}: {
+  copy: CheckoutCopy;
+  countries: CountryOption[];
+  missingFields: ProfileField[];
+  phoneCountryCode: string;
+  profile: ClientProfile;
+  setPhoneCountryCode: (code: string) => void;
+}) {
+  const address = profileAddress(profile);
+  const phone = splitProfilePhone(profile.phone);
+
+  return (
+    <div className={styles.formSection}>
+      <p className={styles.sectionLabel}>{copy.profileCompletionTitle}</p>
+      <p className={styles.sectionHelp}>{copy.profileCompletionHelp}</p>
+      <div className={styles.grid}>
+        {missingFields.includes("name") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.name} <span className={styles.required}>*</span></span>
+            <input autoComplete="name" className={styles.input} defaultValue={profile.name} name="name" required />
+          </label>
+        ) : null}
+        {missingFields.includes("phone") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.phone} <span className={styles.required}>*</span></span>
+            <div className={styles.phoneField}>
+              <input
+                autoComplete="tel-country-code"
+                aria-label={copy.phoneCode}
+                className={styles.input}
+                inputMode="tel"
+                name="phoneCountryCode"
+                onChange={(event) => setPhoneCountryCode(event.target.value)}
+                required
+                type="tel"
+                value={phoneCountryCode}
+              />
+              <input autoComplete="tel-national" className={styles.input} defaultValue={phone.number} inputMode="tel" name="phone" required type="tel" />
+            </div>
+          </label>
+        ) : null}
+        {missingFields.includes("address") ? (
+          <label className={`${styles.fieldLabel} ${styles.spanFull}`}>
+            <span>{copy.street} <span className={styles.required}>*</span></span>
+            <input autoComplete="street-address" className={styles.input} defaultValue={address.line1} name="address" required />
+          </label>
+        ) : null}
+        {missingFields.includes("postalCode") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.postalCode} <span className={styles.required}>*</span></span>
+            <input autoComplete="postal-code" className={styles.input} defaultValue={address.postalCode} name="postalCode" required />
+          </label>
+        ) : null}
+        {missingFields.includes("city") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.city} <span className={styles.required}>*</span></span>
+            <input autoComplete="address-level2" className={styles.input} defaultValue={address.city} name="city" required />
+          </label>
+        ) : null}
+        {missingFields.includes("state") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.state} <span className={styles.required}>*</span></span>
+            <input autoComplete="address-level1" className={styles.input} defaultValue={address.state} name="state" required />
+          </label>
+        ) : null}
+        {missingFields.includes("countryCode") ? (
+          <label className={styles.fieldLabel}>
+            <span>{copy.country} <span className={styles.required}>*</span></span>
+            <select
+              autoComplete="country"
+              className={styles.input}
+              defaultValue={profile.countryCode ?? "DE"}
+              name="countryCode"
+              onChange={(event) => {
+                const country = countries.find((item) => item.code === event.target.value);
+                if (country) setPhoneCountryCode(country.phone);
+              }}
+              required
+            >
+              {countries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.flag} {country.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+      <label className={styles.checkboxLine}>
+        <input name="confirmProfileCompletion" required type="checkbox" />
+        <span>{copy.profileConfirm}</span>
+      </label>
+    </div>
   );
 }
 
@@ -930,6 +1097,23 @@ function focusByName(name: string) {
   field?.focus();
 }
 
+function checkoutLocale(locale: string): Locale {
+  return getLocale(locale);
+}
+
+function missingProfileFields(profile: ClientProfile): ProfileField[] {
+  const address = profileAddress(profile);
+  return [
+    hasText(profile.name) ? undefined : "name",
+    hasText(profile.phone) ? undefined : "phone",
+    hasText(address.line1) ? undefined : "address",
+    hasText(address.postalCode) ? undefined : "postalCode",
+    hasText(address.city) ? undefined : "city",
+    hasText(address.state) ? undefined : "state",
+    hasText(profile.countryCode) ? undefined : "countryCode"
+  ].filter(Boolean) as ProfileField[];
+}
+
 function profileAddress(profile?: ClientProfile) {
   return {
     city: profile?.address?.city ?? "",
@@ -939,18 +1123,52 @@ function profileAddress(profile?: ClientProfile) {
   };
 }
 
-function profileCheckoutCustomer(profile: ClientProfile) {
+function profileCheckoutCustomer(profile: ClientProfile, formData: FormData) {
+  const address = profileAddress(profile);
   return {
-    address: profileAddress(profile),
-    countryCode: profile.countryCode ?? "DE",
+    address: {
+      city: textOr(address.city, formDataValue(formData, "city")),
+      line1: textOr(address.line1, formDataValue(formData, "address")),
+      postalCode: textOr(address.postalCode, formDataValue(formData, "postalCode")),
+      state: textOr(address.state, formDataValue(formData, "state"))
+    },
+    countryCode: textOr(profile.countryCode, formDataValue(formData, "countryCode"), "DE"),
     customerType: profile.customerType ?? "INDIVIDUAL",
     email: profile.email,
     companyName: "",
-    name: profile.name,
+    name: textOr(profile.name, formDataValue(formData, "name")),
     password: "",
-    phone: profile.phone ?? "",
+    phone: textOr(profile.phone, profilePhoneFromForm(formData)),
     vatId: profile.vatId ?? ""
   };
+}
+
+function missingCheckoutCustomerFields(customer: ReturnType<typeof profileCheckoutCustomer>) {
+  return [
+    customer.name,
+    customer.phone,
+    customer.address.line1,
+    customer.address.postalCode,
+    customer.address.city,
+    customer.address.state,
+    customer.countryCode
+  ].filter((value) => !hasText(value));
+}
+
+function formDataValue(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "");
+}
+
+function profilePhoneFromForm(formData: FormData) {
+  return `${formDataValue(formData, "phoneCountryCode").trim()} ${formDataValue(formData, "phone").trim()}`.trim();
+}
+
+function hasText(value?: string | null) {
+  return Boolean(value?.trim());
+}
+
+function textOr(value?: string | null, fallback = "", defaultValue = "") {
+  return hasText(value) ? String(value).trim() : hasText(fallback) ? fallback.trim() : defaultValue;
 }
 
 function splitProfilePhone(phone?: string) {
@@ -961,6 +1179,197 @@ function splitProfilePhone(phone?: string) {
     number: match?.[2] ?? clean.replace(/^\+\d{1,3}/, "").trim()
   };
 }
+
+const checkoutCopy = {
+  de: {
+    addHosting: "+ Hosting hinzufügen",
+    addHostingTitle: "Hosting hinzufügen",
+    addNameServers: "+ Eigene Name-Server hinzufügen",
+    addressTitle: "Adresse",
+    authCode: "Auth-Code",
+    billingCycle: "Abrechnungszeitraum",
+    cancel: "Abbrechen",
+    city: "Stadt",
+    close: "Schließen",
+    company: "Unternehmen",
+    companyName: "Firmenname",
+    companyPlaceholder: "Nur für Geschäftskunden",
+    country: "Land",
+    domain: "Domain",
+    domainActionRegister: "registriert",
+    domainActionTransfer: "transferiert",
+    domainAvailable: (domain: string) => `${domain} ist verfügbar und kann zur Bestellung hinzugefügt werden.`,
+    domainCheck: "Domain prüfen",
+    domainCheckFailed: "Domainprüfung fehlgeschlagen.",
+    domainCheckLoading: "Domainprüfung läuft...",
+    domainCheckResult: (domain: string, action: "register" | "transfer") => `${domain} wird ${action === "register" ? "registriert" : "transferiert"}.`,
+    domainCheckSuccess: (domain: string, available: boolean) => `${domain} wird ${available ? "registriert" : "transferiert"}.`,
+    domainChecking: "Prüfe Domain...",
+    domainMissing: "Domain fehlt.",
+    domainName: "Domain-Name",
+    domainOnly: "Nur Domain",
+    domainUnavailable: (domain: string) => `${domain} ist nicht verfügbar.`,
+    editDomain: "Domain bearbeiten",
+    editHosting: "Hosting bearbeiten",
+    email: "E-Mail",
+    existingCustomer: "Bereits Kunde?",
+    freeDomainIncluded: "Diese Domain ist bei Jahreslaufzeit kostenlos enthalten.",
+    freeDomainLimit: "Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos enthalten.",
+    generate: "Generieren",
+    hideNameServers: "Eigene Name-Server ausblenden",
+    hidePassword: "Passwort verstecken",
+    hostingActivating: "Hosting account is being activated.",
+    hostingAdded: "Hosting wurde zur Bestellung hinzugefügt.",
+    hostingDomain: "Domain für Hosting",
+    hostingUpsell: "Eine Domain allein zeigt noch keine Website. Buche direkt ein passendes Hosting-Paket dazu.",
+    keepExternal: "Domain extern belassen",
+    loggedInAs: "Eingeloggt als",
+    login: "Einloggen",
+    loginFailed: "Login fehlgeschlagen.",
+    loginRunning: "Login läuft...",
+    loginSuccess: "Login erfolgreich.",
+    name: "Name",
+    nameServers: "Name-Server",
+    noPrice: "Kein Preis für dieses Produkt gefunden.",
+    optional: "optional",
+    orderCreated: "Bestellung erstellt.",
+    orderCreating: "Bestellung wird erstellt...",
+    orderEyebrow: "Ihre Bestellung",
+    orderFailed: "Bestellung fehlgeschlagen.",
+    password: "Passwort",
+    passwordRuleLength: "9-16 Zeichen",
+    passwordRuleLower: "Kleinbuchstaben",
+    passwordRuleNumber: "Zahlen",
+    passwordRuleSpecial: "Sonderzeichen",
+    passwordRuleUpper: "Großbuchstaben",
+    passwordWeak: "Passwort erfüllt die Regeln nicht.",
+    paymentMethod: "Zahlungsmethode",
+    paymentRedirect: "Weiterleitung zum Zahlungsanbieter...",
+    paymentRunning: "Sandbox-Zahlung läuft...",
+    paymentSuccess: "Zahlung erfolgreich.",
+    personalData: "Persönliche Daten",
+    phone: "Telefon",
+    phoneCode: "Ländervorwahl",
+    portalLink: "Zum Portal",
+    portalRedirect: "Bezahlt. Weiterleitung ins Kundenportal...",
+    postalCode: "PLZ",
+    profileCompletionHelp: "Ihr Konto ist erkannt. Bitte ergänzen Sie nur die fehlenden Profildaten für diese Bestellung.",
+    profileCompletionTitle: "Fehlende Profildaten",
+    profileConfirm: "Ich bestätige, dass diese Angaben für die Bestellung korrekt sind.",
+    profileConfirmRequired: "Bitte fehlende Profildaten bestätigen.",
+    profileMissingError: "Bitte fehlende Profildaten vollständig ausfüllen.",
+    remove: "entfernen",
+    showPassword: "Passwort anzeigen",
+    state: "Bundesland",
+    street: "Straße & Hausnummer",
+    submit: "Kostenpflichtig bestellen",
+    summary: "Zusammenfassung",
+    termsLink: "AGB",
+    termsPrefix: "Ich akzeptiere die",
+    termsRequired: "Bitte AGB bestätigen.",
+    termsSuffix: ".",
+    total: "Gesamtbetrag",
+    transferDomain: "Domain zu Dezhost transferieren",
+    vat: "MwSt.",
+    vatId: "USt-Id",
+    yearlyFreeDomain: "Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR."
+  },
+  en: {
+    addHosting: "+ Add hosting",
+    addHostingTitle: "Add hosting",
+    addNameServers: "+ Add custom name servers",
+    addressTitle: "Address",
+    authCode: "Auth code",
+    billingCycle: "Billing cycle",
+    cancel: "Cancel",
+    city: "City",
+    close: "Close",
+    company: "Company",
+    companyName: "Company name",
+    companyPlaceholder: "Only for business customers",
+    country: "Country",
+    domain: "Domain",
+    domainActionRegister: "registered",
+    domainActionTransfer: "transferred",
+    domainAvailable: (domain: string) => `${domain} is available and can be added to the order.`,
+    domainCheck: "Check domain",
+    domainCheckFailed: "Domain check failed.",
+    domainCheckLoading: "Checking domain...",
+    domainCheckResult: (domain: string, action: "register" | "transfer") => `${domain} will be ${action === "register" ? "registered" : "transferred"}.`,
+    domainCheckSuccess: (domain: string, available: boolean) => `${domain} will be ${available ? "registered" : "transferred"}.`,
+    domainChecking: "Checking domain...",
+    domainMissing: "Domain missing.",
+    domainName: "Domain name",
+    domainOnly: "Domain only",
+    domainUnavailable: (domain: string) => `${domain} is not available.`,
+    editDomain: "Edit domain",
+    editHosting: "Edit hosting",
+    email: "Email",
+    existingCustomer: "Already a customer?",
+    freeDomainIncluded: "This domain is included free with yearly billing.",
+    freeDomainLimit: "This domain costs more than EUR 15 and is not included free.",
+    generate: "Generate",
+    hideNameServers: "Hide custom name servers",
+    hidePassword: "Hide password",
+    hostingActivating: "Hosting account is being activated.",
+    hostingAdded: "Hosting was added to the order.",
+    hostingDomain: "Domain for hosting",
+    hostingUpsell: "A domain alone does not show a website. Add a matching hosting package now.",
+    keepExternal: "Keep domain external",
+    loggedInAs: "Signed in as",
+    login: "Sign in",
+    loginFailed: "Sign in failed.",
+    loginRunning: "Signing in...",
+    loginSuccess: "Signed in.",
+    name: "Name",
+    nameServers: "Name servers",
+    noPrice: "No price found for this product.",
+    optional: "optional",
+    orderCreated: "Order created.",
+    orderCreating: "Creating order...",
+    orderEyebrow: "Your order",
+    orderFailed: "Order failed.",
+    password: "Password",
+    passwordRuleLength: "9-16 characters",
+    passwordRuleLower: "Lowercase",
+    passwordRuleNumber: "Numbers",
+    passwordRuleSpecial: "Special character",
+    passwordRuleUpper: "Uppercase",
+    passwordWeak: "Password does not meet the rules.",
+    paymentMethod: "Payment method",
+    paymentRedirect: "Redirecting to payment provider...",
+    paymentRunning: "Sandbox payment running...",
+    paymentSuccess: "Payment successful.",
+    personalData: "Personal data",
+    phone: "Phone",
+    phoneCode: "Country calling code",
+    portalLink: "Go to portal",
+    portalRedirect: "Paid. Redirecting to client portal...",
+    postalCode: "Postal code",
+    profileCompletionHelp: "Your account is recognized. Please add only the missing profile details for this order.",
+    profileCompletionTitle: "Missing profile details",
+    profileConfirm: "I confirm these details are correct for this order.",
+    profileConfirmRequired: "Please confirm the missing profile details.",
+    profileMissingError: "Please complete the missing profile details.",
+    remove: "remove",
+    showPassword: "Show password",
+    state: "State",
+    street: "Street and house number",
+    submit: "Place paid order",
+    summary: "Summary",
+    termsLink: "terms and conditions",
+    termsPrefix: "I accept the",
+    termsRequired: "Please accept the terms and conditions.",
+    termsSuffix: ".",
+    total: "Total",
+    transferDomain: "Transfer domain to Dezhost",
+    vat: "VAT",
+    vatId: "VAT ID",
+    yearlyFreeDomain: "Yearly billing includes a free domain up to EUR 15."
+  }
+} as const;
+
+type CheckoutCopy = (typeof checkoutCopy)[Locale];
 
 const defaultPaymentGateways: ApiPaymentGateway[] = [
   { method: "SANDBOX", title: "Sandbox" },

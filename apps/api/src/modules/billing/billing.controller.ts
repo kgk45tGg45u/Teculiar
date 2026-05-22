@@ -249,6 +249,7 @@ export class BillingDevController {
       supportImapUsername?: string;
       supportMailboxAddress?: string;
       ticketAutoCloseHours?: number;
+      termsUrl?: string;
       vatPercent?: number;
     }
   ) {

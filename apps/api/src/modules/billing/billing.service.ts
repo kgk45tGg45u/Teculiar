@@ -1102,12 +1102,13 @@ export class BillingService {
   }
 
   async publicSettings() {
-    const [vatPercent, siteLogoUrl] = await Promise.all([
+    const [vatPercent, siteLogoUrl, termsUrl] = await Promise.all([
       this.vatPercent(),
-      this.billing.settingString("siteLogoUrl")
+      this.billing.settingString("siteLogoUrl"),
+      this.billing.settingString("termsUrl")
     ]);
 
-    return { siteLogoUrl, vatPercent };
+    return { siteLogoUrl, termsUrl, vatPercent };
   }
 
   settings() {
@@ -1170,7 +1171,8 @@ export class BillingService {
       salesImapUsername,
       salesImapPassword,
       salesImapMailbox,
-      salesMailboxAddress
+      salesMailboxAddress,
+      termsUrl
     ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
@@ -1211,7 +1213,8 @@ export class BillingService {
       this.billing.settingString("salesImapUsername"),
       this.billing.settingString("salesImapPassword"),
       this.billing.settingString("salesImapMailbox", "INBOX"),
-      this.billing.settingString("salesMailboxAddress", "sales@dezhost.com")
+      this.billing.settingString("salesMailboxAddress", "sales@dezhost.com"),
+      this.billing.settingString("termsUrl")
     ]);
 
     return {
@@ -1254,6 +1257,7 @@ export class BillingService {
       supportImapUsername,
       supportMailboxAddress,
       ticketAutoCloseHours,
+      termsUrl,
       vatPercent
     };
   }
@@ -1347,6 +1351,7 @@ export class BillingService {
     supportImapUsername?: string;
     supportMailboxAddress?: string;
     ticketAutoCloseHours?: number;
+    termsUrl?: string;
     vatPercent?: number;
   }) {
     return Promise.all([
@@ -1394,6 +1399,7 @@ export class BillingService {
         : this.billing.upsertSettingString("invoicePaymentInstructions", input.invoicePaymentInstructions),
       input.invoiceBankDetails === undefined ? undefined : this.billing.upsertSettingString("invoiceBankDetails", input.invoiceBankDetails),
       input.siteLogoUrl === undefined ? undefined : this.billing.upsertSettingString("siteLogoUrl", input.siteLogoUrl),
+      input.termsUrl === undefined ? undefined : this.billing.upsertSettingString("termsUrl", input.termsUrl),
       input.supportImapEnabled === undefined
         ? undefined
         : this.billing.upsertSettingNumber("supportImapEnabled", input.supportImapEnabled ? 1 : 0),

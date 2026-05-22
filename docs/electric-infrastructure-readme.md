@@ -53,6 +53,18 @@ Done:
 - Made public marketing, pricing, domain, auth, checkout, knowledgebase, and content pages more compact through global section/type density and broad CSS module spacing reductions.
 - Replaced old raw crimson RGB accents in CSS with Electric Infrastructure accent tones. Red remains reserved for danger/error tokens.
 
+## Checkout Follow-Up
+
+Done:
+- Made checkout detect logged-in clients and hide full contact capture when profile data is already present.
+- Added a compact missing-profile section that asks only for missing required fields and requires confirmation.
+- Added required AGB/Terms acceptance before order submit.
+- Added admin-configurable `termsUrl` through billing settings and storefront public settings.
+- Reduced checkout form label/placeholder weight and made domain/password action buttons compact and equal width.
+- Added explicit autocomplete attributes for email, password, phone, address, and country fields.
+- Added checkout copy for German and English, using the existing locale helper.
+- Documented locale precedence in `docs/localization.md`.
+
 ## Changelog
 
 - `apps/web/app/globals.css`
@@ -70,8 +82,10 @@ Done:
 - `apps/web/app/[locale]/webhosting/webhosting.module.css`
 - `apps/web/components/admin/admin-dashboard.tsx`
 - `apps/web/components/admin/admin-dashboard.module.css`
+- `apps/web/components/admin/admin-forms.tsx`
 - `apps/web/components/auth/login-form.module.css`
 - `apps/web/components/checkout/checkout-form.module.css`
+- `apps/web/components/checkout/checkout-form.tsx`
 - `apps/web/components/layout/site-header.module.css`
 - `apps/web/components/layout/site-footer.module.css`
 - `apps/web/components/marketing/domain-search.module.css`
@@ -98,7 +112,11 @@ Done:
 - `apps/web/components/ui/top-bar.tsx`
 - `apps/web/components/ui/index.ts`
 - `apps/web/test/electric-infrastructure-design.test.mjs`
+- `apps/web/test/checkout-smart-form.test.mjs`
+- `apps/api/src/modules/billing/billing.controller.ts`
+- `apps/api/src/modules/billing/billing.service.ts`
 - `docs/electric-infrastructure-readme.md`
+- `docs/localization.md`
 
 ## Remaining
 
@@ -108,5 +126,5 @@ Done:
 
 ## Notes
 
-- No business logic, API calls, routing, auth, payment logic, invoice logic, admin actions, or form behavior changed.
+- Phase 1-6 restyle was visual-only. Checkout follow-up intentionally changed form behavior for logged-in users and AGB confirmation, without changing payment, invoice, provisioning, auth routing, or admin action flows.
 - `npm --workspace @crimson/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.

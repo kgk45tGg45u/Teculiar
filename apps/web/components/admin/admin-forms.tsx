@@ -520,6 +520,7 @@ export function SettingsForm() {
     supportImapUsername: "",
     supportMailboxAddress: "support@dezhost.com",
     ticketAutoCloseHours: 24,
+    termsUrl: "",
     vatPercent: 19
   });
 
@@ -566,6 +567,7 @@ export function SettingsForm() {
         supportImapUsername: payload.supportImapUsername ?? "",
         supportMailboxAddress: payload.supportMailboxAddress ?? "support@dezhost.com",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
+        termsUrl: payload.termsUrl ?? "",
         vatPercent: payload.vatPercent ?? 19
       }))
       .catch(() => undefined);
@@ -613,6 +615,7 @@ export function SettingsForm() {
         supportImapUsername: String(formData.get("supportImapUsername") ?? ""),
         supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@dezhost.com"),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
+        termsUrl: String(formData.get("termsUrl") ?? ""),
         vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -672,6 +675,8 @@ export function SettingsForm() {
       <label>Sales IMAP username<input value={settings.salesImapUsername} onChange={(event) => setSettings({ ...settings, salesImapUsername: event.target.value })} name="salesImapUsername" /></label>
       <label>Sales IMAP password<input value={settings.salesImapPassword} onChange={(event) => setSettings({ ...settings, salesImapPassword: event.target.value })} name="salesImapPassword" type="password" /></label>
       <label>Sales IMAP mailbox<input value={settings.salesImapMailbox} onChange={(event) => setSettings({ ...settings, salesImapMailbox: event.target.value })} name="salesImapMailbox" /></label>
+      <h3>Legal</h3>
+      <label>AGB / Terms URL<input value={settings.termsUrl} onChange={(event) => setSettings({ ...settings, termsUrl: event.target.value })} name="termsUrl" placeholder="/de/legal/agb" /></label>
       <h3>Invoice branding</h3>
       <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
       <ImageUploader

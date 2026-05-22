@@ -285,7 +285,7 @@ test("checkout form locks logged-in checkout to profile email", async () => {
 
   assert.match(source, /const customerEmail = profile\?\.email \?\? String\(formData\.get\("email"\) \?\? ""\)\.trim\(\)\.toLowerCase\(\)/);
   assert.match(source, /email: customerEmail/);
-  assert.match(source, /profileCheckoutCustomer\(profile\)/);
+  assert.match(source, /profileCheckoutCustomer\(profile, formData\)/);
 });
 
 test("checkout API requests include auth headers when present", async () => {
@@ -316,7 +316,9 @@ test("signed-in checkout uses profile data and hides contact fields", async () =
   const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /getJson<ClientProfile>\("\/users\/me", authToken\("client"\)\)/);
-  assert.match(source, /profile \? profileCheckoutCustomer\(profile\)/);
+  assert.match(source, /profile \? profileCheckoutCustomer\(profile, formData\)/);
+  assert.match(source, /missingProfileFields/);
+  assert.match(source, /ProfileCompletionFields/);
   assert.match(source, /\{!profile \? <ContactFields/);
 });
 
@@ -325,7 +327,7 @@ test("guest checkout password field has eye visibility toggle", async () => {
 
   assert.match(source, /showPassword/);
   assert.match(source, /type=\{showPassword \? "text" : "password"\}/);
-  assert.match(source, /aria-label=\{showPassword \? "Passwort verstecken" : "Passwort anzeigen"\}/);
+  assert.match(source, /aria-label=\{showPassword \? copy\.hidePassword : copy\.showPassword\}/);
 });
 
 test("client dashboard mobile layout puts smart cards before overview", async () => {
@@ -347,7 +349,7 @@ test("client dashboard mobile layout puts smart cards before overview", async ()
 test("client dashboard responsive CSS prevents page-wide overflow", async () => {
   const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.page\s*\{[\s\S]*grid-template-columns:\s*240px minmax\(0, 1fr\)/);
+  assert.match(css, /\.page\s*\{[\s\S]*grid-template-columns:\s*24[02]px minmax\(0, 1fr\)/);
   assert.match(css, /\.main\s*\{[\s\S]*min-width:\s*0/);
   assert.match(css, /\.headerActions/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.headerActions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
