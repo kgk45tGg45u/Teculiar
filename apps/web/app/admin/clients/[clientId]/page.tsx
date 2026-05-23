@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { invoiceDisplayNumber, money, type ApiClient, type ApiProduct, type AuthUser } from "../../../../lib/api";
+import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type ApiProduct, type AuthUser } from "../../../../lib/api";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { ClientDetailModals } from "../../../../components/admin/admin-forms";
 import { LogoutButton } from "../../../../components/auth/logout-button";
@@ -24,7 +24,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
     <main className="container">
       <div className={styles.headerActions}><a href="/admin/clients">Back to clients</a><LogoutButton scope="admin" redirectTo="/admin/login" /></div>
       <h1>{client.name}</h1>
-      <p>{client.email}</p>
+      <p>{client.email} · Kundennummer {formatCustomerNumber(client.customerNumber)}</p>
       <ClientDetailModals client={client} products={products} />
 
       <section className="grid four">
@@ -37,6 +37,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
       <Panel title="Client information">
         <table className="table"><tbody>
           <tr><th>Customer type</th><td>{client.customerType}</td></tr>
+          <tr><th>Kundennummer</th><td>{formatCustomerNumber(client.customerNumber)}</td></tr>
           <tr><th>Country</th><td>{client.countryCode}</td></tr>
           <tr><th>VAT ID</th><td>{client.vatId ?? "-"}</td></tr>
           <tr><th>Phone</th><td>{client.contacts?.[0]?.phone ?? "-"}</td></tr>

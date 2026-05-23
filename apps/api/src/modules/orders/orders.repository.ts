@@ -476,6 +476,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const publicUserSelect = {
   countryCode: true,
+  customerNumber: true,
   customerType: true,
   email: true,
   id: true,

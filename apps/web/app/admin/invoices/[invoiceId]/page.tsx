@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { API_BASE_URL, cycleLabel, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
+import { API_BASE_URL, cycleLabel, formatCustomerNumber, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth } from "../../../../lib/server-api";
 import { AdminInvoiceActions } from "../../../../components/admin/admin-forms";
@@ -31,7 +31,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
         </div>
         <div className={styles.invoiceMeta}>
           <div><strong>{customer.companyName || customer.name}</strong><br />{address.line1}<br />{address.postalCode} {address.city}<br />{customer.countryCode}</div>
-          <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Faellig: {dateLabel(invoice.dueAt)}<br />{invoice.status === "PAID" ? <>Bezahlt: {dateLabel(invoice.paidAt)}<br />Gateway: {paymentGateway(invoice)}<br /></> : null}E-Mail: {customer.email}</div>
+          <div>Rechnungsdatum: {dateLabel(invoice.issuedAt)}<br />Fällig: {dateLabel(invoice.dueAt)}<br />Kundennummer: {formatCustomerNumber(customer.customerNumber ?? invoice.user?.customerNumber)}<br />{invoice.status === "PAID" ? <>Bezahlt: {dateLabel(invoice.paidAt)}<br />Gateway: {paymentGateway(invoice)}<br /></> : null}E-Mail: {customer.email}</div>
         </div>
         <table className="table">
           <thead><tr><th>Beschreibung</th><th>Cycle</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>

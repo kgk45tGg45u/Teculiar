@@ -6,7 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
 import { ImageUploader } from "../ui/image-uploader";
@@ -109,6 +109,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         customerSnapshot: {
           address,
           countryCode: client.countryCode,
+          customerNumber: client.customerNumber,
           customerType: client.customerType,
           email: client.email,
           name: client.name,
@@ -172,6 +173,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       <summary>
         <strong>{client.name}</strong>
         <a href={`/admin/clients/${client.id}`}>Open</a>
+        <span>Kundennummer {formatCustomerNumber(client.customerNumber)}</span>
         <span>{client.email}</span>
         <span>{client.services?.filter((service) => service.status === "ACTIVE").length ?? 0} active services</span>
         <span>{client.domainRecords?.length ?? 0} domains</span>
@@ -270,7 +272,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       body: JSON.stringify({
         buyerCountryCode: client.countryCode ?? "DE",
         buyerVatId: client.vatId ?? undefined,
-        customerSnapshot: { address, countryCode: client.countryCode, customerType: client.customerType, email: client.email, name: client.name, phone: contact?.phone, vatId: client.vatId },
+        customerSnapshot: { address, countryCode: client.countryCode, customerNumber: client.customerNumber, customerType: client.customerType, email: client.email, name: client.name, phone: contact?.phone, vatId: client.vatId },
         dueAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
         isBusinessCustomer: client.customerType === "BUSINESS",
         lines,

@@ -13,13 +13,32 @@ test("client dashboard keeps content bounded with fixed metric cards and one bot
   assert.match(css, /\.page\s*\{[\s\S]*padding-right:\s*clamp\(18px, 2vw, 32px\)/);
   assert.match(css, /\.main\s*\{[\s\S]*max-width:\s*1680px/);
   assert.match(css, /\.main\s*\{[\s\S]*padding:\s*clamp\(18px, 2vw, 24px\) 0 32px/);
-  assert.match(css, /\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4, 190px\)/);
+  assert.match(css, /\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 232px\)\)/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*justify-content:\s*space-between/);
-  assert.match(css, /\.overviewGrid\s*\{[\s\S]*width:\s*min\(100%, 980px\)/);
-  assert.match(css, /\.overviewGrid\s*:global\(\.metric\)\s*\{[\s\S]*aspect-ratio:\s*1\.04 \/ 1/);
+  assert.match(css, /\.overviewGrid\s*\{[\s\S]*width:\s*min\(100%, 1040px\)/);
+  assert.match(css, /\.overviewGrid\s*:global\(\.metric\)\s*\{[\s\S]*min-height:\s*208px/);
   assert.match(source, /<DashboardKnowledgeFeed/);
   assert.match(source, /Announcements and Knowledgebase articles/);
   assert.match(css, /\.dashboardFeed\s*\{[\s\S]*width:\s*min\(100%, 980px\)/);
+});
+
+test("client dashboard metric cards include aligned heads and clickable summary lists", async () => {
+  const css = await readFile(dashboardCssUrl, "utf8");
+  const source = await readFile(dashboardUrl, "utf8");
+
+  assert.match(source, /const serviceSummaryItems = serviceRows/);
+  assert.match(source, /const domainSummaryItems = domainRows/);
+  assert.match(source, /const ticketSummaryItems = tickets/);
+  assert.match(source, /const invoiceSummaryItems = invoices/);
+  assert.match(source, /function DashboardSummaryList/);
+  assert.match(source, /className=\{styles\.metricHead\}/);
+  assert.match(source, /href: `\/client\/services\/\$\{service\.id\}`/);
+  assert.match(source, /href: `\/client\/tickets\/\$\{ticket\.id\}`/);
+  assert.match(source, /href: `\/client\/invoices\/\$\{invoice\.id\}`/);
+  assert.match(css, /\.overviewCard\s*\{[\s\S]*align-content:\s*start/);
+  assert.match(css, /\.metricHead\s*\{[\s\S]*align-items:\s*center/);
+  assert.match(css, /\.metricList\s*\{[\s\S]*list-style:\s*disc/);
+  assert.match(css, /\.metricList a\s*\{/);
 });
 
 test("client dashboard has professional loading state for counters and heavy panes", async () => {
@@ -48,18 +67,31 @@ test("client dashboard loaders use cache and timeout fallback so navigation cann
   assert.match(source, /controller\.abort\(\)/);
 });
 
-test("service pages probe hosting status once and show the ordered domain in detail", async () => {
+test("service table shares overview rows while service detail can refresh hosting status", async () => {
   const source = await readFile(dashboardUrl, "utf8");
 
   assert.match(source, /function serviceListUrl/);
-  assert.match(source, /view === "services" && !serviceId/);
-  assert.match(source, /\/services\?refresh=1/);
+  assert.match(source, /function serviceListUrl\(\)[\s\S]*return `\$\{API_BASE_URL\}\/services`/);
   assert.match(source, /function serviceDetailUrl/);
   assert.match(source, /\/services\/\$\{serviceId\}\?refresh=1/);
   assert.doesNotMatch(source, /setInterval\(loadServices/);
   assert.match(source, /<span>Domain<\/span>/);
   assert.match(source, /serviceDomainLabel\(service\)/);
   assert.match(source, /service\?\.product\.type === "SHARED_HOSTING" && service\.status === "ACTIVE"/);
+});
+
+test("hosting controls and entry managers are compact responsive panels", async () => {
+  const source = await readFile(dashboardUrl, "utf8");
+  const css = await readFile(dashboardCssUrl, "utf8");
+
+  assert.match(source, /className=\{styles\.hostingShell\}/);
+  assert.match(source, /className=\{styles\.hostingSection\}/);
+  assert.match(source, /className=\{styles\.entryActions\}/);
+  assert.match(source, /className=\{styles\.entryDelete\}/);
+  assert.match(css, /\.hostingShell\s*\{[\s\S]*width:\s*min\(100%, 1040px\)/);
+  assert.match(css, /\.controlGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(auto-fit, minmax\(150px, 1fr\)\)/);
+  assert.match(css, /\.entryRow\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(220px, auto\)/);
+  assert.match(css, /@media \(max-width: 640px\)[\s\S]*\.modal/);
 });
 
 test("service list subtitle is hosting domain, not duplicated hosting label", async () => {

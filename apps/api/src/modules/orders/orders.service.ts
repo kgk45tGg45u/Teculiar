@@ -139,7 +139,7 @@ export class OrdersService {
     const invoice = await this.billing.createInvoice({
       buyerCountryCode: dto.customer.countryCode ?? "DE",
       buyerVatId: dto.customer.vatId,
-      customerSnapshot: customerSnapshot(dto.customer, email),
+      customerSnapshot: customerSnapshot(dto.customer, email, existing?.customerNumber),
       dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
       isBusinessCustomer: dto.customer.customerType === "BUSINESS",
       lines: preview.items.map((item) => ({
@@ -162,7 +162,7 @@ export class OrdersService {
       userId: user.id
     });
     const order = await this.orders.createOrder({
-      customerSnapshot: customerSnapshot(dto.customer, email),
+      customerSnapshot: customerSnapshot(dto.customer, email, existing?.customerNumber),
       invoiceId: invoice.id,
       items: preview.items,
       setupFeeCents: preview.setupFeeCents,
@@ -183,7 +183,7 @@ export class OrdersService {
       subject: "order",
       subjectId: order.id
     });
-    void this.dispatchOrderEmail(order, invoice, customerSnapshot(dto.customer, email)).catch(() => undefined);
+    void this.dispatchOrderEmail(order, invoice, customerSnapshot(dto.customer, email, existing?.customerNumber)).catch(() => undefined);
 
     return { invoice, order };
   }
@@ -577,10 +577,11 @@ export class OrdersService {
   }
 }
 
-function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string) {
+function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string, customerNumber?: number) {
   return {
     address: customer.address,
     countryCode: customer.countryCode ?? "DE",
+    customerNumber,
     customerType: customer.customerType ?? "INDIVIDUAL",
     email,
     companyName: customer.companyName,
@@ -613,6 +614,7 @@ function assertRequiredString(value: unknown, label: string) {
 function customerSnapshotFromUser(user: {
   contacts?: Array<{ address?: unknown; phone?: string | null }>;
   countryCode?: string;
+  customerNumber?: number | null;
   customerType?: string;
   email: string;
   name: string;
@@ -622,6 +624,7 @@ function customerSnapshotFromUser(user: {
   return {
     address: isRecord(contact?.address) ? contact?.address : undefined,
     countryCode: user.countryCode ?? "DE",
+    customerNumber: user.customerNumber,
     customerType: user.customerType ?? "INDIVIDUAL",
     email: user.email,
     name: user.name,

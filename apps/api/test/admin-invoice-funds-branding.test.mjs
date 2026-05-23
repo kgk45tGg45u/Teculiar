@@ -10,6 +10,7 @@ test("add funds uses profile snapshot and sandbox token for sandbox gateway", as
     findUserBillingProfile: async () => ({
       contacts: [{ address: { city: "Berlin", line1: "Main 1", postalCode: "10115", state: "BE" }, phone: "+49 30 123" }],
       countryCode: "DE",
+      customerNumber: 123,
       customerType: "BUSINESS",
       email: "client@example.test",
       id: "user-1",
@@ -32,6 +33,7 @@ test("add funds uses profile snapshot and sandbox token for sandbox gateway", as
   assert.deepEqual(calls[0][1].customerSnapshot, {
     address: { city: "Berlin", line1: "Main 1", postalCode: "10115", state: "BE" },
     countryCode: "DE",
+    customerNumber: 123,
     customerType: "BUSINESS",
     email: "client@example.test",
     name: "Client GmbH",

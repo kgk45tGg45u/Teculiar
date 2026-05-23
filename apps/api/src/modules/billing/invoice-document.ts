@@ -1,3 +1,7 @@
+import { formatCustomerNumber } from "@crimson/shared";
+import { load } from "cheerio";
+import PDFDocument from "pdfkit";
+
 type InvoiceLike = Record<string, any>;
 
 export function renderInvoiceDocument(invoice: InvoiceLike) {
@@ -8,7 +12,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
   const issuedAt = dateLabel(invoice.issuedAt);
   const dueAt = dateLabel(invoice.dueAt);
   const paidAt = invoice.paidAt ? dateLabel(invoice.paidAt) : "";
-  const servicePeriod = periodLabel(invoice.items);
+  const customerNumber = formatCustomerNumber(buyer.customerNumber ?? asRecord(invoice.user).customerNumber);
   const footerLines = Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string" && line.trim().length > 0) : [];
   const rows = Array.isArray(invoice.items) ? invoice.items : [];
   const taxReason = stringValue(invoice.taxReason);
@@ -28,9 +32,11 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
     .page { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm; background: #fff; }
     .top { display: grid; grid-template-columns: 1fr auto; gap: 18mm; align-items: start; border-bottom: 1px solid #d9e2ec; padding-bottom: 10mm; }
     .brand { font-size: 21px; font-weight: 700; letter-spacing: 0; }
+    .sellerCompany { margin-top: 2mm; color: #111827; font-size: 12px; font-weight: 700; }
     .seller, .meta, .footer { color: #4b5563; font-size: 11px; line-height: 1.55; }
     .sender { margin: 13mm 0 5mm; color: #6b7280; font-size: 10px; text-decoration: underline; }
     .address { min-height: 35mm; font-size: 13px; line-height: 1.55; }
+    .address span { display: block; }
     h1 { margin: 0 0 7mm; font-size: 26px; letter-spacing: 0; }
     .intro { display: grid; grid-template-columns: 1fr 62mm; gap: 14mm; margin-bottom: 8mm; }
     .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 7mm; }
@@ -50,10 +56,11 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
   <main class="page">
     <header class="top">
       <div>
-        <div class="brand">${escapeHtml(stringValue(seller.companyName) ?? "Dezhost")}</div>
-        <div class="seller">${addressLines(seller).map(escapeHtml).join("<br />")}</div>
+        <div class="brand">Kundenrechnung</div>
+        <div class="sellerCompany">${escapeHtml(stringValue(seller.companyName) ?? "Dezhost")}</div>
+        <div class="seller sellerAddress">${addressLines(seller).map(escapeHtml).join("<br />")}</div>
       </div>
-      <div class="seller">
+      <div class="seller sellerContact">
         ${seller.vatNumber ? `USt-IdNr. ${escapeHtml(String(seller.vatNumber))}<br />` : ""}
         ${seller.email ? escapeHtml(String(seller.email)) : ""}${seller.phone ? `<br />${escapeHtml(String(seller.phone))}` : ""}
       </div>
@@ -62,9 +69,9 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
     <div class="sender">${escapeHtml(senderLine(seller))}</div>
     <section class="address">
       <strong>${escapeHtml(stringValue(buyer.companyName) ?? stringValue(buyer.name) ?? "")}</strong><br />
-      ${buyer.companyName && buyer.name ? `${escapeHtml(String(buyer.name))}<br />` : ""}
-      ${[buyerAddress.line1, `${stringValue(buyerAddress.postalCode) ?? ""} ${stringValue(buyerAddress.city) ?? ""}`.trim(), buyer.countryCode].filter(Boolean).map((line) => escapeHtml(String(line))).join("<br />")}
-      ${buyer.vatId ? `<br />USt-IdNr. ${escapeHtml(String(buyer.vatId))}` : ""}
+      ${buyer.companyName && buyer.name ? `<span>${escapeHtml(String(buyer.name))}</span>` : ""}
+      ${[buyerAddress.line1, `${stringValue(buyerAddress.postalCode) ?? ""} ${stringValue(buyerAddress.city) ?? ""}`.trim(), buyer.countryCode].filter(Boolean).map((line) => `<span>${escapeHtml(String(line))}</span>`).join("")}
+      ${buyer.vatId ? `<span>USt-IdNr. ${escapeHtml(String(buyer.vatId))}</span>` : ""}
     </section>
 
     <section class="intro">
@@ -74,10 +81,9 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
       </div>
       <div class="meta">
         <span>Rechnungsdatum</span><strong>${escapeHtml(issuedAt)}</strong>
-        <span>Faellig am</span><strong>${escapeHtml(dueAt)}</strong>
+        <span>Fällig am</span><strong>${escapeHtml(dueAt)}</strong>
         ${paidAt ? `<span>Bezahlt am</span><strong>${escapeHtml(paidAt)}</strong>` : ""}
-        <span>Leistungszeitraum</span><strong>${escapeHtml(servicePeriod)}</strong>
-        <span>Kundennummer</span><strong>${escapeHtml(String(invoice.userId ?? "-"))}</strong>
+        <span>Kundennummer</span><strong>${escapeHtml(customerNumber)}</strong>
       </div>
     </section>
 
@@ -108,8 +114,24 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
 }
 
 export function renderInvoicePdfFromHtml(html: string) {
-  const lines = htmlToLines(html);
-  return createPdf(lines);
+  const content = pdfContentFromHtml(html);
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const document = new PDFDocument({
+      compress: false,
+      info: {
+        Creator: "Dezhost invoice PDF renderer",
+        Title: content.title
+      },
+      margins: { bottom: 48, left: 56, right: 56, top: 52 },
+      size: "A4"
+    });
+    document.on("data", (chunk: Buffer) => chunks.push(chunk));
+    document.on("end", () => resolve(Buffer.concat(chunks)));
+    document.on("error", reject);
+    drawInvoicePdf(document, content);
+    document.end();
+  });
 }
 
 function invoiceRow(item: Record<string, any>, index: number, currency: unknown) {
@@ -126,37 +148,166 @@ function invoiceRow(item: Record<string, any>, index: number, currency: unknown)
   </tr>`;
 }
 
-function htmlToLines(html: string) {
-  return decodeHtml(html)
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<\/(h1|h2|h3|p|div|section|header|footer|tr)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .split(/\n+/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .slice(0, 48);
+type PdfContent = {
+  brand: string;
+  footer: string[];
+  intro: string;
+  meta: Array<[string, string]>;
+  notes: string[];
+  recipient: string[];
+  rows: string[][];
+  sellerAddress: string[];
+  sellerCompany: string;
+  sellerContact: string[];
+  sender: string;
+  tableHeaders: string[];
+  title: string;
+  totals: Array<[string, string]>;
+};
+
+function pdfContentFromHtml(html: string): PdfContent {
+  const $ = load(html);
+  const clean = (value: string) => value.replace(/\s+/g, " ").trim();
+  const text = (selector: string) => clean($(selector).first().text());
+  const elementLines = (element: any) => {
+    const fragment = $(element).clone();
+    fragment.find("br").replaceWith("\n");
+    return fragment.text().split("\n").map(clean).filter(Boolean);
+  };
+  const lineText = (selector: string) => {
+    return elementLines($(selector).first());
+  };
+  const values = (selector: string) => $(selector).toArray().map((element) => clean($(element).text())).filter(Boolean);
+  const labels = values(".meta span");
+  const metaValues = values(".meta strong");
+
+  return {
+    brand: text(".brand"),
+    footer: values(".footer div"),
+    intro: text(".intro p"),
+    meta: labels.map((label, index) => [label, metaValues[index] ?? ""]),
+    notes: $(".note").toArray().flatMap((element) => elementLines(element)),
+    recipient: [text(".address strong"), ...values(".address span")].filter(Boolean),
+    rows: $("table tbody tr").toArray().map((row) => $(row).find("td").toArray().map((cell) => clean($(cell).text()))),
+    sellerAddress: lineText(".sellerAddress"),
+    sellerCompany: text(".sellerCompany"),
+    sellerContact: lineText(".sellerContact"),
+    sender: text(".sender"),
+    tableHeaders: values("table thead th"),
+    title: text("h1"),
+    totals: $(".totals div").toArray().map((row) => {
+      const parts = $(row).children().toArray().map((element) => clean($(element).text()));
+      return [parts[0] ?? "", parts[1] ?? ""];
+    })
+  };
 }
 
-function createPdf(lines: string[]) {
-  const escaped = lines.map((line, index) => `BT /F1 10 Tf 44 ${790 - index * 15} Td (${pdfEscape(line)}) Tj ET`).join("\n");
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${Buffer.byteLength(escaped)} >> stream\n${escaped}\nendstream endobj`
-  ];
-  let offset = "%PDF-1.4\n".length;
-  const xref = ["0000000000 65535 f "];
-  const body = objects.map((object) => {
-    xref.push(`${String(offset).padStart(10, "0")} 00000 n `);
-    offset += Buffer.byteLength(`${object}\n`);
-    return object;
-  }).join("\n");
-  const start = Buffer.byteLength(`%PDF-1.4\n${body}\n`);
-  return Buffer.from(`%PDF-1.4\n${body}\nxref\n0 ${xref.length}\n${xref.join("\n")}\ntrailer << /Root 1 0 R /Size ${xref.length} >>\nstartxref\n${start}\n%%EOF`);
+function drawInvoicePdf(document: PDFKit.PDFDocument, content: PdfContent) {
+  const left = document.page.margins.left;
+  const right = document.page.width - document.page.margins.right;
+  const width = right - left;
+  const textColor = "#111827";
+  const muted = "#4b5563";
+  const border = "#d9e2ec";
+
+  document.fillColor(textColor).font("Helvetica-Bold").fontSize(21).text(content.brand, left, 52);
+  document.fontSize(11).text(content.sellerCompany, left, 81);
+  document.fillColor(muted).font("Helvetica").fontSize(9).text(content.sellerAddress.join("\n"), left, 98, { lineGap: 2 });
+  document.text(content.sellerContact.join("\n"), right - 170, 58, { align: "right", lineGap: 2, width: 170 });
+  document.moveTo(left, 132).lineTo(right, 132).strokeColor(border).lineWidth(1).stroke();
+
+  document.fillColor(muted).fontSize(8).text(content.sender, left, 155, { underline: true });
+  document.fillColor(textColor).fontSize(11).font("Helvetica-Bold").text(content.recipient[0] ?? "", left, 175);
+  document.font("Helvetica").text(content.recipient.slice(1).join("\n"), left, 193, { lineGap: 3 });
+
+  document.fillColor(textColor).font("Helvetica-Bold").fontSize(24).text(content.title, left, 262, { width: 278 });
+  document.fillColor(muted).font("Helvetica").fontSize(9).text(content.intro, left, 301, { lineGap: 2, width: 278 });
+
+  const metaX = right - 186;
+  let metaY = 265;
+  content.meta.forEach(([label, value]) => {
+    document.fillColor(muted).font("Helvetica").fontSize(8.5).text(label, metaX, metaY, { width: 82 });
+    document.fillColor(textColor).font("Helvetica-Bold").text(value, metaX + 88, metaY, { align: "right", width: 98 });
+    metaY += 16;
+  });
+
+  let y = drawPdfTableHeader(document, content.tableHeaders, left, width, 370, border, textColor);
+  for (const row of content.rows) {
+    const columns = pdfTableColumns(width);
+    document.font("Helvetica").fontSize(9);
+    const rowHeight = Math.max(...row.map((value, index) => document.heightOfString(value, { width: columns[index]!.width - 12 })), 10) + 15;
+    if (y + rowHeight > document.page.height - 145) {
+      document.addPage();
+      y = drawPdfTableHeader(document, content.tableHeaders, left, width, document.page.margins.top, border, textColor);
+    }
+    row.forEach((value, index) => {
+      const column = columns[index]!;
+      document.fillColor(textColor).font("Helvetica").text(value, left + column.offset + 6, y + 8, {
+        align: index >= 3 ? "right" : "left",
+        width: column.width - 12
+      });
+    });
+    document.moveTo(left, y + rowHeight).lineTo(left + width, y + rowHeight).strokeColor("#e5e7eb").lineWidth(0.7).stroke();
+    y += rowHeight;
+  }
+
+  y += 20;
+  const totalX = right - 222;
+  content.totals.forEach(([label, value], index) => {
+    const finalRow = index === content.totals.length - 1;
+    if (finalRow) {
+      document.moveTo(totalX, y).lineTo(right, y).strokeColor(textColor).lineWidth(1).stroke();
+      y += 10;
+    }
+    document.fillColor(finalRow ? textColor : muted).font(finalRow ? "Helvetica-Bold" : "Helvetica").fontSize(finalRow ? 12 : 10).text(label, totalX, y, { width: 124 });
+    document.fillColor(textColor).font("Helvetica-Bold").text(value, totalX + 128, y, { align: "right", width: 94 });
+    y += finalRow ? 25 : 19;
+  });
+
+  for (const note of content.notes) {
+    y = pdfSpace(document, y, 45);
+    document.moveTo(left, y).lineTo(right, y).strokeColor(border).lineWidth(0.8).stroke();
+    document.fillColor(muted).font("Helvetica").fontSize(9).text(note, left, y + 12, { lineGap: 2, width });
+    y += document.heightOfString(note, { lineGap: 2, width }) + 27;
+  }
+
+  if (content.footer.length) {
+    y = pdfSpace(document, y, 42);
+    document.moveTo(left, y).lineTo(right, y).strokeColor(border).lineWidth(0.8).stroke();
+    document.fillColor(muted).font("Helvetica").fontSize(8).text(content.footer.join("\n"), left, y + 12, { lineGap: 2, width });
+  }
+}
+
+function drawPdfTableHeader(document: PDFKit.PDFDocument, headers: string[], left: number, width: number, y: number, border: string, textColor: string) {
+  const columns = pdfTableColumns(width);
+  document.rect(left, y, width, 30).fill("#f3f6f9");
+  headers.forEach((header, index) => {
+    const column = columns[index]!;
+    document.fillColor(textColor).font("Helvetica-Bold").fontSize(8.5).text(header, left + column.offset + 6, y + 10, {
+      align: index >= 3 ? "right" : "left",
+      width: column.width - 12
+    });
+  });
+  document.moveTo(left, y + 30).lineTo(left + width, y + 30).strokeColor(border).lineWidth(0.8).stroke();
+  return y + 30;
+}
+
+function pdfTableColumns(width: number) {
+  const ratios = [0.08, 0.33, 0.2, 0.1, 0.145, 0.145];
+  let offset = 0;
+  return ratios.map((ratio) => {
+    const column = { offset, width: width * ratio };
+    offset += column.width;
+    return column;
+  });
+}
+
+function pdfSpace(document: PDFKit.PDFDocument, y: number, height: number) {
+  if (y + height <= document.page.height - document.page.margins.bottom) {
+    return y;
+  }
+  document.addPage();
+  return document.page.margins.top;
 }
 
 function addressLines(seller: Record<string, any>) {
@@ -169,16 +320,6 @@ function addressLines(seller: Record<string, any>) {
 
 function senderLine(seller: Record<string, any>) {
   return [seller.companyName, seller.address, seller.zip, seller.city].filter(Boolean).join(", ");
-}
-
-function periodLabel(items: unknown) {
-  const rows = Array.isArray(items) ? items : [];
-  const starts = rows.map((item) => asRecord(item).servicePeriodStart).filter(Boolean);
-  const ends = rows.map((item) => asRecord(item).servicePeriodEnd).filter(Boolean);
-  if (starts.length || ends.length) {
-    return [starts[0] ? dateLabel(starts[0]) : "", ends[0] ? dateLabel(ends[0]) : ""].filter(Boolean).join(" - ");
-  }
-  return "gem. Leistungsbeschreibung";
 }
 
 function cycleLabel(value: unknown) {
@@ -216,17 +357,4 @@ function escapeHtml(value: unknown) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function decodeHtml(value: string) {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
-function pdfEscape(value: string) {
-  return value.replace(/[\\()]/g, "\\$&");
 }

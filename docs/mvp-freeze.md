@@ -7,6 +7,7 @@ This freeze protects the storefront money path. After it passes, only blockers s
 - Guest checkout creates an order, unpaid invoice, pending service/domain rows, then pays by sandbox.
 - Logged-in checkout sends auth to `/orders/checkout` and allows the same account email.
 - Successful payment finalizes invoice numbering before client/admin display.
+- Customer `Kundennummer` is a persisted six-digit value and never reuses an order or invoice number.
 - Client is sent to `/client` immediately after payment confirmation.
 - Hosting and domain provisioning run after payment and never mark service `ACTIVE` unless the module succeeds.
 - Provider failures keep service/domain non-active, leave order `PROVISIONING`, and write module/audit logs.
@@ -67,6 +68,7 @@ npm --workspace @crimson/web run dev
 6. Invoice views:
    - Check admin order, admin invoice, admin client, client invoice list/detail.
    - Paid invoices must show final invoice number everywhere.
+   - Check HTML and PDF downloads keep the formatted German invoice layout and six-digit `Kundennummer`.
 
 ## Allowed MVP Test Env
 

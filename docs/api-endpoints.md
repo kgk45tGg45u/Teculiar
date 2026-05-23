@@ -24,6 +24,9 @@ Base URL: `/api/v1`
 - `GET /teams/:id`
 - `POST /teams/:id/members`
 
+Customer-number note:
+- `User.customerNumber` is a persisted unique integer exposed as a zero-padded six-digit `Kundennummer` in portal/admin/invoice UI. It is separate from order and invoice numbers; existing users are backfilled by migration.
+
 ## Products and Services
 
 - `GET /storefront/products`
@@ -40,7 +43,8 @@ Base URL: `/api/v1`
 - `DELETE /admin/dev/product-categories/:id` - temporary admin category deactivate; linked products are moved out of the category.
 - `GET /products/:id`
 - `PATCH /products/:id`
-- `GET /services`
+- `GET /services` - shared client portal overview/services table source.
+- `GET /services?refresh=1` - optional on-demand provider status probe before returning service rows.
 - `POST /services`
 - `GET /services/:id`
 - `POST /admin/dev/services/refresh` - admin/manual service and domain status refresh. The API server also runs this once per day and stores the latest provider status in the database.
@@ -73,6 +77,8 @@ Lifecycle notes:
 - `GET /billing/invoices`
 - `POST /billing/invoices`
 - `GET /billing/invoices/:id`
+- `GET /billing/invoices/:id/html` - protected German print layout for invoice viewing.
+- `GET /billing/invoices/:id/pdf` - protected styled PDF download rendered from the HTML invoice structure.
 - `POST /billing/invoices/:id/send`
 - `POST /billing/invoices/:id/pay` - gateway payment; successful payment finalizes the invoice number and triggers `onInvoicePaid`.
 - `POST /billing/invoices/:id/mark-paid` - admin/manual payment; same lifecycle behavior as gateway payment.

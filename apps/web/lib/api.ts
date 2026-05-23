@@ -1,4 +1,7 @@
+import { formatCustomerNumber } from "@crimson/shared";
 import { LOCALE_COOKIE, browserLocale, type Locale } from "./i18n";
+
+export { formatCustomerNumber };
 
 export type ApiProduct = {
   category?: ApiProductCategory | null;
@@ -104,6 +107,7 @@ export type ApiInvoice = {
     address?: { city?: string; line1?: string; postalCode?: string; state?: string };
     companyName?: string;
     countryCode?: string;
+    customerNumber?: number | string | null;
     email?: string;
     name?: string;
     phone?: string;
@@ -147,6 +151,7 @@ export type ApiInvoice = {
     providerReference: string;
     status: string;
   }>;
+  user?: { customerNumber?: number | null };
   status: string;
   issuedAt: string;
   dueAt: string;
@@ -162,6 +167,7 @@ export type ApiClient = {
   balanceCents?: number;
   contacts?: Array<{ address?: { city?: string; line1?: string; postalCode?: string; state?: string }; phone?: string | null }>;
   countryCode: string;
+  customerNumber?: number | null;
   customerType: string;
   domainRecords?: Array<{ id: string; domain: string; status: string }>;
   email: string;

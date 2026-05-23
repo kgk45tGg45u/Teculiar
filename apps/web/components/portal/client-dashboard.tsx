@@ -8,6 +8,7 @@ import {
   currentLocale,
   cycleLabel,
   dateLabel as formatDate,
+  formatCustomerNumber,
   invoiceDisplayNumber,
   money,
   type ApiAnnouncement,
@@ -98,6 +99,7 @@ type ClientProfile = {
   address?: { city?: string; line1?: string; postalCode?: string; state?: string };
   balanceCents?: number;
   countryCode?: string;
+  customerNumber?: number | null;
   customerType?: string;
   email?: string;
   name?: string;
@@ -119,6 +121,11 @@ type DashboardFeedItem = {
   href?: string;
   id: string;
   title: string;
+};
+type DashboardSummaryItem = {
+  href: string;
+  id: string;
+  label: string;
 };
 
 const PORTAL_LOADING_TIMEOUT_MS = 4500;
@@ -226,7 +233,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       setServices(payload);
     };
     const loadServices = () => {
-      fetchPortalJson<ApiService[]>(serviceListUrl(view, serviceId), { headers }).then((payload) => {
+      fetchPortalJson<ApiService[]>(serviceListUrl(), { headers }).then((payload) => {
         if (Array.isArray(payload)) {
           portalDataCache.services = payload;
           applyServices(payload);
@@ -322,6 +329,20 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const domainRows = domainRowsFromServices(services);
   const openInvoices = invoices.filter((invoice) => invoice.status !== "PAID").length;
   const openTickets = tickets.filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status)).length;
+  const serviceSummaryItems = serviceRows
+    .filter((service) => service.status === "ACTIVE")
+    .slice(0, 4)
+    .map((service) => ({ href: `/client/services/${service.id}`, id: service.id, label: serviceListTitle(service) }));
+  const domainSummaryItems = domainRows
+    .slice(0, 4)
+    .map((domain) => ({ href: "/client/domains", id: domain.id, label: domain.domain }));
+  const ticketSummaryItems = tickets
+    .filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status))
+    .slice(0, 4)
+    .map((ticket) => ({ href: `/client/tickets/${ticket.id}`, id: ticket.id, label: ticket.subject }));
+  const invoiceSummaryItems = invoices
+    .slice(0, 4)
+    .map((invoice) => ({ href: `/client/invoices/${invoice.id}`, id: invoice.id, label: `${invoiceDisplayNumber(invoice)} · ${money(invoice.totalCents, invoice.currency)}` }));
 
   return (
     <div className={styles.page}>
@@ -361,26 +382,38 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         </header>
 
         <section className={styles.overviewGrid} aria-label="Overview">
-          <a className="metric" href="/client/services">
-            <Server aria-hidden size={22} />
-            <MetricValue loading={loading.services} label="Loading services" value={serviceRows.length} />
-            <span>{copy.services}</span>
-          </a>
-          <a className="metric" href="/client/domains">
-            <Globe aria-hidden size={22} />
-            <MetricValue loading={loading.services} label="Loading domains" value={domainRows.length} />
-            <span>{copy.domains}</span>
-          </a>
-          <a className="metric" href="/client/tickets">
-            <LifeBuoy aria-hidden size={22} />
-            <MetricValue loading={loading.tickets} label="Loading tickets" value={openTickets} />
-            <span>{copy.openTickets}</span>
-          </a>
-          <a className="metric" href="/client/invoices">
-            <FileText aria-hidden size={22} />
-            <MetricValue loading={loading.invoices} label="Loading invoices" value={openInvoices} />
-            <span>{copy.openInvoices}</span>
-          </a>
+          <article className={`metric ${styles.overviewCard}`}>
+            <div className={styles.metricHead}>
+              <Server aria-hidden size={22} />
+              <MetricValue loading={loading.services} label="Loading services" value={serviceRows.length} />
+            </div>
+            <a className={styles.metricTitle} href="/client/services">{copy.services}</a>
+            <DashboardSummaryList empty="No active services" items={serviceSummaryItems} />
+          </article>
+          <article className={`metric ${styles.overviewCard}`}>
+            <div className={styles.metricHead}>
+              <Globe aria-hidden size={22} />
+              <MetricValue loading={loading.services} label="Loading domains" value={domainRows.length} />
+            </div>
+            <a className={styles.metricTitle} href="/client/domains">{copy.domains}</a>
+            <DashboardSummaryList empty="No domains" items={domainSummaryItems} />
+          </article>
+          <article className={`metric ${styles.overviewCard}`}>
+            <div className={styles.metricHead}>
+              <LifeBuoy aria-hidden size={22} />
+              <MetricValue loading={loading.tickets} label="Loading tickets" value={openTickets} />
+            </div>
+            <a className={styles.metricTitle} href="/client/tickets">{copy.openTickets}</a>
+            <DashboardSummaryList empty="No open tickets" items={ticketSummaryItems} />
+          </article>
+          <article className={`metric ${styles.overviewCard}`}>
+            <div className={styles.metricHead}>
+              <FileText aria-hidden size={22} />
+              <MetricValue loading={loading.invoices} label="Loading invoices" value={openInvoices} />
+            </div>
+            <a className={styles.metricTitle} href="/client/invoices">{copy.openInvoices}</a>
+            <DashboardSummaryList empty="No invoices" items={invoiceSummaryItems} />
+          </article>
         </section>
 
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable loading={loading.services} services={serviceRows} /> : null}
@@ -405,8 +438,8 @@ function clientNavCurrent(current: ClientView, target: ClientView) {
   return current === target ? "page" : undefined;
 }
 
-function serviceListUrl(view: ClientView, serviceId?: string) {
-  return view === "services" && !serviceId ? `${API_BASE_URL}/services?refresh=1` : `${API_BASE_URL}/services`;
+function serviceListUrl() {
+  return `${API_BASE_URL}/services`;
 }
 
 function serviceDetailUrl(serviceId: string) {
@@ -472,6 +505,17 @@ async function fetchPortalJson<T>(url: string, init: RequestInit = {}) {
 
 function MetricValue({ label, loading, value }: { label: string; loading: boolean; value: number }) {
   return <strong>{loading ? <LoadingSpinner label={label} /> : value}</strong>;
+}
+
+function DashboardSummaryList({ empty, items }: { empty: string; items: DashboardSummaryItem[] }) {
+  if (!items.length) {
+    return <span className={styles.metricEmpty}>{empty}</span>;
+  }
+  return (
+    <ul className={styles.metricList}>
+      {items.map((item) => <li key={item.id}><a href={item.href}>{item.label}</a></li>)}
+    </ul>
+  );
 }
 
 function LoadingSpinner({ label }: { label: string }) {
@@ -706,27 +750,33 @@ function HostingControlPanel({
 }) {
   return (
     <div className={styles.controlPanel}>
-      <div className={styles.panelTitle}>
-        <div>
-          <span className="eyebrow">Hosting Control Panel</span>
-          <h3>{panel?.domain ?? serviceName(service)}</h3>
+      <div className={styles.hostingShell}>
+        <div className={styles.panelTitle}>
+          <div>
+            <span className="eyebrow">Hosting Control Panel</span>
+            <h3>{panel?.domain ?? serviceName(service)}</h3>
+          </div>
         </div>
+        <div className={styles.hostingSection}>
+          <div className={styles.usageGrid}>
+            <UsageGraph icon="disk" label="Disk space" usage={panel?.diskUsage} />
+            <UsageGraph icon="bandwidth" label="Bandwidth" usage={panel?.bandwidthUsage} />
+          </div>
+        </div>
+        <div className={styles.hostingSection}>
+          <div className={styles.controlGrid}>
+            <a href={panel?.controlPanelUrl || "#"} target="_blank" rel="noreferrer"><ExternalLink aria-hidden />Control panel</a>
+            <a href={panel?.webmailUrl || "#"} target="_blank" rel="noreferrer"><Mail aria-hidden />Webmail</a>
+            <button type="button" onClick={() => setModal("email")}><Mail aria-hidden />Mail boxes</button>
+            <button type="button" onClick={() => setModal("databases")}><Database aria-hidden />Databases</button>
+            <button type="button" onClick={() => setModal("subdomains")}><Globe aria-hidden />Subdomains</button>
+            <button type="button" onClick={() => setModal("ftp")}><UsersRound aria-hidden />FTP users</button>
+            <button type="button" onClick={() => setModal("admin")}><KeyRound aria-hidden />Admin password</button>
+            <button type="button" onClick={() => setModal("instructions")}><FileText aria-hidden />Email clients</button>
+          </div>
+        </div>
+        {panel?.errors.length ? <p className={styles.warn}>{panel.errors.join(" ")}</p> : null}
       </div>
-      <div className={styles.usageGrid}>
-        <UsageGraph icon="disk" label="Disk space" usage={panel?.diskUsage} />
-        <UsageGraph icon="bandwidth" label="Bandwidth" usage={panel?.bandwidthUsage} />
-      </div>
-      <div className={styles.controlGrid}>
-        <a href={panel?.controlPanelUrl || "#"} target="_blank" rel="noreferrer"><ExternalLink aria-hidden />Control panel</a>
-        <a href={panel?.webmailUrl || "#"} target="_blank" rel="noreferrer"><Mail aria-hidden />Webmail</a>
-        <button type="button" onClick={() => setModal("email")}><Mail aria-hidden />Mail boxes</button>
-        <button type="button" onClick={() => setModal("databases")}><Database aria-hidden />Databases</button>
-        <button type="button" onClick={() => setModal("subdomains")}><Globe aria-hidden />Subdomains</button>
-        <button type="button" onClick={() => setModal("ftp")}><UsersRound aria-hidden />FTP users</button>
-        <button type="button" onClick={() => setModal("admin")}><KeyRound aria-hidden />Admin password</button>
-        <button type="button" onClick={() => setModal("instructions")}><FileText aria-hidden />Email clients</button>
-      </div>
-      {panel?.errors.length ? <p className={styles.warn}>{panel.errors.join(" ")}</p> : null}
       {modal ? <HostingModal modal={modal} panel={panel} refresh={refresh} service={service} setModal={setModal} /> : null}
     </div>
   );
@@ -803,7 +853,7 @@ function EntryManager({
   title: string;
 }) {
   return (
-    <>
+    <div className={styles.hostingSection}>
       <div className={styles.modalHeader}><h3>{title}</h3></div>
       <details className={styles.actionDetails}>
         <summary>Add {title.toLowerCase().replace(/s$/, "")}</summary>
@@ -816,22 +866,24 @@ function EntryManager({
               <strong>{entry.address ?? entry.name}</strong>
               {entry.usage ? <UsageGraph icon="disk" label="Usage" usage={entry.usage} /> : <span>{entry.fields["Size"] ?? ""}</span>}
             </div>
-            {changeIntent && passField ? <details>
-              <summary>Change password</summary>
-              <ActionForm intent={changeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[passField, "New password"]]} button="Save" />
-            </details> : null}
-            {quotaIntent && quotaField ? (
-              <details>
-                <summary>Edit quota</summary>
-                <ActionForm intent={quotaIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[quotaField, "Quota MB"]]} button="Save quota" />
-              </details>
-            ) : null}
-            <ActionForm intent={removeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[]} button="Delete" />
+            <div className={styles.entryActions}>
+              {changeIntent && passField ? <details>
+                <summary>Change password</summary>
+                <ActionForm intent={changeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[passField, "New password"]]} button="Save" />
+              </details> : null}
+              {quotaIntent && quotaField ? (
+                <details>
+                  <summary>Edit quota</summary>
+                  <ActionForm intent={quotaIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[quotaField, "Quota MB"]]} button="Save quota" />
+                </details>
+              ) : null}
+              <div className={styles.entryDelete}><ActionForm intent={removeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[]} button="Delete" /></div>
+            </div>
           </article>
         ))}
         {!entries.length ? <span>No items found.</span> : null}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -995,8 +1047,9 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
 
         <div className={styles.invoiceMetaGrid}>
           <span>Rechnungsdatum</span><strong>{dateLabel(invoice.issuedAt)}</strong>
-          <span>Faellig am</span><strong>{dateLabel(invoice.dueAt)}</strong>
+          <span>Fällig am</span><strong>{dateLabel(invoice.dueAt)}</strong>
           {invoice.status === "PAID" ? <><span>Bezahlt am</span><strong>{dateLabel(invoice.paidAt)}</strong><span>Zahlungsart</span><strong>{paymentGateway(invoice)}</strong></> : null}
+          <span>Kundennummer</span><strong>{formatCustomerNumber(customer.customerNumber ?? invoice.user?.customerNumber)}</strong>
           <span>E-Mail</span><strong>{customer.email}</strong>
         </div>
 
@@ -1414,6 +1467,7 @@ function ProfileForm({
   profile?: {
     address?: { city?: string; line1?: string; postalCode?: string; state?: string };
     countryCode?: string;
+    customerNumber?: number | null;
     email?: string;
     name?: string;
     phone?: string;
@@ -1446,7 +1500,7 @@ function ProfileForm({
     }
     setMessage(await notifyResponse(response, "Profile saved.", "Profile failed."));
   }
-  return <form action={submit} className={styles.module} key={profile?.email ?? "profile"}><UserRound aria-hidden /><h2>Profile</h2><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label><label>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label><label>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label><label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label><label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label><label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label><label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label><label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label><label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
+  return <form action={submit} className={styles.module} key={profile?.email ?? "profile"}><UserRound aria-hidden /><h2>Profile</h2><p>Kundennummer: <strong>{formatCustomerNumber(profile?.customerNumber)}</strong></p><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label><label>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label><label>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label><label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label><label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label><label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label><label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label><label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label><label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
 function titleFor(view: ClientView, locale: Locale = currentLocale()) {

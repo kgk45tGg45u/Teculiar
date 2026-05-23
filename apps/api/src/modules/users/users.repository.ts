@@ -54,7 +54,7 @@ export class UsersRepository {
           }
         }
       },
-      select: { email: true, id: true }
+      select: { customerNumber: true, email: true, id: true }
     });
   }
 
@@ -69,7 +69,7 @@ export class UsersRepository {
         passwordHash: "pending-checkout-system-user"
       },
       update: {},
-      select: { email: true, id: true }
+      select: { customerNumber: true, email: true, id: true }
     });
   }
 
@@ -149,7 +149,7 @@ export class UsersRepository {
           }
         }
       },
-      select: { email: true, id: true }
+      select: { customerNumber: true, email: true, id: true }
     });
   }
 
@@ -312,6 +312,7 @@ export class UsersRepository {
 }
 
 const authUserSelect = {
+  customerNumber: true,
   email: true,
   id: true,
   name: true,
@@ -325,6 +326,7 @@ const publicUserSelect = {
   balanceCents: true,
   contacts: { orderBy: { createdAt: "desc" as const }, take: 1, select: { address: true, phone: true } },
   countryCode: true,
+  customerNumber: true,
   customerType: true,
   email: true,
   id: true,
@@ -337,6 +339,7 @@ const publicUserSelect = {
 const clientSelect = {
   contacts: { orderBy: { createdAt: "desc" as const }, take: 1, select: { address: true, phone: true } },
   countryCode: true,
+  customerNumber: true,
   customerType: true,
   domainRecords: { select: { id: true, domain: true, status: true } },
   email: true,

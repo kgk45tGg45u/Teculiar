@@ -131,17 +131,80 @@
 
 .overviewGrid {
   display: grid;
-  grid-template-columns: repeat(4, 190px);
+  grid-template-columns: repeat(4, minmax(0, 232px));
   justify-content: space-between;
   justify-self: center;
-  width: min(100%, 980px);
-  gap: clamp(18px, 3vw, 46px);
+  width: min(100%, 1040px);
+  gap: clamp(12px, 2vw, 22px);
   min-width: 0;
 }
 
 .overviewGrid :global(.metric) {
-  width: 190px;
-  aspect-ratio: 1.04 / 1;
+  width: 100%;
+  min-height: 208px;
+}
+
+.overviewCard {
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 7px;
+  padding: 14px;
+}
+
+.metricHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+}
+
+.metricHead strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  line-height: 1;
+}
+
+.metricTitle {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 760;
+}
+
+.metricList {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  margin: 7px 0 0;
+  padding: 9px 0 0 17px;
+  border-top: 1px solid var(--border);
+  list-style: disc;
+}
+
+.metricList li {
+  min-width: 0;
+  color: var(--accent);
+}
+
+.metricList a {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 680;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricList a:hover {
+  color: var(--accent-text);
+}
+
+.metricEmpty {
+  margin-top: 7px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
 }
 
 .spinner {
@@ -600,6 +663,18 @@
   padding-top: 18px;
 }
 
+.hostingShell {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 1040px);
+}
+
+.hostingSection {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
 .panelTitle,
 .subdomainBox h3 {
   display: flex;
@@ -617,6 +692,7 @@
 
 .usageGrid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 640px;
 }
 
 .usageGrid div,
@@ -626,7 +702,7 @@
   gap: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 11px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
@@ -652,12 +728,27 @@
 }
 
 .controlGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  max-width: 800px;
 }
 
+.controlGrid a,
 .controlGrid button {
+  display: flex;
+  align-items: center;
+  min-height: 43px;
+  gap: 8px;
+  padding: 9px 11px;
   cursor: pointer;
+  font-size: 0.82rem;
   text-align: left;
+}
+
+.controlGrid svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
 }
 
 .rowList {
@@ -676,9 +767,9 @@
 
 .entryRow {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto);
   gap: 10px;
-  align-items: start;
+  align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
@@ -688,6 +779,40 @@
 .entryRow div {
   display: grid;
   gap: 4px;
+}
+
+.entryActions {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: end;
+  gap: 7px !important;
+}
+
+.entryActions details {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: var(--surface);
+  font-size: 0.78rem;
+}
+
+.entryActions details[open] {
+  flex: 1 1 100%;
+}
+
+.entryActions .inlineForm {
+  margin-top: 8px;
+}
+
+.entryDelete {
+  display: block !important;
+}
+
+.entryDelete button {
+  min-height: 33px;
+  padding-inline: 10px;
+  font-size: 0.76rem;
 }
 
 .entryRow .usageGrid,
@@ -702,6 +827,23 @@
   cursor: pointer;
   color: var(--accent);
   font-weight: 800;
+}
+
+.actionDetails {
+  width: fit-content;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 11px;
+  background: var(--surface-muted);
+  font-size: 0.82rem;
+}
+
+.actionDetails[open] {
+  width: 100%;
+}
+
+.actionDetails .inlineForm {
+  margin-top: 12px;
 }
 
 .modalHeader h3 {
@@ -737,13 +879,13 @@
 
 .modal {
   display: grid;
-  width: min(760px, 100%);
+  width: min(680px, 100%);
   max-height: calc(100vh - 40px);
   gap: 12px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 18px;
+  padding: 16px;
   background: var(--surface);
   box-shadow: var(--shadow);
   animation: electric-pop 170ms ease;
@@ -1092,9 +1234,9 @@
   }
 
   .overviewGrid {
-    grid-template-columns: repeat(2, minmax(0, 190px));
+    grid-template-columns: repeat(2, minmax(0, 232px));
     justify-content: space-evenly;
-    width: 100%;
+    width: min(100%, 500px);
     gap: 14px;
   }
 
@@ -1103,14 +1245,13 @@
   }
 
   .overviewGrid :global(.metric) {
-    width: min(100%, 190px);
-    min-height: 110px;
+    width: 100%;
+    min-height: 202px;
   }
   
   .detailGrid,
   .entryRow,
-  .usageGrid,
-  .controlGrid {
+  .usageGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1188,16 +1329,37 @@
   }
 
   .overviewGrid {
-    grid-template-columns: repeat(2, minmax(0, 170px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .overviewGrid :global(.metric) {
-    width: min(100%, 170px);
+    width: 100%;
   }
 
   .smartCard {
     aspect-ratio: auto;
     min-height: 250px;
+  }
+}
+
+@media (max-width: 640px) {
+  .modalBackdrop {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
+  .controlGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .entryActions {
+    justify-content: start;
   }
 }
 
@@ -1219,6 +1381,10 @@
   .header h1,
   .blockHeader h2 {
     font-size: clamp(1.18rem, 6vw, 1.55rem);
+  }
+
+  .overviewGrid {
+    grid-template-columns: 1fr;
   }
 
   .smartCard,

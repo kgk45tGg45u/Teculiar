@@ -570,6 +570,7 @@ export class BillingRepository {
           take: 1
         },
         countryCode: true,
+        customerNumber: true,
         customerType: true,
         email: true,
         id: true,
@@ -805,7 +806,7 @@ export class BillingRepository {
         create: { slug: "client", name: "Client" },
         update: {}
       });
-      let user = await tx.user.findUnique({ where: { email }, select: { email: true, id: true } });
+      let user = await tx.user.findUnique({ where: { email }, select: { customerNumber: true, email: true, id: true } });
       if (!user) {
         user = await tx.user.create({
           data: {
@@ -828,7 +829,7 @@ export class BillingRepository {
               : undefined,
             userRoles: { create: { roleId: role.id } }
           },
-          select: { email: true, id: true }
+          select: { customerNumber: true, email: true, id: true }
         });
       } else {
         await tx.userRole.upsert({
@@ -849,12 +850,16 @@ export class BillingRepository {
         select: { id: true }
       })).map((service) => service.id);
 
+      const customerSnapshot = {
+        ...asRecord(invoice.customerSnapshot),
+        customerNumber: user.customerNumber
+      } as Prisma.InputJsonValue;
       await tx.invoice.update({
         where: { id: invoiceId },
-        data: { orderSnapshot: cleanedSnapshot as Prisma.InputJsonValue, userId: user.id }
+        data: { customerSnapshot, orderSnapshot: cleanedSnapshot as Prisma.InputJsonValue, userId: user.id }
       });
       if (orderId) {
-        await tx.order.update({ where: { id: orderId }, data: { userId: user.id } });
+        await tx.order.update({ where: { id: orderId }, data: { customerSnapshot, userId: user.id } });
       }
       if (serviceIds.length > 0) {
         await tx.service.updateMany({ where: { id: { in: serviceIds } }, data: { userId: user.id } });
@@ -913,6 +918,7 @@ export class BillingRepository {
 
 const publicUserSelect = {
   countryCode: true,
+  customerNumber: true,
   customerType: true,
   email: true,
   id: true,

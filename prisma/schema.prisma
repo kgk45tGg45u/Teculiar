@@ -192,6 +192,7 @@ enum GdprRequestStatus {
 
 model User {
   id              String           @id @default(cuid())
+  customerNumber  Int              @unique @default(autoincrement())
   email           String           @unique
   passwordHash    String
   name            String

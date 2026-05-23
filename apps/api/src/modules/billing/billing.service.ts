@@ -1906,6 +1906,7 @@ function paymentInputForGateway(method: string): PayInvoiceDto {
 function customerSnapshotFromBillingProfile(user: {
   contacts?: Array<{ address?: unknown; phone?: string | null }>;
   countryCode?: string;
+  customerNumber?: number | null;
   customerType?: string;
   email: string;
   id: string;
@@ -1916,6 +1917,7 @@ function customerSnapshotFromBillingProfile(user: {
   return {
     address: isRecord(contact?.address) ? contact.address : undefined,
     countryCode: user.countryCode ?? "DE",
+    customerNumber: user.customerNumber,
     customerType: user.customerType ?? "INDIVIDUAL",
     email: user.email,
     name: user.name ?? user.email,

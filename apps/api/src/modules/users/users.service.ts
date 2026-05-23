@@ -98,6 +98,7 @@ export class UsersService {
 function publicUser(user: {
   contacts?: Array<{ address?: unknown; phone?: string | null }>;
   countryCode?: string;
+  customerNumber?: number;
   customerType?: string;
   email: string;
   id: string;
@@ -110,6 +111,7 @@ function publicUser(user: {
   return {
     address: contact?.address,
     countryCode: user.countryCode,
+    customerNumber: user.customerNumber,
     customerType: user.customerType,
     email: user.email,
     id: user.id,
