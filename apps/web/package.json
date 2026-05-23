@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev --port 3000",
+    "prebuild": "npm --workspace @crimson/shared run build",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",

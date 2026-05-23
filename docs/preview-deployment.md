@@ -58,12 +58,14 @@ Use these project settings:
 
 - Framework: Next.js
 - Install command: `npm install`
-- Build command: `npm --workspace @crimson/shared run build && npm --workspace @crimson/web run build`
+- Build command: `npm --workspace @crimson/web run build`
 - Output directory: `apps/web/.next`
 
 Set:
 
 - `NEXT_PUBLIC_API_URL`: Render API URL ending in `/api/v1`
+
+The web workspace `prebuild` script compiles `@crimson/shared`, so the web build remains valid if Vercel uses its project-level build command instead of `vercel.json`.
 
 After Vercel gives a URL, copy it back to Render as `APP_URL`, `PUBLIC_WEB_URL`, and `CORS_ORIGINS`.
 
@@ -96,11 +98,11 @@ Completed setup:
 
 - Created Vercel project `dezhost-preview`.
 - Set Vercel production and development env `NEXT_PUBLIC_API_URL=https://dezhost-api-preview.onrender.com/api/v1`.
-- Deployed Vercel production from the CLI.
+- Connected the Vercel project to the GitHub repository on branch `main`.
 - Confirmed Render health endpoint: `https://dezhost-api-preview.onrender.com/api/v1/health`.
 - Confirmed API CORS allows `https://dezhost-preview.vercel.app`.
 - Confirmed storefront products endpoint responds.
 
-Vercel preview env is not set because the Vercel project is not connected to the GitHub repository yet. Connect GitHub in Vercel project settings, then add `NEXT_PUBLIC_API_URL` for preview branches.
+Add `NEXT_PUBLIC_API_URL` to Vercel's Preview environment before using branch preview deployments.
 
 Emergency admin recovery is available through Render env vars. It is disabled when `EMERGENCY_ADMIN_EMAIL` or `EMERGENCY_ADMIN_PASSWORD` is missing.

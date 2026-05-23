@@ -6,6 +6,7 @@ import { test } from "node:test";
 test("preview deployment files describe Vercel, Render, and Neon wiring", async () => {
   const render = await readFile(new URL("../../../render.yaml", import.meta.url), "utf8");
   const vercel = await readFile(new URL("../../../vercel.json", import.meta.url), "utf8");
+  const webPackage = await readFile(new URL("../../../apps/web/package.json", import.meta.url), "utf8");
   const envExample = await readFile(new URL("../../../.env.example", import.meta.url), "utf8");
   const docs = await readFile(new URL("../../../docs/preview-deployment.md", import.meta.url), "utf8");
 
@@ -15,8 +16,9 @@ test("preview deployment files describe Vercel, Render, and Neon wiring", async 
   assert.match(render, /healthCheckPath:\s*\/api\/v1\/health/);
 
   assert.match(vercel, /"installCommand": "npm install"/);
-  assert.match(vercel, /"buildCommand": "npm --workspace @crimson\/shared run build && npm --workspace @crimson\/web run build"/);
+  assert.match(vercel, /"buildCommand": "npm --workspace @crimson\/web run build"/);
   assert.match(vercel, /"framework": "nextjs"/);
+  assert.match(webPackage, /"prebuild": "npm --workspace @crimson\/shared run build"/);
 
   for (const key of ["DATABASE_URL", "NEXT_PUBLIC_API_URL", "APP_URL", "PUBLIC_WEB_URL", "PUBLIC_API_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "EMERGENCY_ADMIN_EMAIL", "EMERGENCY_ADMIN_PASSWORD"]) {
     assert.match(envExample, new RegExp(`^${key}=`, "m"));
