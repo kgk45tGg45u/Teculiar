@@ -1,7 +1,7 @@
 "use client";
 
 import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
   authHeaders,
@@ -345,7 +345,9 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
             <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view, locale)}</h1>
           </div>
           <div className={styles.headerActions}>
-            <LanguageToggle locale={locale} />
+            <Suspense>
+              <LanguageToggle locale={locale} />
+            </Suspense>
             <Button href={`/${locale}/pricing`} icon={CreditCard}>
               {copy.newService}
             </Button>

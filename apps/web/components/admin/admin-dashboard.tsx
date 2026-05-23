@@ -1,5 +1,6 @@
 import { Bell, BookOpen, FileText, Mail, Package, Settings, Ticket, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import {
   cycleLabel,
   dateLabel as formatDate,
@@ -106,7 +107,9 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
             <p>{copy.summary}</p>
           </div>
           <div className={styles.headerActions}>
-            <LanguageToggle locale={locale} />
+            <Suspense>
+              <LanguageToggle locale={locale} />
+            </Suspense>
             <Button href={`/${locale}`} variant="secondary">
               {copy.website}
             </Button>
