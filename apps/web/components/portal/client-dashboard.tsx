@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
@@ -26,7 +26,8 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";
-const clientCopy: Record<Locale, Record<string, string>> = {
+type ClientCopyKey = "accountBalance" | "addFunds" | "clientPortal" | "domains" | "invoices" | "knowledgebase" | "newService" | "newTicket" | "openInvoices" | "openTickets" | "overview" | "payments" | "profile" | "services" | "tickets";
+const clientCopy: Record<Locale, Record<ClientCopyKey, string>> = {
   de: {
     accountBalance: "Kontostand",
     addFunds: "Guthaben aufladen",
@@ -185,12 +186,14 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [brandLogo, setBrandLogo] = useState("");
   const [loading, setLoading] = useState<Record<LoadingKey, boolean>>(initialLoading);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const seenServiceStatuses = useRef(new Map<string, string>());
   const servicePollingReady = useRef(false);
   const servicesRef = useRef<ApiService[]>([]);
   const finishLoading = (key: LoadingKey) => setLoading((current) => ({ ...current, [key]: false }));
 
   usePortalLoadingFallback(setLoading);
+  usePortalNavigationRecovery(setLoading, setRefreshVersion);
 
   useEffect(() => {
     applyPortalCache(locale, {
@@ -241,7 +244,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       }).catch(() => undefined).finally(() => finishLoading("services"));
     };
     loadServices();
-  }, [serviceId, view]);
+  }, [refreshVersion, serviceId, view]);
 
   useEffect(() => {
     if (!serviceId) {
@@ -267,7 +270,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       fetchPortalJson<ApiService>(serviceDetailUrl(serviceId), { headers }).then(applyService).catch(() => undefined).finally(() => finishLoading("services"));
     };
     loadService();
-  }, [serviceId]);
+  }, [refreshVersion, serviceId]);
 
   useEffect(() => {
     if (!invoiceId) {
@@ -275,7 +278,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     }
     const headers = authHeaders("client");
     fetchPortalJson<ApiInvoice>(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers }).then((payload) => payload && setSelectedInvoice(payload)).catch(() => undefined).finally(() => finishLoading("invoices"));
-  }, [invoiceId]);
+  }, [invoiceId, refreshVersion]);
 
   useEffect(() => {
     if (!ticketId) {
@@ -283,7 +286,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     }
     const headers = authHeaders("client");
     fetchPortalJson<ApiTicket>(`${API_BASE_URL}/tickets/${ticketId}`, { headers }).then((payload) => payload && setSelectedTicket(payload)).catch(() => undefined).finally(() => finishLoading("tickets"));
-  }, [ticketId]);
+  }, [refreshVersion, ticketId]);
 
   useEffect(() => {
     const headers = authHeaders("client");
@@ -323,7 +326,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         setAnnouncements(payload);
       }
     }).catch(() => undefined).finally(() => finishLoading("announcements"));
-  }, [locale]);
+  }, [locale, refreshVersion]);
 
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
   const domainRows = domainRowsFromServices(services);
@@ -382,38 +385,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         </header>
 
         <section className={styles.overviewGrid} aria-label="Overview">
-          <article className={`metric ${styles.overviewCard}`}>
-            <div className={styles.metricHead}>
-              <Server aria-hidden size={22} />
-              <MetricValue loading={loading.services} label="Loading services" value={serviceRows.length} />
-            </div>
-            <a className={styles.metricTitle} href="/client/services">{copy.services}</a>
-            <DashboardSummaryList empty="No active services" items={serviceSummaryItems} />
-          </article>
-          <article className={`metric ${styles.overviewCard}`}>
-            <div className={styles.metricHead}>
-              <Globe aria-hidden size={22} />
-              <MetricValue loading={loading.services} label="Loading domains" value={domainRows.length} />
-            </div>
-            <a className={styles.metricTitle} href="/client/domains">{copy.domains}</a>
-            <DashboardSummaryList empty="No domains" items={domainSummaryItems} />
-          </article>
-          <article className={`metric ${styles.overviewCard}`}>
-            <div className={styles.metricHead}>
-              <LifeBuoy aria-hidden size={22} />
-              <MetricValue loading={loading.tickets} label="Loading tickets" value={openTickets} />
-            </div>
-            <a className={styles.metricTitle} href="/client/tickets">{copy.openTickets}</a>
-            <DashboardSummaryList empty="No open tickets" items={ticketSummaryItems} />
-          </article>
-          <article className={`metric ${styles.overviewCard}`}>
-            <div className={styles.metricHead}>
-              <FileText aria-hidden size={22} />
-              <MetricValue loading={loading.invoices} label="Loading invoices" value={openInvoices} />
-            </div>
-            <a className={styles.metricTitle} href="/client/invoices">{copy.openInvoices}</a>
-            <DashboardSummaryList empty="No invoices" items={invoiceSummaryItems} />
-          </article>
+          <DashboardSummaryCard empty="No active services" href="/client/services" icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel="Loading services" value={serviceRows.length} />
+          <DashboardSummaryCard empty="No domains" href="/client/domains" icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel="Loading domains" value={domainRows.length} />
+          <DashboardSummaryCard empty="No open tickets" href="/client/tickets" icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel="Loading tickets" value={openTickets} />
+          <DashboardSummaryCard empty="No invoices" href="/client/invoices" icon={FileText} items={invoiceSummaryItems} label={copy.openInvoices} loading={loading.invoices} loadingLabel="Loading invoices" value={openInvoices} />
         </section>
 
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable loading={loading.services} services={serviceRows} /> : null}
@@ -451,6 +426,29 @@ function usePortalLoadingFallback(setLoading: (loading: Record<LoadingKey, boole
     const timer = window.setTimeout(() => setLoading(allLoaded), PORTAL_LOADING_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [setLoading]);
+}
+
+function usePortalNavigationRecovery(
+  setLoading: (loading: Record<LoadingKey, boolean>) => void,
+  setRefreshVersion: (update: (current: number) => number) => void
+) {
+  useEffect(() => {
+    const reloadRestoredPage = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    };
+    const revalidateHistoryNavigation = () => {
+      setLoading(allLoaded);
+      setRefreshVersion((current) => current + 1);
+    };
+    window.addEventListener("pageshow", reloadRestoredPage);
+    window.addEventListener("popstate", revalidateHistoryNavigation);
+    return () => {
+      window.removeEventListener("pageshow", reloadRestoredPage);
+      window.removeEventListener("popstate", revalidateHistoryNavigation);
+    };
+  }, [setLoading, setRefreshVersion]);
 }
 
 function applyPortalCache(
@@ -507,14 +505,47 @@ function MetricValue({ label, loading, value }: { label: string; loading: boolea
   return <strong>{loading ? <LoadingSpinner label={label} /> : value}</strong>;
 }
 
+function DashboardSummaryCard({
+  empty,
+  href,
+  icon: Icon,
+  items,
+  label,
+  loading,
+  loadingLabel,
+  value
+}: {
+  empty: string;
+  href: string;
+  icon: LucideIcon;
+  items: DashboardSummaryItem[];
+  label: string;
+  loading: boolean;
+  loadingLabel: string;
+  value: number;
+}) {
+  return (
+    <article className={styles.overviewCard}>
+      <div className={styles.metricHead}>
+        <Icon aria-hidden />
+        <MetricValue loading={loading} label={loadingLabel} value={value} />
+        <a className={styles.metricTitle} href={href}>{label}</a>
+      </div>
+      <DashboardSummaryList empty={empty} items={items} />
+    </article>
+  );
+}
+
 function DashboardSummaryList({ empty, items }: { empty: string; items: DashboardSummaryItem[] }) {
   if (!items.length) {
-    return <span className={styles.metricEmpty}>{empty}</span>;
+    return <div className={styles.metricBody}><span className={styles.metricEmpty}>{empty}</span></div>;
   }
   return (
-    <ul className={styles.metricList}>
-      {items.map((item) => <li key={item.id}><a href={item.href}>{item.label}</a></li>)}
-    </ul>
+    <div className={styles.metricBody}>
+      <ul className={styles.metricList}>
+        {items.map((item) => <li key={item.id}><a href={item.href}>{item.label}</a></li>)}
+      </ul>
+    </div>
   );
 }
 

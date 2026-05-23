@@ -132,6 +132,7 @@
 .overviewGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 232px));
+  align-items: stretch;
   justify-content: space-between;
   justify-self: center;
   width: min(100%, 1040px);
@@ -139,51 +140,105 @@
   min-width: 0;
 }
 
-.overviewGrid :global(.metric) {
-  width: 100%;
-  min-height: 208px;
-}
-
 .overviewCard {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 184px;
   grid-template-columns: 1fr;
   align-content: start;
-  gap: 7px;
-  padding: 14px;
+  gap: 0;
+  overflow: hidden;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.overviewCard:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 .metricHead {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 10px;
-  min-height: 30px;
+  min-height: 32px;
+}
+
+.metricHead svg {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .metricHead strong {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  min-height: 28px;
+  min-height: 32px;
+  color: var(--text);
+  font-size: 1.13rem;
+  font-weight: 760;
   line-height: 1;
 }
 
 .metricTitle {
-  color: var(--muted);
-  font-size: 0.8rem;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.84rem;
   font-weight: 760;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricBody {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  margin: 24px 0 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .metricList {
   display: grid;
-  gap: 5px;
+  gap: 7px;
   min-width: 0;
-  margin: 7px 0 0;
-  padding: 9px 0 0 17px;
-  border-top: 1px solid var(--border);
-  list-style: disc;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .metricList li {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
   min-width: 0;
-  color: var(--accent);
+}
+
+.metricList li::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
 }
 
 .metricList a {
@@ -202,9 +257,11 @@
 }
 
 .metricEmpty {
-  margin-top: 7px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 720;
+  line-height: 1.35;
 }
 
 .spinner {
@@ -1244,9 +1301,9 @@
     gap: 12px;
   }
 
-  .overviewGrid :global(.metric) {
+  .overviewCard {
     width: 100%;
-    min-height: 202px;
+    min-height: 180px;
   }
   
   .detailGrid,
@@ -1332,8 +1389,9 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .overviewGrid :global(.metric) {
+  .overviewCard {
     width: 100%;
+    min-height: 0;
   }
 
   .smartCard {

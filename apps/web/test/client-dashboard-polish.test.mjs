@@ -16,7 +16,7 @@ test("client dashboard keeps content bounded with fixed metric cards and one bot
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 232px\)\)/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*justify-content:\s*space-between/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*width:\s*min\(100%, 1040px\)/);
-  assert.match(css, /\.overviewGrid\s*:global\(\.metric\)\s*\{[\s\S]*min-height:\s*208px/);
+  assert.match(css, /\.overviewCard\s*\{[\s\S]*min-height:\s*184px/);
   assert.match(source, /<DashboardKnowledgeFeed/);
   assert.match(source, /Announcements and Knowledgebase articles/);
   assert.match(css, /\.dashboardFeed\s*\{[\s\S]*width:\s*min\(100%, 980px\)/);
@@ -30,14 +30,20 @@ test("client dashboard metric cards include aligned heads and clickable summary 
   assert.match(source, /const domainSummaryItems = domainRows/);
   assert.match(source, /const ticketSummaryItems = tickets/);
   assert.match(source, /const invoiceSummaryItems = invoices/);
+  assert.match(source, /function DashboardSummaryCard/);
   assert.match(source, /function DashboardSummaryList/);
+  assert.match(source, /<DashboardSummaryCard[\s\S]*icon=\{Server\}[\s\S]*label=\{copy\.services\}/);
+  assert.match(source, /<article className=\{styles\.overviewCard\}>/);
+  assert.doesNotMatch(source, /<article className=\{`metric \$\{styles\.overviewCard\}`\}>/);
   assert.match(source, /className=\{styles\.metricHead\}/);
   assert.match(source, /href: `\/client\/services\/\$\{service\.id\}`/);
   assert.match(source, /href: `\/client\/tickets\/\$\{ticket\.id\}`/);
   assert.match(source, /href: `\/client\/invoices\/\$\{invoice\.id\}`/);
-  assert.match(css, /\.overviewCard\s*\{[\s\S]*align-content:\s*start/);
-  assert.match(css, /\.metricHead\s*\{[\s\S]*align-items:\s*center/);
-  assert.match(css, /\.metricList\s*\{[\s\S]*list-style:\s*disc/);
+  assert.match(css, /\.overviewCard\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*1fr[\s\S]*align-content:\s*start[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /\.metricHead\s*\{[\s\S]*min-width:\s*0[\s\S]*align-items:\s*center/);
+  assert.match(css, /\.metricTitle\s*\{[\s\S]*font-weight:\s*760/);
+  assert.match(css, /\.metricBody\s*\{[\s\S]*grid-column:\s*1 \/ -1[\s\S]*width:\s*100%[\s\S]*margin:\s*24px 0 20px[\s\S]*border-top:\s*1px solid var\(--border\)/);
+  assert.match(css, /\.metricList\s*\{[\s\S]*list-style:\s*none/);
   assert.match(css, /\.metricList a\s*\{/);
 });
 
@@ -47,14 +53,15 @@ test("client dashboard has professional loading state for counters and heavy pan
 
   assert.match(source, /type LoadingKey = "services" \| "invoices" \| "tickets" \| "knowledgebase" \| "announcements" \| "profile"/);
   assert.match(source, /const \[loading, setLoading\] = useState/);
-  assert.match(source, /<MetricValue loading=\{loading\.services\}/);
+  assert.match(source, /<DashboardSummaryCard[\s\S]*loading=\{loading\.services\}/);
+  assert.match(source, /<MetricValue loading=\{loading\}/);
   assert.match(source, /<LoadingSpinner label="Loading services" \/>/);
   assert.match(source, /<LoadingBlock title="Invoice" \/>/);
   assert.match(css, /\.spinner\s*\{[\s\S]*animation:\s*portal-spin 780ms linear infinite/);
   assert.match(css, /@keyframes portal-spin/);
 });
 
-test("client dashboard loaders use cache and timeout fallback so navigation cannot spin forever", async () => {
+test("client dashboard loaders recover from both restored and same-document back navigation", async () => {
   const source = await readFile(dashboardUrl, "utf8");
 
   assert.match(source, /const PORTAL_LOADING_TIMEOUT_MS = 4500/);
@@ -65,6 +72,12 @@ test("client dashboard loaders use cache and timeout fallback so navigation cann
   assert.match(source, /function fetchPortalJson/);
   assert.match(source, /AbortController/);
   assert.match(source, /controller\.abort\(\)/);
+  assert.match(source, /function usePortalNavigationRecovery/);
+  assert.match(source, /window\.addEventListener\("pageshow", reloadRestoredPage\)/);
+  assert.match(source, /event\.persisted[\s\S]*window\.location\.reload\(\)/);
+  assert.match(source, /window\.addEventListener\("popstate", revalidateHistoryNavigation\)/);
+  assert.match(source, /setLoading\(allLoaded\)/);
+  assert.match(source, /setRefreshVersion\(\(current\) => current \+ 1\)/);
 });
 
 test("service table shares overview rows while service detail can refresh hosting status", async () => {

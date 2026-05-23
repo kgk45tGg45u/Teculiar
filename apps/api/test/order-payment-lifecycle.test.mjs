@@ -356,7 +356,7 @@ test("client dashboard responsive CSS prevents page-wide overflow", async () => 
   assert.match(css, /\.headerActions/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.headerActions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.tableWrap\s*\{[\s\S]*max-width:\s*100%/);
-  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 232px\)\)/);
+  assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 232px\)\)[\s\S]*\.overviewCard\s*\{[\s\S]*min-height:\s*180px/);
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*1fr/);
 });

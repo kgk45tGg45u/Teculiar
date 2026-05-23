@@ -58,7 +58,7 @@ Use these project settings:
 
 - Framework: Next.js
 - Install command: `npm install`
-- Build command: `npm --workspace @crimson/web run build`
+- Build command: `npm --workspace @crimson/shared run build && npm --workspace @crimson/web run build`
 - Output directory: `apps/web/.next`
 
 Set:
