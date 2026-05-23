@@ -523,6 +523,8 @@ export function SettingsForm() {
     supportMailboxAddress: "support@dezhost.com",
     ticketAutoCloseHours: 24,
     termsUrl: "",
+    usdBufferCents: 0,
+    usdExchangeRate: 1.0,
     vatPercent: 19
   });
 
@@ -570,6 +572,8 @@ export function SettingsForm() {
         supportMailboxAddress: payload.supportMailboxAddress ?? "support@dezhost.com",
         ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
         termsUrl: payload.termsUrl ?? "",
+        usdBufferCents: payload.usdBufferCents ?? 0,
+        usdExchangeRate: payload.usdExchangeRate ?? 1.0,
         vatPercent: payload.vatPercent ?? 19
       }))
       .catch(() => undefined);
@@ -618,6 +622,8 @@ export function SettingsForm() {
         supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@dezhost.com"),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
         termsUrl: String(formData.get("termsUrl") ?? ""),
+        usdBufferCents: Number(formData.get("usdBufferCents") ?? 0),
+        usdExchangeRate: Number(formData.get("usdExchangeRate") ?? 1.0),
         vatPercent: Number(formData.get("vatPercent") ?? 19)
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -679,6 +685,10 @@ export function SettingsForm() {
       <label>Sales IMAP mailbox<input value={settings.salesImapMailbox} onChange={(event) => setSettings({ ...settings, salesImapMailbox: event.target.value })} name="salesImapMailbox" /></label>
       <h3>Legal</h3>
       <label>AGB / Terms URL<input value={settings.termsUrl} onChange={(event) => setSettings({ ...settings, termsUrl: event.target.value })} name="termsUrl" placeholder="/de/legal/agb" /></label>
+      <h3>Currency (USD)</h3>
+      <p>Prices are stored in EUR. These settings control the EUR→USD conversion displayed to customers who select USD.</p>
+      <label>EUR→USD exchange rate<input min="0.01" step="0.0001" value={settings.usdExchangeRate} onChange={(event) => setSettings({ ...settings, usdExchangeRate: Number(event.target.value) })} name="usdExchangeRate" type="number" /></label>
+      <label>Buffer (extra cents added to USD price)<input min="0" step="1" value={settings.usdBufferCents} onChange={(event) => setSettings({ ...settings, usdBufferCents: Number(event.target.value) })} name="usdBufferCents" type="number" /></label>
       <h3>Invoice branding</h3>
       <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
       <ImageUploader

@@ -1,5 +1,5 @@
 import { formatCustomerNumber } from "@crimson/shared";
-import { LOCALE_COOKIE, browserLocale, type Locale } from "./i18n";
+import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
 
 export { formatCustomerNumber };
 
@@ -351,20 +351,53 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   }
 }
 
-export function money(cents: number, currency = "EUR", locale: Locale = currentLocale()) {
-  const displayCurrency = displayCurrencyForLocale(currency, locale);
-  return new Intl.NumberFormat(locale === "en" ? "en-US" : "de-DE", {
+// Exchange rate cache populated from storefront settings
+let _usdExchangeRate = 1.0;
+let _usdBufferCents = 0;
+
+export function initExchangeRate(rate: number, bufferCents: number) {
+  _usdExchangeRate = rate;
+  _usdBufferCents = bufferCents;
+}
+
+export function convertEurToUsd(eurCents: number): number {
+  return Math.round(eurCents * _usdExchangeRate) + _usdBufferCents;
+}
+
+export function money(cents: number, _currency = "EUR", locale: Locale = currentLocale()) {
+  const displayCurrency = currentCurrency();
+  const displayLocale = locale === "en" ? "en-US" : "de-DE";
+  // Prices are always stored in EUR; convert to USD if customer selected USD
+  const displayCents = displayCurrency === "USD" ? convertEurToUsd(cents) : cents;
+  return new Intl.NumberFormat(displayLocale, {
     currency: displayCurrency,
     style: "currency"
-  }).format(cents / 100);
+  }).format(displayCents / 100);
+}
+
+/** Server-safe money formatter — takes explicit display params instead of reading window/localStorage */
+export function serverMoney(
+  cents: number,
+  displayCurrency: Currency,
+  exchangeRate: number,
+  bufferCents: number,
+  locale: Locale
+): string {
+  const displayLocale = locale === "en" ? "en-US" : "de-DE";
+  const displayCents = displayCurrency === "USD" ? Math.round(cents * exchangeRate) + bufferCents : cents;
+  return new Intl.NumberFormat(displayLocale, {
+    currency: displayCurrency,
+    style: "currency"
+  }).format(displayCents / 100);
 }
 
 export function invoiceDisplayNumber(invoice: Pick<ApiInvoice, "finalInvoiceNumber" | "tempInvoiceNumber" | "invoiceNumber" | "status">) {
   return invoice.status === "PAID" ? invoice.finalInvoiceNumber ?? invoice.invoiceNumber : invoice.tempInvoiceNumber ?? invoice.invoiceNumber;
 }
 
-export function displayCurrencyForLocale(currency = "EUR", locale: Locale = currentLocale()) {
-  return locale === "en" ? "USD" : currency;
+/** @deprecated Use currentCurrency() directly; currency is now stored independently of locale */
+export function displayCurrencyForLocale(_currency = "EUR", _locale: Locale = currentLocale()): Currency {
+  return currentCurrency();
 }
 
 export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
@@ -412,6 +445,25 @@ export function storeLocale(locale: Locale) {
   }
   window.localStorage.setItem(LOCALE_COOKIE, locale);
   setCookie(LOCALE_COOKIE, locale);
+}
+
+export function currentCurrency(): Currency {
+  if (typeof window === "undefined") {
+    return "EUR";
+  }
+  const saved = window.localStorage.getItem(CURRENCY_COOKIE) ?? readCookie(CURRENCY_COOKIE);
+  if (saved === "EUR" || saved === "USD") {
+    return saved;
+  }
+  return currentLocale() === "en" ? "USD" : "EUR";
+}
+
+export function storeCurrency(currency: Currency) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(CURRENCY_COOKIE, currency);
+  setCookie(CURRENCY_COOKIE, currency);
 }
 
 export type AuthUser = {

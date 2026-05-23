@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { Suspense } from "react";
 import { Globe, Menu } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { AccountMenu } from "./account-menu";
@@ -38,7 +39,9 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
         </nav>
 
         <div className={styles.actions}>
-          <LanguageToggle locale={locale} />
+          <Suspense>
+            <LanguageToggle locale={locale} />
+          </Suspense>
           <AccountMenu clientLabel={copy.nav.client} />
           <details className={styles.mobileMenu}>
             <summary aria-label="Menu">

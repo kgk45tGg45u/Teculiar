@@ -9,6 +9,7 @@ import {
   cycleLabel,
   dateLabel as formatDate,
   formatCustomerNumber,
+  initExchangeRate,
   invoiceDisplayNumber,
   money,
   type ApiAnnouncement,
@@ -18,7 +19,8 @@ import {
   type ApiTicket
 } from "../../lib/api";
 import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
-import type { Locale } from "../../lib/i18n";
+import { dictionary, type Locale } from "../../lib/i18n";
+import { LanguageToggle } from "../layout/language-toggle";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
@@ -26,43 +28,6 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";
-type ClientCopyKey = "accountBalance" | "addFunds" | "clientPortal" | "domains" | "invoices" | "knowledgebase" | "newService" | "newTicket" | "openInvoices" | "openTickets" | "overview" | "payments" | "profile" | "services" | "tickets";
-const clientCopy: Record<Locale, Record<ClientCopyKey, string>> = {
-  de: {
-    accountBalance: "Kontostand",
-    addFunds: "Guthaben aufladen",
-    clientPortal: "Kundenbereich",
-    domains: "Domains",
-    invoices: "Rechnungen",
-    knowledgebase: "Wissensdatenbank",
-    newService: "Neuer Service",
-    newTicket: "Neues Ticket",
-    openInvoices: "Offene Rechnungen",
-    openTickets: "Offene Tickets",
-    overview: "Uebersicht",
-    payments: "Zahlungen",
-    profile: "Profil",
-    services: "Services",
-    tickets: "Support Tickets"
-  },
-  en: {
-    accountBalance: "Account Balance",
-    addFunds: "Add Funds",
-    clientPortal: "Client Portal",
-    domains: "Domains",
-    invoices: "Invoices",
-    knowledgebase: "Knowledgebase",
-    newService: "New Service",
-    newTicket: "New Ticket",
-    openInvoices: "Open Invoices",
-    openTickets: "Open Tickets",
-    overview: "Overview",
-    payments: "Payments",
-    profile: "Profile",
-    services: "Services",
-    tickets: "Support Tickets"
-  }
-};
 type ApiPaymentMethod = {
   automatic: boolean;
   createdAt: string;
@@ -174,7 +139,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
-  const copy = clientCopy[locale];
+  const copy = dictionary[locale].client;
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
@@ -314,10 +279,13 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         setProfile(payload);
       }
     }).catch(() => undefined).finally(() => finishLoading("profile"));
-    fetchPortalJson<{ siteLogoUrl?: string }>(`${API_BASE_URL}/storefront/settings`).then((payload) => {
+    fetchPortalJson<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number }>(`${API_BASE_URL}/storefront/settings`).then((payload) => {
       if (payload?.siteLogoUrl) {
         portalDataCache.brandLogo = payload.siteLogoUrl;
         setBrandLogo(payload.siteLogoUrl);
+      }
+      if (payload?.usdExchangeRate) {
+        initExchangeRate(payload.usdExchangeRate, payload.usdBufferCents ?? 0);
       }
     }).catch(() => undefined);
     fetchPortalJson<ApiAnnouncement[]>(`${API_BASE_URL}/cms/announcements?locale=${locale}`, { headers }).then((payload) => {
@@ -377,7 +345,8 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
             <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view, locale)}</h1>
           </div>
           <div className={styles.headerActions}>
-            <Button href="/de/pricing" icon={CreditCard}>
+            <LanguageToggle locale={locale} />
+            <Button href={`/${locale}/pricing`} icon={CreditCard}>
               {copy.newService}
             </Button>
             <LogoutButton scope="client" redirectTo="/client/login" />
@@ -385,10 +354,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         </header>
 
         <section className={styles.overviewGrid} aria-label="Overview">
-          <DashboardSummaryCard empty="No active services" href="/client/services" icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel="Loading services" value={serviceRows.length} />
-          <DashboardSummaryCard empty="No domains" href="/client/domains" icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel="Loading domains" value={domainRows.length} />
-          <DashboardSummaryCard empty="No open tickets" href="/client/tickets" icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel="Loading tickets" value={openTickets} />
-          <DashboardSummaryCard empty="No invoices" href="/client/invoices" icon={FileText} items={invoiceSummaryItems} label={copy.openInvoices} loading={loading.invoices} loadingLabel="Loading invoices" value={openInvoices} />
+          <DashboardSummaryCard empty={copy.noActiveServices} href="/client/services" icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel={copy.loadingServices} value={serviceRows.length} />
+          <DashboardSummaryCard empty={copy.noDomains} href="/client/domains" icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel={copy.loadingDomains} value={domainRows.length} />
+          <DashboardSummaryCard empty={copy.noTickets} href="/client/tickets" icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel={copy.loadingTickets} value={openTickets} />
+          <DashboardSummaryCard empty={copy.noInvoices} href="/client/invoices" icon={FileText} items={invoiceSummaryItems} label={copy.openInvoices} loading={loading.invoices} loadingLabel={copy.loadingInvoices} value={openInvoices} />
         </section>
 
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable loading={loading.services} services={serviceRows} /> : null}
@@ -581,16 +550,18 @@ function DashboardKnowledgeFeed({
   loading: boolean;
 }) {
   const items = dashboardFeedItems(announcements, knowledgebase);
+  const locale = currentLocale();
+  const copy = dictionary[locale].client;
   return (
     <section className={styles.dashboardFeed}>
       <div className={styles.blockHeader}>
         <div>
           <span className="eyebrow">Portal</span>
-          <h2>Announcements and Knowledgebase articles</h2>
+          <h2>{copy.announcementsAndArticles}</h2>
         </div>
       </div>
       <div className={styles.feedList}>
-        {loading ? <span className={styles.loadingInline}><LoadingSpinner label="Loading articles" />Loading articles...</span> : null}
+        {loading ? <span className={styles.loadingInline}><LoadingSpinner label={copy.loadingArticles} />{copy.loadingArticles}</span> : null}
         {!loading && items.map((item) => item.href ? (
           <a className={styles.feedItem} href={item.href} key={item.id}>
             <strong>{item.title}</strong>
@@ -604,7 +575,7 @@ function DashboardKnowledgeFeed({
             <p>{item.excerpt}</p>
           </article>
         ))}
-        {!loading && !items.length ? <p className={styles.emptySmart}>No articles right now.</p> : null}
+        {!loading && !items.length ? <p className={styles.emptySmart}>{copy.noArticles}</p> : null}
       </div>
     </section>
   );
@@ -621,7 +592,7 @@ function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowl
     ...articles.map((item) => ({
       date: item.updatedAt ?? item.createdAt,
       excerpt: item.excerpt ?? previewText(item.body),
-      href: `/de/knowledgebase/${item.slug}`,
+      href: `/${currentLocale()}/knowledgebase/${item.slug}`,
       id: `article-${item.id}`,
       title: item.title
     }))
@@ -631,37 +602,39 @@ function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowl
 }
 
 function ServicesTable({ loading, services }: { loading: boolean; services: ApiService[] }) {
+  const locale = currentLocale();
+  const copy = dictionary[locale].client;
   return (
     <section className={styles.block} id="services">
           <div className={styles.blockHeader}>
             <div>
               <span className="eyebrow">Services</span>
-              <h2>Products & Services</h2>
+              <h2>{copy.services}</h2>
             </div>
           </div>
           <div className={styles.tableWrap}>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Product/Service</th>
-                  <th>Pricing</th>
-                  <th>Next Due Date</th>
-                  <th>Status</th>
+                  <th>{copy.product}</th>
+                  <th>{copy.pricing}</th>
+                  <th>{copy.nextDueDate}</th>
+                  <th>{copy.status}</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? <tr><td colSpan={4}><span className={styles.loadingInline}><LoadingSpinner label="Loading services" />Loading...</span></td></tr> : null}
+                {loading ? <tr><td colSpan={4}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingServices} />{copy.loadingServices}</span></td></tr> : null}
                 {!loading && services.map((service) => (
                   <tr key={service.id}>
                     <td><a href={`/client/services/${service.id}`}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
                     <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
-                      <StatusPill label={serviceStatusLabel(service.status, currentLocale())} tone={statusTone[service.status] ?? "neutral"} />
+                      <StatusPill label={serviceStatusLabel(service.status, locale)} tone={statusTone[service.status] ?? "neutral"} />
                     </td>
                   </tr>
                 ))}
-                {!loading && services.length === 0 ? <tr><td colSpan={4}>No services yet.</td></tr> : null}
+                {!loading && services.length === 0 ? <tr><td colSpan={4}>{copy.noServices}</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -680,35 +653,37 @@ type DomainRow = {
 };
 
 function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boolean }) {
+  const locale = currentLocale();
+  const copy = dictionary[locale].client;
   return (
     <section className={styles.block} id="domains">
       <div className={styles.blockHeader}>
         <div>
           <span className="eyebrow">Domains</span>
-          <h2>Domains</h2>
+          <h2>{copy.domains}</h2>
         </div>
       </div>
       <div className={styles.tableWrap}>
         <table className="table">
           <thead>
             <tr>
-              <th>Domain</th>
-              <th>Pricing</th>
-              <th>Next Due Date</th>
-              <th>Status</th>
+              <th>{copy.domain}</th>
+              <th>{copy.pricing}</th>
+              <th>{copy.nextDueDate}</th>
+              <th>{copy.status}</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <LoadingTableRow colSpan={4} label="Loading domains" /> : null}
+            {loading ? <LoadingTableRow colSpan={4} label={copy.loadingDomains} /> : null}
             {!loading && domains.length ? domains.map((domain) => (
               <tr key={domain.id}>
                 <td><strong>{domain.domain}</strong></td>
                 <td>{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
                 <td>{dateLabel(domain.renewsAt)}</td>
-                <td><StatusPill label={serviceStatusLabel(domain.status, currentLocale())} tone={statusTone[domain.status] ?? "neutral"} /></td>
+                <td><StatusPill label={serviceStatusLabel(domain.status, locale)} tone={statusTone[domain.status] ?? "neutral"} /></td>
               </tr>
             )) : null}
-            {!loading && domains.length === 0 ? <tr><td colSpan={4}>Noch keine Domains.</td></tr> : null}
+            {!loading && domains.length === 0 ? <tr><td colSpan={4}>{copy.noDomains}</td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -999,9 +974,10 @@ function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => 
 }
 
 function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading: boolean }) {
+  const copy = dictionary[currentLocale()].client;
   return (
     <section className={styles.invoiceCards}>
-      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label="Loading invoices" />Loading invoices...</span></section> : null}
+      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingInvoices} />{copy.loadingInvoices}</span></section> : null}
       {!loading && invoices.map((invoice) => (
         <article className={styles.invoiceCard} key={invoice.id}>
           <div className={styles.invoiceCardLead}>
@@ -1018,7 +994,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
           ) : null}
         </article>
       ))}
-      {!loading && invoices.length === 0 ? <section className={styles.module}><p>No invoices yet.</p></section> : null}
+      {!loading && invoices.length === 0 ? <section className={styles.module}><p>{copy.noInvoices}</p></section> : null}
     </section>
   );
 }
@@ -1172,13 +1148,14 @@ function PlanChange({ service }: { service: ApiService }) {
 }
 
 function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTicket[] }) {
+  const copy = dictionary[currentLocale()].client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
-        <div><span className="eyebrow">Support Tickets</span><h2>All Tickets</h2></div>
-        <Button href="/client/tickets/new" icon={Send}>New Ticket</Button>
+        <div><span className="eyebrow">Support Tickets</span><h2>{copy.tickets}</h2></div>
+        <Button href="/client/tickets/new" icon={Send}>{copy.newTicket}</Button>
       </div>
-      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label="Loading tickets" />Loading tickets...</span></section> : null}
+      {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingTickets} />{copy.loadingTickets}</span></section> : null}
       {!loading && tickets.length ? (
         <div className={styles.ticketCards}>
           {tickets.map((ticket) => (
@@ -1196,7 +1173,7 @@ function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTick
           ))}
         </div>
       ) : null}
-      {!loading && tickets.length === 0 ? <section className={styles.module}><p>No tickets yet.</p></section> : null}
+      {!loading && tickets.length === 0 ? <section className={styles.module}><p>{copy.noTickets}</p></section> : null}
     </section>
   );
 }
@@ -1264,7 +1241,7 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
     <div className={styles.suggestions}>
       <span className="eyebrow">Related articles</span>
       {articles.map((article) => (
-        <a href={`/de/knowledgebase/${article.slug}`} key={article.id} target="_blank">
+        <a href={`/${currentLocale()}/knowledgebase/${article.slug}`} key={article.id} target="_blank">
           <strong>{article.title}</strong>
           <span>{article.excerpt ?? previewText(article.body)}</span>
         </a>
@@ -1274,16 +1251,18 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
 }
 
 function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseArticle[]; loading: boolean }) {
+  const locale = currentLocale();
+  const copy = dictionary[locale].client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
-        <div><span className="eyebrow">Knowledgebase</span><h2>Articles</h2></div>
-        <Button href="/de/knowledgebase" icon={BookOpen} variant="secondary">Public Help Center</Button>
+        <div><span className="eyebrow">Knowledgebase</span><h2>{copy.knowledgebase}</h2></div>
+        <Button href={`/${locale}/knowledgebase`} icon={BookOpen} variant="secondary">{copy.knowledgebase}</Button>
       </div>
       <div className={styles.articleList}>
-        {loading ? <span className={styles.loadingInline}><LoadingSpinner label="Loading knowledgebase" />Loading articles...</span> : null}
+        {loading ? <span className={styles.loadingInline}><LoadingSpinner label={copy.loadingArticles} />{copy.loadingArticles}</span> : null}
         {!loading && articles.map((article) => (
-          <a href={`/de/knowledgebase/${article.slug}`} key={article.id}>
+          <a href={`/${locale}/knowledgebase/${article.slug}`} key={article.id}>
             <BookOpen aria-hidden />
             <div>
               <h3>{article.title}</h3>
@@ -1291,7 +1270,7 @@ function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseAr
             </div>
           </a>
         ))}
-        {!loading && articles.length === 0 ? <p className={styles.emptySmart}>No articles yet.</p> : null}
+        {!loading && articles.length === 0 ? <p className={styles.emptySmart}>{copy.noArticles}</p> : null}
       </div>
     </section>
   );

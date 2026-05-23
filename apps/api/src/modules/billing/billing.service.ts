@@ -1081,13 +1081,15 @@ export class BillingService {
   }
 
   async publicSettings() {
-    const [vatPercent, siteLogoUrl, termsUrl] = await Promise.all([
+    const [vatPercent, siteLogoUrl, termsUrl, usdExchangeRate, usdBufferCents] = await Promise.all([
       this.vatPercent(),
       this.billing.settingString("siteLogoUrl"),
-      this.billing.settingString("termsUrl")
+      this.billing.settingString("termsUrl"),
+      this.billing.settingNumber("usdExchangeRate", 1.0),
+      this.billing.settingNumber("usdBufferCents", 0)
     ]);
 
-    return { siteLogoUrl, termsUrl, vatPercent };
+    return { siteLogoUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent };
   }
 
   settings() {
@@ -1151,7 +1153,9 @@ export class BillingService {
       salesImapPassword,
       salesImapMailbox,
       salesMailboxAddress,
-      termsUrl
+      termsUrl,
+      usdExchangeRate,
+      usdBufferCents
     ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
@@ -1193,7 +1197,9 @@ export class BillingService {
       this.billing.settingString("salesImapPassword"),
       this.billing.settingString("salesImapMailbox", "INBOX"),
       this.billing.settingString("salesMailboxAddress", "sales@dezhost.com"),
-      this.billing.settingString("termsUrl")
+      this.billing.settingString("termsUrl"),
+      this.billing.settingNumber("usdExchangeRate", 1.0),
+      this.billing.settingNumber("usdBufferCents", 0)
     ]);
 
     return {
@@ -1237,6 +1243,8 @@ export class BillingService {
       supportMailboxAddress,
       ticketAutoCloseHours,
       termsUrl,
+      usdExchangeRate,
+      usdBufferCents,
       vatPercent
     };
   }
@@ -1331,6 +1339,8 @@ export class BillingService {
     supportMailboxAddress?: string;
     ticketAutoCloseHours?: number;
     termsUrl?: string;
+    usdExchangeRate?: number;
+    usdBufferCents?: number;
     vatPercent?: number;
   }) {
     return Promise.all([
@@ -1422,7 +1432,13 @@ export class BillingService {
         : this.billing.upsertSettingString("salesImapMailbox", input.salesImapMailbox || "INBOX"),
       input.salesMailboxAddress === undefined
         ? undefined
-        : this.billing.upsertSettingString("salesMailboxAddress", input.salesMailboxAddress || "sales@dezhost.com")
+        : this.billing.upsertSettingString("salesMailboxAddress", input.salesMailboxAddress || "sales@dezhost.com"),
+      input.usdExchangeRate === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("usdExchangeRate", Math.max(0.0001, input.usdExchangeRate)),
+      input.usdBufferCents === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("usdBufferCents", Math.max(0, Math.round(input.usdBufferCents)))
     ]);
   }
 

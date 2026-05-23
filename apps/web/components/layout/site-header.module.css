@@ -55,6 +55,36 @@
   gap: 10px;
 }
 
+.languageDropdown {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.languageDropdown:hover {
+  color: var(--crimson);
+  border-color: color-mix(in srgb, var(--crimson) 40%, var(--border));
+}
+
+.languageSelect {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 820;
+  outline: none;
+}
+
 .languageToggle {
   display: inline-flex;
   min-height: 34px;

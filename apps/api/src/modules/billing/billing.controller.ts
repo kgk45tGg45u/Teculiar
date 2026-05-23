@@ -262,6 +262,8 @@ export class BillingDevController {
       supportMailboxAddress?: string;
       ticketAutoCloseHours?: number;
       termsUrl?: string;
+      usdExchangeRate?: number;
+      usdBufferCents?: number;
       vatPercent?: number;
     }
   ) {

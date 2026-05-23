@@ -1,9 +1,10 @@
 import { Check, Cpu, Database, HardDrive, LifeBuoy } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { apiGet, cycleLabel, money, type ApiProduct } from "../../lib/api";
+import { apiGet, cycleLabel, serverMoney, type ApiProduct } from "../../lib/api";
 import { getCatalog } from "../../lib/catalog";
-import type { Locale } from "../../lib/i18n";
+import { CURRENCY_COOKIE, type Currency, type Locale } from "../../lib/i18n";
 import { Card } from "../ui/card";
 import styles from "./product-grid.module.css";
 
@@ -29,8 +30,21 @@ type ProductCardModel = {
 };
 
 export async function ProductGrid({ locale }: { locale: Locale }) {
-  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products");
-  const products = apiProducts?.length ? apiProducts.map(toProductCard) : getCatalog(locale);
+  const cookieStore = await cookies();
+  const savedCurrency = cookieStore.get(CURRENCY_COOKIE)?.value;
+  const displayCurrency: Currency =
+    savedCurrency === "EUR" || savedCurrency === "USD" ? savedCurrency : locale === "en" ? "USD" : "EUR";
+
+  const [apiProducts, settings] = await Promise.all([
+    apiGet<ApiProduct[]>("/storefront/products"),
+    apiGet<{ usdExchangeRate?: number; usdBufferCents?: number }>("/storefront/settings")
+  ]);
+  const exchangeRate = settings?.usdExchangeRate ?? 1.0;
+  const bufferCents = settings?.usdBufferCents ?? 0;
+
+  const products = apiProducts?.length
+    ? apiProducts.map((p) => toProductCard(p, displayCurrency, exchangeRate, bufferCents, locale))
+    : getCatalog(locale);
 
   return (
     <section className="section">
@@ -99,16 +113,37 @@ function ProductCardContent({
   );
 }
 
-function toProductCard(product: ApiProduct) {
+function toProductCard(
+  product: ApiProduct,
+  displayCurrency: Currency,
+  exchangeRate: number,
+  bufferCents: number,
+  locale: Locale
+) {
   const price = product.prices[0];
-  const amountCents = product.type === "DOMAIN" ? product.minimumPriceCents ?? price?.amountCents : price?.amountCents;
+  const amountCents =
+    product.type === "DOMAIN" ? product.minimumPriceCents ?? price?.amountCents : price?.amountCents;
+  const fmt = (cents: number) => serverMoney(cents, displayCurrency, exchangeRate, bufferCents, locale);
+  const fromText = locale === "de" ? "ab" : "from";
+  const cycleText =
+    product.type === "DOMAIN"
+      ? locale === "de"
+        ? "jährlich"
+        : "yearly"
+      : cycleLabel(price?.billingCycle ?? "", locale);
+  const zeroSetup = displayCurrency === "USD" ? "$0.00 Setup" : "0,00 € Setup";
 
   return {
     id: product.id,
     name: product.name,
     type: productTypeLabel(product.type),
-    price: amountCents !== undefined ? `from ${money(amountCents, price?.currency ?? "EUR")} / ${product.type === "DOMAIN" ? "yearly" : cycleLabel(price?.billingCycle ?? "")}` : "Preis folgt",
-    setup: price?.setupFeeCents ? `${money(price.setupFeeCents, price.currency)} Setup` : "0,00 EUR Setup",
+    price:
+      amountCents !== undefined
+        ? `${fromText} ${fmt(amountCents)} / ${cycleText}`
+        : locale === "de"
+          ? "Preis folgt"
+          : "Price TBA",
+    setup: price?.setupFeeCents ? `${fmt(price.setupFeeCents)} Setup` : zeroSetup,
     summary: product.description,
     highlights: (product.configs ?? [])
       .filter((config) => !config.key.startsWith("virtualmin_"))

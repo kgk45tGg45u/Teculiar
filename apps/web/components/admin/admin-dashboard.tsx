@@ -17,8 +17,9 @@ import {
   type ApiTicket,
   type AuthUser
 } from "../../lib/api";
-import type { Locale } from "../../lib/i18n";
+import { dictionary, type Locale } from "../../lib/i18n";
 import { requestLocale } from "../../lib/server-locale";
+import { LanguageToggle } from "../layout/language-toggle";
 import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
@@ -49,58 +50,9 @@ type AdminView =
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
-const adminCopy = {
-  de: {
-    activeServices: "Aktive Services",
-    announcements: "Ankuendigungen",
-    clients: "Kunden",
-    domainPrices: "Domainpreise",
-    emailLogs: "E-Mail Logs",
-    emailSettings: "E-Mail Einstellungen",
-    emailTemplate: "E-Mail Vorlage",
-    emails: "E-Mails",
-    failedPayments: "Fehlgeschlagene Zahlungen",
-    home: "Home",
-    invoices: "Rechnungen",
-    knowledgebase: "Wissensdatenbank",
-    logs: "Logs",
-    openTickets: "Offene Tickets",
-    orders: "Bestellungen",
-    paymentGateways: "Zahlungsanbieter",
-    products: "Produkte/Services",
-    services: "Services",
-    settings: "Einstellungen",
-    summary: "Kunden, Bestellungen, Abrechnung, Support, Produkte, Ankuendigungen und Automatisierung.",
-    tickets: "Support Tickets"
-  },
-  en: {
-    activeServices: "Active services",
-    announcements: "Announcements",
-    clients: "Clients",
-    domainPrices: "Domain Prices",
-    emailLogs: "Email Logs",
-    emailSettings: "Email Settings",
-    emailTemplate: "Email Template",
-    emails: "Emails",
-    failedPayments: "Failed payments",
-    home: "Home",
-    invoices: "Invoices",
-    knowledgebase: "Knowledgebase",
-    logs: "Logs",
-    openTickets: "Open tickets",
-    orders: "Orders",
-    paymentGateways: "Payment Gateways",
-    products: "Products/Services",
-    services: "Services",
-    settings: "Settings",
-    summary: "Clients, orders, billing, support, products, announcements, and automation.",
-    tickets: "Support Tickets"
-  }
-} satisfies Record<Locale, Record<string, string>>;
-
 export async function AdminDashboard({ emailSection = "emails", view = "home" }: { emailSection?: EmailAdminSection; view?: AdminView }) {
   const locale = await requestLocale();
-  const copy = adminCopy[locale];
+  const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     redirect("/admin/login" as never);
@@ -141,9 +93,9 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
           <a aria-current={adminNavCurrent(view, "logs")} href="/admin/logs">{copy.logs}</a>
           <a aria-current={adminNavCurrent(view, "tickets")} href="/admin/tickets">{copy.tickets}</a>
           <a aria-current={adminNavCurrent(view, "knowledgebase")} href="/admin/knowledgebase">{copy.knowledgebase}</a>
-          <a aria-current={adminNavCurrent(view, "blog")} href="/admin/blog">Blog</a>
+          <a aria-current={adminNavCurrent(view, "blog")} href="/admin/blog">{copy.blog}</a>
           <a aria-current={adminNavCurrent(view, "announcements")} href="/admin/announcements">{copy.announcements}</a>
-          <a aria-current={adminNavCurrent(view, "settings")} href="/admin/settings">Settings</a>
+          <a aria-current={adminNavCurrent(view, "settings")} href="/admin/settings">{copy.settings}</a>
         </nav>
       </aside>
       <main className={styles.main}>
@@ -154,8 +106,9 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
             <p>{copy.summary}</p>
           </div>
           <div className={styles.headerActions}>
-            <Button href="/de" variant="secondary">
-              Website
+            <LanguageToggle locale={locale} />
+            <Button href={`/${locale}`} variant="secondary">
+              {copy.website}
             </Button>
             <LogoutButton scope="admin" redirectTo="/admin/login" />
           </div>
@@ -255,29 +208,19 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
 }
 
 function ModuleGrid({ locale }: { locale: Locale }) {
-  const modules = locale === "de"
-    ? [
-        { title: "Kunden", body: "Kunden, Kontakte, Segmente und E-Mail Logs.", href: "/admin/clients", icon: UsersRound },
-        { title: "Bestellungen", body: "Bestellqueue mit 6-stelligen Bestellnummern.", href: "/admin/orders", icon: Package },
-        { title: "Abrechnung", body: "Rechnungen, Transaktionen, Guthaben und Anbieter.", href: "/admin/invoices", icon: FileText },
-        { title: "E-Mails", body: "SMTP Einstellungen, Vorlagen und lokaler Ausgang.", href: "/admin/emails", icon: Mail },
-        { title: "Support", body: "Tickets, Abteilungen, Status und Antworten.", href: "/admin/tickets", icon: Ticket },
-        { title: "Wissensdatenbank", body: "Oeffentliche Hilfeartikel und Ticketbausteine.", href: "/admin/knowledgebase", icon: BookOpen },
-        { title: "Blog", body: "Artikel, SEO Keywords, Bilder und KI Briefings.", href: "/admin/blog", icon: FileText },
-        { title: "Produkte", body: "Produkte, Services und Preiszyklen.", href: "/admin/products", icon: Settings },
-        { title: "Ankuendigungen", body: "Ankuendigungen fuer den Kundenbereich schreiben.", href: "/admin/announcements", icon: Bell }
-      ]
-    : [
-        { title: "Clients", body: "Clients, contacts, segments, email logs.", href: "/admin/clients", icon: UsersRound },
-        { title: "Orders", body: "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
-        { title: "Billing", body: "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
-        { title: "Emails", body: "SMTP settings, templates, and local outbox.", href: "/admin/emails", icon: Mail },
-        { title: "Support", body: "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
-        { title: "Knowledgebase", body: "Public help articles and ticket reply inserts.", href: "/admin/knowledgebase", icon: BookOpen },
-        { title: "Blog", body: "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
-        { title: "Products", body: "Products, services, pricing cycles.", href: "/admin/products", icon: Settings },
-        { title: "Announcements", body: "Write client portal announcements.", href: "/admin/announcements", icon: Bell }
-      ];
+  const copy = dictionary[locale].admin;
+  const isDE = locale === "de";
+  const modules = [
+    { title: copy.clients, body: isDE ? "Kunden, Kontakte, Segmente und E-Mail Logs." : "Clients, contacts, segments, email logs.", href: "/admin/clients", icon: UsersRound },
+    { title: copy.orders, body: isDE ? "Bestellqueue mit 6-stelligen Bestellnummern." : "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
+    { title: isDE ? "Abrechnung" : "Billing", body: isDE ? "Rechnungen, Transaktionen, Guthaben und Anbieter." : "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
+    { title: copy.emails, body: isDE ? "SMTP Einstellungen, Vorlagen und lokaler Ausgang." : "SMTP settings, templates, and local outbox.", href: "/admin/emails", icon: Mail },
+    { title: "Support", body: isDE ? "Tickets, Abteilungen, Status und Antworten." : "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
+    { title: copy.knowledgebase, body: isDE ? "Öffentliche Hilfeartikel und Ticketbausteine." : "Public help articles and ticket reply inserts.", href: "/admin/knowledgebase", icon: BookOpen },
+    { title: copy.blog, body: isDE ? "Artikel, SEO Keywords, Bilder und KI Briefings." : "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
+    { title: copy.products, body: isDE ? "Produkte, Services und Preiszyklen." : "Products, services, pricing cycles.", href: "/admin/products", icon: Settings },
+    { title: copy.announcements, body: isDE ? "Ankündigungen für den Kundenbereich schreiben." : "Write client portal announcements.", href: "/admin/announcements", icon: Bell }
+  ];
 
   return (
     <section className="grid three">
@@ -343,24 +286,25 @@ function BlogPanel() {
 }
 
 function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
+  const copy = dictionary[locale].admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">Orders</span>
-          <h2>Bestellqueue</h2>
+          <h2>{copy.orders}</h2>
         </div>
-        <StatusPill label={`${orders.length} Orders`} tone={orders.length > 0 ? "good" : "neutral"} />
+        <StatusPill label={`${orders.length} ${copy.orders}`} tone={orders.length > 0 ? "good" : "neutral"} />
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>Order</th>
-            <th>Kunde</th>
-            <th>Status</th>
-            <th>Invoice</th>
+            <th>{copy.order}</th>
+            <th>{copy.client}</th>
+            <th>{copy.status}</th>
+            <th>{copy.invoices}</th>
             <th>Items</th>
-            <th>Total</th>
+            <th>{copy.total}</th>
           </tr>
         </thead>
         <tbody>
@@ -371,8 +315,8 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                   <details>
                     <summary><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></summary>
                     <div className={styles.orderDetails}>
-                      <p><strong>Invoice:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? "no invoice"})</p>
-                      <p><strong>Status:</strong> {orderStatusLabel(order.status, locale)}</p>
+                      <p><strong>{copy.invoices}:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? "no invoice"})</p>
+                      <p><strong>{copy.status}:</strong> {orderStatusLabel(order.status, locale)}</p>
                       <OrderStatusForm orderId={order.id} status={order.status} />
                       <table className="table">
                         <tbody>
@@ -399,7 +343,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
             ))
           ) : (
             <tr>
-              <td colSpan={6}>Noch keine Bestellungen oder API nicht erreichbar.</td>
+              <td colSpan={6}>{copy.noOrders}</td>
             </tr>
           )}
         </tbody>
@@ -603,43 +547,25 @@ function Placeholder({ icon: Icon, title, body }: { icon: typeof UsersRound; tit
 }
 
 function adminTitle(view: AdminView, locale: Locale) {
-  const titles = {
-    de: {
-      announcements: "Ankuendigungen",
-      blog: "Blog",
-      clients: "Kunden",
-      "domain-prices": "Domainpreise",
-      emails: "E-Mails",
-      home: "Betriebskonsole",
-      invoices: "Rechnungen",
-      knowledgebase: "Wissensdatenbank",
-      logs: "Logs",
-      orders: "Bestellungen",
-      products: "Produkte/Services",
-      services: "Services",
-      settings: "Einstellungen",
-      "payment-gateways": "Zahlungsanbieter",
-      tickets: "Support Tickets"
-    },
-    en: {
-      announcements: "Announcements",
-      blog: "Blog",
-      clients: "Clients",
-      "domain-prices": "Domain Prices",
-      emails: "Emails",
-      home: "Operations Console",
-      invoices: "Invoices",
-      knowledgebase: "Knowledgebase",
-      logs: "Logs",
-      orders: "Orders",
-      products: "Products/Services",
-      services: "Services",
-      settings: "Settings",
-      "payment-gateways": "Payment Gateways",
-      tickets: "Support Tickets"
-    }
-  } as const;
-  return titles[locale][view];
+  const copy = dictionary[locale].admin;
+  const titles: Record<AdminView, string> = {
+    announcements: copy.announcements,
+    blog: copy.blog,
+    clients: copy.clients,
+    "domain-prices": copy.domainPrices,
+    emails: copy.emails,
+    home: locale === "de" ? "Betriebskonsole" : "Operations Console",
+    invoices: copy.invoices,
+    knowledgebase: copy.knowledgebase,
+    logs: copy.logs,
+    orders: copy.orders,
+    products: copy.products,
+    services: copy.services,
+    settings: copy.settings,
+    "payment-gateways": copy.paymentGateways,
+    tickets: copy.tickets
+  };
+  return titles[view];
 }
 
 function emptyEmailSettings(): ApiEmailAdminSettings {

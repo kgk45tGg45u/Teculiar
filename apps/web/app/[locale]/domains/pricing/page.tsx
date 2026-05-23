@@ -2,20 +2,21 @@
 
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "../../../../components/ui/button";
-import { API_BASE_URL, type ApiDomainPrice } from "../../../../lib/api";
+import { API_BASE_URL, money, type ApiDomainPrice } from "../../../../lib/api";
+import type { Locale } from "../../../../lib/i18n";
 import styles from "./domain-pricing.module.css";
 
 type Tab = "register" | "renew" | "transfer";
-
-function money(cents: number, currency = "EUR") {
-  return new Intl.NumberFormat("de-DE", { style: "currency", currency }).format(cents / 100);
-}
 
 export default function DomainPricingPage() {
   const [prices, setPrices] = useState<ApiDomainPrice[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("register");
+  const pathname = usePathname();
+  const locale: Locale = pathname.startsWith("/en") ? "en" : "de";
+  const isDe = locale === "de";
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/storefront/domain-prices`)
@@ -62,9 +63,11 @@ export default function DomainPricingPage() {
       <section className={styles.hero}>
         <div className="container">
           <span className="eyebrow">Domains</span>
-          <h1>Domain-Preisliste</h1>
+          <h1>{isDe ? "Domain-Preisliste" : "Domain Pricing"}</h1>
           <p>
-            Alle Preise werden direkt aus unserem System geladen. Preise zzgl. 19% MwSt.
+            {isDe
+              ? "Alle Preise werden direkt aus unserem System geladen. Preise zzgl. 19% MwSt."
+              : "All prices are loaded directly from our system. Prices excl. 19% VAT."}
           </p>
         </div>
       </section>
@@ -77,14 +80,14 @@ export default function DomainPricingPage() {
               onClick={() => setTab("register")}
               type="button"
             >
-              Neuregistrierung
+              {isDe ? "Neuregistrierung" : "Registration"}
             </button>
             <button
               className={`${styles.tab} ${tab === "renew" ? styles.active : ""}`}
               onClick={() => setTab("renew")}
               type="button"
             >
-              Verlängerung
+              {isDe ? "Verlängerung" : "Renewal"}
             </button>
             <button
               className={`${styles.tab} ${tab === "transfer" ? styles.active : ""}`}
@@ -97,11 +100,15 @@ export default function DomainPricingPage() {
 
           {loading ? (
             <div className={styles.loading}>
-              <span>Preise werden geladen…</span>
+              <span>{isDe ? "Preise werden geladen…" : "Loading prices…"}</span>
             </div>
           ) : tlds.length === 0 ? (
             <div className={styles.empty}>
-              <p>Für diese Kategorie sind noch keine Preise hinterlegt.</p>
+              <p>
+                {isDe
+                  ? "Für diese Kategorie sind noch keine Preise hinterlegt."
+                  : "No prices available for this category yet."}
+              </p>
             </div>
           ) : (
             <div className={styles.tableWrap}>
@@ -110,7 +117,9 @@ export default function DomainPricingPage() {
                   <tr>
                     <th>Domain</th>
                     {allYears.map((y) => (
-                      <th key={y}>{y} {y === 1 ? "Jahr" : "Jahre"}</th>
+                      <th key={y}>
+                        {y} {isDe ? (y === 1 ? "Jahr" : "Jahre") : y === 1 ? "year" : "years"}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -122,7 +131,7 @@ export default function DomainPricingPage() {
                         const p = byTld[tld]?.[currentAction]?.[y];
                         return (
                           <td key={y} className={styles.priceCell}>
-                            {p ? money(p.amountCents, p.currency) : <span className={styles.na}>–</span>}
+                            {p ? money(p.amountCents, p.currency, locale) : <span className={styles.na}>–</span>}
                           </td>
                         );
                       })}
@@ -134,9 +143,9 @@ export default function DomainPricingPage() {
           )}
 
           <div className={styles.cta}>
-            <p>Alle Preise zzgl. 19% MwSt. Preise können sich ändern.</p>
-            <Button href="/de/domains" icon={ArrowRight}>
-              Domain registrieren
+            <p>{isDe ? "Alle Preise zzgl. 19% MwSt. Preise können sich ändern." : "All prices excl. 19% VAT. Prices may change."}</p>
+            <Button href={`/${locale}/domains`} icon={ArrowRight}>
+              {isDe ? "Domain registrieren" : "Register a domain"}
             </Button>
           </div>
         </div>
