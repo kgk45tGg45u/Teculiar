@@ -6,21 +6,6 @@
   letter-spacing: 0;
 }
 
-.cardLink {
-  display: block;
-  min-height: 100%;
-  color: inherit;
-  text-decoration: none;
-}
-
-.cardLink article {
-  transition: border-color 160ms ease, transform 160ms ease;
-}
-
-.cardLink:hover article {
-  border-color: rgba(0, 119, 182, 0.7);
-  transform: translateY(-2px);
-}
 
 .icon {
   display: inline-flex;
@@ -68,19 +53,3 @@
   flex: 0 0 auto;
 }
 
-.actions {
-  margin-top: 4px;
-}
-
-.cardCta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  margin-top: 4px;
-  padding: 0 18px;
-  border-radius: 8px;
-  background: var(--crimson);
-  color: #fff;
-  font-weight: 800;
-}

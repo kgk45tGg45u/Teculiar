@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { EmailService } from "../email/email.service";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
+import { PublicInquiryDto } from "./dto/public-inquiry.dto";
 import { fetchUnreadImapMessages, type ImapMailboxConfig } from "./imap-mailbox";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
 import { TicketsRepository } from "./tickets.repository";
@@ -32,6 +33,23 @@ export class TicketsService {
       }
     }
     throw new BadRequestException("Could not create ticket id.");
+  }
+
+  async createPublicInquiry(dto: PublicInquiryDto) {
+    if (dto._honey) {
+      return { ok: true };
+    }
+
+    const phoneInfo = dto.phone ? `\n\nTelefon: ${dto.phone}` : "";
+    const body = `Name: ${dto.name}\nE-Mail: ${dto.email}${phoneInfo}\n\n${dto.message}`;
+
+    const user = await this.tickets.findOrCreateGuestUser(dto.name, dto.email);
+    return this.createTicket(user.id, {
+      body,
+      department: "SALES",
+      priority: "NORMAL",
+      subject: dto.subject
+    });
   }
 
   listTickets(filters: { status?: string; department?: string; userId?: string }) {

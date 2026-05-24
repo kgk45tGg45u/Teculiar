@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { cycleLabel, money, type ApiProduct } from "../../../lib/api";
@@ -32,9 +32,19 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
           {products.map((product, i) => {
             const price = selectedPrice(product, cycle);
             const setupFee = price?.setupFeeCents ?? 0;
+            const specs = (product.configs ?? [])
+              .filter((c) => !c.key.startsWith("virtualmin_"))
+              .slice(0, 5);
+            const isFeatured = i === 1;
             return (
-              <Link className={`${styles.packageCard} ${styles.packageLink} ${i === 1 ? styles.packageFeatured : ""}`} href={`/${locale}/order/${product.id}`} key={product.id}>
-                {i === 1 && <span className={styles.packageBadge}>{isDe ? "Beliebt" : "Popular"}</span>}
+              <Link
+                className={`${styles.packageCard} ${styles.packageLink} ${isFeatured ? styles.packageFeatured : ""}`}
+                href={`/${locale}/order/${product.id}`}
+                key={product.id}
+              >
+                {isFeatured && (
+                  <span className={styles.packageBadge}>{isDe ? "Beliebt" : "Popular"}</span>
+                )}
                 <h3>{product.name}</h3>
                 {price ? (
                   <div className={styles.packagePrice}>
@@ -50,6 +60,16 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
                   <div className={styles.setupFree}>{isDe ? "Keine Einrichtungsgebühr" : "No setup fee"}</div>
                 )}
                 <p className={styles.packageDesc}>{product.description}</p>
+                {specs.length > 0 && (
+                  <ul className={styles.packageFeatures}>
+                    {specs.map((spec) => (
+                      <li key={spec.key}>
+                        <Check aria-hidden size={13} />
+                        {spec.label}{spec.values[0] ? `: ${String(spec.values[0])}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <span className={styles.packageCta}>
                   {isDe ? "Jetzt bestellen" : "Order now"}
                   <ArrowRight aria-hidden size={18} />

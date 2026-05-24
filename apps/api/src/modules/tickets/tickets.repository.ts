@@ -36,6 +36,24 @@ export class TicketsRepository {
     });
   }
 
+  async findOrCreateGuestUser(name: string, email: string): Promise<{ id: string }> {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true }
+    });
+    if (existing) {
+      return existing;
+    }
+    return this.prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        passwordHash: `guest-inquiry-${Date.now()}`
+      },
+      select: { id: true }
+    });
+  }
+
   listTickets(filters: { status?: string; department?: string; userId?: string }) {
     return this.prisma.ticket.findMany({
       where: {

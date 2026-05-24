@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Cloud, Database, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
+import { ArrowRight, Bot, CheckCircle, Cloud, Database, Download, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./it-losungen.module.css";
@@ -182,6 +182,72 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
         }
       ];
 
+  const supportPackages = isDe
+    ? [
+        {
+          name: "Basis",
+          scope: "5 Stunden / Monat",
+          price: "200 €/Monat",
+          features: ["Fehlerbehebung einfach bis komplex", "Server-Troubleshooting & Monitoring", "E-Mail-Management", "Nextcloud-Administration", "Backup-Strategien", "Netzwerkoptimierung"]
+        },
+        {
+          name: "Standard",
+          scope: "10 Stunden / Monat",
+          price: "350 €/Monat",
+          features: ["Fehlerbehebung einfach bis komplex", "Server-Troubleshooting & Monitoring", "E-Mail-Management", "Nextcloud-Administration", "Backup-Strategien", "Netzwerkoptimierung"],
+          featured: true
+        },
+        {
+          name: "Profi",
+          scope: "20 Stunden / Monat",
+          price: "600 €/Monat",
+          features: ["Fehlerbehebung einfach bis komplex", "Server-Troubleshooting & Monitoring", "E-Mail-Management", "Nextcloud-Administration", "Backup-Strategien", "Netzwerkoptimierung"]
+        }
+      ]
+    : [
+        {
+          name: "Basic",
+          scope: "5 hours / month",
+          price: "€200/month",
+          features: ["Error resolution (simple to complex)", "Server troubleshooting & monitoring", "Email management", "Nextcloud administration", "Backup strategies", "Network optimisation"]
+        },
+        {
+          name: "Standard",
+          scope: "10 hours / month",
+          price: "€350/month",
+          features: ["Error resolution (simple to complex)", "Server troubleshooting & monitoring", "Email management", "Nextcloud administration", "Backup strategies", "Network optimisation"],
+          featured: true
+        },
+        {
+          name: "Pro",
+          scope: "20 hours / month",
+          price: "€600/month",
+          features: ["Error resolution (simple to complex)", "Server troubleshooting & monitoring", "Email management", "Nextcloud administration", "Backup strategies", "Network optimisation"]
+        }
+      ];
+
+  const oneTimeServices = isDe
+    ? [
+        { service: "Nextcloud Einrichtung", price: "ab 89 €" },
+        { service: "WordPress Installation & Setup", price: "ab 69 €" },
+        { service: "Domain-Migration", price: "ab 39 €" },
+        { service: "Website-Migration", price: "ab 99 €" },
+        { service: "E-Mail-System Einrichtung", price: "ab 79 €" },
+        { service: "Backup-System Einrichtung", price: "ab 49 €" },
+        { service: "SSL-Einrichtung", price: "kostenlos" },
+        { service: "Beratungsgespräch (60 Min.)", price: "kostenlos" }
+      ]
+    : [
+        { service: "Nextcloud setup", price: "from €89" },
+        { service: "WordPress installation & setup", price: "from €69" },
+        { service: "Domain migration", price: "from €39" },
+        { service: "Website migration", price: "from €99" },
+        { service: "Email system setup", price: "from €79" },
+        { service: "Backup system setup", price: "from €49" },
+        { service: "SSL setup", price: "free" },
+        { service: "Consultation (60 min.)", price: "free" }
+      ];
+
   return (
     <>
       {/* Hero */}
@@ -202,12 +268,13 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
               : "From Nextcloud setup to complete server maintenance. We explain everything clearly and work transparently."}
           </p>
           <div className={styles.heroActions}>
-            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
+            <Button href={`/${locale}/anfrage`} icon={ArrowRight}>
               {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
             </Button>
-            <Button href={`/${locale}/pricing`} variant="secondary">
-              {isDe ? "Preisliste ansehen" : "View pricing"}
-            </Button>
+            <a className={styles.pdfBtn} href="/preisliste.pdf" download>
+              <Download aria-hidden size={16} />
+              {isDe ? "Preisliste als PDF" : "Download price list PDF"}
+            </a>
           </div>
         </div>
       </section>
@@ -266,13 +333,142 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
                   <p>{service.details}</p>
                   <div className={styles.accordionFooter}>
                     <span className={styles.pricing}>{service.pricing}</span>
-                    <Button href={`/${locale}/kontakt`} icon={ArrowRight} variant="secondary">
+                    <Button
+                      href={`/${locale}/anfrage?subject=${encodeURIComponent(service.title)}`}
+                      icon={ArrowRight}
+                      variant="secondary"
+                    >
                       {isDe ? "Anfragen" : "Enquire"}
                     </Button>
                   </div>
                 </div>
               </details>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Support packages (from Pricing page) */}
+      <section className={`section tight ${styles.pricingSection}`}>
+        <div className="container">
+          <span className="eyebrow">{isDe ? "Wartungsverträge" : "Support packages"}</span>
+          <h2 className={styles.sectionTitle}>
+            {isDe ? "Laufende Betreuung – monatlich buchbar." : "Ongoing support – book monthly."}
+          </h2>
+          <div className={styles.supportGrid}>
+            {supportPackages.map((pkg) => (
+              <div
+                className={`${styles.supportCard} ${pkg.featured ? styles.featuredCard : ""}`}
+                key={pkg.name}
+              >
+                {pkg.featured && (
+                  <span className={styles.badge}>{isDe ? "Empfohlen" : "Recommended"}</span>
+                )}
+                <h3>{pkg.name}</h3>
+                <div className={styles.supportScope}>{pkg.scope}</div>
+                <div className={styles.supportPrice}>{pkg.price}</div>
+                <ul className={styles.featureList}>
+                  {pkg.features.map((f) => (
+                    <li key={f}>
+                      <CheckCircle aria-hidden size={14} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  href={`/${locale}/anfrage?subject=${encodeURIComponent(isDe ? `Wartungsvertrag ${pkg.name}` : `${pkg.name} support package`)}`}
+                  icon={ArrowRight}
+                  variant={pkg.featured ? "primary" : "secondary"}
+                >
+                  {isDe ? "Anfragen" : "Enquire"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* One-time services */}
+      <section className={`section tight ${styles.oneTimeSection}`}>
+        <div className="container">
+          <div className={styles.oneTimeLayout}>
+            <div>
+              <span className="eyebrow">{isDe ? "Einmalige Leistungen" : "One-time services"}</span>
+              <h2>{isDe ? "Einrichtung & Migration." : "Setup & migration."}</h2>
+              <p>
+                {isDe
+                  ? "Einmalige Leistungen werden nach Aufwand oder als Festpreis abgerechnet. Wir besprechen alles vorher – keine Überraschungen."
+                  : "One-time services are billed by effort or as a fixed price. We discuss everything beforehand – no surprises."}
+              </p>
+              <Button href={`/${locale}/anfrage`} icon={ArrowRight} variant="secondary">
+                {isDe ? "Angebot anfragen" : "Request quote"}
+              </Button>
+            </div>
+            <div className={styles.serviceTable}>
+              {oneTimeServices.map((item) => (
+                <div className={styles.serviceRow} key={item.service}>
+                  <span>{item.service}</span>
+                  <strong>{item.price}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Hourly rate */}
+      <section className="section tight">
+        <div className="container">
+          <div className={styles.hourlyInner}>
+            <div>
+              <span className="eyebrow">{isDe ? "Stundensatz" : "Hourly rate"}</span>
+              <h2>{isDe ? "Individuelle Arbeiten." : "Individual work."}</h2>
+              <p>
+                {isDe
+                  ? "Für Aufgaben, die sich nicht pauschal berechnen lassen: Fehlersuche, individuelle Konfigurationen, Beratung und Sonderanfragen. Abrechnung in 15-Minuten-Schritten, Mindestabrechnung 30 Minuten."
+                  : "For tasks that can't be charged as a flat rate: troubleshooting, individual configurations, consulting and special requests. Billed in 15-minute increments, minimum 30 minutes."}
+              </p>
+            </div>
+            <div className={styles.hourlyRate}>
+              <strong>{isDe ? "50–100 €" : "€50–100"}</strong>
+              <span>{isDe ? "pro Stunde, je nach Leistung" : "per hour, depending on service"}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Terms & Conditions */}
+      <section className={`section tight ${styles.termsSection}`}>
+        <div className="container">
+          <span className="eyebrow">{isDe ? "Konditionen" : "Terms of service"}</span>
+          <h2 className={styles.sectionTitle}>
+            {isDe ? "Was du wissen solltest." : "What you should know."}
+          </h2>
+          <div className={styles.termsParagraphs}>
+            <div className={styles.termsParagraph}>
+              <h3>{isDe ? "Wartungsverträge & SLA-Pakete" : "Maintenance contracts & SLA packages"}</h3>
+              <p>
+                {isDe
+                  ? "Unsere Wartungsverträge (SLA-Pakete) bieten drei Stufen: Basis (5 Stunden/Monat, 200 €), Standard (10 Stunden/Monat, 350 €) und Profi (20 Stunden/Monat, 600 €). Alle Pakete beinhalten Fehlerbehebung von einfach bis komplex, Server-Troubleshooting & Monitoring, E-Mail-Management inklusive Domains und DNS, Office-Software-Support, Nextcloud-Konfiguration und Benutzerverwaltung, Backup-Strategien sowie Netzwerkänderungen und -optimierungen. Nicht genutzte Stunden werden nicht auf den Folgemonat übertragen."
+                  : "Our maintenance contracts (SLA packages) offer three tiers: Basic (5 hours/month, €200), Standard (10 hours/month, €350) and Pro (20 hours/month, €600). All packages include error resolution from simple to complex, server troubleshooting & monitoring, email management including domains and DNS, office software support, Nextcloud configuration and user management, backup strategies, and network changes and optimisation. Unused hours do not carry over to the next month."}
+              </p>
+            </div>
+            <div className={styles.termsParagraph}>
+              <h3>{isDe ? "Welches Paket passt zu dir?" : "Which package suits you?"}</h3>
+              <p>
+                {isDe
+                  ? "Das Basis-Paket eignet sich für kleinere Organisationen mit gelegentlichem IT-Bedarf – zum Beispiel Vereine, die ihre Systeme stabil halten wollen, aber keine regelmäßige Betreuung benötigen. Das Standard-Paket ist ideal für aktiv genutzte Infrastrukturen: Wenn du regelmäßig Updates, Konfigurationsänderungen oder Nutzerverwaltung brauchst und eine Reaktionszeit von maximal 24 Stunden erwartest. Das Profi-Paket richtet sich an Organisationen, die stark auf ihre IT angewiesen sind – etwa mit eigenem Mailserver, Nextcloud-Instanz oder mehreren Diensten – und schnelle Reaktion sowie umfangreiche monatliche Leistungen benötigen."
+                  : "The Basic package suits smaller organisations with occasional IT needs – for example associations that want to keep their systems stable but don't need regular support. The Standard package is ideal for actively used infrastructures: when you regularly need updates, configuration changes or user management and expect a response time of up to 24 hours. The Pro package is for organisations that rely heavily on their IT – for example with their own mail server, Nextcloud instance or multiple services – and need fast response and extensive monthly service."}
+              </p>
+            </div>
+            <div className={styles.termsParagraph}>
+              <h3>{isDe ? "Abrechnung & Konditionen" : "Billing & conditions"}</h3>
+              <p>
+                {isDe
+                  ? "Alle Preise sind brutto (inklusive MwSt.). Die Abrechnung erfolgt in 15-Minuten-Intervallen mit einer Mindestabrechnung von 30 Minuten pro Einsatz. Für jede Organisation wird ein Servicevertrag erstellt, in dem Leistungen und Kosten verbindlich festgelegt sind. 30 % der vereinbarten Vertragssumme werden vor Beginn der Arbeiten in Rechnung gestellt. Hardwarekosten, Serverkosten und Softwarelizenzen werden separat und ohne Aufpreis weitergegeben. Zuschläge: Vor-Ort-Service außerhalb Berlins +50 %, außerhalb der Geschäftszeiten (Mo–Fr 09:00–18:00) +20 %, Wochenend- und Feiertagsservice +50 %. Zahlungsmethoden: Überweisung, SEPA, PayPal, Kreditkarte."
+                  : "All prices include VAT. Billing is in 15-minute intervals with a minimum of 30 minutes per job. A service contract is drawn up for each organisation, clearly defining services and costs. 30% of the agreed contract amount is invoiced before work begins. Hardware, server and software licence costs are passed on separately at cost price. Surcharges: on-site service outside Berlin +50%, outside business hours (Mon–Fri 09:00–18:00) +20%, weekend and public holiday service +50%. Payment methods: bank transfer, SEPA, PayPal, credit card."}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -289,7 +485,7 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
                   : "Just tell us what you're planning. We'll look together at what makes sense – free and without obligation."}
               </p>
             </div>
-            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
+            <Button href={`/${locale}/anfrage`} icon={ArrowRight}>
               {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
             </Button>
           </div>

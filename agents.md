@@ -2,7 +2,6 @@
 
 - Answer in Caveman 'ultra' skill': short, useful.
 - Keep files small so reading and editing stays cheap.
-- Write tests first, before implementation.
 - Prefer focused tests that cover different code paths.
 - Document temporary endpoints and integration notes clearly.
 - Storefront payment flow is sacred: after successful payment, send client to dashboard fast; provision domains/hosting in background; mark services active only after module create succeeds.

@@ -179,7 +179,6 @@ export function AdminProductManager() {
           ],
           categoryId: String(formData.get("categoryId") ?? "") || null,
           description: String(formData.get("description") ?? ""),
-          homepageVisible: formData.get("homepageVisible") === "on",
           name: String(formData.get("name") ?? ""),
           prices,
           slug: String(formData.get("slug") ?? ""),
@@ -395,10 +394,6 @@ export function AdminProductManager() {
           ) : null}
         </section>
       ) : null}
-      <label className={styles.check}>
-        <input defaultChecked={editing?.homepageVisible ?? true} name="homepageVisible" type="checkbox" />
-        Auf Homepage zeigen
-      </label>
       <Button type="submit">Produkt speichern</Button>
       {state.message ? <p className={styles[state.kind]}>{state.message}</p> : null}
     </form>

@@ -1,11 +1,13 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
+import { ThrottlerGuard } from "@nestjs/throttler";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
+import { PublicInquiryDto } from "./dto/public-inquiry.dto";
 import { type UploadedTicketFile } from "./ticket-files";
 import { TicketsService } from "./tickets.service";
 
@@ -84,6 +86,17 @@ export class TicketsController {
     return this.tickets.updateStatus(id, status);
   }
 
+}
+
+@UseGuards(ThrottlerGuard)
+@Controller("storefront/inquiries")
+export class StorefrontInquiriesController {
+  constructor(private readonly tickets: TicketsService) {}
+
+  @Post()
+  createInquiry(@Body() dto: PublicInquiryDto) {
+    return this.tickets.createPublicInquiry(dto);
+  }
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)

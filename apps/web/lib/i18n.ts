@@ -38,7 +38,9 @@ export const dictionary = {
   de: {
     nav: {
       hosting: "Webhosting",
-      vps: "IT-Lösungen",
+      cloud: "Cloud",
+      virtualServers: "Virtuelle Server",
+      itSolutions: "IT-Lösungen",
       domains: "Domains",
       pricing: "Preisliste",
       blog: "Blog",
@@ -190,7 +192,9 @@ export const dictionary = {
   en: {
     nav: {
       hosting: "Web Hosting",
-      vps: "IT Solutions",
+      cloud: "Cloud",
+      virtualServers: "Virtual Servers",
+      itSolutions: "IT Solutions",
       domains: "Domains",
       pricing: "Pricing",
       blog: "Blog",

@@ -190,6 +190,251 @@
   border-radius: 6px;
 }
 
+/* PDF button (hero) */
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 760;
+  text-decoration: none;
+  transition: border-color 160ms ease;
+}
+
+.pdfBtn:hover {
+  border-color: var(--crimson);
+  color: var(--crimson);
+}
+
+/* Pricing section (support packages) */
+.pricingSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.supportGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.supportCard {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  padding-top: 28px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+  align-content: start;
+}
+
+.featuredCard {
+  border-color: var(--crimson);
+  background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
+}
+
+.badge {
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  display: inline-block;
+  padding: 4px 10px;
+  background: var(--crimson);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 0 0 6px 6px;
+}
+
+.supportCard h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.supportScope {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.supportPrice {
+  font-size: 1.4rem;
+  font-weight: 820;
+  color: var(--crimson);
+  line-height: 1;
+}
+
+.featureList {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.featureList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.featureList svg {
+  color: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* One-time services */
+.oneTimeSection {
+  border-top: 1px solid var(--border);
+}
+
+.oneTimeLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+.oneTimeLayout h2 {
+  margin: 14px 0 16px;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+}
+
+.oneTimeLayout p {
+  margin: 0 0 24px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.serviceTable {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.serviceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.serviceRow:last-child {
+  border-bottom: none;
+}
+
+.serviceRow strong {
+  color: var(--crimson);
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+/* Hourly rate */
+.hourlyInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.hourlyInner h2 {
+  margin: 10px 0 12px;
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+}
+
+.hourlyInner p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 520px;
+  line-height: 1.65;
+}
+
+.hourlyRate {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.hourlyRate strong {
+  font-size: 2rem;
+  font-weight: 820;
+  color: var(--crimson);
+  line-height: 1;
+}
+
+.hourlyRate span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Terms & Conditions */
+.termsSection {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.termsParagraphs {
+  display: grid;
+  gap: 28px;
+}
+
+.termsParagraph {
+  padding: 24px 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.termsParagraph h3 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 760;
+}
+
+.termsParagraph p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 720px) {
+  .oneTimeLayout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .hourlyInner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+}
+
 /* CTA */
 .ctaSection {
   background: var(--surface);

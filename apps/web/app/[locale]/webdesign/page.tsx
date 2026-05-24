@@ -95,7 +95,7 @@ export default async function WebdesignPage({ params }: { params: Promise<{ loca
             <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
               {isDe ? "Projekt besprechen" : "Discuss project"}
             </Button>
-            <Button href={`/${locale}/pricing`} variant="secondary">
+            <Button href={`/${locale}/it-losungen`} variant="secondary">
               {isDe ? "Preise ansehen" : "View pricing"}
             </Button>
           </div>

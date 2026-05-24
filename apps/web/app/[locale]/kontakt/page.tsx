@@ -146,7 +146,7 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
                 <strong>{isDe ? "Schnelle Antworten" : "Quick answers"}</strong>
                 <a href={`/${locale}/webhosting`}>{isDe ? "Webhosting ansehen" : "View web hosting"}</a>
                 <a href={`/${locale}/domains`}>{isDe ? "Domains erklärt" : "Domains explained"}</a>
-                <a href={`/${locale}/pricing`}>{isDe ? "Preisliste" : "Pricing"}</a>
+                <a href={`/${locale}/it-losungen`}>{isDe ? "IT-Lösungen" : "IT Solutions"}</a>
                 <a href={`/${locale}/it-losungen`}>{isDe ? "IT-Lösungen" : "IT solutions"}</a>
               </div>
             </div>

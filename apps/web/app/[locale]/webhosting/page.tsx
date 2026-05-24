@@ -3,6 +3,7 @@ import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import { HostingPackages } from "./hosting-packages";
+import { WebhostingFaq } from "./webhosting-faq";
 import styles from "./webhosting.module.css";
 
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -115,7 +116,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
               : "Fast, secure and personally supported. For associations, NGOs, WordPress projects and small businesses – without technical stress."}
           </p>
           <div className={styles.heroActions}>
-            <Button href={`/${locale}/pricing`} icon={ArrowRight}>
+            <Button href="#webhosting-packages" icon={ArrowRight}>
               {isDe ? "Pakete ansehen" : "View packages"}
             </Button>
             <Button href={`/${locale}/kontakt`} variant="secondary">
@@ -132,7 +133,9 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
       </section>
 
       {/* Hosting product cards from admin */}
-      {hostingProducts.length > 0 ? <HostingPackages isDe={isDe} locale={locale} products={hostingProducts} /> : null}
+      <div id="webhosting-packages">
+        {hostingProducts.length > 0 ? <HostingPackages isDe={isDe} locale={locale} products={hostingProducts} /> : null}
+      </div>
 
       {/* Open-source badge */}
       <section className={`section tight ${styles.openSourceSection}`}>
@@ -256,14 +259,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
                 {isDe ? "Frage stellen" : "Ask a question"}
               </Button>
             </div>
-            <div className={styles.faqList}>
-              {faqs.map((faq) => (
-                <details className={styles.faqItem} key={faq.q}>
-                  <summary>{faq.q}</summary>
-                  <p>{faq.a}</p>
-                </details>
-              ))}
-            </div>
+            <WebhostingFaq faqs={faqs} />
           </div>
         </div>
       </section>
@@ -279,7 +275,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
                 : "We help you find the right package. Free and without obligation."}
             </p>
             <div className={styles.ctaActions}>
-              <Button href={`/${locale}/pricing`} icon={ArrowRight}>
+              <Button href="#webhosting-packages" icon={ArrowRight}>
                 {isDe ? "Pakete ansehen" : "View packages"}
               </Button>
               <Button href={`/${locale}/kontakt`} variant="secondary">
