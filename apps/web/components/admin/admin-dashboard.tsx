@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Bell, BookOpen, FileText, Mail, Package, Settings, Ticket, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -26,17 +27,20 @@ import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
-import { AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
-import { AdminProductManager } from "./admin-product-manager";
+import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
+import { AdminSidebar } from "./admin-sidebar";
 import styles from "./admin-dashboard.module.css";
 
 type AdminView =
   | "home"
   | "blog"
   | "clients"
+  | "clients-new"
   | "orders"
+  | "orders-new"
   | "domain-prices"
   | "emails"
   | "invoices"
@@ -44,10 +48,13 @@ type AdminView =
   | "knowledgebase"
   | "payment-gateways"
   | "products"
+  | "products-categories"
+  | "modules"
   | "services"
   | "tickets"
   | "announcements"
-  | "settings";
+  | "settings"
+  | "settings-cron";
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
@@ -59,54 +66,45 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
     redirect("/admin/login" as never);
   }
 
-  const orders = (await apiGetAuth<ApiOrder[]>("/orders/admin")) ?? [];
-  const clients = (await apiGetAuth<ApiClient[]>("/users")) ?? [];
-  const products = (await apiGetAuth<ApiProduct[]>("/products")) ?? [];
-  const services = (await apiGetAuth<ApiService[]>("/admin/dev/services")) ?? [];
-  const invoices = (await apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices")) ?? [];
-  const logs = (await apiGetAuth<ApiActionLog[]>("/admin/dev/logs")) ?? [];
   const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings")) ?? {};
-  const domainPrices = (await apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices")) ?? [];
-  const tickets = (await apiGetAuth<ApiTicket[]>("/admin/dev/tickets")) ?? [];
-  const knowledgebase = (await apiGetAuth<ApiKnowledgebaseArticle[]>("/admin/dev/knowledgebase")) ?? [];
-  const emailSettings = (await apiGetAuth<ApiEmailAdminSettings>("/admin/dev/emails")) ?? emptyEmailSettings();
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
 
+  const needsOrders = view === "home" || view === "orders";
+  const needsClients = view === "clients" || view === "orders-new";
+  const needsProducts = view === "clients" || view === "orders-new";
+  const needsServices = view === "services";
+  const needsInvoices = view === "invoices";
+  const needsLogs = view === "logs" || view === "settings-cron";
+  const needsDomainPrices = view === "domain-prices" || view === "modules";
+  const needsTickets = view === "tickets";
+  const needsKnowledgebase = view === "knowledgebase";
+  const needsEmail = view === "emails";
+
+  const [orders, clients, products, services, invoices, logs, domainPrices, tickets, knowledgebase, emailSettings] = await Promise.all([
+    needsOrders ? apiGetAuth<ApiOrder[]>("/orders/admin").then((r) => r ?? []) : Promise.resolve([]),
+    needsClients ? apiGetAuth<ApiClient[]>("/users").then((r) => r ?? []) : Promise.resolve([]),
+    needsProducts ? apiGetAuth<ApiProduct[]>("/products").then((r) => r ?? []) : Promise.resolve([]),
+    needsServices ? apiGetAuth<ApiService[]>("/admin/dev/services").then((r) => r ?? []) : Promise.resolve([]),
+    needsInvoices ? apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices").then((r) => r ?? []) : Promise.resolve([]),
+    needsLogs ? apiGetAuth<ApiActionLog[]>("/admin/dev/logs").then((r) => r ?? []) : Promise.resolve([]),
+    needsDomainPrices ? apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices").then((r) => r ?? []) : Promise.resolve([]),
+    needsTickets ? apiGetAuth<ApiTicket[]>("/admin/dev/tickets").then((r) => r ?? []) : Promise.resolve([]),
+    needsKnowledgebase ? apiGetAuth<ApiKnowledgebaseArticle[]>("/admin/dev/knowledgebase").then((r) => r ?? []) : Promise.resolve([]),
+    needsEmail ? apiGetAuth<ApiEmailAdminSettings>("/admin/dev/emails").then((r) => r ?? emptyEmailSettings()) : Promise.resolve(emptyEmailSettings())
+  ]);
+
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        {settings.siteLogoUrl ? <img alt="Dezhost" className={styles.brandLogo} src={settings.siteLogoUrl} /> : <strong>CrimsonGrid</strong>}
-        <nav>
-          <a aria-current={adminNavCurrent(view, "home")} href="/admin">{copy.home}</a>
-          <a aria-current={adminNavCurrent(view, "clients")} href="/admin/clients">{copy.clients}</a>
-          <a aria-current={adminNavCurrent(view, "orders")} href="/admin/orders">{copy.orders}</a>
-          <a aria-current={adminNavCurrent(view, "domain-prices")} href="/admin/domain-prices">{copy.domainPrices}</a>
-          <a aria-current={adminNavCurrent(view, "services")} href="/admin/services">{copy.services}</a>
-          <a aria-current={adminNavCurrent(view, "products")} href="/admin/products">{copy.products}</a>
-          <a aria-current={adminNavCurrent(view, "payment-gateways")} href="/admin/payment-gateways">{copy.paymentGateways}</a>
-          <a aria-current={adminNavCurrent(view, "emails", emailSection, "emails")} href="/admin/emails">{copy.emails}</a>
-          <a aria-current={adminNavCurrent(view, "emails", emailSection, "settings")} href="/admin/emails/settings">{copy.emailSettings}</a>
-          <a aria-current={adminNavCurrent(view, "emails", emailSection, "template")} href="/admin/emails/template">{copy.emailTemplate}</a>
-          <a aria-current={adminNavCurrent(view, "emails", emailSection, "logs")} href="/admin/emails/logs">{copy.emailLogs}</a>
-          <a aria-current={adminNavCurrent(view, "invoices")} href="/admin/invoices">{copy.invoices}</a>
-          <a aria-current={adminNavCurrent(view, "logs")} href="/admin/logs">{copy.logs}</a>
-          <a aria-current={adminNavCurrent(view, "tickets")} href="/admin/tickets">{copy.tickets}</a>
-          <a aria-current={adminNavCurrent(view, "knowledgebase")} href="/admin/knowledgebase">{copy.knowledgebase}</a>
-          <a aria-current={adminNavCurrent(view, "blog")} href="/admin/blog">{copy.blog}</a>
-          <a aria-current={adminNavCurrent(view, "announcements")} href="/admin/announcements">{copy.announcements}</a>
-          <a aria-current={adminNavCurrent(view, "settings")} href="/admin/settings">{copy.settings}</a>
-        </nav>
-      </aside>
+      <AdminSidebar brandLogo={settings.siteLogoUrl} />
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
             <span className="eyebrow">Admin</span>
             <h1>{adminTitle(view, locale)}</h1>
-            <p>{copy.summary}</p>
           </div>
-          <div className={styles.headerActions}>
+          <div className={styles.globalActions}>
             <Suspense>
               <LanguageToggle locale={locale} />
             </Suspense>
@@ -117,29 +115,31 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
           </div>
         </header>
 
-        <section className="grid four">
-          <div className="metric">
+        <section className={styles.metrics}>
+          <Link className="metric" href="/admin/invoices">
             <strong>{money(stats.mrrCents, "EUR", locale)}</strong>
             <span>MRR</span>
-          </div>
-          <div className="metric">
+          </Link>
+          <Link className="metric" href="/admin/services">
             <strong>{stats.activeServices}</strong>
             <span>{copy.activeServices}</span>
-          </div>
-          <div className="metric">
+          </Link>
+          <Link className="metric" href="/admin/tickets">
             <strong>{stats.openTickets}</strong>
             <span>{copy.openTickets}</span>
-          </div>
-          <div className="metric">
+          </Link>
+          <Link className="metric" href="/admin/invoices">
             <strong>{stats.failedPayments}</strong>
             <span>{copy.failedPayments}</span>
-          </div>
+          </Link>
         </section>
 
         {view === "home" ? <ModuleGrid locale={locale} /> : null}
         {view === "home" || view === "orders" ? <OrdersPanel locale={locale} orders={orders} /> : null}
+        {view === "orders-new" ? <NewOrderPanel clients={clients} products={products} locale={locale} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel locale={locale} prices={domainPrices} /> : null}
         {view === "clients" ? <ClientsPanel clients={clients} products={products} /> : null}
+        {view === "clients-new" ? <ClientsNewPanel /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
         {view === "logs" ? <LogsPanel locale={locale} logs={logs} /> : null}
@@ -147,20 +147,16 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
+        {view === "products-categories" ? <ProductCategoriesPanel /> : null}
+        {view === "modules" ? <ModulesRedirect /> : null}
         {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
         {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} /> : null}
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
+        {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} /> : null}
       </main>
     </div>
   );
-}
-
-function adminNavCurrent(current: AdminView, target: AdminView, currentEmailSection?: EmailAdminSection, targetEmailSection?: EmailAdminSection) {
-  if (targetEmailSection) {
-    return current === target && currentEmailSection === targetEmailSection ? "page" : undefined;
-  }
-  return current === target ? "page" : undefined;
 }
 
 function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDomainPrice[] }) {
@@ -196,7 +192,7 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
                 <td>{price.amountCents > 0 ? money(price.amountCents, price.currency, locale) : "Resell.biz"}</td>
                 <td>{price.manual ? "yes" : "no"}</td>
                 <td>{price.suggested ? "yes" : "no"}</td>
-                <td>{dateLabel(price.updatedAt, locale)}</td>
+                <td>{shortDateLabel(price.updatedAt, locale)}</td>
               </tr>
             ))
           ) : (
@@ -290,6 +286,7 @@ function BlogPanel() {
 
 function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
   const copy = dictionary[locale].admin;
+  const sorted = [...orders].sort((a, b) => new Date(b.placedAt ?? b.createdAt).getTime() - new Date(a.placedAt ?? a.createdAt).getTime());
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -297,12 +294,16 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
           <span className="eyebrow">Orders</span>
           <h2>{copy.orders}</h2>
         </div>
-        <StatusPill label={`${orders.length} ${copy.orders}`} tone={orders.length > 0 ? "good" : "neutral"} />
+        <div className={styles.headerActions} style={{ gap: 8 }}>
+          <StatusPill label={`${orders.length} ${copy.orders}`} tone={orders.length > 0 ? "good" : "neutral"} />
+          <Button href="/admin/orders/new" variant="secondary">New Order</Button>
+        </div>
       </div>
       <table className="table">
         <thead>
           <tr>
             <th>{copy.order}</th>
+            <th>Date</th>
             <th>{copy.client}</th>
             <th>{copy.status}</th>
             <th>{copy.invoices}</th>
@@ -311,8 +312,8 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
           </tr>
         </thead>
         <tbody>
-          {orders.length ? (
-            orders.map((order) => (
+          {sorted.length ? (
+            sorted.map((order) => (
               <tr key={order.id}>
                 <td>
                   <details>
@@ -335,6 +336,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                     </div>
                   </details>
                 </td>
+                <td>{shortDateLabel(order.placedAt ?? order.createdAt, locale)}</td>
                 <td>{order.user?.email ?? "unknown"}</td>
                 <td>
                   <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
@@ -346,11 +348,25 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
             ))
           ) : (
             <tr>
-              <td colSpan={6}>{copy.noOrders}</td>
+              <td colSpan={7}>{copy.noOrders}</td>
             </tr>
           )}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function NewOrderPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Orders</span>
+          <h2>New Order</h2>
+        </div>
+      </div>
+      <NewOrderForm clients={clients} locale={locale} products={products} />
     </section>
   );
 }
@@ -378,7 +394,7 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
             <tr key={service.id}>
               <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
               <td>{money(service.productPrice.amountCents, service.productPrice.currency, locale)} / {cycleLabel(service.productPrice.billingCycle, locale)}</td>
-              <td>{dateLabel(service.renewsAt, locale)}</td>
+              <td>{shortDateLabel(service.renewsAt, locale)}</td>
               <td>
                 <StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
               </td>
@@ -398,9 +414,27 @@ function ClientsPanel({ clients, products }: { clients: ApiClient[]; products: A
           <span className="eyebrow">Clients</span>
           <h2>Clients</h2>
         </div>
-        <StatusPill label={`${clients.length} clients`} tone={clients.length ? "good" : "neutral"} />
+        <div className={styles.headerActions} style={{ gap: 8 }}>
+          <StatusPill label={`${clients.length} clients`} tone={clients.length ? "good" : "neutral"} />
+          <Button href="/admin/clients/new" variant="secondary">Add Client</Button>
+        </div>
       </div>
       <ClientManager clients={clients} products={products} />
+    </section>
+  );
+}
+
+function ClientsNewPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Clients</span>
+          <h2>Add Client</h2>
+        </div>
+        <Button href="/admin/clients" variant="secondary">← All Clients</Button>
+      </div>
+      <AddClientForm />
     </section>
   );
 }
@@ -419,9 +453,9 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
         {invoices.map((invoice) => (
           <div className={styles.invoiceCard} id={`invoice-${invoice.id}`} key={invoice.id}>
             <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong></div>
-            <div><span>Issued</span><strong>{dateLabel(invoice.issuedAt, locale)}</strong></div>
-            <div><span>Due</span><strong>{dateLabel(invoice.dueAt, locale)}</strong></div>
-            {invoice.status === "PAID" ? <div><span>Paid</span><strong>{dateLabel(invoice.paidAt, locale)}</strong></div> : null}
+            <div><span>Issued</span><strong>{shortDateLabel(invoice.issuedAt, locale)}</strong></div>
+            <div><span>Due</span><strong>{shortDateLabel(invoice.dueAt, locale)}</strong></div>
+            {invoice.status === "PAID" ? <div><span>Paid</span><strong>{shortDateLabel(invoice.paidAt, locale)}</strong></div> : null}
             {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
             <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency, locale)}</strong></div>
             <StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} />
@@ -441,6 +475,7 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
           <span className="eyebrow">Support</span>
           <h2>Support Tickets</h2>
         </div>
+        <Button href="/admin/tickets/new" variant="secondary">New Ticket</Button>
       </div>
       <table className="table">
         <thead>
@@ -459,7 +494,7 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
               <td>
                 <StatusPill label={ticketLabel(ticket.status)} tone={ticket.status === "CLOSED" ? "neutral" : "warn"} />
               </td>
-              <td>{dateLabel(ticket.updatedAt, locale)}</td>
+              <td>{shortDateLabel(ticket.updatedAt, locale)}</td>
             </tr>
           ))}
         </tbody>
@@ -496,19 +531,75 @@ function LogsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
   );
 }
 
+function CronSettingsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
+  const cronLogs = logs.filter((log) => log.source === "cron");
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Automation</span>
+          <h2>Cron Settings</h2>
+        </div>
+        <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+      </div>
+      <SettingsForm />
+      {cronLogs.length > 0 && (
+        <div style={{ padding: "0 16px 16px" }}>
+          <h3 style={{ margin: "12px 0 8px", fontSize: "0.9rem" }}>Recent Cron Activity</h3>
+          <table className="table">
+            <thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Message</th></tr></thead>
+            <tbody>
+              {cronLogs.slice(0, 20).map((log) => (
+                <tr key={log.id}>
+                  <td>{dateTimeLabel(log.createdAt, locale)}</td>
+                  <td>{log.action}</td>
+                  <td>{log.status}</td>
+                  <td>{log.message ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProductsPanel() {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">Products</span>
-          <h2>Produkt anlegen</h2>
+          <h2>Products</h2>
         </div>
-        <StatusPill label="Dev endpoint" tone="warn" />
+        <div className={styles.headerActions} style={{ gap: 8 }}>
+          <Button href="/admin/products/categories" variant="secondary">Categories</Button>
+          <Button href="/admin/products/modules" variant="secondary">Modules</Button>
+        </div>
       </div>
       <AdminProductManager />
     </section>
   );
+}
+
+function ProductCategoriesPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">Products</span>
+          <h2>Categories</h2>
+        </div>
+        <Button href="/admin/products" variant="secondary">← Back to Products</Button>
+      </div>
+      <AdminCategoryManager />
+    </section>
+  );
+}
+
+function ModulesRedirect(): never {
+  redirect("/admin/products/modules" as never);
 }
 
 function AnnouncementsPanel() {
@@ -531,20 +622,11 @@ function SettingsPanel() {
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">System</span>
-          <h2>Settings</h2>
+          <h2>General Settings</h2>
         </div>
+        <Button href="/admin/settings/cron" variant="secondary">Cron Settings →</Button>
       </div>
       <SettingsForm />
-    </section>
-  );
-}
-
-function Placeholder({ icon: Icon, title, body }: { icon: typeof UsersRound; title: string; body: string }) {
-  return (
-    <section className={styles.module}>
-      <Icon aria-hidden size={24} />
-      <h2>{title}</h2>
-      <p>{body}</p>
     </section>
   );
 }
@@ -555,16 +637,21 @@ function adminTitle(view: AdminView, locale: Locale) {
     announcements: copy.announcements,
     blog: copy.blog,
     clients: copy.clients,
+    "clients-new": "Add Client",
     "domain-prices": copy.domainPrices,
     emails: copy.emails,
     home: locale === "de" ? "Betriebskonsole" : "Operations Console",
     invoices: copy.invoices,
     knowledgebase: copy.knowledgebase,
     logs: copy.logs,
+    modules: "Modules",
     orders: copy.orders,
+    "orders-new": "New Order",
     products: copy.products,
+    "products-categories": "Categories",
     services: copy.services,
     settings: copy.settings,
+    "settings-cron": "Cron Settings",
     "payment-gateways": copy.paymentGateways,
     tickets: copy.tickets
   };
@@ -594,8 +681,8 @@ function ticketLabel(status: string) {
   return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
 }
 
-function dateLabel(value?: string | null, locale: Locale = "de") {
-  return formatDate(value, locale);
+function shortDateLabel(value?: string | null, locale: Locale = "de") {
+  return formatDate(value, locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
 }
 
 function dateTimeLabel(value?: string | null, locale: Locale = "de") {

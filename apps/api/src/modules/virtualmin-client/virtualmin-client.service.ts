@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 import { actionFromBody } from "./virtualmin-actions";
 import { callVirtualmin } from "./virtualmin-api";
 import { buildVirtualminReport } from "./virtualmin-report";
@@ -13,6 +14,26 @@ import type { VirtualminCredentials, VirtualminReport } from "./virtualmin-types
 
 @Injectable()
 export class VirtualminClientService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async adminCredentialsFromDb(fallback: Pick<VirtualminCredentials, "allowSelfSigned" | "endpoint">) {
+    const keys = ["module.virtualmin.endpoint", "module.virtualmin.username", "module.virtualmin.password", "module.virtualmin.allowSelfSigned"];
+    const rows = await this.prisma.systemSetting.findMany({ where: { key: { in: keys } } });
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const endpoint = (byKey["module.virtualmin.endpoint"] as string | undefined)?.trim();
+    const username = (byKey["module.virtualmin.username"] as string | undefined)?.trim();
+    const password = byKey["module.virtualmin.password"] as string | undefined;
+    const allowSelfSigned = byKey["module.virtualmin.allowSelfSigned"];
+    if (username && password) {
+      return {
+        allowSelfSigned: allowSelfSigned === 1 || allowSelfSigned === true,
+        endpoint: endpoint || process.env.VIRTUALMIN_ADMIN_ENDPOINT?.trim() || fallback.endpoint,
+        password,
+        username
+      } as VirtualminCredentials;
+    }
+    return adminCredentialsFromEnv(process.env, fallback);
+  }
   async runAction(credentials: VirtualminCredentials, body: Record<string, string | undefined>) {
     const domain = assertSafeDomain(body.domain ?? "");
     const execution = await this.executionCredentials(credentials, domain);
@@ -43,7 +64,7 @@ export class VirtualminClientService {
   }
 
   private async executionCredentials(credentials: VirtualminCredentials, domain: string) {
-    const admin = adminCredentialsFromEnv(process.env, credentials);
+    const admin = await this.adminCredentialsFromDb(credentials);
 
     if (!admin) {
       return { credentials, domain };

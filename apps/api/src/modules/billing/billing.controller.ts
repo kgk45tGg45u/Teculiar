@@ -283,6 +283,19 @@ export class BillingDevController {
     return this.billing.uploadSiteLogo(file);
   }
 
+  @Get("modules")
+  getModules() {
+    return this.billing.getModules();
+  }
+
+  @Patch("modules/:name")
+  updateModule(
+    @Param("name") name: string,
+    @Body() body: { active?: boolean; config?: Record<string, unknown> }
+  ) {
+    return this.billing.updateModule(name, body);
+  }
+
   @Patch("services/:id/status")
   updateServiceStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.billing.updateServiceStatus(id, status);

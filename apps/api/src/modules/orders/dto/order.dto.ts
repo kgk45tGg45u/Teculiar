@@ -86,6 +86,18 @@ export class AdminCreateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  placedAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  skipEmail?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  runModules?: boolean;
 }
 
 export class PayOrderDto {

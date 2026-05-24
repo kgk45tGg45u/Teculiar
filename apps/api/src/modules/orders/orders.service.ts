@@ -229,6 +229,7 @@ export class OrdersService {
       customerSnapshot: snapshot,
       invoiceId: invoice.id,
       items,
+      placedAt: dto.placedAt ? new Date(dto.placedAt) : undefined,
       setupFeeCents,
       subtotalCents: invoice.subtotalCents,
       taxAmountCents: invoice.taxAmountCents,
@@ -248,7 +249,33 @@ export class OrdersService {
       subject: "order",
       subjectId: order.id
     });
-    void this.dispatchOrderEmail(order, invoice, snapshot).catch(() => undefined);
+
+    if (!dto.skipEmail) {
+      void this.dispatchOrderEmail(order, invoice, snapshot).catch(() => undefined);
+    }
+
+    if (dto.runModules) {
+      const serviceByBundledDomain = new Map<string, string>();
+      const activationItems = (
+        (order as unknown as { items: Array<{ billingCycle: string; configuration: unknown; domainName?: string | null; id: string; productId: string; productPriceId: string; type: string }> }).items ?? []
+      ).sort((a, b) => activationPriority(a) - activationPriority(b));
+      for (const item of activationItems) {
+        try {
+          const linkedServiceId = item.type === "DOMAIN" && item.domainName
+            ? serviceByBundledDomain.get(item.domainName)
+            : undefined;
+          const result = await this.activateItem(user.id, item, snapshot, linkedServiceId);
+          const bd = bundledDomainName(item.configuration);
+          if (item.type === "SHARED_HOSTING" && bd && result.service?.id) {
+            serviceByBundledDomain.set(bd, result.service.id);
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Provisioning failed";
+          await this.orders.markItemFailed(item.id, message);
+        }
+      }
+    }
+
     return { invoice, order };
   }
 

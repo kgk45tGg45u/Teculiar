@@ -27,7 +27,7 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
 
   return (
     <header className={styles.header}>
-      <div className={`container ${styles.inner}`}>
+      <div className={styles.inner}>
         <Link className={styles.brand} href={base as Route}>
           {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={21} /><span>Dezhost</span></>}
         </Link>
@@ -42,7 +42,7 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
           <Suspense>
             <LanguageToggle locale={locale} />
           </Suspense>
-          <AccountMenu clientLabel={copy.nav.client} />
+          <AccountMenu />
           <details className={styles.mobileMenu}>
             <summary aria-label="Menu">
               <Menu aria-hidden size={18} />

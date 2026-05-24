@@ -42,6 +42,10 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
 
   return (
     <span className={styles.languageDropdown}>
+      <span className={styles.languageLabel}>
+        {localeFlags[locale]} {locale.toUpperCase()} · {currencySymbols[currency]}
+      </span>
+      <ChevronDown aria-hidden size={13} />
       <select
         aria-label="Language and currency"
         className={styles.languageSelect}
@@ -54,7 +58,6 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
           </option>
         ))}
       </select>
-      <ChevronDown aria-hidden size={13} />
     </span>
   );
 }

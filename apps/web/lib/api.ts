@@ -40,6 +40,14 @@ export type ApiPaymentGateway = {
   title: string;
 };
 
+export type ApiModule = {
+  name: string;
+  label: string;
+  description: string;
+  active: boolean;
+  config: Record<string, unknown>;
+};
+
 export type ApiOrder = {
   id: string;
   orderNumber: string;
@@ -47,6 +55,7 @@ export type ApiOrder = {
   totalCents: number;
   currency: string;
   createdAt: string;
+  placedAt: string;
   user?: { email: string; name: string };
   invoice?: {
     finalInvoiceNumber?: string | null;

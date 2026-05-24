@@ -7,13 +7,34 @@ import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import type { Locale } from "../../lib/i18n";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
 import { ImageUploader } from "../ui/image-uploader";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
-export function ClientManager({ clients, products }: { clients: ApiClient[]; products: ApiProduct[] }) {
+export function ClientManager({ clients }: { clients: ApiClient[]; products: ApiProduct[] }) {
+  return (
+    <div className={styles.clientList}>
+      {clients.length ? clients.map((client) => (
+        <a className={styles.clientRow} href={`/admin/clients/${client.id}`} key={client.id}>
+          <div>
+            <strong>{client.name}</strong>
+            <span>{formatCustomerNumber(client.customerNumber)}</span>
+          </div>
+          <span>{client.email}</span>
+          <span>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0} active</span>
+          <span>{client.domainRecords?.length ?? 0} domains</span>
+          <span>{client.invoices?.filter((i) => i.status !== "PAID").length ?? 0} unpaid inv.</span>
+          <span>{money(client.invoices?.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalCents, 0) ?? 0)}</span>
+        </a>
+      )) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No clients yet.</p>}
+    </div>
+  );
+}
+
+export function AddClientForm() {
   const [message, setMessage] = useState("");
 
   async function createClient(formData: FormData) {
@@ -36,33 +57,36 @@ export function ClientManager({ clients, products }: { clients: ApiClient[]; pro
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Client created. Refresh to see latest list.", "Client creation failed."));
+    if (response.ok) {
+      const payload = await response.json().catch(() => ({})) as { id?: string };
+      if (payload.id) {
+        window.location.assign(`/admin/clients/${payload.id}`);
+        return;
+      }
+    }
+    setMessage(await notifyResponse(response, "Client created.", "Client creation failed."));
   }
 
   return (
-    <div>
-      <form action={createClient} className={styles.form}>
-        <h3>Create Client</h3>
-        <label>Name<input name="name" required /></label>
-        <label>Email<input name="email" required type="email" /></label>
-        <label>Password<input name="password" required type="text" /></label>
+    <form action={createClient} className={styles.form}>
+      <div className={styles.formGrid}>
+        <label>Name<input name="name" required placeholder="Max Mustermann" /></label>
+        <label>Email<input name="email" required type="email" placeholder="max@example.com" /></label>
+        <label>Password<input name="password" required type="text" placeholder="Temporary password" /></label>
         <label>Customer type<select name="customerType"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
-        <label>Country<input defaultValue="DE" name="countryCode" /></label>
-        <label>VAT ID<input name="vatId" /></label>
-        <label>Phone<input name="phone" /></label>
-        <label>Address<input name="address" /></label>
-        <label>ZIP<input name="postalCode" /></label>
-        <label>City<input name="city" /></label>
-        <label>State<input name="state" /></label>
-        <Button icon={Save} type="submit">Create Client</Button>
-        {message ? <p>{message}</p> : null}
-      </form>
-      <div className={styles.clientList}>
-        {clients.map((client) => (
-          <ClientRow client={client} key={client.id} products={products} />
-        ))}
+        <label>Country<input defaultValue="DE" name="countryCode" placeholder="DE" /></label>
+        <label>VAT ID<input name="vatId" placeholder="DE123456789" /></label>
+        <label>Phone<input name="phone" placeholder="+49 123 456789" /></label>
+        <label>Address<input name="address" placeholder="Musterstraße 1" /></label>
+        <label>ZIP<input name="postalCode" placeholder="12345" /></label>
+        <label>City<input name="city" placeholder="Berlin" /></label>
+        <label className={styles.formSpan2}>State / Region<input name="state" placeholder="Berlin" /></label>
       </div>
-    </div>
+      <div className={styles.formActions}>
+        <Button icon={Save} type="submit">Create Client</Button>
+      </div>
+      {message ? <p className={styles.formMessage}>{message}</p> : null}
+    </form>
   );
 }
 
@@ -160,8 +184,14 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         quantity: 1
       } as never);
     }
+    const placedAtRaw = String(formData.get("placedAt") ?? "");
     const response = await fetch(`${API_BASE_URL}/orders/admin`, {
-      body: JSON.stringify({ items, notes: String(formData.get("notes") ?? ""), userId: client.id }),
+      body: JSON.stringify({
+        items,
+        notes: String(formData.get("notes") ?? ""),
+        placedAt: placedAtRaw ? new Date(placedAtRaw).toISOString() : undefined,
+        userId: client.id
+      }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
@@ -206,6 +236,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         <label>Domain action<select name="domainAction"><option value="register">Register</option><option value="transfer">Transfer</option></select></label>
         <label>API module<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
         <label><span><input name="addDomain" type="checkbox" /> Add domain item too</span></label>
+        <label>Order date<input defaultValue={datetimeLocal(new Date().toISOString())} name="placedAt" type="datetime-local" /></label>
         <label>Notes<textarea name="notes" rows={2} /></label>
         <Button icon={Package} type="submit">Create Order</Button>
       </form>
@@ -1057,6 +1088,119 @@ function gatewayProvider(method: string) {
     return "sandbox";
   }
   return method === "PAYPAL" ? "paypal" : ["CREDIT_CARD", "SEPA"].includes(method) ? "mollie" : "sandbox";
+}
+
+export function NewOrderForm({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  const [message, setMessage] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState(products.find((p) => p.type !== "DOMAIN")?.id ?? products[0]?.id ?? "");
+  const defaultDomainProduct = products.find((p) => p.type === "DOMAIN");
+
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
+
+  async function submit(formData: FormData) {
+    const clientId = String(formData.get("userId") ?? "");
+    const productId = String(formData.get("productId") ?? "");
+    const product = products.find((p) => p.id === productId);
+    const priceId = String(formData.get("productPriceId") ?? product?.prices[0]?.id ?? "");
+    const addDomain = formData.get("addDomain") === "on" && defaultDomainProduct;
+    const placedAt = String(formData.get("placedAt") ?? "");
+    const items: Array<Record<string, unknown>> = [{
+      configuration: {
+        domainName: String(formData.get("domainName") ?? "")
+      },
+      productId,
+      productPriceId: priceId,
+      quantity: 1
+    }];
+    if (addDomain) {
+      items.push({
+        configuration: { domainAction: String(formData.get("domainAction") ?? "register") },
+        domainName: String(formData.get("domainName") ?? ""),
+        productId: defaultDomainProduct.id,
+        productPriceId: defaultDomainProduct.prices[0]?.id,
+        quantity: 1
+      });
+    }
+    const response = await fetch(`${API_BASE_URL}/orders/admin`, {
+      body: JSON.stringify({
+        items,
+        notes: String(formData.get("notes") ?? ""),
+        placedAt: placedAt ? new Date(placedAt).toISOString() : undefined,
+        runModules: formData.get("runModules") === "on",
+        skipEmail: formData.get("skipEmail") === "on",
+        userId: clientId
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(await notifyResponse(response, "Order created. View it under All Orders.", "Order creation failed."));
+  }
+
+  return (
+    <form action={submit} className={styles.form}>
+      <div className={styles.formGrid}>
+        <label className={styles.formSpan2}>
+          Client
+          <select name="userId" required>
+            <option value="">— select client —</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>{client.name} ({client.email})</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.formSpan2}>
+          Product
+          <select name="productId" value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)}>
+            {products.filter((p) => p.type !== "DOMAIN").map((product) => (
+              <option key={product.id} value={product.id}>{product.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.formSpan2}>
+          Pricing Plan
+          <select name="productPriceId">
+            {selectedProduct?.prices.map((price) => (
+              <option key={price.id} value={price.id}>
+                {price.billingCycle.replace("_", " ")} — {money(price.amountCents, price.currency, locale)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Domain Name
+          <input name="domainName" placeholder="example.com" />
+        </label>
+        <label>
+          Domain Action
+          <select name="domainAction">
+            <option value="register">Register</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </label>
+        <label className={styles.formSpan2}>
+          Order Date
+          <input defaultValue={datetimeLocal(new Date().toISOString())} name="placedAt" type="datetime-local" />
+        </label>
+        <label className={styles.formSpan2}>
+          <span><input name="addDomain" type="checkbox" /> Add domain item to this order</span>
+        </label>
+        <label className={styles.formSpan2}>
+          Notes (internal)
+          <textarea name="notes" rows={2} placeholder="Admin notes for this order..." />
+        </label>
+        <label className={styles.formSpan2}>
+          <span><input name="skipEmail" type="checkbox" /> Disable new order email for this client</span>
+        </label>
+        <label className={styles.formSpan2}>
+          <span><input name="runModules" type="checkbox" /> Run active modules upon order create (provisions services immediately)</span>
+        </label>
+      </div>
+      <div className={styles.formActions}>
+        <Button icon={Package} type="submit">Create Order</Button>
+      </div>
+      {message ? <p className={styles.formMessage}>{message}</p> : null}
+    </form>
+  );
 }
 
 function splitComma(value: FormDataEntryValue | null) {

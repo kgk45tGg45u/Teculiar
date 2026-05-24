@@ -14,12 +14,136 @@ type VirtualminOption = {
   name: string;
 };
 
+export function AdminCategoryManager() {
+  const [state, setState] = useState<FormState>({ kind: "idle" });
+  const [categories, setCategories] = useState<ApiProductCategory[]>([]);
+  const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
+
+  useEffect(() => {
+    void refreshCategories();
+  }, []);
+
+  async function refreshCategories() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories`, { headers: authHeaders() });
+    const payload = await response.json().catch(() => []);
+    setCategories(Array.isArray(payload) ? payload : []);
+  }
+
+  async function saveCategory(formData: FormData) {
+    setState({ kind: "loading", message: "Speichere Kategorie..." });
+    const categoryId = String(formData.get("categoryId") ?? "");
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
+      body: JSON.stringify({
+        description: String(formData.get("categoryDescription") ?? ""),
+        name: String(formData.get("categoryName") ?? ""),
+        provisioningModule: String(formData.get("categoryModule") ?? "none"),
+        slug: String(formData.get("categorySlug") ?? ""),
+        sortOrder: Number(formData.get("categorySortOrder") ?? 0)
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: categoryId ? "PATCH" : "POST"
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const message = typeof payload.message === "string" ? payload.message : "Kategorie konnte nicht gespeichert werden.";
+      setState({ kind: "error", message });
+      notify.error(message);
+      return;
+    }
+    setState({ kind: "ok", message: "Kategorie gespeichert." });
+    notify.success("Kategorie gespeichert.");
+    setEditingCategory(undefined);
+    await refreshCategories();
+  }
+
+  async function removeCategory(category: ApiProductCategory) {
+    setState({ kind: "loading", message: "Entferne Kategorie..." });
+    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories/${category.id}`, { headers: authHeaders(), method: "DELETE" });
+    if (!response.ok) {
+      setState({ kind: "error", message: "Kategorie konnte nicht entfernt werden." });
+      notify.error("Kategorie konnte nicht entfernt werden.");
+      return;
+    }
+    setState({ kind: "ok", message: "Kategorie entfernt." });
+    notify.success("Kategorie entfernt.");
+    await refreshCategories();
+  }
+
+  return (
+    <div className={styles.stack}>
+      <section className={styles.products}>
+        <form action={saveCategory} className={styles.categoryForm} key={editingCategory?.id ?? "new-category"}>
+          <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
+          <div className={styles.grid}>
+            <label>
+              Name
+              <input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Webhosting" />
+            </label>
+            <label>
+              Slug
+              <input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" />
+            </label>
+            <label>
+              Modul
+              <select defaultValue={editingCategory?.provisioningModule ?? "none"} name="categoryModule">
+                <option value="virtualmin">Virtualmin</option>
+                <option value="resellbiz">ResellBiz</option>
+                <option value="hetzner">Hetzner</option>
+                <option value="none">Manuell</option>
+              </select>
+            </label>
+            <label>
+              Sortierung
+              <input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" />
+            </label>
+          </div>
+          <label>
+            Beschreibung
+            <textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} />
+          </label>
+          <div className={styles.actions}>
+            <Button type="submit">Kategorie speichern</Button>
+            {editingCategory ? <Button type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>Neue Kategorie</Button> : null}
+          </div>
+          {state.message ? <p className={styles[state.kind]}>{state.message}</p> : null}
+        </form>
+        <div className={styles.tableWrap}>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Modul</th>
+                <th>Produkte</th>
+                <th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => (
+                <tr key={category.id}>
+                  <td>{category.name}</td>
+                  <td>{category.slug}</td>
+                  <td>{moduleLabel(category.provisioningModule)}</td>
+                  <td>{category.products?.length ?? 0}</td>
+                  <td className={styles.actions}>
+                    <Button type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
+                    <Button type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function AdminProductManager() {
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editing, setEditing] = useState<ApiProduct | undefined>();
-  const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
   const [virtualmin, setVirtualmin] = useState<{ plans: VirtualminOption[]; templates: VirtualminOption[] }>({ plans: [], templates: [] });
   const [module, setModule] = useState("resellbiz");
   const [categoryId, setCategoryId] = useState("");
@@ -107,48 +231,6 @@ export function AdminProductManager() {
     setCategories(Array.isArray(payload) ? payload : []);
   }
 
-  async function saveCategory(formData: FormData) {
-    setState({ kind: "loading", message: "Speichere Kategorie..." });
-    const categoryId = String(formData.get("categoryId") ?? "");
-    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
-      body: JSON.stringify({
-        description: String(formData.get("categoryDescription") ?? ""),
-        name: String(formData.get("categoryName") ?? ""),
-        provisioningModule: String(formData.get("categoryModule") ?? "none"),
-        slug: String(formData.get("categorySlug") ?? ""),
-        sortOrder: Number(formData.get("categorySortOrder") ?? 0)
-      }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      method: categoryId ? "PATCH" : "POST"
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const message = typeof payload.message === "string" ? payload.message : "Kategorie konnte nicht gespeichert werden.";
-      setState({ kind: "error", message });
-      notify.error(message);
-      return;
-    }
-    setState({ kind: "ok", message: "Kategorie gespeichert." });
-    notify.success("Kategorie gespeichert.");
-    setEditingCategory(undefined);
-    await refreshCategories();
-    await refreshProducts();
-  }
-
-  async function removeCategory(category: ApiProductCategory) {
-    setState({ kind: "loading", message: "Entferne Kategorie..." });
-    const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories/${category.id}`, { headers: authHeaders(), method: "DELETE" });
-    if (!response.ok) {
-      setState({ kind: "error", message: "Kategorie konnte nicht entfernt werden." });
-      notify.error("Kategorie konnte nicht entfernt werden.");
-      return;
-    }
-    setState({ kind: "ok", message: "Kategorie entfernt." });
-    notify.success("Kategorie entfernt.");
-    await refreshCategories();
-    await refreshProducts();
-  }
-
   async function detectVirtualminPlans() {
     const response = await fetch(`${API_BASE_URL}/admin/dev/virtualmin/plans/detect`, { headers: authHeaders() });
     const payload = await response.json().catch(() => ({}));
@@ -185,72 +267,6 @@ export function AdminProductManager() {
   return (
     <div className={styles.stack}>
       <section className={styles.products}>
-        <h2>Product categories</h2>
-        <form action={saveCategory} className={styles.categoryForm} key={editingCategory?.id ?? "new-category"}>
-          <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
-          <div className={styles.grid}>
-            <label>
-              Name
-              <input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Webhosting" />
-            </label>
-            <label>
-              Slug
-              <input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" />
-            </label>
-            <label>
-              Modul
-              <select defaultValue={editingCategory?.provisioningModule ?? "none"} name="categoryModule">
-                <option value="virtualmin">Virtualmin</option>
-                <option value="resellbiz">ResellBiz</option>
-                <option value="hetzner">Hetzner</option>
-                <option value="none">Manuell</option>
-              </select>
-            </label>
-            <label>
-              Sortierung
-              <input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" />
-            </label>
-          </div>
-          <label>
-            Beschreibung
-            <textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} />
-          </label>
-          <div className={styles.actions}>
-            <Button type="submit">Kategorie speichern</Button>
-            {editingCategory ? <Button type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>Neue Kategorie</Button> : null}
-          </div>
-        </form>
-        <div className={styles.tableWrap}>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Modul</th>
-                <th>Produkte</th>
-                <th>Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((category) => (
-                <tr key={category.id}>
-                  <td>{category.name}</td>
-                  <td>{category.slug}</td>
-                  <td>{moduleLabel(category.provisioningModule)}</td>
-                  <td>{category.products?.length ?? 0}</td>
-                  <td className={styles.actions}>
-                    <Button type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
-                    <Button type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className={styles.products}>
-        <h2>Existing products</h2>
         <div className={styles.actions}>
           <Button type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect Virtualmin plans</Button>
           <Button type="button" onClick={syncVirtualminPlans}>Confirm and save plans</Button>

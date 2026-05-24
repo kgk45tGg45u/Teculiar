@@ -1464,6 +1464,68 @@ export class BillingService {
     return { height: 60, logoUrl, width: 180 };
   }
 
+  async getModules() {
+    const [vmActive, vmEndpoint, vmUsername, vmPassword, vmAllowSelfSigned, rbActive] = await Promise.all([
+      this.billing.settingNumber("module.virtualmin.active", 1),
+      this.billing.settingString("module.virtualmin.endpoint"),
+      this.billing.settingString("module.virtualmin.username"),
+      this.billing.settingString("module.virtualmin.password"),
+      this.billing.settingNumber("module.virtualmin.allowSelfSigned", 0),
+      this.billing.settingNumber("module.resellbiz.active", 1)
+    ]);
+    return [
+      {
+        name: "resellbiz",
+        label: "Resell.biz Domain Registrar",
+        description: "Automated domain registration, transfer, and renewal via Resell.biz API.",
+        active: rbActive !== 0,
+        config: {}
+      },
+      {
+        name: "virtualmin",
+        label: "Virtualmin Hosting Panel",
+        description: "Automated hosting account provisioning and management via Virtualmin API.",
+        active: vmActive !== 0,
+        config: {
+          endpoint: vmEndpoint || process.env.VIRTUALMIN_ADMIN_ENDPOINT || "",
+          username: vmUsername || process.env.VIRTUALMIN_ADMIN_USERNAME || "",
+          password: vmPassword ? "********" : (process.env.VIRTUALMIN_ADMIN_PASSWORD ? "********" : ""),
+          allowSelfSigned: vmAllowSelfSigned === 1
+        }
+      }
+    ];
+  }
+
+  async updateModule(name: string, input: { active?: boolean; config?: Record<string, unknown> }) {
+    const ops: Promise<unknown>[] = [];
+    if (name === "resellbiz") {
+      if (input.active !== undefined) {
+        ops.push(this.billing.upsertSettingNumber("module.resellbiz.active", input.active ? 1 : 0));
+      }
+    } else if (name === "virtualmin") {
+      if (input.active !== undefined) {
+        ops.push(this.billing.upsertSettingNumber("module.virtualmin.active", input.active ? 1 : 0));
+      }
+      if (input.config) {
+        const cfg = input.config;
+        if (typeof cfg.endpoint === "string") {
+          ops.push(this.billing.upsertSettingString("module.virtualmin.endpoint", cfg.endpoint));
+        }
+        if (typeof cfg.username === "string") {
+          ops.push(this.billing.upsertSettingString("module.virtualmin.username", cfg.username));
+        }
+        if (typeof cfg.password === "string" && cfg.password !== "********") {
+          ops.push(this.billing.upsertSettingString("module.virtualmin.password", cfg.password));
+        }
+        if (typeof cfg.allowSelfSigned === "boolean") {
+          ops.push(this.billing.upsertSettingNumber("module.virtualmin.allowSelfSigned", cfg.allowSelfSigned ? 1 : 0));
+        }
+      }
+    }
+    await Promise.all(ops);
+    return this.getModules();
+  }
+
   async updateServiceStatus(id: string, status: string) {
     const service = await this.billing.setServiceStatus(id, status);
     if (status === "ACTIVE") {

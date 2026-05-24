@@ -6,23 +6,18 @@ import { authToken, clearAuth } from "../../lib/api";
 import styles from "./site-header.module.css";
 import { useEffect, useState } from "react";
 
-export function AccountMenu({ clientLabel }: { clientLabel: string }) {
-  const [dashboard, setDashboard] = useState<"/admin" | "/client">();
+export function AccountMenu() {
+  const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    if (authToken("admin")) {
-      setDashboard("/admin");
-      return;
-    }
-    if (authToken("client")) {
-      setDashboard("/client");
+    if (authToken("admin") || authToken("client")) {
+      setLoggedIn(true);
     }
   }, []);
 
-  if (!dashboard) {
+  if (!loggedIn) {
     return (
       <Link className={styles.clientLogin} href="/client">
-        {clientLabel}
         <UserRound aria-hidden size={14} />
       </Link>
     );
@@ -32,11 +27,10 @@ export function AccountMenu({ clientLabel }: { clientLabel: string }) {
     <details className={styles.accountMenu}>
       <summary>
         <UserRound aria-hidden size={16} />
-        <span>Konto</span>
         <ChevronDown aria-hidden size={14} />
       </summary>
       <div className={styles.accountDropdown}>
-        <Link href={dashboard}>Dashboard</Link>
+        <Link href="/client">Dashboard</Link>
         <button
           type="button"
           onClick={() => {

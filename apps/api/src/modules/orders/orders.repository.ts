@@ -58,6 +58,7 @@ export class OrdersRepository {
     customerSnapshot: Record<string, unknown>;
     invoiceId: string;
     items: PricedOrderItem[];
+    placedAt?: Date;
     setupFeeCents: number;
     subtotalCents: number;
     taxAmountCents: number;
@@ -71,6 +72,7 @@ export class OrdersRepository {
         customerSnapshot: input.customerSnapshot as Prisma.InputJsonValue,
         invoiceId: input.invoiceId,
         orderNumber,
+        placedAt: input.placedAt ?? new Date(),
         items: {
           create: input.items.map((item) => ({
             billingCycle: item.billingCycle as BillingCycle,
@@ -223,7 +225,7 @@ export class OrdersRepository {
         items: { include: { product: { include: { category: true } }, service: { include: { product: { include: { category: true } } } } } },
         user: { select: publicUserSelect }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { placedAt: "desc" }
     });
   }
 
