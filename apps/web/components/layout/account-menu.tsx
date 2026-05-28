@@ -5,6 +5,7 @@ import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { authToken, clearAuth } from "../../lib/api";
 import styles from "./site-header.module.css";
 import { useEffect, useState } from "react";
+import { MenuLink } from "./menu-link";
 
 export function AccountMenu() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -30,7 +31,7 @@ export function AccountMenu() {
         <ChevronDown aria-hidden size={14} />
       </summary>
       <div className={styles.accountDropdown}>
-        <Link href="/client">Dashboard</Link>
+        <MenuLink href="/client">Dashboard</MenuLink>
         <button
           type="button"
           onClick={() => {

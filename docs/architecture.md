@@ -27,6 +27,8 @@ packages/
   shared/                cross-app domain contracts
 prisma/
   schema.prisma
+tests/
+  e2e/                  Playwright browser scenarios and reports
 ```
 
 ## Backend Module Contract
@@ -88,3 +90,7 @@ Public pages resolve by locale and slug. German is the default locale. Translati
 - Admin routes require permission claims.
 - CSRF middleware protects cookie-authenticated write routes.
 - GDPR export and deletion are modeled for traceability.
+
+## Browser E2E
+
+Playwright lives at `tests/e2e`. The scenario source is `tests/e2e/README.md`: its `json playwright-scenarios` block is parsed by `tests/e2e/specs/readme-scenarios.spec.ts` into browser tests. Detailed markdown output is written to `tests/e2e/results/latest-report.md`, with HTML/JSON reports beside it and failure artifacts under `tests/e2e/artifacts`.

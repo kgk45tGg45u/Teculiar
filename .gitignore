@@ -13,3 +13,8 @@ prisma/migrations/dev
 .agents
 .vercel
 .neon
+tests/e2e/artifacts/
+tests/e2e/results/html/
+tests/e2e/results/results.json
+tests/e2e/results/latest-report.md
+!tests/e2e/results/.gitkeep

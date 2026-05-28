@@ -58,6 +58,14 @@
 │       └── src
 ├── prisma
 │   └── schema.prisma
+├── tests
+│   └── e2e
+│       ├── README.md
+│       ├── RUN_TESTS.md
+│       ├── reporters
+│       ├── results
+│       └── specs
+├── playwright.config.ts
 ├── package.json
 ├── README.md
 └── tsconfig.base.json

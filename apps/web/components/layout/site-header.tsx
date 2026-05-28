@@ -5,6 +5,7 @@ import { ChevronDown, Globe, Menu } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { AccountMenu } from "./account-menu";
 import { LanguageToggle } from "./language-toggle";
+import { MenuLink } from "./menu-link";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
@@ -46,7 +47,7 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
             </summary>
             <div className={styles.navDropdownMenu}>
               {cloudChildren.map((link) => (
-                <Link href={link.href as Route} key={link.href}>{link.label}</Link>
+                <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
               ))}
             </div>
           </details>
@@ -74,12 +75,12 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
                 </summary>
                 <div className={styles.mobileCloudChildren}>
                   {cloudChildren.map((link) => (
-                    <Link href={link.href as Route} key={link.href}>{link.label}</Link>
+                    <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
                   ))}
                 </div>
               </details>
               {navLinks.map((link) => (
-                <Link href={link.href as Route} key={link.href}>{link.label}</Link>
+                <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
               ))}
             </nav>
           </details>

@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
 import { currencySymbols, localeFlags, type Currency, type Locale } from "../../lib/i18n";
 import styles from "./site-header.module.css";
@@ -19,7 +19,11 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currency, setCurrency] = useState<Currency>(() => currentCurrency());
+  const [currency, setCurrency] = useState<Currency>(() => locale === "en" ? "USD" : "EUR");
+
+  useEffect(() => {
+    setCurrency(currentCurrency());
+  }, []);
 
   function onChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const [newLocale, newCurrency] = event.target.value.split(":") as [Locale, Currency];

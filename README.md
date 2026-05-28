@@ -50,6 +50,7 @@ npm run dev:full
 - `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
 - `npm --workspace @crimson/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
+- `npm run e2e` - runs Playwright browser scenarios from `tests/e2e/README.md`; setup notes live in `tests/e2e/RUN_TESTS.md`.
 
 ## Cron
 

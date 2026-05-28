@@ -12,6 +12,10 @@
     "dev:web": "npm --workspace @crimson/web run dev",
     "dev:api": "npm --workspace @crimson/api run start:dev",
     "dev:full": "concurrently -n web,api -c cyan,magenta \"npm:dev:web\" \"npm:dev:api\"",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report tests/e2e/results/html",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
     "test": "npm --workspace @crimson/api run test",
@@ -24,6 +28,7 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.21",
     "@nestjs/platform-express": "11.1.19",
+    "@playwright/test": "^1.60.0",
     "concurrently": "^9.2.1",
     "prisma": "^6.19.3",
     "typescript": "^6.0.3"
