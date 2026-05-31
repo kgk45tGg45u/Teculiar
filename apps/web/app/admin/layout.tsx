@@ -10,7 +10,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <Suspense>
-        <SiteHeader brandLogo={settings.siteLogoUrl} locale={locale} />
+        <SiteHeader brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" />
       </Suspense>
       {children}
       <SiteFooter locale={locale} brandLogo={settings.siteLogoUrl} />

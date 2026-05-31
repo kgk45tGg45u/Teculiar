@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { cycleLabel, money, type ApiProduct } from "../../../lib/api";
+import type { Locale } from "../../../lib/i18n";
 import styles from "./webhosting.module.css";
 
 export function HostingPackages({ isDe, locale, products }: { isDe: boolean; locale: string; products: ApiProduct[] }) {
@@ -48,13 +49,13 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
                 <h3>{product.name}</h3>
                 {price ? (
                   <div className={styles.packagePrice}>
-                    <strong>{money(price.amountCents, price.currency)}</strong>
+                    <strong suppressHydrationWarning>{money(price.amountCents, price.currency, locale as Locale)}</strong>
                     <span>/ {periodLabel(price.billingCycle, isDe)}</span>
                   </div>
                 ) : null}
                 {setupFee > 0 && price ? (
-                  <div className={styles.setupFee}>
-                    {isDe ? "Einrichtung" : "Setup"}: {money(setupFee, price.currency)}
+                  <div className={styles.setupFee} suppressHydrationWarning>
+                    {isDe ? "Einrichtung" : "Setup"}: {money(setupFee, price.currency, locale as Locale)}
                   </div>
                 ) : (
                   <div className={styles.setupFree}>{isDe ? "Keine Einrichtungsgebühr" : "No setup fee"}</div>

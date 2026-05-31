@@ -7,6 +7,7 @@
   backdrop-filter: blur(18px);
 }
 
+/* Site variant: constrained to match page container — calc already provides 18px margins */
 .inner {
   position: relative;
   display: flex;
@@ -14,7 +15,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 clamp(16px, 3vw, 36px);
+  width: min(1120px, calc(100% - 36px));
+  margin: 0 auto;
+}
+
+/* Admin variant: full-width with explicit 18px padding to align with sidebar/content */
+.innerAdmin {
+  width: 100%;
+  margin: 0;
+  padding: 0 18px;
 }
 
 .brand {
@@ -22,7 +31,7 @@
   align-items: center;
   gap: 10px;
   color: var(--ink);
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 820;
 }
 
@@ -32,7 +41,7 @@
 
 .brandLogo {
   display: block;
-  max-height: 44px;
+  max-height: 54px;
   max-width: 180px;
   object-fit: contain;
 }
@@ -42,7 +51,7 @@
   align-items: center;
   gap: 16px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 650;
 }
 
@@ -113,49 +122,6 @@
   color: var(--crimson);
 }
 
-/* Mobile cloud group */
-.mobileCloudGroup {
-  border: none;
-}
-
-.mobileCloudToggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  color: var(--ink);
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 720;
-  cursor: pointer;
-  list-style: none;
-}
-
-.mobileCloudToggle::-webkit-details-marker {
-  display: none;
-}
-
-.mobileCloudGroup[open] .mobileCloudToggle {
-  color: var(--crimson);
-}
-
-.mobileCloudChildren {
-  display: grid;
-  padding-left: 16px;
-}
-
-.mobileCloudChildren a {
-  padding: 8px 12px;
-  color: var(--ink);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 680;
-}
-
-.mobileCloudChildren a:hover {
-  background: var(--surface);
-  color: var(--crimson);
-}
 
 .actions {
   display: flex;
@@ -163,63 +129,35 @@
   gap: 10px;
 }
 
+/* Language dropdown — custom details/summary */
 .languageDropdown {
   position: relative;
-  display: inline-flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 10px 0 12px;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.languageDropdown:hover {
-  color: var(--crimson);
-  border-color: color-mix(in srgb, var(--crimson) 40%, var(--border));
-}
-
-.languageLabel {
-  font-size: 0.82rem;
-  font-weight: 820;
-  color: inherit;
-  pointer-events: none;
-}
-
-.languageSelect {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: transparent;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 820;
-  outline: none;
-  opacity: 0;
 }
 
 .languageToggle {
   display: inline-flex;
   min-height: 34px;
   align-items: center;
-  gap: 7px;
-  padding: 0 12px;
+  gap: 6px;
+  padding: 0 10px 0 12px;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 820;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.languageToggle::-webkit-details-marker {
+  display: none;
+}
+
+.languageToggle::marker {
+  content: '';
 }
 
 .languageToggle:hover {
@@ -227,19 +165,69 @@
   border-color: color-mix(in srgb, var(--crimson) 40%, var(--border));
 }
 
-.clientLogin {
-  display: inline-flex;
-  min-height: 34px;
+.languageChevron {
+  transition: transform 160ms ease;
+}
+
+.languageDropdown[open] .languageChevron {
+  transform: rotate(180deg);
+}
+
+.languageDropdownMenu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 150px;
+  padding: 8px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.languageOption {
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 13px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 720;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.languageOption:hover {
+  background: var(--surface);
+  color: var(--crimson);
+}
+
+.languageOptionActive {
+  color: var(--crimson);
+  font-weight: 760;
+}
+
+/* Client login button — circular */
+.clientLogin {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
   color: var(--ink);
   background: color-mix(in srgb, var(--paper) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border: 1px solid var(--border);
   border-radius: 999px;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 8%, transparent);
-  font-size: 0.84rem;
-  font-weight: 760;
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -249,25 +237,31 @@
   transform: translateY(-1px);
 }
 
+/* Account menu — circular trigger */
 .accountMenu {
   position: relative;
 }
 
 .accountMenu summary {
   display: inline-flex;
-  min-height: 34px;
+  width: 36px;
+  height: 36px;
   align-items: center;
-  gap: 8px;
-  padding: 0 14px;
+  justify-content: center;
   color: var(--ink);
   background: color-mix(in srgb, var(--paper) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border: 1px solid var(--border);
   border-radius: 999px;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 8%, transparent);
   cursor: pointer;
-  font-size: 0.84rem;
-  font-weight: 760;
   list-style: none;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.accountMenu summary:hover {
+  border-color: color-mix(in srgb, var(--crimson) 42%, var(--border));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--crimson) 16%, transparent);
+  transform: translateY(-1px);
 }
 
 .accountMenu summary::-webkit-details-marker {
@@ -317,7 +311,8 @@
   display: none;
 }
 
-.mobileMenu summary {
+/* Toggle button — replaces the old details/summary */
+.mobileMenuBtn {
   display: inline-flex;
   min-height: 36px;
   align-items: center;
@@ -328,13 +323,9 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   cursor: pointer;
+  font: inherit;
   font-size: 0.86rem;
   font-weight: 740;
-  list-style: none;
-}
-
-.mobileMenu summary::-webkit-details-marker {
-  display: none;
 }
 
 .mobileNav {
@@ -350,9 +341,11 @@
   border-radius: 12px;
   box-shadow: 0 20px 50px color-mix(in srgb, var(--ink) 14%, transparent);
   backdrop-filter: blur(18px);
+  z-index: 30;
 }
 
 .mobileNav a {
+  display: block;
   padding: 10px 12px;
   color: var(--ink);
   border-radius: 12px;
@@ -362,6 +355,61 @@
 
 .mobileNav a:hover {
   background: var(--surface);
+}
+
+/* Cloud group inside mobile nav — plain div, no details/summary */
+.mobileCloudGroup {
+  display: grid;
+}
+
+.mobileCloudToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 720;
+  text-align: left;
+}
+
+.mobileCloudToggle:hover,
+.mobileCloudToggle[aria-expanded="true"] {
+  color: var(--crimson);
+}
+
+.mobileChevron {
+  flex-shrink: 0;
+  transition: transform 160ms ease;
+}
+
+.mobileChevronOpen {
+  transform: rotate(180deg);
+}
+
+.mobileCloudChildren {
+  display: grid;
+  padding-left: 16px;
+}
+
+.mobileCloudChildren a {
+  display: block;
+  padding: 8px 12px;
+  color: var(--ink);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 680;
+}
+
+.mobileCloudChildren a:hover {
+  background: var(--surface);
+  color: var(--crimson);
 }
 
 @media (max-width: 980px) {
@@ -392,15 +440,9 @@
     display: none;
   }
 
-  .clientLogin {
-    min-height: 36px;
-    padding: 0 12px;
-    font-size: 0.8rem;
-  }
-
   .languageToggle {
-    width: 38px;
-    min-height: 38px;
+    width: 36px;
+    min-height: 36px;
     justify-content: center;
     padding: 0;
   }
@@ -409,11 +451,11 @@
     display: none;
   }
 
-  .mobileMenu summary span {
+  .mobileMenuBtn span {
     display: none;
   }
 
-  .mobileMenu summary {
+  .mobileMenuBtn {
     width: 38px;
     min-height: 38px;
     justify-content: center;

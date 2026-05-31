@@ -1,19 +1,22 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Suspense } from "react";
-import { ChevronDown, Globe, Menu } from "lucide-react";
+import { ChevronDown, Globe } from "lucide-react";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { AccountMenu } from "./account-menu";
+import { DetailsAutoClose } from "./details-auto-close";
 import { LanguageToggle } from "./language-toggle";
 import { MenuLink } from "./menu-link";
+import { MobileMenu } from "./mobile-menu";
 import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
   brandLogo?: string;
   locale: Locale;
+  variant?: "site" | "admin";
 };
 
-export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, locale, variant = "site" }: SiteHeaderProps) {
   const copy = dictionary[locale];
   const base = `/${locale}`;
 
@@ -33,13 +36,13 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
 
   return (
     <header className={styles.header}>
-      <div className={styles.inner}>
+      <DetailsAutoClose />
+      <div className={`${styles.inner}${variant === "admin" ? ` ${styles.innerAdmin}` : ""}`}>
         <Link className={styles.brand} href={base as Route}>
           {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={21} /><span>Dezhost</span></>}
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          {/* Cloud dropdown */}
           <details className={styles.navDropdown}>
             <summary className={styles.navDropdownToggle}>
               {copy.nav.cloud}
@@ -61,29 +64,11 @@ export function SiteHeader({ brandLogo, locale }: SiteHeaderProps) {
             <LanguageToggle locale={locale} />
           </Suspense>
           <AccountMenu />
-          <details className={styles.mobileMenu}>
-            <summary aria-label="Menu">
-              <Menu aria-hidden size={18} />
-              <span>Menu</span>
-            </summary>
-            <nav className={styles.mobileNav} aria-label="Mobile primary">
-              {/* Cloud group */}
-              <details className={styles.mobileCloudGroup}>
-                <summary className={styles.mobileCloudToggle}>
-                  {copy.nav.cloud}
-                  <ChevronDown aria-hidden size={14} />
-                </summary>
-                <div className={styles.mobileCloudChildren}>
-                  {cloudChildren.map((link) => (
-                    <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
-                  ))}
-                </div>
-              </details>
-              {navLinks.map((link) => (
-                <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
-              ))}
-            </nav>
-          </details>
+          <MobileMenu
+            cloudLabel={copy.nav.cloud}
+            cloudChildren={cloudChildren}
+            navLinks={navLinks}
+          />
         </div>
       </div>
     </header>

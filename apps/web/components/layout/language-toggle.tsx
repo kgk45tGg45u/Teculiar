@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
 import { currencySymbols, localeFlags, type Currency, type Locale } from "../../lib/i18n";
 import styles from "./site-header.module.css";
@@ -20,16 +20,17 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currency, setCurrency] = useState<Currency>(() => locale === "en" ? "USD" : "EUR");
+  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     setCurrency(currentCurrency());
   }, []);
 
-  function onChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const [newLocale, newCurrency] = event.target.value.split(":") as [Locale, Currency];
+  function selectCombo(newLocale: Locale, newCurrency: Currency) {
     storeLocale(newLocale);
     storeCurrency(newCurrency);
     setCurrency(newCurrency);
+    if (detailsRef.current) detailsRef.current.open = false;
     const localeChanged = newLocale !== locale;
     if (/^\/(de|en)(\/|$)/.test(pathname)) {
       if (localeChanged) {
@@ -45,23 +46,23 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   }
 
   return (
-    <span className={styles.languageDropdown}>
-      <span className={styles.languageLabel}>
-        {localeFlags[locale]} {locale.toUpperCase()} · {currencySymbols[currency]}
-      </span>
-      <ChevronDown aria-hidden size={13} />
-      <select
-        aria-label="Language and currency"
-        className={styles.languageSelect}
-        value={`${locale}:${currency}`}
-        onChange={onChange}
-      >
+    <details ref={detailsRef} className={styles.languageDropdown}>
+      <summary className={styles.languageToggle}>
+        <span>{localeFlags[locale]} {locale.toUpperCase()} · {currencySymbols[currency]}</span>
+        <ChevronDown aria-hidden size={13} className={styles.languageChevron} />
+      </summary>
+      <div className={styles.languageDropdownMenu}>
         {COMBOS.map(({ locale: l, currency: c }) => (
-          <option key={`${l}:${c}`} value={`${l}:${c}`}>
+          <button
+            key={`${l}:${c}`}
+            type="button"
+            className={`${styles.languageOption}${locale === l && currency === c ? ` ${styles.languageOptionActive}` : ""}`}
+            onClick={() => selectCombo(l, c)}
+          >
             {localeFlags[l]} {l.toUpperCase()} · {currencySymbols[c]}
-          </option>
+          </button>
         ))}
-      </select>
-    </span>
+      </div>
+    </details>
   );
 }

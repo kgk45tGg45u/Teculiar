@@ -26,10 +26,6 @@
   --surface-strong: var(--surface-muted);
 }
 
-:root[data-theme="dark"] {
-  color-scheme: light;
-}
-
 * {
   box-sizing: border-box;
 }

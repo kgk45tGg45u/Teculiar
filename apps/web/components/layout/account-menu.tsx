@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, LogOut, UserRound } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
 import { authToken, clearAuth } from "../../lib/api";
 import styles from "./site-header.module.css";
 import { useEffect, useState } from "react";
@@ -28,7 +28,6 @@ export function AccountMenu() {
     <details className={styles.accountMenu}>
       <summary>
         <UserRound aria-hidden size={16} />
-        <ChevronDown aria-hidden size={14} />
       </summary>
       <div className={styles.accountDropdown}>
         <MenuLink href="/client">Dashboard</MenuLink>
