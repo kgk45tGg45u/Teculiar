@@ -27,7 +27,7 @@ import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
-import { AddClientForm, AdminInvoiceActions, AnnouncementForm, BlogManager, ClientManager, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
@@ -58,7 +58,7 @@ type AdminView =
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
-export async function AdminDashboard({ emailSection = "emails", view = "home" }: { emailSection?: EmailAdminSection; view?: AdminView }) {
+export async function AdminDashboard({ emailSection = "emails", preselectedClientId, view = "home" }: { emailSection?: EmailAdminSection; preselectedClientId?: string; view?: AdminView }) {
   const locale = await requestLocale();
   const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
@@ -66,7 +66,7 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
     redirect("/admin/login" as never);
   }
 
-  const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings")) ?? {};
+  const settings = (await apiGetAuth<{ siteLogoUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
@@ -136,9 +136,9 @@ export async function AdminDashboard({ emailSection = "emails", view = "home" }:
 
         {view === "home" ? <ModuleGrid locale={locale} /> : null}
         {view === "home" || view === "orders" ? <OrdersPanel locale={locale} orders={orders} /> : null}
-        {view === "orders-new" ? <NewOrderPanel clients={clients} products={products} locale={locale} /> : null}
+        {view === "orders-new" ? <NewOrderPanel clients={clients} locale={locale} preselectedClientId={preselectedClientId} products={products} vatPercent={settings.vatPercent ?? 19} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel locale={locale} prices={domainPrices} /> : null}
-        {view === "clients" ? <ClientsPanel clients={clients} products={products} /> : null}
+        {view === "clients" ? <ClientsPanel clients={clients} locale={locale} products={products} /> : null}
         {view === "clients-new" ? <ClientsNewPanel /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
@@ -357,7 +357,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
   );
 }
 
-function NewOrderPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+function NewOrderPanel({ clients, locale, preselectedClientId, products, vatPercent }: { clients: ApiClient[]; locale: Locale; preselectedClientId?: string; products: ApiProduct[]; vatPercent: number }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -366,7 +366,7 @@ function NewOrderPanel({ clients, locale, products }: { clients: ApiClient[]; lo
           <h2>New Order</h2>
         </div>
       </div>
-      <NewOrderForm clients={clients} locale={locale} products={products} />
+      <NewOrderForm clients={clients} locale={locale} preselectedClientId={preselectedClientId} products={products} vatPercent={vatPercent} />
     </section>
   );
 }
@@ -406,7 +406,7 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
   );
 }
 
-function ClientsPanel({ clients, products }: { clients: ApiClient[]; products: ApiProduct[] }) {
+function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -419,7 +419,7 @@ function ClientsPanel({ clients, products }: { clients: ApiClient[]; products: A
           <Button href="/admin/clients/new" variant="secondary">Add Client</Button>
         </div>
       </div>
-      <ClientManager clients={clients} products={products} />
+      <ClientManager clients={clients} locale={locale} products={products} />
     </section>
   );
 }
@@ -447,22 +447,38 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
           <span className="eyebrow">Billing</span>
           <h2>Invoices</h2>
         </div>
-        <StatusPill label="7 digit numbers" tone="good" />
+        <StatusPill label={`${invoices.length}`} tone="neutral" />
       </div>
-      <div className={styles.invoiceCards}>
-        {invoices.map((invoice) => (
-          <div className={styles.invoiceCard} id={`invoice-${invoice.id}`} key={invoice.id}>
-            <div><span>Invoice</span><strong><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong></div>
-            <div><span>Issued</span><strong>{shortDateLabel(invoice.issuedAt, locale)}</strong></div>
-            <div><span>Due</span><strong>{shortDateLabel(invoice.dueAt, locale)}</strong></div>
-            {invoice.status === "PAID" ? <div><span>Paid</span><strong>{shortDateLabel(invoice.paidAt, locale)}</strong></div> : null}
-            {invoice.status === "PAID" ? <div><span>Gateway</span><strong>{paymentGateway(invoice)}</strong></div> : null}
-            <div><span>Total</span><strong>{money(invoice.totalCents, invoice.currency, locale)}</strong></div>
-            <StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} />
-            <AdminInvoiceActions invoice={invoice} />
-          </div>
-        ))}
-      </div>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Client</th>
+            <th>Issued</th>
+            <th>Due / Paid</th>
+            <th>Total</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoices.map((invoice) => (
+            <tr key={invoice.id}>
+              <td><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></td>
+              <td>{invoice.customerSnapshot?.name ?? "—"}</td>
+              <td>{shortDateLabel(invoice.issuedAt, locale)}</td>
+              <td>{shortDateLabel(invoice.status === "PAID" ? invoice.paidAt : invoice.dueAt, locale)}</td>
+              <td>{money(invoice.totalCents, invoice.currency, locale)}</td>
+              <td>
+                <StatusPill
+                  label={invoiceStatusLabel(invoice.status, locale)}
+                  tone={invoice.status === "PAID" ? "good" : invoice.status === "REFUNDED" ? "neutral" : "warn"}
+                />
+              </td>
+            </tr>
+          ))}
+          {invoices.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)", textAlign: "center" }}>No invoices yet.</td></tr> : null}
+        </tbody>
+      </table>
     </section>
   );
 }
@@ -542,7 +558,7 @@ function CronSettingsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLo
         </div>
         <Button href="/admin/settings" variant="secondary">← General Settings</Button>
       </div>
-      <SettingsForm />
+      <CronSettingsForm />
       {cronLogs.length > 0 && (
         <div style={{ padding: "0 16px 16px" }}>
           <h3 style={{ margin: "12px 0 8px", fontSize: "0.9rem" }}>Recent Cron Activity</h3>
@@ -687,8 +703,4 @@ function shortDateLabel(value?: string | null, locale: Locale = "de") {
 
 function dateTimeLabel(value?: string | null, locale: Locale = "de") {
   return formatDate(value, locale, { dateStyle: "short", timeStyle: "short" });
-}
-
-function paymentGateway(invoice: ApiInvoice) {
-  return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
 }

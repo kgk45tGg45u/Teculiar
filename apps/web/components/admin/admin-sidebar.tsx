@@ -164,19 +164,27 @@ export function AdminSidebar({ brandLogo }: { brandLogo?: string }) {
           const exactMatch = entry.children.find((c) => pathname === c.href);
           return (
             <div className={styles.group} key={entry.label}>
-              <button
-                aria-expanded={isOpen}
-                className={`${styles.groupBtn}${hasActive ? ` ${styles.groupBtnActive}` : ""}`}
-                onClick={() => toggle(entry.label)}
-                type="button"
-              >
-                <span>{entry.label}</span>
-                <ChevronRight
-                  aria-hidden
-                  className={`${styles.chevron}${isOpen ? ` ${styles.chevronOpen}` : ""}`}
-                  size={14}
-                />
-              </button>
+              <div className={styles.groupRow}>
+                <a
+                  className={`${styles.groupLink}${hasActive ? ` ${styles.groupLinkActive}` : ""}`}
+                  href={entry.children[0]?.href ?? "#"}
+                >
+                  {entry.label}
+                </a>
+                <button
+                  aria-expanded={isOpen}
+                  aria-label={`Toggle ${entry.label}`}
+                  className={styles.chevronBtn}
+                  onClick={() => toggle(entry.label)}
+                  type="button"
+                >
+                  <ChevronRight
+                    aria-hidden
+                    className={`${styles.chevron}${isOpen ? ` ${styles.chevronOpen}` : ""}`}
+                    size={14}
+                  />
+                </button>
+              </div>
               <div className={`${styles.submenu}${isOpen ? ` ${styles.submenuOpen}` : ""}`}>
                 {entry.children.map((child) => {
                   const active = exactMatch

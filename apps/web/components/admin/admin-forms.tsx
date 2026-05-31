@@ -6,7 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import type { Locale } from "../../lib/i18n";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { Button } from "../ui/button";
@@ -14,7 +14,7 @@ import { ImageUploader } from "../ui/image-uploader";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
-export function ClientManager({ clients }: { clients: ApiClient[]; products: ApiProduct[] }) {
+export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
   return (
     <div className={styles.clientList}>
       {clients.length ? clients.map((client) => (
@@ -27,7 +27,7 @@ export function ClientManager({ clients }: { clients: ApiClient[]; products: Api
           <span>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0} active</span>
           <span>{client.domainRecords?.length ?? 0} domains</span>
           <span>{client.invoices?.filter((i) => i.status !== "PAID").length ?? 0} unpaid inv.</span>
-          <span>{money(client.invoices?.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalCents, 0) ?? 0)}</span>
+          <span>{money(client.invoices?.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalCents, 0) ?? 0, "EUR", locale)}</span>
         </a>
       )) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No clients yet.</p>}
     </div>
@@ -253,6 +253,178 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
   );
 }
 
+export function AdminClientEditForm({ client }: { client: ApiClient }) {
+  const [message, setMessage] = useState("");
+  const [pwMessage, setPwMessage] = useState("");
+  const contact = client.contacts?.[0];
+  const address = contact?.address ?? {};
+
+  async function saveProfile(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+      body: JSON.stringify({
+        address: {
+          city: String(formData.get("city") ?? ""),
+          line1: String(formData.get("address") ?? ""),
+          postalCode: String(formData.get("postalCode") ?? ""),
+          state: String(formData.get("state") ?? "")
+        },
+        countryCode: String(formData.get("countryCode") ?? "DE"),
+        customerType: String(formData.get("customerType") ?? "INDIVIDUAL"),
+        email: String(formData.get("email") ?? ""),
+        name: String(formData.get("name") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        vatId: String(formData.get("vatId") ?? "") || null
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setMessage(await notifyResponse(response, "Client profile saved.", "Profile save failed."));
+  }
+
+  async function changePassword(formData: FormData) {
+    const newPassword = String(formData.get("newPassword") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+    if (newPassword !== confirmPassword) {
+      setPwMessage("Passwords do not match.");
+      return;
+    }
+    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+      body: JSON.stringify({ newPassword }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setPwMessage(await notifyResponse(response, "Password changed.", "Password change failed."));
+  }
+
+  return (
+    <div>
+      <form action={saveProfile} className={styles.form}>
+        <h3>Edit Profile</h3>
+        <div className={styles.formGrid}>
+          <label>Name<input defaultValue={client.name} name="name" required /></label>
+          <label>Email<input defaultValue={client.email} name="email" required type="email" /></label>
+          <label>Customer type
+            <select defaultValue={client.customerType} name="customerType">
+              <option value="INDIVIDUAL">Individual</option>
+              <option value="BUSINESS">Business</option>
+            </select>
+          </label>
+          <label>Country<input defaultValue={client.countryCode ?? "DE"} name="countryCode" placeholder="DE" /></label>
+          <label>VAT ID<input defaultValue={client.vatId ?? ""} name="vatId" placeholder="DE123456789" /></label>
+          <label>Phone<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
+          <label>Address<input defaultValue={address.line1 ?? ""} name="address" /></label>
+          <label>ZIP<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
+          <label>City<input defaultValue={address.city ?? ""} name="city" /></label>
+          <label className={styles.formSpan2}>State / Region<input defaultValue={address.state ?? ""} name="state" /></label>
+        </div>
+        <div className={styles.formActions}>
+          <Button icon={Save} type="submit">Save Profile</Button>
+        </div>
+        {message ? <p className={styles.formMessage}>{message}</p> : null}
+      </form>
+      <hr style={{ margin: "0 16px", border: "none", borderTop: "1px solid var(--border)" }} />
+      <form action={changePassword} className={styles.form}>
+        <h3>Change Password</h3>
+        <div className={styles.formGrid}>
+          <label>New password<input name="newPassword" required type="password" placeholder="New password" /></label>
+          <label>Confirm password<input name="confirmPassword" required type="password" placeholder="Confirm password" /></label>
+        </div>
+        <div className={styles.formActions}>
+          <Button icon={Save} type="submit">Set Password</Button>
+        </div>
+        {pwMessage ? <p className={styles.formMessage}>{pwMessage}</p> : null}
+      </form>
+    </div>
+  );
+}
+
+export function AdminClientDeleteButton({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const [message, setMessage] = useState("");
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete client "${clientName}"?\n\n` +
+      `WARNING: All invoices for this client will also be permanently deleted.\n` +
+      `Please make sure to download and back up any invoice data before proceeding.\n\n` +
+      `This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    const response = await fetch(`${API_BASE_URL}/users/${clientId}`, { headers: authHeaders(), method: "DELETE" });
+    const ok = response.ok;
+    setMessage(await notifyResponse(response, "Client deleted.", "Client delete failed."));
+    if (ok) {
+      window.location.assign("/admin/clients");
+    }
+  }
+
+  return (
+    <div className={styles.formActions}>
+      <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>Delete Client</Button>
+      {message ? <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{message}</span> : null}
+    </div>
+  );
+}
+
+export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
+  const [message, setMessage] = useState("");
+  const contact = client.contacts?.[0];
+  const address = contact?.address ?? {};
+
+  async function createInvoice(formData: FormData) {
+    const descriptions = formData.getAll("description").map(String).filter(Boolean);
+    const lines = descriptions.map((description, index) => ({
+      billingCycle: String(formData.getAll("billingCycle")[index] ?? "ONE_TIME"),
+      description,
+      quantity: Number(formData.getAll("quantity")[index] ?? 1),
+      type: "CUSTOM",
+      unitAmountCents: Math.round(Number(formData.getAll("amount")[index] ?? 0) * 100),
+      vatRate: Number(formData.getAll("vatRate")[index] ?? 19)
+    }));
+    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+      body: JSON.stringify({
+        buyerCountryCode: client.countryCode ?? "DE",
+        buyerVatId: client.vatId ?? undefined,
+        customerSnapshot: { address, countryCode: client.countryCode, customerNumber: client.customerNumber, customerType: client.customerType, email: client.email, name: client.name, phone: contact?.phone, vatId: client.vatId },
+        dueAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
+        isBusinessCustomer: client.customerType === "BUSINESS",
+        lines,
+        status: "UNPAID",
+        userId: client.id
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
+  }
+
+  return (
+    <form action={createInvoice} className={styles.form}>
+      <div className={styles.formGrid}>
+        {[0, 1, 2].map((index) => (
+          <fieldset className={`${styles.lineEditor} ${styles.formSpan2}`} key={index}>
+            <legend>Line {index + 1}</legend>
+            <label>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" /></label>
+            <label>Billing cycle
+              <select defaultValue="ONE_TIME" name="billingCycle">
+                <option value="ONE_TIME">One time</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="YEAR_1">Annually</option>
+              </select>
+            </label>
+            <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
+            <label>Amount EUR<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
+            <label>VAT rate %<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
+          </fieldset>
+        ))}
+      </div>
+      <div className={styles.formActions}>
+        <Button icon={FileText} type="submit">Create Invoice</Button>
+      </div>
+      {message ? <p className={styles.formMessage}>{message}</p> : null}
+    </form>
+  );
+}
+
 export function ClientDetailModals({ client, products }: { client: ApiClient; products: ApiProduct[] }) {
   const [open, setOpen] = useState<"order" | "invoice" | null>(null);
   const [message, setMessage] = useState("");
@@ -364,14 +536,24 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
 
 export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
+  const isPermanent = !!(invoice.finalInvoiceNumber ?? (invoice.status === "PAID" && invoice.invoiceNumber));
 
-  async function markPaid() {
+  async function handleMarkPaid(formData: FormData) {
+    const paidAtValue = String(formData.get("paidAt") ?? "");
+    const transactionId = String(formData.get("transactionId") ?? "").trim() || undefined;
+    const skipModules = formData.get("skipModules") === "on";
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/mark-paid`, {
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        paidAt: paidAtValue ? new Date(paidAtValue).toISOString() : undefined,
+        skipModules,
+        transactionId
+      }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Marked paid. Refresh to see lifecycle changes.", "Mark paid failed."));
+    setMessage(await notifyResponse(response, "Marked paid. Refresh to see changes.", "Mark paid failed."));
+    if (response.ok) setShowMarkPaid(false);
   }
 
   async function markUnpaid() {
@@ -393,22 +575,56 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
   }
 
   async function deleteInvoice() {
+    if (isPermanent) {
+      const confirmed = window.confirm(
+        `Warning: This is a permanent invoice (${invoice.finalInvoiceNumber ?? invoice.invoiceNumber}).\n\n` +
+        `Deleting a permanent invoice is irreversible. All associated data will be lost.\n\n` +
+        `Are you sure you want to permanently delete this invoice?`
+      );
+      if (!confirmed) return;
+    }
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}`, {
       headers: authHeaders(),
       method: "DELETE"
     });
-    setMessage(await notifyResponse(response, "Invoice deleted. Refresh to update list.", "Invoice delete failed."));
+    setMessage(await notifyResponse(response, "Invoice deleted.", "Invoice delete failed."));
   }
 
   return (
-    <div>
+    <div className={styles.form} style={{ gap: 12 }}>
       <div className={styles.inlineForm}>
-        {invoice.status !== "PAID" ? <Button icon={CreditCard} type="button" onClick={markPaid}>Mark Paid</Button> : null}
+        {invoice.status !== "PAID" ? (
+          <Button icon={CreditCard} type="button" onClick={() => setShowMarkPaid((v) => !v)}>
+            {showMarkPaid ? "Cancel" : "Mark Paid"}
+          </Button>
+        ) : null}
         {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={markUnpaid}>Mark Unpaid</Button> : null}
         {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={refundInvoice}>Refund</Button> : null}
-        <Button icon={Trash2} type="button" variant="secondary" onClick={deleteInvoice}>Delete</Button>
+        <Button icon={Trash2} type="button" variant="ghost" onClick={deleteInvoice}>Delete</Button>
       </div>
-      {message ? <small>{message}</small> : null}
+
+      {showMarkPaid && invoice.status !== "PAID" ? (
+        <form action={handleMarkPaid} className={styles.form} style={{ padding: 0 }}>
+          <div className={styles.formGrid}>
+            <label>
+              Payment date
+              <input defaultValue={datetimeLocal(new Date().toISOString())} name="paidAt" type="datetime-local" />
+            </label>
+            <label>
+              Transaction ID (optional)
+              <input name="transactionId" placeholder="e.g. PAY-12345" />
+            </label>
+            <label className={styles.formSpan2}>
+              <span><input name="skipModules" type="checkbox" /> Skip module provisioning (do not activate services)</span>
+            </label>
+          </div>
+          <div className={styles.formActions}>
+            <Button icon={CreditCard} type="submit">Confirm Mark Paid</Button>
+          </div>
+        </form>
+      ) : null}
+
+      {message ? <small style={{ padding: "0 16px", color: "var(--muted)" }}>{message}</small> : null}
     </div>
   );
 }
@@ -424,17 +640,56 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
     setMessage(await notifyResponse(response, "Service status saved.", "Service status failed."));
   }
 
+  const statusOptions: Array<[string, string]> = [
+    ["PENDING", "Pending"],
+    ["ORDERED", "Ordered"],
+    ["PROVISIONING", "Provisioning"],
+    ["ACTIVE", "Active"],
+    ["SUSPENDED", "Suspended"],
+    ["CANCELLED", "Cancelled"],
+    ["TERMINATED", "Terminated"],
+    ["FAILED", "Failed"]
+  ];
   return (
     <form action={submit} className={styles.inlineForm}>
       <select defaultValue={status} name="status">
-        {["PENDING", "ORDERED", "PROVISIONING", "ACTIVE", "SUSPENDED", "CANCELLED", "TERMINATED", "FAILED"].map((value) => (
-          <option key={value} value={value}>{serviceStatusLabel(value)}</option>
+        {statusOptions.map(([value, label]) => (
+          <option key={value} value={value}>{label}</option>
         ))}
       </select>
       <Button icon={Save} type="submit">Save Status</Button>
       {message ? <span>{message}</span> : null}
     </form>
   );
+}
+
+export function AdminServiceDueDateForm({ renewsAt, serviceId }: { renewsAt?: string | null; serviceId: string }) {
+  const [message, setMessage] = useState("");
+
+  async function submit(formData: FormData) {
+    const value = String(formData.get("renewsAt") ?? "");
+    const response = await fetch(`${API_BASE_URL}/admin/dev/services/${serviceId}`, {
+      body: JSON.stringify({ renewsAt: value ? new Date(value).toISOString() : null }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setMessage(await notifyResponse(response, "Due date updated.", "Due date update failed."));
+  }
+
+  return (
+    <form action={submit} className={styles.inlineForm}>
+      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        Next due
+        <input defaultValue={dateInputValue(renewsAt)} name="renewsAt" type="date" />
+      </label>
+      <Button icon={Save} type="submit">Update Due Date</Button>
+      {message ? <span>{message}</span> : null}
+    </form>
+  );
+}
+
+function dateInputValue(value?: string | null) {
+  return value ? new Date(value).toISOString().slice(0, 10) : "";
 }
 
 export function AnnouncementForm() {
@@ -510,30 +765,17 @@ export function AnnouncementForm() {
   );
 }
 
-export function SettingsForm() {
+export function CronSettingsForm() {
   const [message, setMessage] = useState("");
   const [lastCronRun, setLastCronRun] = useState("");
-  const [settings, setSettings] = useState({
+  const [s, setS] = useState({
     cronSecret: "",
     domainExpirationUpdateHours: 12,
     domainPriceUpdateHours: 24,
     domainStatusUpdateMinutes: 15,
     hostingStatusUpdateMinutes: 15,
-    invoiceBankDetails: "",
-    invoiceCompanyAddress: "",
-    invoiceCompanyCity: "",
-    invoiceCompanyCountry: "DE",
-    invoiceCompanyEmail: "",
-    invoiceCompanyName: "",
-    invoiceCompanyPhone: "",
-    invoiceCompanyZip: "",
     invoiceDaysAhead: 7,
-    invoiceFooterLine1: "",
-    invoiceFooterLine2: "",
-    invoiceFooterLine3: "",
-    invoicePaymentInstructions: "",
     invoiceReminderDaysBeforeDue: 3,
-    invoiceVatNumber: "",
     mailboxCheckMinutes: 5,
     salesImapEnabled: false,
     salesImapHost: "",
@@ -543,7 +785,6 @@ export function SettingsForm() {
     salesImapSecure: true,
     salesImapUsername: "",
     salesMailboxAddress: "sales@dezhost.com",
-    siteLogoUrl: "",
     supportImapEnabled: false,
     supportImapHost: "",
     supportImapMailbox: "INBOX",
@@ -552,60 +793,38 @@ export function SettingsForm() {
     supportImapSecure: true,
     supportImapUsername: "",
     supportMailboxAddress: "support@dezhost.com",
-    ticketAutoCloseHours: 24,
-    termsUrl: "",
-    usdBufferCents: 0,
-    usdExchangeRate: 1.0,
-    vatPercent: 19
+    ticketAutoCloseHours: 24
   });
 
   useEffect(() => {
     void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
-      .then((response) => response.json())
-      .then((payload) => setSettings({
-        cronSecret: payload.cronSecret ?? "",
-        domainExpirationUpdateHours: payload.domainExpirationUpdateHours ?? 12,
-        domainPriceUpdateHours: payload.domainPriceUpdateHours ?? 24,
-        domainStatusUpdateMinutes: payload.domainStatusUpdateMinutes ?? 15,
-        hostingStatusUpdateMinutes: payload.hostingStatusUpdateMinutes ?? 15,
-        invoiceBankDetails: payload.invoiceBankDetails ?? "",
-        invoiceCompanyAddress: payload.invoiceCompanyAddress ?? "",
-        invoiceCompanyCity: payload.invoiceCompanyCity ?? "",
-        invoiceCompanyCountry: payload.invoiceCompanyCountry ?? "DE",
-        invoiceCompanyEmail: payload.invoiceCompanyEmail ?? "",
-        invoiceCompanyName: payload.invoiceCompanyName ?? "",
-        invoiceCompanyPhone: payload.invoiceCompanyPhone ?? "",
-        invoiceCompanyZip: payload.invoiceCompanyZip ?? "",
-        invoiceDaysAhead: payload.invoiceDaysAhead ?? 7,
-        invoiceFooterLine1: payload.invoiceFooterLine1 ?? "",
-        invoiceFooterLine2: payload.invoiceFooterLine2 ?? "",
-        invoiceFooterLine3: payload.invoiceFooterLine3 ?? "",
-        invoicePaymentInstructions: payload.invoicePaymentInstructions ?? "",
-        invoiceReminderDaysBeforeDue: payload.invoiceReminderDaysBeforeDue ?? 3,
-        invoiceVatNumber: payload.invoiceVatNumber ?? "",
-        mailboxCheckMinutes: payload.mailboxCheckMinutes ?? 5,
-        salesImapEnabled: Boolean(payload.salesImapEnabled),
-        salesImapHost: payload.salesImapHost ?? "",
-        salesImapMailbox: payload.salesImapMailbox ?? "INBOX",
-        salesImapPassword: payload.salesImapPassword ?? "",
-        salesImapPort: payload.salesImapPort ?? 993,
-        salesImapSecure: payload.salesImapSecure !== false,
-        salesImapUsername: payload.salesImapUsername ?? "",
-        salesMailboxAddress: payload.salesMailboxAddress ?? "sales@dezhost.com",
-        siteLogoUrl: payload.siteLogoUrl ?? "",
-        supportImapEnabled: Boolean(payload.supportImapEnabled),
-        supportImapHost: payload.supportImapHost ?? "",
-        supportImapMailbox: payload.supportImapMailbox ?? "INBOX",
-        supportImapPassword: payload.supportImapPassword ?? "",
-        supportImapPort: payload.supportImapPort ?? 993,
-        supportImapSecure: payload.supportImapSecure !== false,
-        supportImapUsername: payload.supportImapUsername ?? "",
-        supportMailboxAddress: payload.supportMailboxAddress ?? "support@dezhost.com",
-        ticketAutoCloseHours: payload.ticketAutoCloseHours ?? 24,
-        termsUrl: payload.termsUrl ?? "",
-        usdBufferCents: payload.usdBufferCents ?? 0,
-        usdExchangeRate: payload.usdExchangeRate ?? 1.0,
-        vatPercent: payload.vatPercent ?? 19
+      .then((r) => r.json())
+      .then((p) => setS({
+        cronSecret: p.cronSecret ?? "",
+        domainExpirationUpdateHours: p.domainExpirationUpdateHours ?? 12,
+        domainPriceUpdateHours: p.domainPriceUpdateHours ?? 24,
+        domainStatusUpdateMinutes: p.domainStatusUpdateMinutes ?? 15,
+        hostingStatusUpdateMinutes: p.hostingStatusUpdateMinutes ?? 15,
+        invoiceDaysAhead: p.invoiceDaysAhead ?? 7,
+        invoiceReminderDaysBeforeDue: p.invoiceReminderDaysBeforeDue ?? 3,
+        mailboxCheckMinutes: p.mailboxCheckMinutes ?? 5,
+        salesImapEnabled: Boolean(p.salesImapEnabled),
+        salesImapHost: p.salesImapHost ?? "",
+        salesImapMailbox: p.salesImapMailbox ?? "INBOX",
+        salesImapPassword: p.salesImapPassword ?? "",
+        salesImapPort: p.salesImapPort ?? 993,
+        salesImapSecure: p.salesImapSecure !== false,
+        salesImapUsername: p.salesImapUsername ?? "",
+        salesMailboxAddress: p.salesMailboxAddress ?? "sales@dezhost.com",
+        supportImapEnabled: Boolean(p.supportImapEnabled),
+        supportImapHost: p.supportImapHost ?? "",
+        supportImapMailbox: p.supportImapMailbox ?? "INBOX",
+        supportImapPassword: p.supportImapPassword ?? "",
+        supportImapPort: p.supportImapPort ?? 993,
+        supportImapSecure: p.supportImapSecure !== false,
+        supportImapUsername: p.supportImapUsername ?? "",
+        supportMailboxAddress: p.supportMailboxAddress ?? "support@dezhost.com",
+        ticketAutoCloseHours: p.ticketAutoCloseHours ?? 24
       }))
       .catch(() => undefined);
   }, []);
@@ -618,21 +837,8 @@ export function SettingsForm() {
         domainPriceUpdateHours: Number(formData.get("domainPriceUpdateHours") ?? 24),
         domainStatusUpdateMinutes: Number(formData.get("domainStatusUpdateMinutes") ?? 15),
         hostingStatusUpdateMinutes: Number(formData.get("hostingStatusUpdateMinutes") ?? 15),
-        invoiceBankDetails: String(formData.get("invoiceBankDetails") ?? ""),
-        invoiceCompanyAddress: String(formData.get("invoiceCompanyAddress") ?? ""),
-        invoiceCompanyCity: String(formData.get("invoiceCompanyCity") ?? ""),
-        invoiceCompanyCountry: String(formData.get("invoiceCompanyCountry") ?? "DE"),
-        invoiceCompanyEmail: String(formData.get("invoiceCompanyEmail") ?? ""),
-        invoiceCompanyName: String(formData.get("invoiceCompanyName") ?? ""),
-        invoiceCompanyPhone: String(formData.get("invoiceCompanyPhone") ?? ""),
-        invoiceCompanyZip: String(formData.get("invoiceCompanyZip") ?? ""),
         invoiceDaysAhead: Number(formData.get("invoiceDaysAhead") ?? 7),
-        invoiceFooterLine1: String(formData.get("invoiceFooterLine1") ?? ""),
-        invoiceFooterLine2: String(formData.get("invoiceFooterLine2") ?? ""),
-        invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
-        invoicePaymentInstructions: String(formData.get("invoicePaymentInstructions") ?? ""),
         invoiceReminderDaysBeforeDue: Number(formData.get("invoiceReminderDaysBeforeDue") ?? 3),
-        invoiceVatNumber: String(formData.get("invoiceVatNumber") ?? ""),
         mailboxCheckMinutes: Number(formData.get("mailboxCheckMinutes") ?? 5),
         salesImapEnabled: formData.get("salesImapEnabled") === "on",
         salesImapHost: String(formData.get("salesImapHost") ?? ""),
@@ -642,7 +848,6 @@ export function SettingsForm() {
         salesImapSecure: formData.get("salesImapSecure") === "on",
         salesImapUsername: String(formData.get("salesImapUsername") ?? ""),
         salesMailboxAddress: String(formData.get("salesMailboxAddress") ?? "sales@dezhost.com"),
-        siteLogoUrl: settings.siteLogoUrl,
         supportImapEnabled: formData.get("supportImapEnabled") === "on",
         supportImapHost: String(formData.get("supportImapHost") ?? ""),
         supportImapMailbox: String(formData.get("supportImapMailbox") ?? "INBOX"),
@@ -651,30 +856,21 @@ export function SettingsForm() {
         supportImapSecure: formData.get("supportImapSecure") === "on",
         supportImapUsername: String(formData.get("supportImapUsername") ?? ""),
         supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@dezhost.com"),
-        ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24),
-        termsUrl: String(formData.get("termsUrl") ?? ""),
-        usdBufferCents: Number(formData.get("usdBufferCents") ?? 0),
-        usdExchangeRate: Number(formData.get("usdExchangeRate") ?? 1.0),
-        vatPercent: Number(formData.get("vatPercent") ?? 19)
+        ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24)
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-
-    setMessage(await notifyResponse(response, "Settings saved.", "Settings failed."));
+    setMessage(await notifyResponse(response, "Cron settings saved.", "Save failed."));
   }
 
   async function runCron() {
     setLastCronRun("Running cron...");
-    const response = await fetch(`${API_BASE_URL}/cron/admin/run`, {
-      headers: authHeaders(),
-      method: "POST"
-    });
+    const response = await fetch(`${API_BASE_URL}/cron/admin/run`, { headers: authHeaders(), method: "POST" });
     const payload = (await response.json().catch(() => ({}))) as { ran?: unknown[]; skipped?: unknown[] };
     if (!response.ok) {
-      const text = "Cron run failed.";
-      setLastCronRun(text);
-      notify.error(text);
+      setLastCronRun("Cron run failed.");
+      notify.error("Cron run failed.");
       return;
     }
     const text = `Cron finished. Ran ${payload.ran?.length ?? 0}; skipped ${payload.skipped?.length ?? 0}.`;
@@ -687,61 +883,146 @@ export function SettingsForm() {
       <h3>Cron</h3>
       <Button icon={RefreshCw} type="button" variant="secondary" onClick={runCron}>Run Cron Now</Button>
       {lastCronRun ? <p>{lastCronRun}</p> : null}
-      <label>Cron secret<input value={settings.cronSecret} onChange={(event) => setSettings({ ...settings, cronSecret: event.target.value })} name="cronSecret" type="password" /></label>
-      <label>Update domain prices every hours<input min="1" value={settings.domainPriceUpdateHours} onChange={(event) => setSettings({ ...settings, domainPriceUpdateHours: Number(event.target.value) })} name="domainPriceUpdateHours" type="number" /></label>
-      <label>Update domain expiration dates every hours<input min="1" value={settings.domainExpirationUpdateHours} onChange={(event) => setSettings({ ...settings, domainExpirationUpdateHours: Number(event.target.value) })} name="domainExpirationUpdateHours" type="number" /></label>
-      <label>Update domain statuses every minutes<input min="1" value={settings.domainStatusUpdateMinutes} onChange={(event) => setSettings({ ...settings, domainStatusUpdateMinutes: Number(event.target.value) })} name="domainStatusUpdateMinutes" type="number" /></label>
-      <label>Update hosting service statuses every minutes<input min="1" value={settings.hostingStatusUpdateMinutes} onChange={(event) => setSettings({ ...settings, hostingStatusUpdateMinutes: Number(event.target.value) })} name="hostingStatusUpdateMinutes" type="number" /></label>
-      <label>Generate invoices days before due date<input value={settings.invoiceDaysAhead} onChange={(event) => setSettings({ ...settings, invoiceDaysAhead: Number(event.target.value) })} name="invoiceDaysAhead" type="number" /></label>
-      <label>Create invoice reminders days before due date<input min="1" value={settings.invoiceReminderDaysBeforeDue} onChange={(event) => setSettings({ ...settings, invoiceReminderDaysBeforeDue: Number(event.target.value) })} name="invoiceReminderDaysBeforeDue" type="number" /></label>
-      <label>Close answered tickets after hours<input value={settings.ticketAutoCloseHours} onChange={(event) => setSettings({ ...settings, ticketAutoCloseHours: Number(event.target.value) })} name="ticketAutoCloseHours" type="number" /></label>
-      <label>Check support and sales mailboxes every minutes<input min="1" value={settings.mailboxCheckMinutes} onChange={(event) => setSettings({ ...settings, mailboxCheckMinutes: Number(event.target.value) })} name="mailboxCheckMinutes" type="number" /></label>
+      <label>Cron secret<input value={s.cronSecret} name="cronSecret" type="password" onChange={(e) => setS({ ...s, cronSecret: e.target.value })} /></label>
+      <label>Update domain prices every (hours)<input min="1" value={s.domainPriceUpdateHours} name="domainPriceUpdateHours" type="number" onChange={(e) => setS({ ...s, domainPriceUpdateHours: Number(e.target.value) })} /></label>
+      <label>Update domain expiration dates every (hours)<input min="1" value={s.domainExpirationUpdateHours} name="domainExpirationUpdateHours" type="number" onChange={(e) => setS({ ...s, domainExpirationUpdateHours: Number(e.target.value) })} /></label>
+      <label>Update domain statuses every (minutes)<input min="1" value={s.domainStatusUpdateMinutes} name="domainStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, domainStatusUpdateMinutes: Number(e.target.value) })} /></label>
+      <label>Update hosting service statuses every (minutes)<input min="1" value={s.hostingStatusUpdateMinutes} name="hostingStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, hostingStatusUpdateMinutes: Number(e.target.value) })} /></label>
+      <label>Generate invoices days before due date<input value={s.invoiceDaysAhead} name="invoiceDaysAhead" type="number" onChange={(e) => setS({ ...s, invoiceDaysAhead: Number(e.target.value) })} /></label>
+      <label>Create invoice reminders days before due date<input min="1" value={s.invoiceReminderDaysBeforeDue} name="invoiceReminderDaysBeforeDue" type="number" onChange={(e) => setS({ ...s, invoiceReminderDaysBeforeDue: Number(e.target.value) })} /></label>
+      <label>Close answered tickets after (hours)<input value={s.ticketAutoCloseHours} name="ticketAutoCloseHours" type="number" onChange={(e) => setS({ ...s, ticketAutoCloseHours: Number(e.target.value) })} /></label>
+      <label>Check mailboxes every (minutes)<input min="1" value={s.mailboxCheckMinutes} name="mailboxCheckMinutes" type="number" onChange={(e) => setS({ ...s, mailboxCheckMinutes: Number(e.target.value) })} /></label>
       <h3>Support mailbox IMAP</h3>
-      <label><span><input checked={settings.supportImapEnabled} onChange={(event) => setSettings({ ...settings, supportImapEnabled: event.target.checked })} name="supportImapEnabled" type="checkbox" /> Enable support mailbox</span></label>
-      <label>Support mailbox address<input value={settings.supportMailboxAddress} onChange={(event) => setSettings({ ...settings, supportMailboxAddress: event.target.value })} name="supportMailboxAddress" type="email" /></label>
-      <label>Support IMAP host<input value={settings.supportImapHost} onChange={(event) => setSettings({ ...settings, supportImapHost: event.target.value })} name="supportImapHost" /></label>
-      <label>Support IMAP port<input value={settings.supportImapPort} onChange={(event) => setSettings({ ...settings, supportImapPort: Number(event.target.value) })} name="supportImapPort" type="number" /></label>
-      <label><span><input checked={settings.supportImapSecure} onChange={(event) => setSettings({ ...settings, supportImapSecure: event.target.checked })} name="supportImapSecure" type="checkbox" /> Support IMAP TLS/SSL</span></label>
-      <label>Support IMAP username<input value={settings.supportImapUsername} onChange={(event) => setSettings({ ...settings, supportImapUsername: event.target.value })} name="supportImapUsername" /></label>
-      <label>Support IMAP password<input value={settings.supportImapPassword} onChange={(event) => setSettings({ ...settings, supportImapPassword: event.target.value })} name="supportImapPassword" type="password" /></label>
-      <label>Support IMAP mailbox<input value={settings.supportImapMailbox} onChange={(event) => setSettings({ ...settings, supportImapMailbox: event.target.value })} name="supportImapMailbox" /></label>
+      <label><span><input checked={s.supportImapEnabled} name="supportImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, supportImapEnabled: e.target.checked })} /> Enable support mailbox</span></label>
+      <label>Support mailbox address<input value={s.supportMailboxAddress} name="supportMailboxAddress" type="email" onChange={(e) => setS({ ...s, supportMailboxAddress: e.target.value })} /></label>
+      <label>Support IMAP host<input value={s.supportImapHost} name="supportImapHost" onChange={(e) => setS({ ...s, supportImapHost: e.target.value })} /></label>
+      <label>Support IMAP port<input value={s.supportImapPort} name="supportImapPort" type="number" onChange={(e) => setS({ ...s, supportImapPort: Number(e.target.value) })} /></label>
+      <label><span><input checked={s.supportImapSecure} name="supportImapSecure" type="checkbox" onChange={(e) => setS({ ...s, supportImapSecure: e.target.checked })} /> Support IMAP TLS/SSL</span></label>
+      <label>Support IMAP username<input value={s.supportImapUsername} name="supportImapUsername" onChange={(e) => setS({ ...s, supportImapUsername: e.target.value })} /></label>
+      <label>Support IMAP password<input value={s.supportImapPassword} name="supportImapPassword" type="password" onChange={(e) => setS({ ...s, supportImapPassword: e.target.value })} /></label>
+      <label>Support IMAP mailbox<input value={s.supportImapMailbox} name="supportImapMailbox" onChange={(e) => setS({ ...s, supportImapMailbox: e.target.value })} /></label>
       <h3>Sales mailbox IMAP</h3>
-      <label><span><input checked={settings.salesImapEnabled} onChange={(event) => setSettings({ ...settings, salesImapEnabled: event.target.checked })} name="salesImapEnabled" type="checkbox" /> Enable sales mailbox</span></label>
-      <label>Sales mailbox address<input value={settings.salesMailboxAddress} onChange={(event) => setSettings({ ...settings, salesMailboxAddress: event.target.value })} name="salesMailboxAddress" type="email" /></label>
-      <label>Sales IMAP host<input value={settings.salesImapHost} onChange={(event) => setSettings({ ...settings, salesImapHost: event.target.value })} name="salesImapHost" /></label>
-      <label>Sales IMAP port<input value={settings.salesImapPort} onChange={(event) => setSettings({ ...settings, salesImapPort: Number(event.target.value) })} name="salesImapPort" type="number" /></label>
-      <label><span><input checked={settings.salesImapSecure} onChange={(event) => setSettings({ ...settings, salesImapSecure: event.target.checked })} name="salesImapSecure" type="checkbox" /> Sales IMAP TLS/SSL</span></label>
-      <label>Sales IMAP username<input value={settings.salesImapUsername} onChange={(event) => setSettings({ ...settings, salesImapUsername: event.target.value })} name="salesImapUsername" /></label>
-      <label>Sales IMAP password<input value={settings.salesImapPassword} onChange={(event) => setSettings({ ...settings, salesImapPassword: event.target.value })} name="salesImapPassword" type="password" /></label>
-      <label>Sales IMAP mailbox<input value={settings.salesImapMailbox} onChange={(event) => setSettings({ ...settings, salesImapMailbox: event.target.value })} name="salesImapMailbox" /></label>
+      <label><span><input checked={s.salesImapEnabled} name="salesImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, salesImapEnabled: e.target.checked })} /> Enable sales mailbox</span></label>
+      <label>Sales mailbox address<input value={s.salesMailboxAddress} name="salesMailboxAddress" type="email" onChange={(e) => setS({ ...s, salesMailboxAddress: e.target.value })} /></label>
+      <label>Sales IMAP host<input value={s.salesImapHost} name="salesImapHost" onChange={(e) => setS({ ...s, salesImapHost: e.target.value })} /></label>
+      <label>Sales IMAP port<input value={s.salesImapPort} name="salesImapPort" type="number" onChange={(e) => setS({ ...s, salesImapPort: Number(e.target.value) })} /></label>
+      <label><span><input checked={s.salesImapSecure} name="salesImapSecure" type="checkbox" onChange={(e) => setS({ ...s, salesImapSecure: e.target.checked })} /> Sales IMAP TLS/SSL</span></label>
+      <label>Sales IMAP username<input value={s.salesImapUsername} name="salesImapUsername" onChange={(e) => setS({ ...s, salesImapUsername: e.target.value })} /></label>
+      <label>Sales IMAP password<input value={s.salesImapPassword} name="salesImapPassword" type="password" onChange={(e) => setS({ ...s, salesImapPassword: e.target.value })} /></label>
+      <label>Sales IMAP mailbox<input value={s.salesImapMailbox} name="salesImapMailbox" onChange={(e) => setS({ ...s, salesImapMailbox: e.target.value })} /></label>
+      <Button icon={Save} type="submit">Save Cron Settings</Button>
+      {message ? <p>{message}</p> : null}
+    </form>
+  );
+}
+
+export function SettingsForm() {
+  const [message, setMessage] = useState("");
+  const [s, setS] = useState({
+    invoiceBankDetails: "",
+    invoiceCompanyAddress: "",
+    invoiceCompanyCity: "",
+    invoiceCompanyCountry: "DE",
+    invoiceCompanyEmail: "",
+    invoiceCompanyName: "",
+    invoiceCompanyPhone: "",
+    invoiceCompanyZip: "",
+    invoiceFooterLine1: "",
+    invoiceFooterLine2: "",
+    invoiceFooterLine3: "",
+    invoicePaymentInstructions: "",
+    invoiceVatNumber: "",
+    siteLogoUrl: "",
+    termsUrl: "",
+    usdBufferCents: 0,
+    usdExchangeRate: 1.0,
+    vatPercent: 19
+  });
+
+  useEffect(() => {
+    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((p) => setS({
+        invoiceBankDetails: p.invoiceBankDetails ?? "",
+        invoiceCompanyAddress: p.invoiceCompanyAddress ?? "",
+        invoiceCompanyCity: p.invoiceCompanyCity ?? "",
+        invoiceCompanyCountry: p.invoiceCompanyCountry ?? "DE",
+        invoiceCompanyEmail: p.invoiceCompanyEmail ?? "",
+        invoiceCompanyName: p.invoiceCompanyName ?? "",
+        invoiceCompanyPhone: p.invoiceCompanyPhone ?? "",
+        invoiceCompanyZip: p.invoiceCompanyZip ?? "",
+        invoiceFooterLine1: p.invoiceFooterLine1 ?? "",
+        invoiceFooterLine2: p.invoiceFooterLine2 ?? "",
+        invoiceFooterLine3: p.invoiceFooterLine3 ?? "",
+        invoicePaymentInstructions: p.invoicePaymentInstructions ?? "",
+        invoiceVatNumber: p.invoiceVatNumber ?? "",
+        siteLogoUrl: p.siteLogoUrl ?? "",
+        termsUrl: p.termsUrl ?? "",
+        usdBufferCents: p.usdBufferCents ?? 0,
+        usdExchangeRate: p.usdExchangeRate ?? 1.0,
+        vatPercent: p.vatPercent ?? 19
+      }))
+      .catch(() => undefined);
+  }, []);
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
+      body: JSON.stringify({
+        invoiceBankDetails: String(formData.get("invoiceBankDetails") ?? ""),
+        invoiceCompanyAddress: String(formData.get("invoiceCompanyAddress") ?? ""),
+        invoiceCompanyCity: String(formData.get("invoiceCompanyCity") ?? ""),
+        invoiceCompanyCountry: String(formData.get("invoiceCompanyCountry") ?? "DE"),
+        invoiceCompanyEmail: String(formData.get("invoiceCompanyEmail") ?? ""),
+        invoiceCompanyName: String(formData.get("invoiceCompanyName") ?? ""),
+        invoiceCompanyPhone: String(formData.get("invoiceCompanyPhone") ?? ""),
+        invoiceCompanyZip: String(formData.get("invoiceCompanyZip") ?? ""),
+        invoiceFooterLine1: String(formData.get("invoiceFooterLine1") ?? ""),
+        invoiceFooterLine2: String(formData.get("invoiceFooterLine2") ?? ""),
+        invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
+        invoicePaymentInstructions: String(formData.get("invoicePaymentInstructions") ?? ""),
+        invoiceVatNumber: String(formData.get("invoiceVatNumber") ?? ""),
+        siteLogoUrl: s.siteLogoUrl,
+        termsUrl: String(formData.get("termsUrl") ?? ""),
+        usdBufferCents: Number(formData.get("usdBufferCents") ?? 0),
+        usdExchangeRate: Number(formData.get("usdExchangeRate") ?? 1.0),
+        vatPercent: Number(formData.get("vatPercent") ?? 19)
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setMessage(await notifyResponse(response, "Settings saved.", "Settings failed."));
+  }
+
+  return (
+    <form action={submit} className={styles.form}>
       <h3>Legal</h3>
-      <label>AGB / Terms URL<input value={settings.termsUrl} onChange={(event) => setSettings({ ...settings, termsUrl: event.target.value })} name="termsUrl" placeholder="/de/legal/agb" /></label>
+      <label>AGB / Terms URL<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
       <h3>Currency (USD)</h3>
       <p>Prices are stored in EUR. These settings control the EUR→USD conversion displayed to customers who select USD.</p>
-      <label>EUR→USD exchange rate<input min="0.01" step="0.0001" value={settings.usdExchangeRate} onChange={(event) => setSettings({ ...settings, usdExchangeRate: Number(event.target.value) })} name="usdExchangeRate" type="number" /></label>
-      <label>Buffer (extra cents added to USD price)<input min="0" step="1" value={settings.usdBufferCents} onChange={(event) => setSettings({ ...settings, usdBufferCents: Number(event.target.value) })} name="usdBufferCents" type="number" /></label>
+      <label>EUR→USD exchange rate<input min="0.01" step="0.0001" value={s.usdExchangeRate} name="usdExchangeRate" type="number" onChange={(e) => setS({ ...s, usdExchangeRate: Number(e.target.value) })} /></label>
+      <label>Buffer (extra cents added to USD price)<input min="0" step="1" value={s.usdBufferCents} name="usdBufferCents" type="number" onChange={(e) => setS({ ...s, usdBufferCents: Number(e.target.value) })} /></label>
       <h3>Invoice branding</h3>
-      <label>VAT percent<input min="0" step="0.01" value={settings.vatPercent} onChange={(event) => setSettings({ ...settings, vatPercent: Number(event.target.value) })} name="vatPercent" type="number" /></label>
+      <label>VAT percent<input min="0" step="0.01" value={s.vatPercent} name="vatPercent" type="number" onChange={(e) => setS({ ...s, vatPercent: Number(e.target.value) })} /></label>
       <ImageUploader
         action={`${API_BASE_URL}/admin/dev/assets/logo`}
         headers={authHeaders()}
         label="Website logo"
-        onUploaded={(payload) => setSettings({ ...settings, siteLogoUrl: String(payload.logoUrl ?? "") })}
-        previewUrl={settings.siteLogoUrl}
+        onUploaded={(payload) => setS({ ...s, siteLogoUrl: String(payload.logoUrl ?? "") })}
+        previewUrl={s.siteLogoUrl}
       />
-      <label>Company name<input value={settings.invoiceCompanyName} onChange={(event) => setSettings({ ...settings, invoiceCompanyName: event.target.value })} name="invoiceCompanyName" /></label>
-      <label>Company address<input value={settings.invoiceCompanyAddress} onChange={(event) => setSettings({ ...settings, invoiceCompanyAddress: event.target.value })} name="invoiceCompanyAddress" /></label>
-      <label>ZIP<input value={settings.invoiceCompanyZip} onChange={(event) => setSettings({ ...settings, invoiceCompanyZip: event.target.value })} name="invoiceCompanyZip" /></label>
-      <label>City<input value={settings.invoiceCompanyCity} onChange={(event) => setSettings({ ...settings, invoiceCompanyCity: event.target.value })} name="invoiceCompanyCity" /></label>
-      <label>Country<input value={settings.invoiceCompanyCountry} onChange={(event) => setSettings({ ...settings, invoiceCompanyCountry: event.target.value })} name="invoiceCompanyCountry" /></label>
-      <label>Email<input value={settings.invoiceCompanyEmail} onChange={(event) => setSettings({ ...settings, invoiceCompanyEmail: event.target.value })} name="invoiceCompanyEmail" type="email" /></label>
-      <label>Phone<input value={settings.invoiceCompanyPhone} onChange={(event) => setSettings({ ...settings, invoiceCompanyPhone: event.target.value })} name="invoiceCompanyPhone" /></label>
-      <label>USt-IdNr<input value={settings.invoiceVatNumber} onChange={(event) => setSettings({ ...settings, invoiceVatNumber: event.target.value })} name="invoiceVatNumber" /></label>
-      <label>Invoice footer line 1<input value={settings.invoiceFooterLine1} onChange={(event) => setSettings({ ...settings, invoiceFooterLine1: event.target.value })} name="invoiceFooterLine1" /></label>
-      <label>Invoice footer line 2<input value={settings.invoiceFooterLine2} onChange={(event) => setSettings({ ...settings, invoiceFooterLine2: event.target.value })} name="invoiceFooterLine2" /></label>
-      <label>Invoice footer line 3<input value={settings.invoiceFooterLine3} onChange={(event) => setSettings({ ...settings, invoiceFooterLine3: event.target.value })} name="invoiceFooterLine3" /></label>
-      <label>Payment instructions<textarea value={settings.invoicePaymentInstructions} onChange={(event) => setSettings({ ...settings, invoicePaymentInstructions: event.target.value })} name="invoicePaymentInstructions" rows={3} /></label>
-      <label>Bank details<textarea value={settings.invoiceBankDetails} onChange={(event) => setSettings({ ...settings, invoiceBankDetails: event.target.value })} name="invoiceBankDetails" rows={3} /></label>
+      <label>Company name<input value={s.invoiceCompanyName} name="invoiceCompanyName" onChange={(e) => setS({ ...s, invoiceCompanyName: e.target.value })} /></label>
+      <label>Company address<input value={s.invoiceCompanyAddress} name="invoiceCompanyAddress" onChange={(e) => setS({ ...s, invoiceCompanyAddress: e.target.value })} /></label>
+      <label>ZIP<input value={s.invoiceCompanyZip} name="invoiceCompanyZip" onChange={(e) => setS({ ...s, invoiceCompanyZip: e.target.value })} /></label>
+      <label>City<input value={s.invoiceCompanyCity} name="invoiceCompanyCity" onChange={(e) => setS({ ...s, invoiceCompanyCity: e.target.value })} /></label>
+      <label>Country<input value={s.invoiceCompanyCountry} name="invoiceCompanyCountry" onChange={(e) => setS({ ...s, invoiceCompanyCountry: e.target.value })} /></label>
+      <label>Email<input value={s.invoiceCompanyEmail} name="invoiceCompanyEmail" type="email" onChange={(e) => setS({ ...s, invoiceCompanyEmail: e.target.value })} /></label>
+      <label>Phone<input value={s.invoiceCompanyPhone} name="invoiceCompanyPhone" onChange={(e) => setS({ ...s, invoiceCompanyPhone: e.target.value })} /></label>
+      <label>USt-IdNr<input value={s.invoiceVatNumber} name="invoiceVatNumber" onChange={(e) => setS({ ...s, invoiceVatNumber: e.target.value })} /></label>
+      <label>Invoice footer line 1<input value={s.invoiceFooterLine1} name="invoiceFooterLine1" onChange={(e) => setS({ ...s, invoiceFooterLine1: e.target.value })} /></label>
+      <label>Invoice footer line 2<input value={s.invoiceFooterLine2} name="invoiceFooterLine2" onChange={(e) => setS({ ...s, invoiceFooterLine2: e.target.value })} /></label>
+      <label>Invoice footer line 3<input value={s.invoiceFooterLine3} name="invoiceFooterLine3" onChange={(e) => setS({ ...s, invoiceFooterLine3: e.target.value })} /></label>
+      <label>Payment instructions<textarea value={s.invoicePaymentInstructions} name="invoicePaymentInstructions" rows={3} onChange={(e) => setS({ ...s, invoicePaymentInstructions: e.target.value })} /></label>
+      <label>Bank details<textarea value={s.invoiceBankDetails} name="invoiceBankDetails" rows={3} onChange={(e) => setS({ ...s, invoiceBankDetails: e.target.value })} /></label>
       <Button icon={Save} type="submit">Save Settings</Button>
       {message ? <p>{message}</p> : null}
     </form>
@@ -1090,12 +1371,53 @@ function gatewayProvider(method: string) {
   return method === "PAYPAL" ? "paypal" : ["CREDIT_CARD", "SEPA"].includes(method) ? "mollie" : "sandbox";
 }
 
-export function NewOrderForm({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+export function NewOrderForm({ clients, locale, preselectedClientId, products, vatPercent = 19 }: { clients: ApiClient[]; locale: Locale; preselectedClientId?: string; products: ApiProduct[]; vatPercent?: number }) {
   const [message, setMessage] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(products.find((p) => p.type !== "DOMAIN")?.id ?? products[0]?.id ?? "");
+  const [selectedPriceId, setSelectedPriceId] = useState(products.find((p) => p.type !== "DOMAIN")?.prices[0]?.id ?? "");
+  const [selectedClientId, setSelectedClientId] = useState(preselectedClientId ?? "");
+  const [useCustomPricing, setUseCustomPricing] = useState(false);
+  const [customAmountEur, setCustomAmountEur] = useState<number>(0);
+  const [customBillingCycle, setCustomBillingCycle] = useState("MONTHLY");
+  const [discountType, setDiscountType] = useState<"none" | "one-time" | "recurring">("none");
+  const [discountAmountEur, setDiscountAmountEur] = useState<number>(0);
+  const [addDomain, setAddDomain] = useState(false);
+  const [domainNameInput, setDomainNameInput] = useState("");
+  const [domainPriceLookup, setDomainPriceLookup] = useState<Map<string, number>>(new Map());
+  const [domainPriceLoading, setDomainPriceLoading] = useState(false);
   const defaultDomainProduct = products.find((p) => p.type === "DOMAIN");
 
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/orders/admin/domain-prices`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data: Array<{ action: string; amountCents: number; tld: string; years: number }>) => {
+        if (Array.isArray(data)) {
+          const map = new Map<string, number>();
+          for (const row of data) {
+            if (row.action === "register" && row.years === 1 && row.amountCents > 0) {
+              map.set(row.tld.toLowerCase(), row.amountCents);
+            }
+          }
+          setDomainPriceLookup(map);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   const selectedProduct = products.find((p) => p.id === selectedProductId);
+  const selectedPrice = selectedProduct?.prices.find((p) => p.id === selectedPriceId) ?? selectedProduct?.prices[0];
+  const selectedClient = clients.find((c) => c.id === selectedClientId);
+
+  // Compute preview values
+  const baseAmountCents = useCustomPricing ? Math.round(customAmountEur * 100) : (selectedPrice?.amountCents ?? 0);
+  const billingCycle = useCustomPricing ? customBillingCycle : (selectedPrice?.billingCycle ?? "MONTHLY");
+  const vatRate = vatPercent;
+  const vatCents = Math.round(baseAmountCents * vatRate / 100);
+  const subtotalCents = baseAmountCents;
+  const discountCents = discountType !== "none" ? Math.round(discountAmountEur * 100) : 0;
+  const domainTld = addDomain && domainNameInput.includes(".") ? domainNameInput.split(".").slice(1).join(".").toLowerCase() : "";
+  const domainPriceCents = domainTld ? (domainPriceLookup.get(domainTld) ?? null) : null;
+  const totalCents = subtotalCents + vatCents + (domainPriceCents ?? 0) - discountCents;
 
   async function submit(formData: FormData) {
     const clientId = String(formData.get("userId") ?? "");
@@ -1104,13 +1426,18 @@ export function NewOrderForm({ clients, locale, products }: { clients: ApiClient
     const priceId = String(formData.get("productPriceId") ?? product?.prices[0]?.id ?? "");
     const addDomain = formData.get("addDomain") === "on" && defaultDomainProduct;
     const placedAt = String(formData.get("placedAt") ?? "");
+    const firstDueAt = String(formData.get("firstDueAt") ?? "");
+    const customPricingOn = formData.get("useCustomPricing") === "on";
     const items: Array<Record<string, unknown>> = [{
-      configuration: {
-        domainName: String(formData.get("domainName") ?? "")
-      },
+      configuration: { domainName: String(formData.get("domainName") ?? "") },
       productId,
-      productPriceId: priceId,
-      quantity: 1
+      productPriceId: customPricingOn ? undefined : priceId,
+      quantity: 1,
+      ...(customPricingOn ? {
+        customAmountCents: Math.round(Number(formData.get("customAmountEur") ?? 0) * 100),
+        customBillingCycle: String(formData.get("customBillingCycle") ?? "MONTHLY"),
+        applyCustomToRenewals: formData.get("applyToRenewals") === "on"
+      } : {})
     }];
     if (addDomain) {
       items.push({
@@ -1123,6 +1450,7 @@ export function NewOrderForm({ clients, locale, products }: { clients: ApiClient
     }
     const response = await fetch(`${API_BASE_URL}/orders/admin`, {
       body: JSON.stringify({
+        firstDueAt: firstDueAt ? new Date(firstDueAt).toISOString() : undefined,
         items,
         notes: String(formData.get("notes") ?? ""),
         placedAt: placedAt ? new Date(placedAt).toISOString() : undefined,
@@ -1133,73 +1461,415 @@ export function NewOrderForm({ clients, locale, products }: { clients: ApiClient
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Order created. View it under All Orders.", "Order creation failed."));
+    if (response.ok) {
+      notify.success("Order created.");
+      window.location.assign("/admin/orders");
+      return;
+    }
+    setMessage(await notifyResponse(response, "Order created.", "Order creation failed."));
   }
 
   return (
     <form action={submit} className={styles.form}>
-      <div className={styles.formGrid}>
-        <label className={styles.formSpan2}>
-          Client
-          <select name="userId" required>
-            <option value="">— select client —</option>
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>{client.name} ({client.email})</option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.formSpan2}>
-          Product
-          <select name="productId" value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)}>
-            {products.filter((p) => p.type !== "DOMAIN").map((product) => (
-              <option key={product.id} value={product.id}>{product.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.formSpan2}>
-          Pricing Plan
-          <select name="productPriceId">
-            {selectedProduct?.prices.map((price) => (
-              <option key={price.id} value={price.id}>
-                {price.billingCycle.replace("_", " ")} — {money(price.amountCents, price.currency, locale)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Domain Name
-          <input name="domainName" placeholder="example.com" />
-        </label>
-        <label>
-          Domain Action
-          <select name="domainAction">
-            <option value="register">Register</option>
-            <option value="transfer">Transfer</option>
-          </select>
-        </label>
-        <label className={styles.formSpan2}>
-          Order Date
-          <input defaultValue={datetimeLocal(new Date().toISOString())} name="placedAt" type="datetime-local" />
-        </label>
-        <label className={styles.formSpan2}>
-          <span><input name="addDomain" type="checkbox" /> Add domain item to this order</span>
-        </label>
-        <label className={styles.formSpan2}>
-          Notes (internal)
-          <textarea name="notes" rows={2} placeholder="Admin notes for this order..." />
-        </label>
-        <label className={styles.formSpan2}>
-          <span><input name="skipEmail" type="checkbox" /> Disable new order email for this client</span>
-        </label>
-        <label className={styles.formSpan2}>
-          <span><input name="runModules" type="checkbox" /> Run active modules upon order create (provisions services immediately)</span>
-        </label>
+      <div className={styles.newOrderLayout}>
+        <div className={styles.formGrid}>
+          <label className={styles.formSpan2}>
+            Client
+            <select defaultValue={preselectedClientId ?? ""} name="userId" required onChange={(e) => setSelectedClientId(e.target.value)}>
+              <option value="">— select client —</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>{client.name} ({client.email})</option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.formSpan2}>
+            Product
+            <select name="productId" value={selectedProductId} onChange={(e) => {
+              setSelectedProductId(e.target.value);
+              const p = products.find((prod) => prod.id === e.target.value);
+              setSelectedPriceId(p?.prices[0]?.id ?? "");
+            }}>
+              {products.filter((p) => p.type !== "DOMAIN").map((product) => (
+                <option key={product.id} value={product.id}>{product.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className={styles.formSpan2}>
+            <span><input checked={useCustomPricing} name="useCustomPricing" type="checkbox" onChange={(e) => setUseCustomPricing(e.target.checked)} /> Use custom pricing (override product price)</span>
+          </label>
+
+          {!useCustomPricing ? (
+            <label className={styles.formSpan2}>
+              Pricing Plan
+              <select name="productPriceId" value={selectedPriceId} onChange={(e) => setSelectedPriceId(e.target.value)}>
+                {selectedProduct?.prices.map((price) => (
+                  <option key={price.id} value={price.id}>
+                    {cycleLabel(price.billingCycle, locale)} — {money(price.amountCents, price.currency, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <>
+              <label>
+                Custom price (EUR, excl. VAT)
+                <input min="0" name="customAmountEur" placeholder="0.00" step="0.01" type="number" value={customAmountEur || ""} onChange={(e) => setCustomAmountEur(Number(e.target.value) || 0)} />
+              </label>
+              <label>
+                Billing cycle
+                <select name="customBillingCycle" value={customBillingCycle} onChange={(e) => setCustomBillingCycle(e.target.value)}>
+                  {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "ONE_TIME"].map((c) => (
+                    <option key={c} value={c}>{cycleLabel(c, locale)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.formSpan2}>
+                <span><input defaultChecked name="applyToRenewals" type="checkbox" /> Apply custom price to all future renewal invoices</span>
+              </label>
+            </>
+          )}
+
+          <label>
+            Domain Name
+            <input name="domainName" placeholder="example.com" value={domainNameInput} onChange={(e) => setDomainNameInput(e.target.value)} />
+          </label>
+          <label>
+            Domain Action
+            <select name="domainAction">
+              <option value="register">Register</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </label>
+
+          <label className={styles.formSpan2}>
+            Order Date
+            <input defaultValue={datetimeLocal(new Date().toISOString())} name="placedAt" type="datetime-local" />
+          </label>
+          <label className={styles.formSpan2}>
+            First Invoice Due Date
+            <input name="firstDueAt" type="date" defaultValue={new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)} />
+          </label>
+
+          <label className={styles.formSpan2}>
+            Discount
+            <select name="discountType" value={discountType} onChange={(e) => setDiscountType(e.target.value as "none" | "one-time" | "recurring")}>
+              <option value="none">No discount</option>
+              <option value="one-time">One-time discount (first invoice only)</option>
+              <option value="recurring">Recurring discount (all invoices)</option>
+            </select>
+          </label>
+          {discountType !== "none" ? (
+            <label className={styles.formSpan2}>
+              Discount amount (EUR)
+              <input min="0" name="discountAmountEur" placeholder="0.00" step="0.01" type="number" value={discountAmountEur || ""} onChange={(e) => setDiscountAmountEur(Number(e.target.value) || 0)} />
+            </label>
+          ) : null}
+
+          <label className={styles.formSpan2}>
+            <span><input checked={addDomain} name="addDomain" type="checkbox" onChange={(e) => setAddDomain(e.target.checked)} /> Add domain item to this order</span>
+          </label>
+          <label className={styles.formSpan2}>
+            Notes (internal)
+            <textarea name="notes" rows={2} placeholder="Admin notes for this order..." />
+          </label>
+          <label className={styles.formSpan2}>
+            <span><input name="skipEmail" type="checkbox" /> Disable new order email for this client</span>
+          </label>
+          <label className={styles.formSpan2}>
+            <span><input name="runModules" type="checkbox" /> Run active modules upon order create (provisions services immediately)</span>
+          </label>
+        </div>
+
+        {/* Order preview */}
+        <div className={styles.orderPreview}>
+          <h3>Order Preview</h3>
+          {selectedClient ? <p className={styles.orderPreviewClient}>{selectedClient.name}<br /><span>{selectedClient.email}</span></p> : <p className={styles.orderPreviewClient}>No client selected</p>}
+          {selectedProduct ? (
+            <div className={styles.orderPreviewLines}>
+              <div className={styles.orderPreviewRow}>
+                <span>{selectedProduct.name}</span>
+                <span>{cycleLabel(billingCycle, locale)}</span>
+              </div>
+              <div className={styles.orderPreviewRow}>
+                <span>Base price</span>
+                <strong>{money(baseAmountCents, "EUR", locale)}</strong>
+              </div>
+              {vatPercent > 0 ? <div className={styles.orderPreviewRow}><span>VAT ({vatPercent}%)</span><span>{money(vatCents, "EUR", locale)}</span></div> : null}
+              {addDomain ? (
+                <div className={styles.orderPreviewRow}>
+                  <span>Domain (.{domainTld || "?"})</span>
+                  {domainPriceLoading ? (
+                    <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>…</span>
+                  ) : domainPriceCents !== null ? (
+                    <strong>{money(domainPriceCents, "EUR", locale)}</strong>
+                  ) : (
+                    <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>{domainTld ? "price unknown" : "enter domain"}</span>
+                  )}
+                </div>
+              ) : null}
+              {discountCents > 0 ? (
+                <div className={styles.orderPreviewRow}>
+                  <span>Discount {discountType === "recurring" ? "(recurring)" : "(once)"}</span>
+                  <span>− {money(discountCents, "EUR", locale)}</span>
+                </div>
+              ) : null}
+              <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "6px 0" }} />
+              <div className={styles.orderPreviewTotal}>
+                <span>First invoice total</span>
+                <strong>{money(Math.max(0, totalCents), "EUR", locale)}</strong>
+              </div>
+              {billingCycle !== "ONE_TIME" ? (
+                <div className={styles.orderPreviewRenewal}>
+                  <span>Next renewal</span>
+                  <span>{money(subtotalCents + vatCents - (discountType === "recurring" ? discountCents : 0), "EUR", locale)} / {cycleLabel(billingCycle, locale)}</span>
+                </div>
+              ) : null}
+            </div>
+          ) : <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>Select a product to see preview</p>}
+        </div>
       </div>
+
       <div className={styles.formActions}>
         <Button icon={Package} type="submit">Create Order</Button>
       </div>
       {message ? <p className={styles.formMessage}>{message}</p> : null}
     </form>
+  );
+}
+
+export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId: string; invoiceNumber: string }) {
+  async function download() {
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf`, { headers: authHeaders() });
+    if (!response.ok) {
+      notify.error("PDF download failed.");
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `invoice-${invoiceNumber}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify.success("PDF ready.");
+  }
+  return <Button type="button" variant="secondary" onClick={download}>Download PDF</Button>;
+}
+
+type LineItem = { id: number };
+
+export function AdminClientActions({ client }: { client: ApiClient }) {
+  const [open, setOpen] = useState<"profile" | "password" | "invoice" | null>(null);
+  const [lines, setLines] = useState<LineItem[]>([{ id: 0 }]);
+  const [profileMsg, setProfileMsg] = useState("");
+  const [pwMsg, setPwMsg] = useState("");
+  const [invoiceMsg, setInvoiceMsg] = useState("");
+  const contact = client.contacts?.[0];
+  const address = contact?.address ?? {};
+
+  function closeModal() {
+    setOpen(null);
+    setProfileMsg("");
+    setPwMsg("");
+    setInvoiceMsg("");
+  }
+
+  async function saveProfile(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+      body: JSON.stringify({
+        address: {
+          city: String(formData.get("city") ?? ""),
+          line1: String(formData.get("address") ?? ""),
+          postalCode: String(formData.get("postalCode") ?? ""),
+          state: String(formData.get("state") ?? "")
+        },
+        countryCode: String(formData.get("countryCode") ?? "DE"),
+        customerType: String(formData.get("customerType") ?? "INDIVIDUAL"),
+        email: String(formData.get("email") ?? ""),
+        name: String(formData.get("name") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        vatId: String(formData.get("vatId") ?? "") || null
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    const msg = await notifyResponse(response, "Profile saved.", "Profile save failed.");
+    setProfileMsg(msg);
+    if (response.ok) closeModal();
+  }
+
+  async function changePassword(formData: FormData) {
+    const newPassword = String(formData.get("newPassword") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+    if (newPassword !== confirmPassword) {
+      setPwMsg("Passwords do not match.");
+      return;
+    }
+    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+      body: JSON.stringify({ newPassword }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    const msg = await notifyResponse(response, "Password changed.", "Password change failed.");
+    setPwMsg(msg);
+    if (response.ok) closeModal();
+  }
+
+  async function createInvoice(formData: FormData) {
+    const descriptions = formData.getAll("description").map(String).filter(Boolean);
+    const invoiceLines = descriptions.map((description, index) => ({
+      billingCycle: String(formData.getAll("billingCycle")[index] ?? "ONE_TIME"),
+      description,
+      quantity: Number(formData.getAll("quantity")[index] ?? 1),
+      type: "CUSTOM",
+      unitAmountCents: Math.round(Number(formData.getAll("amount")[index] ?? 0) * 100),
+      vatRate: Number(formData.getAll("vatRate")[index] ?? 19)
+    }));
+    const dueAtStr = String(formData.get("dueAt") ?? "");
+    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+      body: JSON.stringify({
+        buyerCountryCode: client.countryCode ?? "DE",
+        buyerVatId: client.vatId ?? undefined,
+        customerSnapshot: { address, countryCode: client.countryCode, customerNumber: client.customerNumber, customerType: client.customerType, email: client.email, name: client.name, phone: contact?.phone, vatId: client.vatId },
+        dueAt: dueAtStr ? new Date(dueAtStr).toISOString() : new Date(Date.now() + 7 * 86400_000).toISOString(),
+        isBusinessCustomer: client.customerType === "BUSINESS",
+        lines: invoiceLines,
+        status: "UNPAID",
+        userId: client.id
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    if (response.ok) {
+      notify.success("Invoice created.");
+      window.location.reload();
+      return;
+    }
+    setInvoiceMsg(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete client "${client.name}"?\n\n` +
+      `WARNING: All invoices for this client will also be permanently deleted.\n` +
+      `Please make sure to download and back up any invoice data before proceeding.\n\n` +
+      `This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
+    if (response.ok) {
+      notify.success("Client deleted.");
+      window.location.assign("/admin/clients");
+    } else {
+      notify.error("Client delete failed.");
+    }
+  }
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Button type="button" onClick={() => setOpen("profile")}>Edit Profile</Button>
+        <Button type="button" variant="secondary" onClick={() => setOpen("password")}>Change Password</Button>
+        <Button type="button" variant="secondary" onClick={() => setOpen("invoice")}>Create Invoice</Button>
+        <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>Delete Client</Button>
+      </div>
+
+      {open ? (
+        <div className={styles.modalBackdrop} onClick={(e) => e.target === e.currentTarget && closeModal()}>
+          <div className={styles.modal}>
+            <div className={styles.modalHead}>
+              <strong>
+                {open === "profile" ? "Edit Profile" : open === "password" ? "Change Password" : "Create Invoice"}
+              </strong>
+              <button className={styles.modalClose} type="button" onClick={closeModal}>✕</button>
+            </div>
+
+            {open === "profile" ? (
+              <form action={saveProfile} className={styles.form}>
+                <div className={styles.formGrid}>
+                  <label>Name<input defaultValue={client.name} name="name" required /></label>
+                  <label>Email<input defaultValue={client.email} name="email" required type="email" /></label>
+                  <label>Customer type
+                    <select defaultValue={client.customerType} name="customerType">
+                      <option value="INDIVIDUAL">Individual</option>
+                      <option value="BUSINESS">Business</option>
+                    </select>
+                  </label>
+                  <label>Country<input defaultValue={client.countryCode ?? "DE"} name="countryCode" /></label>
+                  <label>VAT ID<input defaultValue={client.vatId ?? ""} name="vatId" /></label>
+                  <label>Phone<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
+                  <label>Address<input defaultValue={address.line1 ?? ""} name="address" /></label>
+                  <label>ZIP<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
+                  <label>City<input defaultValue={address.city ?? ""} name="city" /></label>
+                  <label className={styles.formSpan2}>State / Region<input defaultValue={address.state ?? ""} name="state" /></label>
+                </div>
+                <div className={styles.formActions}>
+                  <Button icon={Save} type="submit">Save Profile</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                </div>
+                {profileMsg ? <p className={styles.formMessage}>{profileMsg}</p> : null}
+              </form>
+            ) : null}
+
+            {open === "password" ? (
+              <form action={changePassword} className={styles.form}>
+                <div className={styles.formGrid}>
+                  <label>New password<input name="newPassword" required type="password" placeholder="New password" /></label>
+                  <label>Confirm password<input name="confirmPassword" required type="password" placeholder="Confirm password" /></label>
+                </div>
+                <div className={styles.formActions}>
+                  <Button icon={Save} type="submit">Set Password</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                </div>
+                {pwMsg ? <p className={styles.formMessage}>{pwMsg}</p> : null}
+              </form>
+            ) : null}
+
+            {open === "invoice" ? (
+              <form action={createInvoice} className={styles.form}>
+                <div className={styles.formGrid}>
+                  <label className={styles.formSpan2}>
+                    Due date
+                    <input name="dueAt" type="date" defaultValue={new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)} />
+                  </label>
+                </div>
+                {lines.map((line, index) => (
+                  <fieldset className={`${styles.lineEditor} ${styles.formSpan2}`} key={line.id}>
+                    <legend>Line {index + 1}</legend>
+                    <div className={styles.formGrid}>
+                      <label className={styles.formSpan2}>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" required /></label>
+                      <label>Billing cycle
+                        <select defaultValue="ONE_TIME" name="billingCycle">
+                          <option value="ONE_TIME">One time</option>
+                          <option value="MONTHLY">Monthly</option>
+                          <option value="YEAR_1">Annually</option>
+                        </select>
+                      </label>
+                      <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
+                      <label>Amount EUR<input defaultValue="0" min="0" name="amount" step="0.01" type="number" /></label>
+                      <label>VAT rate %<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
+                    </div>
+                  </fieldset>
+                ))}
+                <button
+                  className={styles.addLineLink}
+                  type="button"
+                  onClick={() => setLines((prev) => [...prev, { id: Date.now() }])}
+                >
+                  + Add another line
+                </button>
+                <div className={styles.formActions}>
+                  <Button icon={FileText} type="submit">Create Invoice</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                </div>
+                {invoiceMsg ? <p className={styles.formMessage}>{invoiceMsg}</p> : null}
+              </form>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

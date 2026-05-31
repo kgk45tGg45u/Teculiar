@@ -978,7 +978,7 @@
 
 .invoiceCard {
   display: grid;
-  grid-template-columns: minmax(220px, 1.25fr) repeat(2, minmax(120px, 0.65fr)) minmax(120px, 0.65fr) auto auto;
+  grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(110px, 0.6fr)) minmax(110px, 0.7fr) minmax(130px, auto);
   gap: 12px;
   align-items: center;
   border: 1px solid var(--border);
@@ -1011,6 +1011,31 @@
 
 .invoiceListStatus {
   justify-items: end;
+}
+
+.invoiceListAction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.invoicePayLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: var(--accent-text, #fff) !important;
+  font-size: 0.82rem;
+  font-weight: 740;
+  text-decoration: none;
+  transition: opacity 140ms ease;
+}
+
+.invoicePayLink:hover {
+  opacity: 0.85;
 }
 
 .invoicePaper {
@@ -1063,6 +1088,7 @@
   gap: 18px;
   max-width: 980px;
   min-width: 0;
+  margin: 0 auto;
   padding: clamp(22px, 4vw, 54px);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1133,13 +1159,19 @@
 }
 
 .invoiceMetaGrid {
-  display: grid;
-  grid-template-columns: repeat(4, auto);
-  gap: 8px 18px;
-  justify-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 56px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+}
+
+.invoiceMetaGroup {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 16px;
+  align-content: start;
 }
 
 .invoiceIntro {

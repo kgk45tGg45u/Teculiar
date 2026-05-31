@@ -29,7 +29,7 @@ export function invoiceStatusLabel(status: string, locale: Locale = "en") {
   const labels: Record<string, Record<Locale, string>> = {
     PAID: { de: "Bezahlt", en: "Paid" },
     UNPAID: { de: "Unbezahlt", en: "Unpaid" },
-    OVERDUE: { de: "Ueberfaellig", en: "Overdue" },
+    OVERDUE: { de: "Überfällig", en: "Overdue" },
     FAILED: { de: "Fehlgeschlagen", en: "Failed" }
   };
   return labels[status]?.[locale] ?? humanStatus(status, locale);

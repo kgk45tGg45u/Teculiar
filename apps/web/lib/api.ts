@@ -370,6 +370,7 @@ export function initExchangeRate(rate: number, bufferCents: number) {
 }
 
 export function convertEurToUsd(eurCents: number): number {
+  if (eurCents === 0) return 0;
   return Math.round(eurCents * _usdExchangeRate) + _usdBufferCents;
 }
 
@@ -382,6 +383,19 @@ export function money(cents: number, _currency = "EUR", locale: Locale = current
     currency: displayCurrency,
     style: "currency"
   }).format(displayCents / 100);
+}
+
+/**
+ * Display a frozen/locked invoice amount — always shows in the stored currency
+ * regardless of the user's current currency preference. For paid invoices.
+ */
+export function frozenMoney(cents: number, currency: string, locale: Locale = currentLocale()): string {
+  const displayLocale = locale === "en" ? "en-US" : "de-DE";
+  const safeCurrency = currency || "EUR";
+  return new Intl.NumberFormat(displayLocale, {
+    currency: safeCurrency,
+    style: "currency"
+  }).format(cents / 100);
 }
 
 /** Server-safe money formatter — takes explicit display params instead of reading window/localStorage */
@@ -412,19 +426,21 @@ export function displayCurrencyForLocale(_currency = "EUR", _locale: Locale = cu
 export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
   const labels = {
     de: {
-      MONTHLY: "monatlich",
-      QUARTERLY: "3 Monate",
-      SEMI_ANNUAL: "6 Monate",
-      YEAR_1: "jaehrlich",
+      ONE_TIME: "Einmalig",
+      MONTHLY: "Monatlich",
+      QUARTERLY: "Vierteljährlich",
+      SEMI_ANNUAL: "Halbjährlich",
+      YEAR_1: "Jährlich",
       YEAR_2: "2 Jahre",
       YEAR_3: "3 Jahre",
       YEAR_4: "4 Jahre"
     },
     en: {
-      MONTHLY: "monthly",
-      QUARTERLY: "3 months",
-      SEMI_ANNUAL: "6 months",
-      YEAR_1: "yearly",
+      ONE_TIME: "One time",
+      MONTHLY: "Monthly",
+      QUARTERLY: "Quarterly",
+      SEMI_ANNUAL: "Semi-annual",
+      YEAR_1: "Yearly",
       YEAR_2: "2 years",
       YEAR_3: "3 years",
       YEAR_4: "4 years"

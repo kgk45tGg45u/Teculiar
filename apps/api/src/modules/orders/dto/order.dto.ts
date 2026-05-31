@@ -92,6 +92,10 @@ export class AdminCreateOrderDto {
   placedAt?: string;
 
   @IsOptional()
+  @IsString()
+  firstDueAt?: string;
+
+  @IsOptional()
   @IsBoolean()
   skipEmail?: boolean;
 

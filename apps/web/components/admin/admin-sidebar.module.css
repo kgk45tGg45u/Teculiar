@@ -61,32 +61,53 @@
   display: grid;
 }
 
-.groupBtn {
+.groupRow {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.groupLink {
+  flex: 1;
   display: flex;
   min-height: 32px;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
+  padding: 0 6px 0 10px;
   color: rgba(255, 255, 255, 0.68);
-  cursor: pointer;
-  font: inherit;
   font-size: 0.82rem;
   font-weight: 680;
-  text-align: left;
   transition: background 140ms ease, color 140ms ease;
 }
 
-.groupBtn:hover {
+.groupLink:hover {
   background: rgba(216, 241, 255, 0.08);
   color: var(--surface);
 }
 
-.groupBtnActive {
+.groupLinkActive {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.chevronBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms ease, color 140ms ease;
+  flex-shrink: 0;
+}
+
+.chevronBtn:hover {
+  background: rgba(216, 241, 255, 0.08);
+  color: var(--surface);
 }
 
 .chevron {

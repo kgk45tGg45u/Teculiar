@@ -10,6 +10,7 @@ import {
   cycleLabel,
   dateLabel as formatDate,
   formatCustomerNumber,
+  frozenMoney,
   invoiceDisplayNumber,
   money,
   type ApiAnnouncement,
@@ -137,7 +138,6 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
   const copy = dictionary[locale].client;
-  const [authReady, setAuthReady] = useState(false);
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
@@ -157,9 +157,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   useEffect(() => {
     if (!authToken("client")) {
       window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-      return;
     }
-    setAuthReady(true);
   }, []);
 
   usePortalLoadingFallback(setLoading);
@@ -309,10 +307,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const invoiceSummaryItems = invoices
     .slice(0, 4)
     .map((invoice) => ({ href: `/client/invoices/${invoice.id}`, id: invoice.id, label: `${invoiceDisplayNumber(invoice)} · ${money(invoice.totalCents, invoice.currency)}` }));
-
-  if (!authReady) {
-    return null;
-  }
 
   return (
     <div className={styles.page}>
@@ -970,22 +964,25 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
   return (
     <section className={styles.invoiceCards}>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingInvoices} />{copy.loadingInvoices}</span></section> : null}
-      {!loading && invoices.map((invoice) => (
-        <article className={styles.invoiceCard} key={invoice.id}>
-          <div className={styles.invoiceCardLead}>
-            <span>Invoice</span>
-            <strong><a href={`/client/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong>
-            {invoice.status === "PAID" ? <small>Paid {dateLabel(invoice.paidAt)} · {paymentGateway(invoice)}</small> : null}
-          </div>
-          <div className={styles.invoiceCardMeta}><span>Issued</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
-          <div className={styles.invoiceCardMeta}><span>Due</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
-          <div className={styles.invoiceCardTotal}><span>Total</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
-          <div className={styles.invoiceListStatus}><StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} /></div>
-          {invoice.status === "UNPAID" || invoice.status === "OVERDUE" ? (
-            <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay</Button>
-          ) : null}
-        </article>
-      ))}
+      {!loading && invoices.map((invoice) => {
+        const payable = invoice.status === "UNPAID" || invoice.status === "OVERDUE";
+        return (
+          <article className={styles.invoiceCard} key={invoice.id}>
+            <div className={styles.invoiceCardLead}>
+              <span>{copy.invoiceDetail}</span>
+              <strong><a href={`/client/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong>
+              {invoice.status === "PAID" ? <small>{copy.paidAt} {dateLabel(invoice.paidAt)} · {paymentGateway(invoice)}</small> : null}
+            </div>
+            <div className={styles.invoiceCardMeta}><span>{copy.issuedAt}</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
+            <div className={styles.invoiceCardMeta}><span>{copy.dueAt}</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
+            <div className={styles.invoiceCardTotal}><span>{copy.total}</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
+            <div className={styles.invoiceListAction}>
+              <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} />
+              {payable ? <a className={styles.invoicePayLink} href={`/client/billing/payment?invoice=${invoice.id}`}><CreditCard size={13} />Pay now</a> : null}
+            </div>
+          </article>
+        );
+      })}
       {!loading && invoices.length === 0 ? <section className={styles.module}><p>{copy.noInvoices}</p></section> : null}
     </section>
   );
@@ -995,22 +992,28 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
   if (!invoice) {
     return loading ? <LoadingBlock title="Invoice" /> : <section className={styles.module}><h2>Invoice</h2><p>Invoice not found.</p></section>;
   }
+  const locale = currentLocale();
+  const copy = dictionary[locale].client;
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};
   const showVat = (invoice.taxAmountCents ?? 0) > 0;
   const payable = invoice.status === "UNPAID" || invoice.status === "OVERDUE";
+  // Paid invoices: always show the exact stored amount in the stored currency
+  const fmt = (cents: number) => invoice.status === "PAID"
+    ? frozenMoney(cents, invoice.currency, locale)
+    : money(cents, invoice.currency);
 
   return (
     <section className={styles.invoicePaper}>
       <div className={styles.invoiceActionBar}>
         <div>
-          <span>{payable ? "Payment due" : "Invoice ready"}</span>
-          <strong>{money(invoice.totalCents, invoice.currency)}</strong>
-          <small>Due {dateLabel(invoice.dueAt)}</small>
+          <span>{payable ? (locale === "de" ? "Zahlung fällig" : "Payment due") : (locale === "de" ? "Rechnung bereit" : "Invoice ready")}</span>
+          <strong>{fmt(invoice.totalCents)}</strong>
+          <small>{copy.dueAt} {dateLabel(invoice.dueAt)}</small>
         </div>
         <div className={styles.invoiceActions}>
-          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>Pay invoice</Button> : null}
+          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>{locale === "de" ? "Rechnung bezahlen" : "Pay invoice"}</Button> : null}
           <InvoiceHtmlButton invoice={invoice} />
           <PdfDownloadButton invoice={invoice} />
         </div>
@@ -1040,29 +1043,54 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
         </div>
 
         <div className={styles.invoiceTitleRow}>
-          <div><span className="eyebrow">Rechnung</span><h2>Rechnung {invoiceDisplayNumber(invoice)}</h2></div>
-          <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={invoice.status === "PAID" ? "good" : "warn"} />
+          <div><span className="eyebrow">{copy.invoiceTitle}</span><h2>{copy.invoiceTitle} {invoiceDisplayNumber(invoice)}</h2></div>
+          <StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} />
         </div>
 
         <div className={styles.invoiceMetaGrid}>
-          <span>Rechnungsdatum</span><strong>{dateLabel(invoice.issuedAt)}</strong>
-          <span>Fällig am</span><strong>{dateLabel(invoice.dueAt)}</strong>
-          {invoice.status === "PAID" ? <><span>Bezahlt am</span><strong>{dateLabel(invoice.paidAt)}</strong><span>Zahlungsart</span><strong>{paymentGateway(invoice)}</strong></> : null}
-          <span>Kundennummer</span><strong>{formatCustomerNumber(customer.customerNumber ?? invoice.user?.customerNumber)}</strong>
-          <span>E-Mail</span><strong>{customer.email}</strong>
+          <div className={styles.invoiceMetaGroup}>
+            <span>{copy.invoiceDate}</span><strong>{dateLabel(invoice.issuedAt)}</strong>
+            {invoice.status === "PAID" ? <><span>{copy.invoicePaidDate}</span><strong>{dateLabel(invoice.paidAt)}</strong></> : null}
+            <span>{copy.customerNumber}</span><strong>{formatCustomerNumber(customer.customerNumber ?? invoice.user?.customerNumber)}</strong>
+          </div>
+          <div className={styles.invoiceMetaGroup}>
+            <span>{copy.invoiceDueDate}</span><strong>{dateLabel(invoice.dueAt)}</strong>
+            {invoice.status === "PAID" ? <><span>{copy.invoicePaymentMethod}</span><strong>{paymentGateway(invoice)}</strong></> : null}
+            <span>E-Mail</span><strong>{customer.email}</strong>
+          </div>
         </div>
 
-        <p className={styles.invoiceIntro}>Vielen Dank fuer Ihren Auftrag. Wir berechnen folgende Leistungen gemaess Bestellung.</p>
+        <p className={styles.invoiceIntro}>{copy.invoiceIntro}</p>
 
         <table className={`table ${styles.invoiceTable}`}>
-          <thead><tr><th>Beschreibung</th><th>Zeitraum</th><th>Menge</th><th>Einzelpreis</th><th>Summe</th></tr></thead>
-          <tbody>{(invoice.items ?? []).map((item) => <tr key={item.description}><td>{item.description}</td><td>{itemPeriod(item)}</td><td>{item.quantity}</td><td>{money(item.unitAmountCents, invoice.currency)}</td><td>{money(item.totalCents, invoice.currency)}</td></tr>)}</tbody>
+          <thead>
+            <tr>
+              <th>{copy.invoiceDescription}</th>
+              <th>{copy.invoicePeriod}</th>
+              <th>{copy.invoiceQty}</th>
+              <th>{copy.invoiceUnitPrice}</th>
+              {showVat ? <th>{copy.invoiceVat}</th> : null}
+              <th>{copy.invoiceLineTotal}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(invoice.items ?? []).map((item) => (
+              <tr key={item.description}>
+                <td>{item.description}</td>
+                <td>{itemPeriod(item, locale)}</td>
+                <td>{item.quantity}</td>
+                <td>{fmt(item.unitAmountCents)}</td>
+                {showVat ? <td>{fmt(item.taxAmountCents)}</td> : null}
+                <td>{fmt(item.totalCents)}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
 
         <div className={styles.invoiceTotals}>
-          <span>Zwischensumme <strong>{money(invoice.subtotalCents ?? invoice.totalCents, invoice.currency)}</strong></span>
-          {showVat ? <span>USt. <strong>{money(invoice.taxAmountCents ?? 0, invoice.currency)}</strong></span> : null}
-          <strong>Gesamt {money(invoice.totalCents, invoice.currency)}</strong>
+          <span>{copy.invoiceSubtotal} <strong>{fmt(invoice.subtotalCents ?? invoice.totalCents)}</strong></span>
+          {showVat ? <span>{copy.invoiceVat} <strong>{fmt(invoice.taxAmountCents ?? 0)}</strong></span> : null}
+          <strong>{copy.invoiceGrandTotal} {fmt(invoice.totalCents)}</strong>
         </div>
 
         {invoice.taxAmountCents === 0 && invoice.taxReason ? <p className={styles.invoiceNote}>{invoice.taxReason}</p> : null}
@@ -1650,11 +1678,11 @@ function dateValue(value?: string | null) {
   return Number.isFinite(date) ? date : 0;
 }
 
-function itemPeriod(item: NonNullable<ApiInvoice["items"]>[number]) {
+function itemPeriod(item: NonNullable<ApiInvoice["items"]>[number], locale = currentLocale()) {
   if (item.servicePeriodStart || item.servicePeriodEnd) {
-    return [dateLabel(item.servicePeriodStart), dateLabel(item.servicePeriodEnd)].filter((value) => value !== "-").join(" - ");
+    return [dateLabel(item.servicePeriodStart), dateLabel(item.servicePeriodEnd)].filter((value) => value !== "-").join(" – ");
   }
-  return item.billingCycle ? cycleLabel(item.billingCycle) : "-";
+  return item.billingCycle ? cycleLabel(item.billingCycle, locale) : "-";
 }
 
 function primaryServiceDomain(service: ApiService) {

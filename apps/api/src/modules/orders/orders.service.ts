@@ -206,11 +206,13 @@ export class OrdersService {
     const vatPercent = await this.billing.vatPercent();
     const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
     const snapshot = customerSnapshotFromUser(user);
+    const defaultDueAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
     const invoice = await this.billing.createInvoice({
       buyerCountryCode: user.countryCode ?? "DE",
       buyerVatId: user.vatId ?? undefined,
       customerSnapshot: snapshot,
-      dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+      dueAt: dto.firstDueAt ? new Date(dto.firstDueAt).toISOString() : defaultDueAt,
+      issuedAt: dto.placedAt ? new Date(dto.placedAt).toISOString() : undefined,
       isBusinessCustomer: user.customerType === "BUSINESS",
       lines: items.map((item) => ({
         billingCycle: item.billingCycle,
