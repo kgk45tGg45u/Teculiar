@@ -9,21 +9,30 @@
 .card {
   width: min(460px, 100%);
   display: grid;
-  gap: 18px;
+  gap: 8px;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
 
-.form {
+.cardHead {
   display: grid;
   gap: 14px;
 }
 
+.cardHead h1 {
+  margin: 0;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
 .form label {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   font-weight: 700;
 }
 
@@ -34,6 +43,21 @@
   border-radius: 8px;
   background: var(--background);
   color: var(--foreground);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.form input:-webkit-autofill,
+.form input:-webkit-autofill:focus,
+.form input:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background-color 9999s ease-out;
 }
 
 .error {

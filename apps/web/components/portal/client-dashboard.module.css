@@ -1177,6 +1177,40 @@
   line-height: 1.55;
 }
 
+.sectionDivider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+.fullField {
+  flex: 1 1 100% !important;
+}
+
+.passwordNote {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.passwordRules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  flex: 1 1 100%;
+}
+
+.rulePassed {
+  color: var(--accent-text);
+  font-size: 0.8rem;
+  font-weight: 720;
+}
+
+.ruleFailed {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 720;
+}
+
 .pdfLink {
   justify-self: end;
   font-weight: 800;

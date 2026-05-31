@@ -11,7 +11,7 @@ export function AccountMenu() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    if (authToken("admin") || authToken("client")) {
+    if (authToken("client")) {
       setLoggedIn(true);
     }
   }, []);
@@ -34,7 +34,7 @@ export function AccountMenu() {
         <button
           type="button"
           onClick={() => {
-            clearAuth();
+            clearAuth("client");
             window.location.assign("/");
           }}
         >

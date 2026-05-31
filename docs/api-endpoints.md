@@ -4,7 +4,7 @@ Base URL: `/api/v1`
 
 ## Auth
 
-- `POST /auth/register`
+- `POST /auth/register` - creates a client login. Required: `name`, `email`, `password`. Storefront signup may also send `phone`, `companyName`, `vatId`, `address` (`line1`, `postalCode`, `city`, optional `state`), `countryCode`, and `customerType` (`INDIVIDUAL` or `BUSINESS`).
 - `POST /auth/bootstrap-admin` - creates the first admin only while no admin exists.
 - `POST /auth/login`
 - `POST /auth/refresh`
@@ -55,7 +55,7 @@ Customer-number note:
 ## Orders and Checkout
 
 - `POST /orders/preview`
-- `POST /orders/checkout`
+- `POST /orders/checkout` - accepts optional client bearer auth. When auth is present, the token user owns the order and invoice; submitted customer email is not allowed to reassign the order to another existing account.
 - `POST /orders/:id/pay`
 - `GET /orders/:id`
 - `PATCH /orders/:id/status` - temporary admin order status update. Accepts `completed`, `in_progress`, or `canceled`.

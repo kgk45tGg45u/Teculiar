@@ -1506,7 +1506,7 @@ function hostingDomainUse(domainUse: "external" | "register" | "transfer", domai
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     body: JSON.stringify(body),
-    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    headers: { ...authHeaders("client"), "Content-Type": "application/json" },
     method: "POST"
   });
   const payload = await response.json().catch(() => ({}));

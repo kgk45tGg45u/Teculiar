@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronRight, Menu } from "lucide-react";
+import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { clearAuth } from "../../lib/api";
 import styles from "./admin-sidebar.module.css";
 
 type NavLeaf = { href: string; label: string };
@@ -197,6 +198,18 @@ export function AdminSidebar({ brandLogo }: { brandLogo?: string }) {
           );
         })}
       </nav>
+
+      <button
+        className={styles.logoutBtn}
+        type="button"
+        onClick={() => {
+          clearAuth("admin");
+          window.location.assign("/admin/login");
+        }}
+      >
+        <LogOut aria-hidden size={14} />
+        Log out
+      </button>
     </aside>
   );
 }

@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
     if (!hasAdminToken) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
-      url.searchParams.set("next", pathname);
+      url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
@@ -33,13 +33,13 @@ export function middleware(request: NextRequest) {
     if (!hasClientToken) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("next", pathname);
+      url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
 
-  if (pathname === "/login" || pathname === "/admin/login") {
+  if (pathname === "/login" || pathname === "/admin/login" || pathname === "/reset-password") {
     return NextResponse.next();
   }
 

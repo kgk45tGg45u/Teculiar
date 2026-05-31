@@ -4,6 +4,23 @@
   margin-top: 28px;
 }
 
+/* Wide variant: matches the full-width layout used in admin and client dashboards */
+.footerWide {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.footerWide .inner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+.inner {
+  width: min(1120px, calc(100% - 36px));
+  margin: 0 auto;
+}
+
 .top {
   display: grid;
   grid-template-columns: 1fr 2fr;

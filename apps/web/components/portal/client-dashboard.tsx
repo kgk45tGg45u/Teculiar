@@ -1,15 +1,15 @@
 "use client";
 
 import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
   authHeaders,
+  authToken,
   currentLocale,
   cycleLabel,
   dateLabel as formatDate,
   formatCustomerNumber,
-  initExchangeRate,
   invoiceDisplayNumber,
   money,
   type ApiAnnouncement,
@@ -20,9 +20,7 @@ import {
 } from "../../lib/api";
 import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { dictionary, type Locale } from "../../lib/i18n";
-import { LanguageToggle } from "../layout/language-toggle";
 import { Button } from "../ui/button";
-import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./client-dashboard.module.css";
@@ -74,7 +72,6 @@ type ClientProfile = {
 };
 type PortalDataCache = {
   announcementsByLocale?: Partial<Record<Locale, ApiAnnouncement[]>>;
-  brandLogo?: string;
   invoices?: ApiInvoice[];
   knowledgebaseByLocale?: Partial<Record<Locale, ApiKnowledgebaseArticle[]>>;
   profile?: ClientProfile;
@@ -140,6 +137,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
   const copy = dictionary[locale].client;
+  const [authReady, setAuthReady] = useState(false);
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
@@ -149,7 +147,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const [selectedTicket, setSelectedTicket] = useState<ApiTicket>();
   const [knowledgebase, setKnowledgebase] = useState<ApiKnowledgebaseArticle[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
-  const [brandLogo, setBrandLogo] = useState("");
   const [loading, setLoading] = useState<Record<LoadingKey, boolean>>(initialLoading);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const seenServiceStatuses = useRef(new Map<string, string>());
@@ -157,13 +154,20 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const servicesRef = useRef<ApiService[]>([]);
   const finishLoading = (key: LoadingKey) => setLoading((current) => ({ ...current, [key]: false }));
 
+  useEffect(() => {
+    if (!authToken("client")) {
+      window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+    setAuthReady(true);
+  }, []);
+
   usePortalLoadingFallback(setLoading);
   usePortalNavigationRecovery(setLoading, setRefreshVersion);
 
   useEffect(() => {
     applyPortalCache(locale, {
       setAnnouncements,
-      setBrandLogo,
       setInvoices,
       setKnowledgebase,
       setProfile,
@@ -279,15 +283,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         setProfile(payload);
       }
     }).catch(() => undefined).finally(() => finishLoading("profile"));
-    fetchPortalJson<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number }>(`${API_BASE_URL}/storefront/settings`).then((payload) => {
-      if (payload?.siteLogoUrl) {
-        portalDataCache.brandLogo = payload.siteLogoUrl;
-        setBrandLogo(payload.siteLogoUrl);
-      }
-      if (payload?.usdExchangeRate) {
-        initExchangeRate(payload.usdExchangeRate, payload.usdBufferCents ?? 0);
-      }
-    }).catch(() => undefined);
     fetchPortalJson<ApiAnnouncement[]>(`${API_BASE_URL}/cms/announcements?locale=${locale}`, { headers }).then((payload) => {
       if (Array.isArray(payload)) {
         portalDataCache.announcementsByLocale = { ...(portalDataCache.announcementsByLocale ?? {}), [locale]: payload };
@@ -315,10 +310,13 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     .slice(0, 4)
     .map((invoice) => ({ href: `/client/invoices/${invoice.id}`, id: invoice.id, label: `${invoiceDisplayNumber(invoice)} · ${money(invoice.totalCents, invoice.currency)}` }));
 
+  if (!authReady) {
+    return null;
+  }
+
   return (
     <div className={styles.page}>
       <aside className={styles.sidebar}>
-        {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <strong>CrimsonGrid</strong>}
         <nav aria-label="Client">
           <a aria-current={clientNavCurrent(view, "dashboard")} href="/client">{copy.overview}</a>
           <a aria-current={clientNavCurrent(view, "services")} href="/client/services">{copy.services}</a>
@@ -345,13 +343,9 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
             <h1>{serviceId && selectedService ? serviceName(selectedService) : titleFor(view, locale)}</h1>
           </div>
           <div className={styles.headerActions}>
-            <Suspense>
-              <LanguageToggle locale={locale} />
-            </Suspense>
             <Button href={`/${locale}/pricing`} icon={CreditCard}>
               {copy.newService}
             </Button>
-            <LogoutButton scope="client" redirectTo="/client/login" />
           </div>
         </header>
 
@@ -426,7 +420,6 @@ function applyPortalCache(
   locale: Locale,
   setters: {
     setAnnouncements: (items: ApiAnnouncement[]) => void;
-    setBrandLogo: (url: string) => void;
     setInvoices: (items: ApiInvoice[]) => void;
     setKnowledgebase: (items: ApiKnowledgebaseArticle[]) => void;
     setProfile: (profile: ClientProfile) => void;
@@ -453,9 +446,6 @@ function applyPortalCache(
   }
   if (portalDataCache.profile) {
     setters.setProfile(portalDataCache.profile);
-  }
-  if (portalDataCache.brandLogo) {
-    setters.setBrandLogo(portalDataCache.brandLogo);
   }
 }
 
@@ -1472,6 +1462,17 @@ function PaymentInfo() {
   );
 }
 
+function isStrongPassword(password: string) {
+  return (
+    password.length >= 9 &&
+    password.length <= 16 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password) &&
+    /[~*!@$#%_+.?:,{}]/.test(password)
+  );
+}
+
 function ProfileForm({
   profile,
   setProfile
@@ -1488,6 +1489,9 @@ function ProfileForm({
   setProfile: (profile: any) => void;
 }) {
   const [message, setMessage] = useState("");
+  const [pwMessage, setPwMessage] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/users/me`, {
       body: JSON.stringify({
@@ -1512,7 +1516,91 @@ function ProfileForm({
     }
     setMessage(await notifyResponse(response, "Profile saved.", "Profile failed."));
   }
-  return <form action={submit} className={styles.module} key={profile?.email ?? "profile"}><UserRound aria-hidden /><h2>Profile</h2><p>Kundennummer: <strong>{formatCustomerNumber(profile?.customerNumber)}</strong></p><p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p><label>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label><label>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label><label>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label><label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label><label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label><label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label><label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label><label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label><label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label><Button icon={FileText} type="submit">Save Profile</Button>{message ? <p>{message}</p> : null}</form>;
+
+  async function changePassword(formData: FormData) {
+    const currentPassword = String(formData.get("currentPassword") ?? "");
+    const newPw = String(formData.get("newPassword") ?? "");
+    const confirmPw = String(formData.get("confirmPassword") ?? "");
+    if (newPw !== confirmPw) {
+      setPwMessage("New passwords do not match.");
+      notify.error("New passwords do not match.");
+      return;
+    }
+    if (!isStrongPassword(newPw)) {
+      setPwMessage("Password must be 9-16 characters with uppercase, lowercase, number, and special character (~*!@$#%_+.?:,{}).");
+      notify.error("Password does not meet requirements.");
+      return;
+    }
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      body: JSON.stringify({ currentPassword, newPassword: newPw }),
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    setPwMessage(await notifyResponse(response, "Password changed successfully.", "Password change failed."));
+    if (response.ok) {
+      setNewPassword("");
+    }
+  }
+
+  const passwordRules = [
+    { label: "9–16 characters", passed: newPassword.length >= 9 && newPassword.length <= 16 },
+    { label: "Uppercase letter", passed: /[A-Z]/.test(newPassword) },
+    { label: "Lowercase letter", passed: /[a-z]/.test(newPassword) },
+    { label: "Number", passed: /\d/.test(newPassword) },
+    { label: "Special character (~*!@$#%_+.?:,{})", passed: /[~*!@$#%_+.?:,{}]/.test(newPassword) }
+  ];
+
+  return (
+    <div className={styles.module}>
+      <UserRound aria-hidden />
+      <h2>Profile</h2>
+      <p>Kundennummer: <strong>{formatCustomerNumber(profile?.customerNumber)}</strong></p>
+      <p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p>
+      <form action={submit} key={profile?.email ?? "profile"} className={styles.inlineForm}>
+        <label className={styles.fullField}>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label>
+        <label className={styles.fullField}>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label>
+        <label className={styles.fullField}>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label>
+        <label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label>
+        <label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label>
+        <label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label>
+        <label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label>
+        <label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label>
+        <label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label>
+        <Button icon={FileText} type="submit">Save Profile</Button>
+        {message ? <p>{message}</p> : null}
+      </form>
+
+      <hr className={styles.sectionDivider} />
+      <h3>Change Password</h3>
+      <p className={styles.passwordNote}>Must be 9–16 characters with uppercase, lowercase, a number, and a special character.</p>
+      <form action={changePassword} className={styles.inlineForm}>
+        <label className={styles.fullField}>Current Password<input autoComplete="current-password" className="input" name="currentPassword" required type="password" /></label>
+        <label className={styles.fullField}>New Password
+          <input
+            autoComplete="new-password"
+            className="input"
+            name="newPassword"
+            required
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </label>
+        {newPassword.length > 0 && (
+          <div className={styles.passwordRules}>
+            {passwordRules.map((rule) => (
+              <span key={rule.label} className={rule.passed ? styles.rulePassed : styles.ruleFailed}>
+                {rule.passed ? "✓" : "○"} {rule.label}
+              </span>
+            ))}
+          </div>
+        )}
+        <label className={styles.fullField}>Confirm New Password<input autoComplete="new-password" className="input" name="confirmPassword" required type="password" /></label>
+        <Button type="submit" variant="secondary">Change Password</Button>
+        {pwMessage ? <p>{pwMessage}</p> : null}
+      </form>
+    </div>
+  );
 }
 
 function titleFor(view: ClientView, locale: Locale = currentLocale()) {

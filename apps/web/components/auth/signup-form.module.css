@@ -1,0 +1,210 @@
+.shell {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+  padding: clamp(24px, 5vw, 64px) 18px;
+}
+
+.card {
+  display: grid;
+  gap: 24px;
+  width: min(680px, 100%);
+}
+
+.cardHead {
+  display: grid;
+  gap: 6px;
+}
+
+.cardHead h1 {
+  margin: 4px 0 0;
+  font-size: clamp(1.6rem, 4vw, 2.1rem);
+}
+
+.cardHead p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.cardHead a {
+  color: var(--accent-text);
+  font-weight: 720;
+}
+
+.form {
+  display: grid;
+  gap: 20px;
+}
+
+.fieldset {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--surface);
+}
+
+.fieldset legend {
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fieldset label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 720;
+  color: var(--ink);
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.passwordControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordInputWrap .input {
+  padding-right: 72px;
+}
+
+.passwordIcons {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-50%);
+}
+
+.passwordIconBtn {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.passwordIconBtn:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.passwordIconBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.passwordIconBtnActive {
+  color: var(--accent-text);
+}
+
+.generateBtn {
+  align-self: end;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 620;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.generateBtn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.passwordRules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.rulePassed {
+  color: var(--accent-text);
+  font-size: 0.8rem;
+  font-weight: 720;
+}
+
+.ruleFailed {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 720;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.checkboxLabel input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.checkboxLabel a {
+  color: var(--accent-text);
+  font-weight: 720;
+}
+
+.error {
+  color: var(--danger, #c0392b);
+  font-size: 0.88rem;
+  font-weight: 720;
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,19 +1,19 @@
 import { Suspense } from "react";
 import { SiteHeader } from "../../components/layout/site-header";
 import { SiteFooter } from "../../components/layout/site-footer";
+import { apiGet } from "../../lib/api";
 import { requestLocale } from "../../lib/server-locale";
-import { apiGetAuth } from "../../lib/server-api";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
-  const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings").catch(() => null)) ?? {};
+  const settings = (await apiGet<{ siteLogoUrl?: string }>("/storefront/settings")) ?? {};
   return (
     <>
       <Suspense>
         <SiteHeader brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" />
       </Suspense>
       {children}
-      <SiteFooter locale={locale} brandLogo={settings.siteLogoUrl} />
+      <SiteFooter locale={locale} brandLogo={settings.siteLogoUrl} variant="admin" />
     </>
   );
 }

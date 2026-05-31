@@ -92,7 +92,7 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
 
 test("logged-in storefront checkout can reuse the account email without password re-registration", async () => {
   const calls = [];
-  const existingUser = { id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
+  const existingUser = { customerNumber: 123, id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
   const item = pricedHostingItem();
   const orders = {
     createOrder: async (input) => {
@@ -109,9 +109,12 @@ test("logged-in storefront checkout can reuse the account email without password
     vatPercent: async () => 0
   };
   const users = {
-    findByEmail: async (email) => {
-      calls.push(["findByEmail", email]);
+    findById: async (id) => {
+      calls.push(["findById", id]);
       return existingUser;
+    },
+    findByEmail: async () => {
+      throw new Error("logged-in checkout looked up submitted email");
     },
     findOrCreatePendingCheckoutUser: async () => {
       throw new Error("logged-in checkout used pending checkout user");
@@ -127,14 +130,14 @@ test("logged-in storefront checkout can reuse the account email without password
   );
 
   assert.deepEqual(calls, [
-    ["findByEmail", "bijans@test.com"],
+    ["findById", "real-user"],
     ["createInvoice", "real-user", undefined],
     ["createOrder", "real-user"]
   ]);
 });
 
 test("logged-in storefront checkout does not require a password", async () => {
-  const existingUser = { id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
+  const existingUser = { customerNumber: 123, id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
   const item = pricedHostingItem();
   const orders = {
     createOrder: async (input) => ({ id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId }),
@@ -145,7 +148,10 @@ test("logged-in storefront checkout does not require a password", async () => {
     vatPercent: async () => 0
   };
   const users = {
-    findByEmail: async () => existingUser,
+    findById: async () => existingUser,
+    findByEmail: async () => {
+      throw new Error("logged-in checkout looked up submitted email");
+    },
     findOrCreatePendingCheckoutUser: async () => {
       throw new Error("logged-in checkout used pending checkout user");
     }
@@ -160,6 +166,51 @@ test("logged-in storefront checkout does not require a password", async () => {
       { sub: "real-user" }
     )
   );
+});
+
+test("logged-in storefront checkout uses token account over autofilled email", async () => {
+  const calls = [];
+  const authUser = { customerNumber: 777, email: "new-client@example.test", id: "new-user" };
+  const wrongUser = { customerNumber: 111, email: "bijans@gmail.com", id: "wrong-user", passwordHash: "wrong-hash" };
+  const item = pricedHostingItem();
+  const orders = {
+    createOrder: async (input) => {
+      calls.push(["createOrder", input.userId, input.customerSnapshot.email, input.customerSnapshot.customerNumber]);
+      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    },
+    createPendingEntitiesForOrder: async () => undefined
+  };
+  const billing = {
+    createInvoice: async (input) => {
+      calls.push(["createInvoice", input.userId, input.customerSnapshot.email, input.customerSnapshot.customerNumber]);
+      return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
+    },
+    vatPercent: async () => 0
+  };
+  const users = {
+    findById: async (id) => {
+      calls.push(["findById", id]);
+      return authUser;
+    },
+    findByEmail: async () => wrongUser,
+    findOrCreatePendingCheckoutUser: async () => {
+      throw new Error("logged-in checkout used pending checkout user");
+    }
+  };
+
+  const service = new OrdersService(orders, billing, {}, users, domainPricing());
+  service.priceItems = async () => [item];
+
+  await service.checkout(
+    { customer: { ...customer, email: "bijans@gmail.com", password: "autofilled-old-password" }, items: [{ productId: "hosting" }] },
+    { sub: "new-user" }
+  );
+
+  assert.deepEqual(calls, [
+    ["findById", "new-user"],
+    ["createInvoice", "new-user", "new-client@example.test", 777],
+    ["createOrder", "new-user", "new-client@example.test", 777]
+  ]);
 });
 
 test("domain checkout requires registrant contact data before payment", async () => {
@@ -291,7 +342,7 @@ test("checkout form locks logged-in checkout to profile email", async () => {
 test("checkout API requests include auth headers when present", async () => {
   const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /headers: \{ \.\.\.authHeaders\(\), "Content-Type": "application\/json" \}/);
+  assert.match(source, /headers: \{ \.\.\.authHeaders\("client"\), "Content-Type": "application\/json" \}/);
 });
 
 test("site header swaps account link for signed-in account menu with logout", async () => {

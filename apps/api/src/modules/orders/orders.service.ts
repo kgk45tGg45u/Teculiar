@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
@@ -105,13 +105,19 @@ export class OrdersService {
   }
 
   async checkout(dto: CheckoutOrderDto, authUser?: { sub: string }) {
-    const email = dto.customer.email.trim().toLowerCase();
-    const existing = await this.users.findByEmail(email);
-    const isLoggedInAccount = Boolean(authUser?.sub && existing?.id === authUser.sub);
+    const submittedEmail = dto.customer.email.trim().toLowerCase();
+    const authAccount = authUser?.sub ? await this.users.findById(authUser.sub) : null;
+    if (authUser?.sub && !authAccount) {
+      throw new UnauthorizedException("Invalid access token");
+    }
+    const email = authAccount?.email ?? submittedEmail;
+    const existingByEmail = authAccount ? null : await this.users.findByEmail(email);
+    const existing = authAccount ?? existingByEmail;
+    const isLoggedInAccount = Boolean(authAccount);
     if (!isLoggedInAccount && !dto.customer.password) {
       throw new BadRequestException("Password is required");
     }
-    if (existing && !isLoggedInAccount && !(await compare(dto.customer.password, existing.passwordHash))) {
+    if (existingByEmail && !(await compare(dto.customer.password, existingByEmail.passwordHash))) {
       throw new BadRequestException("Email is already registered. Please log in before ordering.");
     }
 

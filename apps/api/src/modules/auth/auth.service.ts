@@ -22,16 +22,22 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
-    const existing = await this.users.findByEmail(dto.email.trim().toLowerCase());
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.users.findByEmail(email);
     if (existing) {
       throw new BadRequestException("Email is already registered");
     }
 
     const passwordHash = await hash(dto.password, 12);
-    const user = await this.users.createUser({
-      email: dto.email.toLowerCase(),
+    const user = await this.users.createClient({
+      address: dto.address,
+      countryCode: dto.countryCode,
+      customerType: dto.customerType,
+      email,
       name: dto.name,
-      passwordHash
+      passwordHash,
+      phone: dto.phone,
+      vatId: dto.vatId
     });
     void this.users.createAuditLog({
       action: "user.registered",

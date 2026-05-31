@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { IsEmail, IsIn, IsObject, IsOptional, IsString, MinLength } from "class-validator";
 
 export class RegisterDto {
   @IsEmail()
@@ -11,4 +11,28 @@ export class RegisterDto {
   @IsString()
   @MinLength(12)
   password: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  vatId?: string;
+
+  @IsOptional()
+  @IsObject()
+  address?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsIn(["INDIVIDUAL", "BUSINESS"])
+  customerType?: "INDIVIDUAL" | "BUSINESS";
 }
