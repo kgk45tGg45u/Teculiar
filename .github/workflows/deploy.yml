@@ -6,9 +6,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Images are tagged as ghcr.io/<owner>/dezhost-api and dezhost-web
-  IMAGE_API: ghcr.io/${{ github.repository_owner }}/dezhost-api
-  IMAGE_WEB: ghcr.io/${{ github.repository_owner }}/dezhost-web
 
 jobs:
   build-and-push:
@@ -22,6 +19,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Docker image names must be lowercase — GitHub usernames can have capitals.
+      # Step outputs (>> $GITHUB_OUTPUT) are the recommended way to pass
+      # computed values between steps without triggering linter warnings.
+      - name: Set lowercase image names
+        id: vars
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "image_api=ghcr.io/${OWNER}/dezhost-api" >> $GITHUB_OUTPUT
+          echo "image_web=ghcr.io/${OWNER}/dezhost-web" >> $GITHUB_OUTPUT
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -32,22 +39,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── API image ───────────────────────────────────────────────────────────
+      # ── API image ─────────────────────────────────────────────────────────────
       - name: Build and push API image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.api
           push: true
           tags: |
-            ${{ env.IMAGE_API }}:latest
-            ${{ env.IMAGE_API }}:${{ github.sha }}
+            ${{ steps.vars.outputs.image_api }}:latest
+            ${{ steps.vars.outputs.image_api }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── Web image ───────────────────────────────────────────────────────────
+      # ── Web image ─────────────────────────────────────────────────────────────
       - name: Build and push Web image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.web
@@ -57,8 +64,8 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           tags: |
-            ${{ env.IMAGE_WEB }}:latest
-            ${{ env.IMAGE_WEB }}:${{ github.sha }}
+            ${{ steps.vars.outputs.image_web }}:latest
+            ${{ steps.vars.outputs.image_web }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -66,7 +73,7 @@ jobs:
     name: Deploy to server
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: production   # optional: add manual approval in GitHub Environments
+    environment: production
 
     steps:
       - name: Deploy via SSH
@@ -75,12 +82,11 @@ jobs:
           host:     ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          # Optional: port: ${{ secrets.SSH_PORT }}  (default 22)
           script: |
             set -e
             cd /opt/dezhost
 
-            # Authenticate with ghcr.io using the deploy token stored on the server
+            # Authenticate with ghcr.io to pull the private images
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
             # Pull the freshly built images
@@ -92,7 +98,5 @@ jobs:
             # Remove dangling images to save disk space
             docker image prune -f
         env:
-          # These two are read by the SSH script — store them as server-side env vars
-          # in /opt/dezhost/.env.deploy or export them in /etc/profile.d/dezhost.sh
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_USER:  ${{ github.repository_owner }}
