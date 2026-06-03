@@ -13,10 +13,11 @@ services:
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      # 120s gives plenty of time for Prisma migrations on first boot
+      start_period: 120s
 
   web:
     image: ghcr.io/kgk45tgg45u/dezhost-web:latest
@@ -25,12 +26,15 @@ services:
       - "127.0.0.1:3000:3000"
     env_file:
       - /opt/dezhost/.env
+    # service_started (not service_healthy) so the deploy does not block
+    # waiting for health checks — the web container handles API-not-ready
+    # gracefully on its own.
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 60s
