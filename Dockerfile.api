@@ -33,8 +33,9 @@ ENV NODE_ENV=production
 
 # Pruned node_modules (includes Prisma engines + workspace symlinks)
 COPY --from=builder /app/node_modules         ./node_modules
-# Compiled packages
-COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+# Compiled shared package — must include package.json so Node can resolve
+# the workspace symlink node_modules/@dezhost/shared → packages/shared
+COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/apps/api/dist        ./apps/api/dist
 # Prisma schema + migration files (needed by migrate deploy)
 COPY --from=builder /app/prisma               ./prisma
