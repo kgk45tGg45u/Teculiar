@@ -76,27 +76,25 @@ jobs:
     environment: production
 
     steps:
+      # Write the private key to a file and add the server to known_hosts
+      # so ssh does not prompt for confirmation.
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      # docker login is NOT done here — credentials are stored permanently on
+      # the server after a one-time setup (see DEPLOYMENT.md step 2.9).
+      # This keeps secrets out of every deploy run entirely.
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key:      ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            set -e
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "set -e
             cd /opt/dezhost
-
-            # Authenticate with ghcr.io to pull the private images
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-
-            # Pull the freshly built images
             docker compose -f docker-compose.prod.yml pull
-
-            # Restart containers (API runs migrations on startup)
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
-
-            # Remove dangling images to save disk space
-            docker image prune -f
-        env:
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GHCR_USER:  ${{ github.repository_owner }}
+            docker image prune -f"
