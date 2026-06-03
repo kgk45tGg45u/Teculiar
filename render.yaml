@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: starter
     branch: main
-    buildCommand: npm install && npm exec prisma generate -- --schema prisma/schema.prisma && npm --workspace @crimson/api run build
-    startCommand: npm exec prisma migrate deploy -- --schema prisma/schema.prisma && npm --workspace @crimson/api run start:prod
+    buildCommand: npm install && npm exec prisma generate -- --schema prisma/schema.prisma && npm --workspace @dezhost/api run build
+    startCommand: npm exec prisma migrate deploy -- --schema prisma/schema.prisma && npm --workspace @dezhost/api run start:prod
     healthCheckPath: /api/v1/health
     autoDeploy: true
     envVars:

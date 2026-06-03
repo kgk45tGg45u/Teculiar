@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
-import { billingCycles, productTypes } from "@crimson/shared";
+import { billingCycles, productTypes } from "@dezhost/shared";
 
 type PriceInput = {
   amountCents: number;

@@ -1,4 +1,4 @@
-import { formatCustomerNumber } from "@crimson/shared";
+import { formatCustomerNumber } from "@dezhost/shared";
 import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
 
 export { formatCustomerNumber };

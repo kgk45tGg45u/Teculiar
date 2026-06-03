@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { InvoiceLineInput, TaxContext } from "@crimson/shared";
+import type { InvoiceLineInput, TaxContext } from "@dezhost/shared";
 import { TaxService } from "./tax.service";
 
 type Coupon =

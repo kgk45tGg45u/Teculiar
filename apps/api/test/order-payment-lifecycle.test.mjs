@@ -349,17 +349,19 @@ test("site header swaps account link for signed-in account menu with logout", as
   const header = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
   const menu = await readFile(new URL("../../web/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
-  assert.match(header, /<AccountMenu clientLabel=\{copy\.nav\.client\} \/>/);
+  assert.match(header, /<AccountMenu \/>/);
   assert.match(menu, /Dashboard/);
   assert.match(menu, /Log out/);
-  assert.match(menu, /clearAuth\(\)/);
+  assert.match(menu, /clearAuth\("client"\)/);
 });
 
 test("portal and admin dashboards expose logout actions", async () => {
   const client = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
   const admin = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  const accountMenu = await readFile(new URL("../../web/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
-  assert.match(client, /<LogoutButton scope="client"/);
+  assert.match(accountMenu, /clearAuth\("client"\)/);
+  assert.match(client, /href="\/client\/profile"/);
   assert.match(admin, /<LogoutButton scope="admin"/);
 });
 
@@ -392,7 +394,7 @@ test("client dashboard puts combined feed below services", async () => {
   assert.ok(servicesIndex > overviewIndex);
   assert.ok(feedIndex > servicesIndex);
   assert.match(source, /className=\{styles\.balanceCard\}/);
-  assert.match(source, /Announcements and Knowledgebase articles/);
+  assert.match(source, /copy\.announcementsAndArticles/);
   assert.match(source, /dashboardFeedItems/);
   assert.match(css, /position:\s*sticky[\s\S]*top:\s*0/);
   assert.match(css, /\.dashboardFeed/);
@@ -489,7 +491,9 @@ test("domain pricing honors requested billing cycle when product price id is onl
 
 test("suggested-only domain price markers do not become zero live prices", async () => {
   const prisma = {
-    $queryRaw: async () => [{ amountCents: 0 }]
+    domainTldPrice: {
+      findFirst: async () => ({ amountCents: 0 })
+    }
   };
   const service = new DomainPricingService(prisma);
 
@@ -502,8 +506,10 @@ test("suggested-only domain price markers do not become zero live prices", async
 test("admin can save suggested TLD without manual amount", async () => {
   const calls = [];
   const prisma = {
-    $executeRaw: async (strings, ...values) => {
-      calls.push({ sql: Array.from(strings).join("?"), values });
+    domainTldPrice: {
+      upsert: async (input) => {
+        calls.push(input);
+      }
     }
   };
   const service = new DomainPricingService(prisma);
@@ -511,8 +517,9 @@ test("admin can save suggested TLD without manual amount", async () => {
   await service.upsertStoredPrice({ action: "register", suggested: true, tld: "app", years: 1 });
 
   assert.equal(calls.length, 1);
-  assert.ok(!calls[0].values.includes(undefined));
-  assert.doesNotMatch(calls[0].sql, /"amountCents" = EXCLUDED\."amountCents"/);
+  assert.equal(calls[0].create.amountCents, 0);
+  assert.equal(calls[0].update.suggested, true);
+  assert.equal(calls[0].update.amountCents, undefined);
 });
 
 test("checkout summary multiplies selected domain year price by selected years", async () => {

@@ -4,7 +4,7 @@ import { ToastProvider } from "../components/ui/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Crimson Hosting Platform",
+  title: "Dezhost",
   description: "German hosting and IT services SaaS platform"
 };
 

@@ -40,7 +40,7 @@
 }
 
 .trustBar svg {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 /* Packages section */
@@ -91,7 +91,7 @@
 }
 
 .billingToggle .toggleActive {
-  background: var(--crimson);
+  background: var(--dezhost);
   color: white;
 }
 
@@ -125,7 +125,7 @@
 }
 
 .packageFeatured {
-  border-color: var(--crimson);
+  border-color: var(--dezhost);
   background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
 }
 
@@ -140,7 +140,7 @@
   left: 20px;
   display: inline-block;
   padding: 4px 10px;
-  background: var(--crimson);
+  background: var(--dezhost);
   color: white;
   font-size: 0.72rem;
   font-weight: 760;
@@ -159,7 +159,7 @@
 .packagePrice strong {
   font-size: 1.6rem;
   font-weight: 820;
-  color: var(--crimson);
+  color: var(--dezhost);
   line-height: 1;
 }
 
@@ -207,7 +207,7 @@
 }
 
 .packageFeatures svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
 }
 
@@ -235,7 +235,7 @@
   margin-top: 4px;
   padding: 0 18px;
   border-radius: 8px;
-  background: var(--crimson);
+  background: var(--dezhost);
   color: #fff;
   font-weight: 800;
 }
@@ -265,7 +265,7 @@
   border-radius: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
 }
 
@@ -341,7 +341,7 @@
 }
 
 .featureCard svg {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .featureCard h3 {
@@ -446,11 +446,11 @@
 }
 
 .faqSummary:hover {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .faqItemOpen .faqSummary {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .faqChevron {

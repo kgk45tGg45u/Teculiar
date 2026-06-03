@@ -36,7 +36,7 @@ export const usePortalStore = create<PortalState>((set) => ({
     },
     {
       id: "svc_domain_01",
-      name: "crimson-grid.de",
+      name: "dezhost.de",
       kind: "Domain",
       status: "active",
       renewsAt: "2027-05-03"

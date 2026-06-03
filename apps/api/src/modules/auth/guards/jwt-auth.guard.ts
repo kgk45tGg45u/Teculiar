@@ -34,6 +34,12 @@ export class OptionalJwtAuthGuard extends JwtAuthGuard {
     if (!token) {
       return true;
     }
-    return super.canActivate(context);
+    try {
+      return super.canActivate(context);
+    } catch {
+      // Treat expired/invalid tokens as anonymous — guest checkout must still work
+      request.user = undefined;
+      return true;
+    }
   }
 }

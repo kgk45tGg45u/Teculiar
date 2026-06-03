@@ -70,7 +70,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.9rem;
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 /* Steps */
@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .stepIcon span {
@@ -146,7 +146,7 @@
 
 .tldItem strong {
   font-size: 1.3rem;
-  color: var(--crimson);
+  color: var(--dezhost);
   font-weight: 820;
 }
 
@@ -212,7 +212,7 @@
 }
 
 .dnsInner svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
   margin-top: 4px;
 }
@@ -276,7 +276,7 @@
 }
 
 .faqItem[open] summary {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .faqItem p {

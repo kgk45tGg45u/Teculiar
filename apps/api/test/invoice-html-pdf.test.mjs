@@ -5,7 +5,7 @@ import {
   renderInvoiceDocument,
   renderInvoicePdfFromHtml
 } from "../dist/modules/billing/invoice-document.js";
-import { formatCustomerNumber } from "@crimson/shared";
+import { formatCustomerNumber } from "@dezhost/shared";
 
 const invoice = {
   currency: "EUR",
@@ -104,14 +104,14 @@ test("billing controller exposes protected HTML before PDF download", async () =
 
 test("users have stored customer numbers selected for profiles and invoices", async () => {
   const schema = await readFile(new URL("../../../prisma/schema.prisma", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../../../prisma/migrations/20260523120000_customer_numbers/migration.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../../../prisma/migrations/20260504211933_new_migration/migration.sql", import.meta.url), "utf8");
   const usersRepository = await readFile(new URL("../src/modules/users/users.repository.ts", import.meta.url), "utf8");
   const billingRepository = await readFile(new URL("../src/modules/billing/billing.repository.ts", import.meta.url), "utf8");
   const billingService = await readFile(new URL("../src/modules/billing/billing.service.ts", import.meta.url), "utf8");
 
   assert.match(schema, /customerNumber\s+Int\s+@unique\s+@default\(autoincrement\(\)\)/);
-  assert.match(migration, /CREATE SEQUENCE "User_customerNumber_seq"/);
-  assert.match(migration, /ROW_NUMBER\(\) OVER \(ORDER BY "createdAt", id\)/);
+  assert.match(migration, /`customerNumber` INTEGER NOT NULL AUTO_INCREMENT/);
+  assert.match(migration, /UNIQUE INDEX `User_customerNumber_key`\(`customerNumber`\)/);
   assert.match(usersRepository, /customerNumber: true/);
   assert.match(billingRepository, /customerNumber: true/);
   assert.match(billingService, /customerNumber: user\.customerNumber/);

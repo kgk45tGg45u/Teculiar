@@ -138,6 +138,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
   const copy = dictionary[locale].client;
+  const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
   const [selectedService, setSelectedService] = useState<ApiService>();
@@ -157,6 +158,8 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   useEffect(() => {
     if (!authToken("client")) {
       window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+    } else {
+      setAuthChecked(true);
     }
   }, []);
 
@@ -307,6 +310,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const invoiceSummaryItems = invoices
     .slice(0, 4)
     .map((invoice) => ({ href: `/client/invoices/${invoice.id}`, id: invoice.id, label: `${invoiceDisplayNumber(invoice)} · ${money(invoice.totalCents, invoice.currency)}` }));
+
+  if (!authChecked) {
+    return null;
+  }
 
   return (
     <div className={styles.page}>

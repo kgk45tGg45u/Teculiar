@@ -178,6 +178,13 @@
   font-weight: 720;
 }
 
+.fieldHint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: -2px;
+}
+
 .checkboxLabel {
   display: flex;
   align-items: flex-start;

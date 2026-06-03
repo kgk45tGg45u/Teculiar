@@ -14,8 +14,8 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@crimson/shared": ["packages/shared/src/index.ts"],
-      "@crimson/shared/*": ["packages/shared/src/*"]
+      "@dezhost/shared": ["packages/shared/src/index.ts"],
+      "@dezhost/shared/*": ["packages/shared/src/*"]
     }
   }
 }

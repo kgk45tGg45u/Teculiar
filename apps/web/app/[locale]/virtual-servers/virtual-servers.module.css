@@ -55,7 +55,7 @@
 }
 
 .productIcon {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .productHeader h3 {
@@ -72,7 +72,7 @@
 .productPrice strong {
   font-size: 1.7rem;
   font-weight: 820;
-  color: var(--crimson);
+  color: var(--dezhost);
   line-height: 1;
 }
 
@@ -105,7 +105,7 @@
 }
 
 .specList svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex: 0 0 auto;
 }
 
@@ -115,7 +115,7 @@
   gap: 6px;
   padding: 10px 18px;
   border-radius: 8px;
-  background: var(--crimson);
+  background: var(--dezhost);
   color: #fff;
   font-size: 0.9rem;
   font-weight: 760;
@@ -151,7 +151,7 @@
 }
 
 .featureIcon {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .featureCard strong {

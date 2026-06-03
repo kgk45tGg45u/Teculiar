@@ -12,13 +12,16 @@ import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
   brandLogo?: string;
+  brandHref?: string;
   locale: Locale;
   variant?: "site" | "admin";
 };
 
-export function SiteHeader({ brandLogo, locale, variant = "site" }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: SiteHeaderProps) {
   const copy = dictionary[locale];
   const base = `/${locale}`;
+  const isPanel = variant === "admin";
+  const brandLabel = isPanel ? "Teculiar" : "Dezhost";
 
   const navLinks = [
     { href: `${base}/domains`, label: copy.nav.domains },
@@ -38,8 +41,8 @@ export function SiteHeader({ brandLogo, locale, variant = "site" }: SiteHeaderPr
     <header className={styles.header}>
       <DetailsAutoClose />
       <div className={`${styles.inner}${variant === "admin" ? ` ${styles.innerAdmin}` : ""}`}>
-        <Link className={styles.brand} href={base as Route}>
-          {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={21} /><span>Dezhost</span></>}
+        <Link className={styles.brand} href={(brandHref ?? base) as Route}>
+          {!isPanel && brandLogo ? <img alt={brandLabel} className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={21} /><span>{brandLabel}</span></>}
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">

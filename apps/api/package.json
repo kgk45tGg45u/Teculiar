@@ -1,14 +1,14 @@
 {
-  "name": "@crimson/api",
+  "name": "@dezhost/api",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "prestart": "npm --workspace @crimson/shared run build",
+    "prestart": "npm --workspace @dezhost/shared run build",
     "start": "nest start",
     "start:prod": "node dist/main.js",
-    "prestart:dev": "npm --workspace @crimson/shared run build",
+    "prestart:dev": "npm --workspace @dezhost/shared run build",
     "start:dev": "nest start --watch",
-    "prebuild": "npm --workspace @crimson/shared run build",
+    "prebuild": "npm --workspace @dezhost/shared run build",
     "build": "nest build",
     "lint": "tsc --noEmit",
     "resellbiz": "node scripts/resellbiz.cjs",
@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@crimson/shared": "*",
+    "@dezhost/shared": "*",
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.19",

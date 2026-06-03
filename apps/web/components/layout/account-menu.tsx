@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
-import { authToken, clearAuth } from "../../lib/api";
+import { API_BASE_URL, authToken, clearAuth } from "../../lib/api";
 import styles from "./site-header.module.css";
 import { useEffect, useState } from "react";
 import { MenuLink } from "./menu-link";
@@ -11,9 +11,19 @@ export function AccountMenu() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    if (authToken("client")) {
-      setLoggedIn(true);
+    const token = authToken("client");
+    if (!token) {
+      return;
     }
+    fetch(`${API_BASE_URL}/users/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (res.ok) {
+          setLoggedIn(true);
+        } else {
+          clearAuth("client");
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   if (!loggedIn) {

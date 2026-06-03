@@ -49,7 +49,7 @@
 }
 
 .prose a {
-  color: var(--crimson);
+  color: var(--dezhost);
   text-decoration: underline;
   text-underline-offset: 3px;
 }

@@ -1,6 +1,2 @@
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_5';
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_6';
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_7';
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_8';
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_9';
-ALTER TYPE "BillingCycle" ADD VALUE IF NOT EXISTS 'YEAR_10';
+-- MySQL baseline lives in 20260504211933_new_migration.
+-- Old incremental SQL collapsed during provider switch.

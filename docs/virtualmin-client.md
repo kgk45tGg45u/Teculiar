@@ -85,10 +85,10 @@ Then the page works like this:
 
 Use it:
 
-npm --workspace @crimson/api run start:dev
+npm --workspace @dezhost/api run start:dev
 Open:
 
 http://localhost:4000/api/v1/virtualmin-client
 Build later, when you want:
 
-npm --workspace @crimson/api run build
+npm --workspace @dezhost/api run build

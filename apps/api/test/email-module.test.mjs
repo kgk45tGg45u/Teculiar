@@ -12,6 +12,7 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
   const layouts = await readFile(new URL("../src/modules/email/email-layouts.ts", import.meta.url), "utf8");
   const placeholders = await readFile(new URL("../src/modules/email/email-placeholders.ts", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  const sidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
 
   assert.match(appModule, /EmailModule/);
   assert.match(controller, /@Controller\("admin\/dev\/emails"\)/);
@@ -26,10 +27,10 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
   assert.match(layouts, /new_invoice/);
   assert.match(layouts, /invoiceTable/);
   assert.match(layouts, /renderEmailLayout/);
-  assert.match(dashboard, /href="\/admin\/emails"/);
-  assert.match(dashboard, /href="\/admin\/emails\/settings"/);
-  assert.match(dashboard, /href="\/admin\/emails\/template"/);
-  assert.match(dashboard, /href="\/admin\/emails\/logs"/);
+  assert.match(sidebar, /href: "\/admin\/emails"/);
+  assert.match(sidebar, /href: "\/admin\/emails\/settings"/);
+  assert.match(sidebar, /href: "\/admin\/emails\/template"/);
+  assert.match(sidebar, /href: "\/admin\/emails\/logs"/);
   assert.match(dashboard, /view === "emails"/);
   assert.ok(existsSync(new URL("../../web/app/admin/emails/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../web/app/admin/emails/settings/page.tsx", import.meta.url)));

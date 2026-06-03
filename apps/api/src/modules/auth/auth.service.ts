@@ -208,7 +208,7 @@ export class AuthService {
     await this.users.setTotpSecret(userId, secret);
     return {
       secret,
-      uri: createTotpUri(email, "CrimsonGrid", secret)
+      uri: createTotpUri(email, "Teculiar", secret)
     };
   }
 

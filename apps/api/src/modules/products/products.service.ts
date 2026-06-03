@@ -137,7 +137,7 @@ export class ProductsService {
       const expiresAt = dateFromProvider(status);
       const nextStatus = status.status === "ACTIVE" ? "ACTIVE" : status.status === "FAILED" ? "FAILED" : domain.status;
       await this.products.updateDomainRecordStatus(domain.id, nextStatus, status.externalId, expiresAt);
-      if (domain.service?.product.type === "DOMAIN" && (nextStatus === "ACTIVE" || nextStatus === "FAILED")) {
+      if (domain.service && serviceProductType(domain.service) === "DOMAIN" && (nextStatus === "ACTIVE" || nextStatus === "FAILED")) {
         await this.products.updateServiceStatus(domain.service.id, nextStatus, status.externalId);
       }
       refreshed += 1;
@@ -196,7 +196,7 @@ export class ProductsService {
 
   async hostingControlPanel(id: string, user?: { roles?: string[]; sub: string }) {
     const service = await this.getService(id, user);
-    if (service.product.type !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
+    if (serviceProductType(service) !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
       throw new BadRequestException("Hosting control panel is only available for active hosting services");
     }
     const domainName = service.externalId ?? domainFromConfiguration(service.configuration);
@@ -213,7 +213,7 @@ export class ProductsService {
     user?: { roles?: string[]; sub: string }
   ) {
     const service = await this.getService(id, user);
-    if (service.product.type !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
+    if (serviceProductType(service) !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
       throw new BadRequestException("Hosting control panel is only available for active hosting services");
     }
     const domainName = service.externalId ?? domainFromConfiguration(service.configuration);
@@ -242,13 +242,14 @@ export class ProductsService {
       }
     }
     const refreshableStatus = ["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status);
-    if (service.product.type !== "SHARED_HOSTING" && !refreshableStatus) {
+    const productType = serviceProductType(service);
+    if (productType !== "SHARED_HOSTING" && !refreshableStatus) {
       return service;
     }
 
-    if (service.product.type !== "SHARED_HOSTING") {
+    if (productType !== "SHARED_HOSTING") {
       const domainRecord = service.domainRecords?.[0];
-      if (service.product.type === "DOMAIN" && domainRecord?.domain && this.external.resellBiz.status) {
+      if (productType === "DOMAIN" && domainRecord?.domain && this.external.resellBiz.status) {
         const status = await this.external.resellBiz.status(domainRecord.domain);
         if (status.status === "ACTIVE") {
           await this.products.updateDomainRecordStatus(domainRecord.id, "ACTIVE", status.externalId);
@@ -273,11 +274,11 @@ export class ProductsService {
         return service;
       }
     }
-    const moduleName = effectiveModule(service.product);
+    const moduleName = (service.product ? effectiveModule(service.product) : undefined) ?? service.moduleName ?? undefined;
     if (!moduleName) {
       return service;
     }
-    const provider = this.external.hostingProvider(moduleName, service.product.type);
+    const provider = this.external.hostingProvider(moduleName, productType);
     if (!provider.status) {
       return service;
     }
@@ -307,11 +308,11 @@ export class ProductsService {
       throw new BadRequestException("Service is not provisioned yet");
     }
 
-    const moduleName = effectiveModule(service.product);
+    const moduleName = (service.product ? effectiveModule(service.product) : undefined) ?? service.moduleName ?? undefined;
     if (!moduleName) {
       throw new BadRequestException("Service has no provisioning module");
     }
-    const provider = this.external.hostingProvider(moduleName, service.product.type);
+    const provider = this.external.hostingProvider(moduleName, serviceProductType(service));
     return provider.restart(service.externalId);
   }
 
@@ -330,7 +331,7 @@ export class ProductsService {
 
   async changeServicePlan(id: string, _input: { productPriceId?: string }, user?: { roles?: string[]; sub: string }) {
     const service = await this.getService(id, user);
-    if (service.product.type === "DOMAIN") {
+    if (serviceProductType(service) === "DOMAIN") {
       throw new BadRequestException("Domains cannot be upgraded or downgraded");
     }
 
@@ -343,7 +344,7 @@ export class ProductsService {
 
   async renewDomain(id: string, years: number, user?: { roles?: string[]; sub: string }) {
     const service = await this.getService(id, user);
-    if (service.product.type !== "DOMAIN") {
+    if (serviceProductType(service) !== "DOMAIN") {
       throw new BadRequestException("Only domains can be renewed here");
     }
     const domain = service.domainRecords[0]?.domain;
@@ -490,4 +491,14 @@ function humanBandwidth(value?: string) {
   }
   const gib = bytes / 1024 / 1024 / 1024;
   return gib >= 1024 ? `${Math.round(gib / 1024)} TiB` : `${Math.round(gib)} GiB`;
+}
+
+function serviceProductType(service: { product?: { type: string } | null; productSnapshot?: unknown; moduleName?: string | null }): string {
+  if (service.product?.type) return service.product.type;
+  const snap = service.productSnapshot as { type?: string } | null | undefined;
+  if (snap?.type) return snap.type;
+  // Derive from module name as last resort
+  if (service.moduleName === "resellbiz") return "DOMAIN";
+  if (service.moduleName === "virtualmin") return "SHARED_HOSTING";
+  return "SHARED_HOSTING";
 }

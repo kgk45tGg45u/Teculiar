@@ -65,6 +65,26 @@ export class UsersService {
     return this.users.updateSegment(userId, segment);
   }
 
+  listAdminUsers() {
+    return this.users.listAdminUsers();
+  }
+
+  createAdminUser(input: { email: string; name: string; passwordHash: string; roleSlug: string }) {
+    return this.users.createAdminUser(input);
+  }
+
+  updateAdminUserRole(userId: string, roleSlug: string) {
+    return this.users.updateAdminUserRole(userId, roleSlug);
+  }
+
+  updateAdminUserPassword(userId: string, passwordHash: string) {
+    return this.users.updateAdminUserPassword(userId, passwordHash);
+  }
+
+  deleteAdminUser(userId: string) {
+    return this.users.deleteAdminUser(userId);
+  }
+
   async updateProfile(userId: string, input: {
     address?: Record<string, unknown>;
     countryCode?: string;

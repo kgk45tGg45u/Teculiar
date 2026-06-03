@@ -10,6 +10,7 @@ export type PricedOrderItem = {
   domainName?: string;
   productId: string;
   productPriceId: string;
+  productSnapshot: { name: string; type: string; slug: string; provisioningModule?: string | null };
   quantity: number;
   setupFeeCents: number;
   totalCents: number;
@@ -65,7 +66,9 @@ export class OrdersRepository {
     totalCents: number;
     userId: string;
   }) {
-    const orderNumber = formatOrderNumber((await this.prisma.order.count()) + 1);
+    const last = await this.prisma.order.findFirst({ select: { orderNumber: true }, orderBy: { orderNumber: "desc" } });
+    const lastSeq = last?.orderNumber ? (parseInt(last.orderNumber, 10) || 0) : 0;
+    const orderNumber = formatOrderNumber(lastSeq + 1);
 
     return this.prisma.order.create({
       data: {
@@ -81,6 +84,7 @@ export class OrdersRepository {
             domainName: item.domainName,
             productId: item.productId,
             productPriceId: item.productPriceId,
+            productSnapshot: item.productSnapshot as Prisma.InputJsonValue,
             quantity: item.quantity,
             setupFeeCents: item.setupFeeCents,
             totalCents: item.totalCents,
@@ -112,6 +116,9 @@ export class OrdersRepository {
       let domainRecordId: string | undefined;
       const hasProductModule = moduleByProductId.has(String(item.productId));
       const productModule = hasProductModule ? moduleByProductId.get(String(item.productId)) : moduleNameForProductType(String(item.type));
+      const productSnapshot = isRecord(item.productSnapshot)
+        ? item.productSnapshot
+        : { name: String(item.description ?? item.type), type: String(item.type) };
 
       if (item.type !== "DOMAIN" && !serviceId) {
         const renewsAt = item.billingCycle === "ONE_TIME" ? undefined : addBillingCycle(new Date(), String(item.billingCycle));
@@ -126,6 +133,7 @@ export class OrdersRepository {
             orderItemId: String(item.id),
             productId: String(item.productId),
             productPriceId: String(item.productPriceId),
+            productSnapshot: productSnapshot as Prisma.InputJsonValue,
             recurringAmountCents: Number(item.unitAmountCents ?? 0),
             renewsAt,
             setupFeeCents: Number(item.setupFeeCents ?? 0),
@@ -162,6 +170,7 @@ export class OrdersRepository {
             orderItemId: String(item.id),
             productId: String(item.productId),
             productPriceId: String(item.productPriceId),
+            productSnapshot: productSnapshot as Prisma.InputJsonValue,
             recurringAmountCents: Number(item.unitAmountCents ?? 0),
             renewsAt,
             setupFeeCents: Number(item.setupFeeCents ?? 0),
@@ -303,11 +312,11 @@ export class OrdersRepository {
   }
 
   async createServiceForItem(
-    item: { id: string; billingCycle: string; configuration: unknown; productId: string; productPriceId: string },
+    item: { id: string; billingCycle: string; configuration: unknown; productId?: string | null; productPriceId: string },
     userId: string,
     status: string
   ) {
-    const moduleName = await this.moduleNameForProductId(item.productId);
+    const moduleName = item.productId ? await this.moduleNameForProductId(item.productId) : null;
     const service = await this.prisma.service.create({
       data: {
         configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,

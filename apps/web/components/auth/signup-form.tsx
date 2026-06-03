@@ -237,7 +237,12 @@ export function SignupForm({
             )}
             <label>
               {de ? "Telefon" : "Phone"}
-              <input className={styles.input} name="phone" type="tel" placeholder="+49 123 456789" />
+              <input className={styles.input} name="phone" type="tel" placeholder="+49 1234567890" />
+              <span className={styles.fieldHint}>
+                {de
+                  ? "Internationales Format: +49 … (für Domain-Registrierungen erforderlich)"
+                  : "International format: +49 … (required for domain registrations)"}
+              </span>
             </label>
           </fieldset>
 

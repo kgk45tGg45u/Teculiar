@@ -1,4 +1,2 @@
-ALTER TABLE "DomainTldPrice" ADD COLUMN "manual" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "DomainTldPrice" ADD COLUMN "suggested" BOOLEAN NOT NULL DEFAULT false;
-
-UPDATE "DomainTldPrice" SET "manual" = true WHERE "tld" = 'de';
+-- MySQL baseline lives in 20260504211933_new_migration.
+-- Old incremental SQL collapsed during provider switch.

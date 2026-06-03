@@ -33,7 +33,8 @@ function allowedOrigins() {
     process.env.PUBLIC_WEB_URL,
     process.env.NEXT_PUBLIC_WEB_URL,
     process.env.CORS_ORIGINS,
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
   ]
     .flatMap((value) => value?.split(",") ?? [])
     .map((value) => value.trim().replace(/\/$/, ""))

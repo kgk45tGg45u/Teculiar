@@ -45,8 +45,8 @@
 }
 
 .categoryBtn:hover {
-  border-color: var(--crimson);
-  color: var(--crimson);
+  border-color: var(--dezhost);
+  color: var(--dezhost);
 }
 
 /* Post grid */
@@ -70,7 +70,7 @@
 }
 
 a.postCard:hover {
-  border-color: var(--crimson);
+  border-color: var(--dezhost);
 }
 
 .postMeta {
@@ -97,7 +97,7 @@ a.postCard:hover {
   font-weight: 760;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .postDate {
@@ -147,7 +147,7 @@ a.postCard:hover {
   gap: 6px;
   font-size: 0.88rem;
   font-weight: 650;
-  color: var(--crimson);
+  color: var(--dezhost);
   margin: 4px 24px 0;
 }
 
@@ -206,7 +206,7 @@ a.postCard:hover {
 }
 
 .postBody a {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .postBody img {
@@ -216,7 +216,7 @@ a.postCard:hover {
 }
 
 .newsletter svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
 }
 

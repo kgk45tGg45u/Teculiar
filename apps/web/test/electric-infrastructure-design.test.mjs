@@ -9,6 +9,8 @@ const clientDashboardCss = readFileSync(new URL("../components/portal/client-das
 const clientDashboardTsx = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 const adminDashboardCss = readFileSync(new URL("../components/admin/admin-dashboard.module.css", import.meta.url), "utf8");
 const adminDashboardTsx = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+const adminSidebarCss = readFileSync(new URL("../components/admin/admin-sidebar.module.css", import.meta.url), "utf8");
+const adminSidebarTsx = readFileSync(new URL("../components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
 const siteHeaderCss = readFileSync(new URL("../components/layout/site-header.module.css", import.meta.url), "utf8");
 
 const uiFiles = [
@@ -89,14 +91,22 @@ test("electric infrastructure readme tracks done and remaining work", () => {
 test("phase 3 admin and client shells use compact electric sidebar", () => {
   for (const css of [clientDashboardCss, adminDashboardCss]) {
     assert.match(css, /\.page\s*\{[\s\S]*background:\s*var\(--bg\)/);
-    assert.match(css, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
-    assert.match(css, /\.sidebar a\s*\{[\s\S]*min-height:\s*34px/);
-    assert.match(css, /\.sidebar a\[aria-current="page"\]/);
     assert.match(css, /\.main\s*\{[\s\S]*gap:\s*16px/);
   }
 
+  assert.match(clientDashboardCss, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
+  assert.match(clientDashboardCss, /\.sidebar a\s*\{[\s\S]*min-height:\s*34px/);
+  assert.match(clientDashboardCss, /\.sidebar a\[aria-current="page"\]/);
+
+  assert.match(adminSidebarCss, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
+  assert.match(adminSidebarCss, /\.navItem\s*\{[\s\S]*min-height:\s*32px/);
+  assert.match(adminSidebarCss, /\.navItem\[aria-current="page"\]/);
+  assert.match(adminSidebarCss, /\.subItem\[aria-current="page"\]/);
+
   assert.match(clientDashboardTsx, /aria-current=\{clientNavCurrent/);
-  assert.match(adminDashboardTsx, /aria-current=\{adminNavCurrent/);
+  assert.match(adminDashboardTsx, /<AdminSidebar/);
+  assert.match(adminSidebarTsx, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(adminSidebarTsx, /<strong className=\{styles\.brandName\}>Teculiar<\/strong>/);
 });
 
 test("phase 4 and 5 dashboards match compact card and table density", () => {
@@ -116,7 +126,7 @@ test("phase 6 public surfaces are compact and non-red branded", () => {
   assert.match(siteHeaderCss, /\.inner\s*\{[\s\S]*min-height:\s*62px/);
 });
 
-test("css does not keep old crimson rgb brand accents", () => {
+test("css does not keep old red rgb brand accents", () => {
   const root = new URL("../", import.meta.url);
   const cssFiles = listCssFiles(root);
   for (const file of cssFiles) {

@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from "class-validator";
-import { billingCycles, productTypes } from "@crimson/shared";
+import { billingCycles, productTypes } from "@dezhost/shared";
 
 export class OrderItemDto {
   @IsString()

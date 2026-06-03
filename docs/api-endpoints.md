@@ -162,4 +162,4 @@ Lifecycle notes:
 
 ## Temporary Scripts
 
-- `npm --workspace @crimson/api run resellbiz` - Resell.biz domain status, auth code, nameserver, and transfer script. See `docs/resellbiz-client.md`.
+- `npm --workspace @dezhost/api run resellbiz` - Resell.biz domain status, auth code, nameserver, and transfer script. See `docs/resellbiz-client.md`.

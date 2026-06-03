@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
@@ -171,10 +171,12 @@ export function CheckoutForm({
     }
   }, [priceSelection, product.type, selectablePrices]);
 
+  const initialDomainChecked = useRef(false);
   useEffect(() => {
-    if (initialDomain) {
-      void checkDomain(initialDomain);
-    }
+    if (!initialDomain || initialDomainChecked.current) return;
+    initialDomainChecked.current = true;
+    void checkDomain(initialDomain);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDomain]);
 
   async function submit(formData: FormData) {
@@ -295,15 +297,23 @@ export function CheckoutForm({
       items
     };
 
+    let checkoutOrderId: string | undefined;
     try {
       const checkoutResponse = await postJson<{ order: { id: string } }>("/orders/checkout", body);
+      checkoutOrderId = checkoutResponse.order.id;
       notify.success(copy.orderCreated);
       setState({ status: "loading", message: copy.paymentRunning });
       notify.info(copy.paymentRunning);
-      const paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutResponse.order.id}/pay`, {
-        method: paymentMethod === "SANDBOX" ? "CREDIT_CARD" : paymentMethod,
-        paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout"
-      });
+      let paymentResponse: { invoice?: { status?: string }; paymentRedirectUrl?: string };
+      try {
+        paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutOrderId}/pay`, {
+          method: paymentMethod === "SANDBOX" ? "CREDIT_CARD" : paymentMethod,
+          paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout"
+        });
+      } catch (payError) {
+        const raw = payError instanceof Error ? payError.message : copy.orderFailed;
+        throw new Error(`${copy.paymentFailed}: ${raw}`);
+      }
       const redirectUrl = paymentResponse.paymentRedirectUrl ?? (paymentResponse.invoice as { paymentRedirectUrl?: string } | undefined)?.paymentRedirectUrl;
       if (redirectUrl) {
         notify.info(copy.paymentRedirect);
@@ -324,10 +334,10 @@ export function CheckoutForm({
       setState({
         status: "success",
         message: copy.portalRedirect,
-        orderId: checkoutResponse.order.id
+        orderId: checkoutOrderId
       });
       notify.success(copy.portalRedirect);
-      window.location.assign(`/client?order=${checkoutResponse.order.id}`);
+      window.location.assign(`/client?order=${checkoutOrderId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.orderFailed;
       setState({ status: "error", message });
@@ -1245,6 +1255,7 @@ const checkoutCopy = {
     passwordWeak: "Passwort erfüllt die Regeln nicht.",
     paymentMethod: "Zahlungsmethode",
     paymentRedirect: "Weiterleitung zum Zahlungsanbieter...",
+    paymentFailed: "Zahlung fehlgeschlagen",
     paymentRunning: "Sandbox-Zahlung läuft...",
     paymentSuccess: "Zahlung erfolgreich.",
     personalData: "Persönliche Daten",
@@ -1336,6 +1347,7 @@ const checkoutCopy = {
     passwordRuleSpecial: "Special character",
     passwordRuleUpper: "Uppercase",
     passwordWeak: "Password does not meet the rules.",
+    paymentFailed: "Payment failed",
     paymentMethod: "Payment method",
     paymentRedirect: "Redirecting to payment provider...",
     paymentRunning: "Sandbox payment running...",

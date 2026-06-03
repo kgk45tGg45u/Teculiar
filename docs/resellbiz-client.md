@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`npm --workspace @crimson/api run resellbiz` is a temporary admin script for direct Resell.biz domain work.
+`npm --workspace @dezhost/api run resellbiz` is a temporary admin script for direct Resell.biz domain work.
 
 Checkout provisioning now also uses the same Resell.biz client through the API.
 
@@ -30,38 +30,38 @@ Do not expose `domsecret` / auth-code values to normal customer UI without stron
 Check status, expiry, nameservers, and auth code:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- status example.com
+npm --workspace @dezhost/api run resellbiz -- status example.com
 ```
 
 Check which `.env` file and non-secret settings the script sees:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- env-check
+npm --workspace @dezhost/api run resellbiz -- env-check
 ```
 
 Show only the transfer code / domain secret:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- auth-code example.com
-npm --workspace @crimson/api run resellbiz -- auth-code 123456789
+npm --workspace @dezhost/api run resellbiz -- auth-code example.com
+npm --workspace @dezhost/api run resellbiz -- auth-code 123456789
 ```
 
 Change nameservers:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- change-ns example.com ns1.host.test ns2.host.test
+npm --workspace @dezhost/api run resellbiz -- change-ns example.com ns1.host.test ns2.host.test
 ```
 
 Check if transfer can be requested:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- validate-transfer example.com
+npm --workspace @dezhost/api run resellbiz -- validate-transfer example.com
 ```
 
 Start a transfer:
 
 ```bash
-npm --workspace @crimson/api run resellbiz -- transfer example.com \
+npm --workspace @dezhost/api run resellbiz -- transfer example.com \
   --customer-id 1000 \
   --reg-contact-id 2000 \
   --admin-contact-id 2001 \

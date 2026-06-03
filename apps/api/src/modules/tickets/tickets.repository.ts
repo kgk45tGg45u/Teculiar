@@ -54,11 +54,16 @@ export class TicketsRepository {
     });
   }
 
-  listTickets(filters: { status?: string; department?: string; userId?: string }) {
+  listTickets(filters: { status?: string; department?: string; departments?: string[]; userId?: string }) {
+    const departmentFilter = filters.departments?.length
+      ? { in: filters.departments as TicketDepartment[] }
+      : filters.department
+        ? { equals: filters.department as TicketDepartment }
+        : undefined;
     return this.prisma.ticket.findMany({
       where: {
-        ...filters,
-        department: filters.department ? (filters.department as TicketDepartment) : undefined,
+        userId: filters.userId,
+        department: departmentFilter,
         status: filters.status ? (filters.status as TicketStatus) : undefined
       },
       include: { assignee: { select: publicUserSelect }, user: { select: publicUserSelect }, service: { include: { product: true } } },

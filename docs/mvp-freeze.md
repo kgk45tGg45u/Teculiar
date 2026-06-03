@@ -22,7 +22,7 @@ Run from repo root:
 npm test
 npm run typecheck
 npm run build
-npm --workspace @crimson/api run resellbiz -- env-check
+npm --workspace @dezhost/api run resellbiz -- env-check
 ```
 
 Expected:
@@ -36,8 +36,8 @@ Expected:
 1. Start API and web:
 
 ```sh
-npm --workspace @crimson/api run start:dev
-npm --workspace @crimson/web run dev
+npm --workspace @dezhost/api run start:dev
+npm --workspace @dezhost/web run dev
 ```
 
 2. Guest hosting checkout:

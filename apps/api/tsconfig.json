@@ -10,8 +10,8 @@
     "strictPropertyInitialization": false,
     "noEmit": false,
     "paths": {
-      "@crimson/shared": ["packages/shared/dist/index.d.ts"],
-      "@crimson/shared/*": ["packages/shared/dist/*"]
+      "@dezhost/shared": ["packages/shared/dist/index.d.ts"],
+      "@dezhost/shared/*": ["packages/shared/dist/*"]
     }
   },
   "include": ["src/**/*.ts"]

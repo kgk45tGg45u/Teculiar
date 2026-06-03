@@ -27,7 +27,7 @@ import { apiGetAuth } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
-import { AddClientForm, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AdminsPanel, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
@@ -54,7 +54,8 @@ type AdminView =
   | "tickets"
   | "announcements"
   | "settings"
-  | "settings-cron";
+  | "settings-cron"
+  | "admins";
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
@@ -154,6 +155,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
         {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} /> : null}
+        {view === "admins" ? <AdminsPanel /> : null}
       </main>
     </div>
   );
@@ -668,6 +670,7 @@ function adminTitle(view: AdminView, locale: Locale) {
     services: copy.services,
     settings: copy.settings,
     "settings-cron": "Cron Settings",
+    admins: "Admins & Roles",
     "payment-gateways": copy.paymentGateways,
     tickets: copy.tickets
   };

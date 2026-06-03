@@ -4,7 +4,7 @@ import LinkExtension from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bell, Bold, CreditCard, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
+import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import type { Locale } from "../../lib/i18n";
@@ -34,8 +34,33 @@ export function ClientManager({ clients, locale }: { clients: ApiClient[]; local
   );
 }
 
+function generatePassword() {
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const specials = "~*!@$#%_+.?:,{}";
+  const all = `${uppercase}${lowercase}${numbers}${specials}`;
+  const chars = [pickChar(uppercase), pickChar(lowercase), pickChar(numbers), pickChar(specials), ...Array.from({ length: 8 }, () => pickChar(all))];
+  return shuffleChars(chars).join("");
+}
+
+function pickChar(source: string) {
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return source[(arr[0] ?? 0) % source.length] ?? source[0] ?? "A";
+}
+
+function shuffleChars(values: string[]) {
+  return values
+    .map((value) => { const arr = new Uint32Array(1); crypto.getRandomValues(arr); return { sort: arr[0] ?? 0, value }; })
+    .sort((a, b) => a.sort - b.sort)
+    .map((item) => item.value);
+}
+
 export function AddClientForm() {
   const [message, setMessage] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function createClient(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/users`, {
@@ -51,8 +76,8 @@ export function AddClientForm() {
         email: String(formData.get("email") ?? ""),
         name: String(formData.get("name") ?? ""),
         password: String(formData.get("password") ?? ""),
-        phone: String(formData.get("phone") ?? ""),
-        vatId: String(formData.get("vatId") ?? "")
+        phone: String(formData.get("phone") ?? "") || undefined,
+        vatId: String(formData.get("vatId") ?? "") || undefined
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
@@ -72,11 +97,46 @@ export function AddClientForm() {
       <div className={styles.formGrid}>
         <label>Name<input name="name" required placeholder="Max Mustermann" /></label>
         <label>Email<input name="email" required type="email" placeholder="max@example.com" /></label>
-        <label>Password<input name="password" required type="text" placeholder="Temporary password" /></label>
+        <label className={styles.formSpan2}>
+          Password *
+          <div className={styles.passwordControl}>
+            <div className={styles.passwordInputWrap}>
+              <input
+                autoComplete="new-password"
+                maxLength={16}
+                minLength={9}
+                name="password"
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className={styles.passwordToggle}
+                onClick={() => setShowPassword((v) => !v)}
+                type="button"
+              >
+                {showPassword ? <EyeOff aria-hidden size={16} /> : <Eye aria-hidden size={16} />}
+              </button>
+            </div>
+            <button
+              className={styles.generateButton}
+              onClick={() => { setPassword(generatePassword()); setShowPassword(true); }}
+              type="button"
+            >
+              Generate
+            </button>
+          </div>
+        </label>
         <label>Customer type<select name="customerType"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
         <label>Country<input defaultValue="DE" name="countryCode" placeholder="DE" /></label>
         <label>VAT ID<input name="vatId" placeholder="DE123456789" /></label>
-        <label>Phone<input name="phone" placeholder="+49 123 456789" /></label>
+        <label>
+          Phone (international format)
+          <input name="phone" type="tel" placeholder="+49 1234567890" />
+          <span className={styles.fieldHint}>Use +CC format (e.g. +49 …). Required for domain registrations.</span>
+        </label>
         <label>Address<input name="address" placeholder="Musterstraße 1" /></label>
         <label>ZIP<input name="postalCode" placeholder="12345" /></label>
         <label>City<input name="city" placeholder="Berlin" /></label>
@@ -1892,4 +1952,272 @@ function dateTimeLabel(value?: string | null) {
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// ── Admin Management Panel ────────────────────────────────────────────────────
+
+type AdminUser = {
+  createdAt: string;
+  email: string;
+  id: string;
+  name: string;
+  userRoles: Array<{ role: { slug: string; name: string } }>;
+};
+
+const ADMIN_ROLES = [
+  { slug: "super_admin", name: "Super Admin", description: "Full access including settings" },
+  { slug: "support_agent", name: "Support Agent", description: "Support & abuse tickets, all client data" },
+  { slug: "sales_agent", name: "Sales Agent", description: "Sales tickets, all client data" }
+];
+
+function adminRoleLabel(user: AdminUser) {
+  const adminSlugs = ["admin", "super_admin", "support_agent", "sales_agent"];
+  const role = user.userRoles.find((ur) => adminSlugs.includes(ur.role.slug));
+  return role?.role.name ?? role?.role.slug ?? "Unknown";
+}
+
+export function AdminsPanel() {
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editRole, setEditRole] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+
+  async function reload() {
+    setLoading(true);
+    const res = await fetch(`${API_BASE_URL}/admin/dev/admins`, { headers: authHeaders("admin") });
+    if (res.ok) {
+      const data = await res.json() as AdminUser[];
+      setAdmins(data);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { void reload(); }, []);
+
+  async function createAdmin(formData: FormData) {
+    const res = await fetch(`${API_BASE_URL}/admin/dev/admins`, {
+      method: "POST",
+      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: formData.get("email"),
+        name: formData.get("name"),
+        password: formData.get("password"),
+        roleSlug: formData.get("roleSlug")
+      })
+    });
+    if (res.ok) {
+      notify.success("Admin account created");
+      setShowAdd(false);
+      void reload();
+    } else {
+      const data = await res.json().catch(() => ({})) as { message?: string };
+      notify.error(data.message ?? "Failed to create admin");
+    }
+  }
+
+  async function updateRole(id: string) {
+    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}/role`, {
+      method: "PATCH",
+      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      body: JSON.stringify({ roleSlug: editRole })
+    });
+    if (res.ok) {
+      notify.success("Role updated");
+      setEditId(null);
+      void reload();
+    } else {
+      notify.error("Failed to update role");
+    }
+  }
+
+  async function updatePassword(id: string) {
+    if (editPassword.length < 12) {
+      notify.error("Password must be at least 12 characters");
+      return;
+    }
+    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}/password`, {
+      method: "PATCH",
+      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: editPassword })
+    });
+    if (res.ok) {
+      notify.success("Password updated");
+      setEditPassword("");
+      void reload();
+    } else {
+      notify.error("Failed to update password");
+    }
+  }
+
+  async function deleteAdmin(id: string, name: string) {
+    if (!window.confirm(`Delete admin "${name}"? This cannot be undone.`)) return;
+    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}`, {
+      method: "DELETE",
+      headers: authHeaders("admin")
+    });
+    if (res.ok) {
+      notify.success("Admin deleted");
+      void reload();
+    } else {
+      const data = await res.json().catch(() => ({})) as { message?: string };
+      notify.error(data.message ?? "Failed to delete admin");
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* Role reference table */}
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <span className="eyebrow">Access Control</span>
+            <h2>Admin Roles</h2>
+          </div>
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Description</th>
+              <th>Settings access</th>
+              <th>Ticket access</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Super Admin</strong></td>
+              <td>Full platform access</td>
+              <td>✓ Yes</td>
+              <td>All departments</td>
+            </tr>
+            <tr>
+              <td><strong>Support Agent</strong></td>
+              <td>Support operations</td>
+              <td>✕ No</td>
+              <td>Support & Abuse</td>
+            </tr>
+            <tr>
+              <td><strong>Sales Agent</strong></td>
+              <td>Sales operations</td>
+              <td>✕ No</td>
+              <td>Sales only</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* Admin users */}
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}>
+          <div>
+            <span className="eyebrow">Admins</span>
+            <h2>Admin Accounts</h2>
+          </div>
+          <Button onClick={() => setShowAdd((v) => !v)} variant={showAdd ? "secondary" : "primary"}>
+            {showAdd ? "Cancel" : "+ Add Admin"}
+          </Button>
+        </div>
+
+        {showAdd ? (
+          <form action={createAdmin} style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", background: "var(--surface-2)", borderRadius: "8px", marginBottom: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
+                Name
+                <input className="input" name="name" required placeholder="Full name" />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
+                Email
+                <input className="input" name="email" required type="email" placeholder="admin@example.com" />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
+                Password (min. 12 chars)
+                <input className="input" name="password" required type="password" minLength={12} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
+                Role
+                <select className="input" name="roleSlug" required>
+                  {ADMIN_ROLES.map((r) => (
+                    <option key={r.slug} value={r.slug}>{r.name} — {r.description}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <Button type="submit">Create Admin</Button>
+          </form>
+        ) : null}
+
+        {loading ? <p style={{ padding: "16px", color: "var(--muted)" }}>Loading…</p> : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.map((admin) => (
+                <tr key={admin.id}>
+                  <td><strong>{admin.name}</strong></td>
+                  <td>{admin.email}</td>
+                  <td>
+                    {editId === admin.id ? (
+                      <select
+                        className="input"
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value)}
+                        style={{ fontSize: "0.85rem" }}
+                      >
+                        {ADMIN_ROLES.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+                      </select>
+                    ) : (
+                      adminRoleLabel(admin)
+                    )}
+                  </td>
+                  <td>{new Intl.DateTimeFormat("de-DE", { dateStyle: "short" }).format(new Date(admin.createdAt))}</td>
+                  <td style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {editId === admin.id ? (
+                      <>
+                        <Button size="sm" onClick={() => updateRole(admin.id)}>Save Role</Button>
+                        <input
+                          className="input"
+                          type="password"
+                          placeholder="New password"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          style={{ fontSize: "0.8rem", width: "140px" }}
+                        />
+                        <Button size="sm" variant="secondary" onClick={() => updatePassword(admin.id)}>Set PW</Button>
+                        <Button size="sm" variant="secondary" onClick={() => { setEditId(null); setEditPassword(""); }}>Cancel</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setEditId(admin.id);
+                            setEditRole(admin.userRoles.find((ur) => ["super_admin","support_agent","sales_agent"].includes(ur.role.slug))?.role.slug ?? "super_admin");
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => deleteAdmin(admin.id, admin.name)}>
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
 }

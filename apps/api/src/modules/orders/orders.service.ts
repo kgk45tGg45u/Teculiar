@@ -448,6 +448,12 @@ export class OrdersService {
       domainName: item.domainName,
       productId: product.id,
       productPriceId: price.id,
+      productSnapshot: {
+        name: product.name,
+        type: product.type,
+        slug: product.slug,
+        provisioningModule: product.provisioningModule ?? null
+      },
       quantity,
       setupFeeCents: price.setupFeeCents,
       totalCents: unitAmountCents * quantity + price.setupFeeCents,
@@ -461,11 +467,11 @@ export class OrdersService {
     configuration: unknown;
     domainName?: string | null;
     id: string;
-    productId: string;
+    productId?: string | null;
     productPriceId: string;
     type: string;
   }, customerSnapshot?: unknown, linkedServiceId?: string) {
-    const product = await this.orders.findProduct(item.productId);
+    const product = item.productId ? await this.orders.findProduct(item.productId) : null;
     const moduleName = product ? effectiveModule(product) : undefined;
     const service = linkedServiceId
       ? { id: linkedServiceId }

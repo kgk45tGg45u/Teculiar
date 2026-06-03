@@ -36,7 +36,7 @@
 }
 
 .brand svg {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .brandLogo {
@@ -119,7 +119,7 @@
 
 .navDropdownMenu a:hover {
   background: var(--surface);
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 
@@ -161,8 +161,8 @@
 }
 
 .languageToggle:hover {
-  color: var(--crimson);
-  border-color: color-mix(in srgb, var(--crimson) 40%, var(--border));
+  color: var(--dezhost);
+  border-color: color-mix(in srgb, var(--dezhost) 40%, var(--border));
 }
 
 .languageChevron {
@@ -208,11 +208,11 @@
 
 .languageOption:hover {
   background: var(--surface);
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .languageOptionActive {
-  color: var(--crimson);
+  color: var(--dezhost);
   font-weight: 760;
 }
 
@@ -232,8 +232,8 @@
 }
 
 .clientLogin:hover {
-  border-color: color-mix(in srgb, var(--crimson) 42%, var(--border));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--crimson) 16%, transparent);
+  border-color: color-mix(in srgb, var(--dezhost) 42%, var(--border));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--dezhost) 16%, transparent);
   transform: translateY(-1px);
 }
 
@@ -259,8 +259,8 @@
 }
 
 .accountMenu summary:hover {
-  border-color: color-mix(in srgb, var(--crimson) 42%, var(--border));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--crimson) 16%, transparent);
+  border-color: color-mix(in srgb, var(--dezhost) 42%, var(--border));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--dezhost) 16%, transparent);
   transform: translateY(-1px);
 }
 
@@ -304,7 +304,7 @@
 .accountDropdown a:hover,
 .accountDropdown button:hover {
   background: var(--surface);
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .mobileMenu {
@@ -381,7 +381,7 @@
 
 .mobileCloudToggle:hover,
 .mobileCloudToggle[aria-expanded="true"] {
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 .mobileChevron {
@@ -409,7 +409,7 @@
 
 .mobileCloudChildren a:hover {
   background: var(--surface);
-  color: var(--crimson);
+  color: var(--dezhost);
 }
 
 @media (max-width: 980px) {

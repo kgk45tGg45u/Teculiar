@@ -7,6 +7,8 @@ import styles from "./site-footer.module.css";
 
 export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?: string; locale: Locale; variant?: "site" | "admin" }) {
   const isDe = locale === "de";
+  const isPanel = variant === "admin";
+  const brandLabel = isPanel ? "Teculiar" : "Dezhost";
   const base = `/${locale}`;
 
   const quickLinks = isDe
@@ -51,10 +53,14 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
         <div className={styles.top}>
           <div className={styles.brand}>
             <div className={styles.brandName}>
-              {brandLogo ? <img alt="Dezhost" className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={20} /><strong>Dezhost</strong></>}
+              {!isPanel && brandLogo ? <img alt={brandLabel} className={styles.brandLogo} src={brandLogo} /> : <><Globe aria-hidden size={20} /><strong>{brandLabel}</strong></>}
             </div>
             <p className={styles.mission}>
-              {isDe
+              {isPanel
+                ? isDe
+                  ? "Billing- und Automatisierungspanel für Dezhost Dienste."
+                  : "Billing and automation panel for Dezhost services."
+                : isDe
                 ? "Sicheres Hosting für Vereine, NGOs, Initiativen und kleine Unternehmen. Persönlich. Transparent. Zuverlässig."
                 : "Secure hosting for associations, NGOs, initiatives and small businesses. Personal. Transparent. Reliable."}
             </p>
@@ -99,9 +105,15 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
         </div>
 
         <div className={styles.bottom}>
-          <span>© {new Date().getFullYear()} Dezhost. {isDe ? "Alle Rechte vorbehalten." : "All rights reserved."}</span>
+          <span>© {new Date().getFullYear()} {brandLabel}. {isDe ? "Alle Rechte vorbehalten." : "All rights reserved."}</span>
           <span className={styles.tagline}>
-            {isDe ? "Hosting mit Haltung. Gemacht in Deutschland." : "Hosting with values. Made in Germany."}
+            {isPanel
+              ? isDe
+                ? "Automation für Dezhost Hosting."
+                : "Automation for Dezhost hosting."
+              : isDe
+                ? "Hosting mit Haltung. Gemacht in Deutschland."
+                : "Hosting with values. Made in Germany."}
           </span>
         </div>
       </div>

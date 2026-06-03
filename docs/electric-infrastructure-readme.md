@@ -4,7 +4,7 @@
 
 Done:
 - Added global Electric Infrastructure CSS tokens in `apps/web/app/globals.css`.
-- Mapped legacy visual aliases (`--crimson`, `--ink`, `--paper`) to the new palette so existing pages inherit the new brand color without logic edits.
+- Mapped legacy visual aliases (`--dezhost`, `--ink`, `--paper`) to the new palette so existing pages inherit the new brand color without logic edits.
 - Set global body background/text to `--bg` and `--text`.
 - Added reusable compact utilities for app shell, page header, cards, buttons, muted text, status badges, tables, form fields, dialogs, dropdowns, tabs, metrics, info grids, sidebar nav, and top bar.
 - Added reduced-motion support for the new small animations.
@@ -51,7 +51,7 @@ Done:
 
 Done:
 - Made public marketing, pricing, domain, auth, checkout, knowledgebase, and content pages more compact through global section/type density and broad CSS module spacing reductions.
-- Replaced old raw crimson RGB accents in CSS with Electric Infrastructure accent tones. Red remains reserved for danger/error tokens.
+- Replaced old raw red RGB accents in CSS with Electric Infrastructure accent tones. Red remains reserved for danger/error tokens.
 
 ## Checkout Follow-Up
 
@@ -151,4 +151,4 @@ Done:
 ## Notes
 
 - Phase 1-6 restyle was visual-only. Checkout follow-up intentionally changed form behavior for logged-in users and AGB confirmation, without changing payment, invoice, provisioning, auth routing, or admin action flows.
-- `npm --workspace @crimson/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.
+- `npm --workspace @dezhost/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.

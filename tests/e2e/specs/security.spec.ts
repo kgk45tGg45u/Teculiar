@@ -281,6 +281,9 @@ test.describe("Admin/client portal separation", () => {
   test("signup page is accessible in English too", async ({ page }) => {
     await page.goto("/en/signup");
     await expect(page).toHaveURL(/\/en\/signup/, { timeout: 10_000 });
-    await expect(page.getByText(/Create Account|Sign Up/i)).toBeVisible();
+    // Signup form email input must be visible
+    await expect(page.locator('[name="email"]')).toBeVisible({ timeout: 8_000 });
+    // Heading should be in English (Sign Up or Create Account)
+    await expect(page.locator("h1")).toContainText(/Sign Up|Create Account/i, { timeout: 8_000 });
   });
 });

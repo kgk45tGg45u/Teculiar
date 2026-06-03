@@ -18,7 +18,7 @@ test("client dashboard keeps content bounded with fixed metric cards and one bot
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*width:\s*min\(100%, 1040px\)/);
   assert.match(css, /\.overviewCard\s*\{[\s\S]*min-height:\s*184px/);
   assert.match(source, /<DashboardKnowledgeFeed/);
-  assert.match(source, /Announcements and Knowledgebase articles/);
+  assert.match(source, /copy\.announcementsAndArticles/);
   assert.match(css, /\.dashboardFeed\s*\{[\s\S]*width:\s*min\(100%, 980px\)/);
 });
 
@@ -55,7 +55,7 @@ test("client dashboard has professional loading state for counters and heavy pan
   assert.match(source, /const \[loading, setLoading\] = useState/);
   assert.match(source, /<DashboardSummaryCard[\s\S]*loading=\{loading\.services\}/);
   assert.match(source, /<MetricValue loading=\{loading\}/);
-  assert.match(source, /<LoadingSpinner label="Loading services" \/>/);
+  assert.match(source, /<LoadingSpinner label=\{copy\.loadingServices\} \/>/);
   assert.match(source, /<LoadingBlock title="Invoice" \/>/);
   assert.match(css, /\.spinner\s*\{[\s\S]*animation:\s*portal-spin 780ms linear infinite/);
   assert.match(css, /@keyframes portal-spin/);

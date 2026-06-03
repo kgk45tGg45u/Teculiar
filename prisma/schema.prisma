@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -273,7 +273,7 @@ model RefreshSession {
   userId    String
   tokenHash String    @unique
   ipAddress String?
-  userAgent String?
+  userAgent String?   @db.Text
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
@@ -328,7 +328,7 @@ model EmailLog {
   userId    String?
   teamId    String?
   to        String
-  subject   String
+  subject   String   @db.Text
   template  String?
   status    String
   payload   Json?
@@ -344,7 +344,7 @@ model Product {
   name        String
   slug        String          @unique
   type        ProductType
-  description String
+  description String          @db.Text
   active      Boolean         @default(true)
   homepageVisible Boolean     @default(true)
   provisioningModule String?
@@ -365,7 +365,7 @@ model ProductCategory {
   id          String    @id @default(cuid())
   name        String
   slug        String    @unique
-  description String?
+  description String?   @db.Text
   provisioningModule String?
   active      Boolean   @default(true)
   sortOrder   Int       @default(0)
@@ -422,7 +422,7 @@ model Order {
   placedAt         DateTime      @default(now())
   paidAt           DateTime?
   completedAt      DateTime?
-  notes            String?
+  notes            String?       @db.Text
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   user             User          @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -433,11 +433,12 @@ model Order {
 model OrderItem {
   id                String          @id @default(cuid())
   orderId           String
-  productId         String
+  productId         String?
   productPriceId    String
   serviceId         String?
   type              ProductType
-  description       String
+  description       String          @db.Text
+  productSnapshot   Json?
   domainName        String?
   billingCycle      BillingCycle
   quantity          Int             @default(1)
@@ -449,11 +450,11 @@ model OrderItem {
   provider          String?
   providerReference String?
   providerPayload   Json?
-  errorMessage      String?
+  errorMessage      String?         @db.Text
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product           Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   productPrice      ProductPrice    @relation(fields: [productPriceId], references: [id], onDelete: Restrict)
   service           Service?        @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   invoiceItems      InvoiceItem[]
@@ -476,7 +477,7 @@ model AddOn {
   id            String         @id @default(cuid())
   name          String
   slug          String         @unique
-  description   String?
+  description   String?        @db.Text
   amountCents   Int
   setupFeeCents Int            @default(0)
   billingCycle  BillingCycle?
@@ -503,7 +504,7 @@ model Service {
   orderItemId    String?
   initialInvoiceId String?
   domainRecordId String?
-  productId      String
+  productId      String?
   productPriceId String
   status         ServiceStatus   @default(ORDERED)
   billingCycle   BillingCycle?
@@ -511,6 +512,7 @@ model Service {
   setupFeeCents  Int             @default(0)
   configuration  Json            @default("{}")
   customFields   Json            @default("{}")
+  productSnapshot Json?
   externalId     String?
   moduleName     String?
   moduleStatus   String          @default("pending")
@@ -527,7 +529,7 @@ model Service {
   updatedAt      DateTime        @updatedAt
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   team           Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  product        Product         @relation(fields: [productId], references: [id])
+  product        Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   productPrice   ProductPrice    @relation(fields: [productPriceId], references: [id])
   serviceAddOns  ServiceAddOn[]
   orderItems     OrderItem[]
@@ -569,12 +571,12 @@ model Invoice {
   totalCents      Int
   currency        String        @default("EUR")
   reverseCharge   Boolean       @default(false)
-  taxReason       String?
+  taxReason       String?       @db.Text
   customerSnapshot Json         @default("{}")
   sellerSnapshot  Json          @default("{}")
   footerLines     Json          @default("[]")
   orderSnapshot   Json          @default("{}")
-  adminNotes      String?
+  adminNotes      String?       @db.Text
   couponId        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -596,7 +598,7 @@ model InvoiceItem {
   domainRecordId     String?
   lifecycleAction    String?
   billingCycle       BillingCycle?
-  description        String
+  description        String    @db.Text
   quantity           Int       @default(1)
   unitAmountCents    Int
   subtotalCents      Int
@@ -759,7 +761,7 @@ model ModuleLog {
   status         String
   request        Json     @default("{}")
   response       Json     @default("{}")
-  errorMessage   String?
+  errorMessage   String?   @db.Text
   actorId        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -822,7 +824,7 @@ model TicketReply {
   id        String   @id @default(cuid())
   ticketId  String
   userId    String
-  body      String
+  body      String   @db.Text
   internal  Boolean  @default(false)
   createdAt DateTime @default(now())
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
@@ -834,7 +836,7 @@ model TicketInternalNote {
   id        String   @id @default(cuid())
   ticketId  String
   staffId   String
-  body      String
+  body      String   @db.Text
   createdAt DateTime @default(now())
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   staff     User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -860,7 +862,7 @@ model CannedReply {
   id         String           @id @default(cuid())
   department TicketDepartment
   title      String
-  body       String
+  body       String           @db.Text
   active     Boolean          @default(true)
   createdAt  DateTime         @default(now())
 }
@@ -869,13 +871,13 @@ model KnowledgebaseArticle {
   id             String   @id @default(cuid())
   slug           String   @unique
   title          String
-  excerpt        String?
-  body           String
-  keywords       String[] @default([])
+  excerpt        String?  @db.Text
+  body           String   @db.LongText
+  keywords       Json     @default("[]")
   images         Json     @default("[]")
   published      Boolean  @default(true)
   seoTitle       String?
-  seoDescription String?
+  seoDescription String?  @db.Text
   authorId       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -890,10 +892,10 @@ model Content {
   slug           String
   locale         Locale
   title          String
-  excerpt        String?
+  excerpt        String?        @db.Text
   content        Json
   seoTitle       String?
-  seoDescription String?
+  seoDescription String?        @db.Text
   authorId       String
   publishedAt    DateTime?
   createdAt      DateTime      @default(now())
@@ -908,8 +910,8 @@ model Announcement {
   id          String             @id @default(cuid())
   locale      Locale             @default(de)
   title       String
-  excerpt     String?
-  body        String
+  excerpt     String?            @db.Text
+  body        String             @db.LongText
   authorId    String
   publishedAt DateTime           @default(now())
   createdAt   DateTime           @default(now())
@@ -940,7 +942,7 @@ model Translation {
   title           String
   content         Json
   seoTitle        String?
-  seoDescription  String?
+  seoDescription  String?           @db.Text
   status          TranslationStatus @default(AI_DRAFT)
   reviewedAt      DateTime?
   createdAt       DateTime          @default(now())
@@ -960,8 +962,8 @@ model EmailTemplate {
   id        String   @id @default(cuid())
   key       String
   locale    Locale
-  subject   String
-  body      String
+  subject   String   @db.Text
+  body      String   @db.LongText
   updatedAt DateTime @updatedAt
 
   @@unique([key, locale])

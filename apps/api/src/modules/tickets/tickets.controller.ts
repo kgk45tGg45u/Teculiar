@@ -100,17 +100,27 @@ export class StorefrontInquiriesController {
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
 @Controller("admin/dev/tickets")
 export class TicketsDevController {
   constructor(private readonly tickets: TicketsService) {}
 
   @Get()
-  listTickets() {
-    return this.tickets.listTickets({});
+  listTickets(@Req() request: Request & { user?: { roles?: string[] } }) {
+    const roles = request.user?.roles ?? [];
+    const isFullAdmin = roles.some((r) => ["admin", "super_admin", "staff"].includes(r));
+    const departments = isFullAdmin
+      ? undefined
+      : roles.includes("sales_agent")
+        ? ["SALES"]
+        : roles.includes("support_agent")
+          ? ["SUPPORT", "ABUSE"]
+          : undefined;
+    return this.tickets.listTickets({ departments });
   }
 
   @Post("maintenance")
+  @Roles("admin", "super_admin")
   closeAnswered(@Body("closeAfterHours") closeAfterHours = 24) {
     return this.tickets.closeAnsweredTickets(Number(closeAfterHours));
   }

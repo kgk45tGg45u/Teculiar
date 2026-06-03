@@ -123,13 +123,13 @@ function emailForm(intent: string, label: string, form: VirtualminFormState): st
 
 function databaseForm(intent: string, label: string, form: VirtualminFormState): string {
   return `<form method="post">${hiddenSession(form)}${actionPassword()}<input type="hidden" name="intent" value="${attr(intent)}" />
-    <input name="databaseName" placeholder="database name" /><select name="databaseType"><option value="mysql">MySQL</option><option value="postgres">PostgreSQL</option></select>
+    <input name="databaseName" placeholder="database name" /><input name="databaseType" type="hidden" value="mysql" />
     <button type="submit">${escapeHtml(label)}</button></form>`;
 }
 
 function databasePasswordForm(form: VirtualminFormState): string {
   return `<form method="post">${hiddenSession(form)}${actionPassword()}<input type="hidden" name="intent" value="change-database-password" />
-    <select name="databaseType"><option value="mysql">MySQL</option><option value="postgres">PostgreSQL</option></select>
+    <input name="databaseType" type="hidden" value="mysql" />
     <input name="databasePassword" type="password" placeholder="new database password" />
     <button type="submit">Change database password</button></form>`;
 }

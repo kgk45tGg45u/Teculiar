@@ -127,7 +127,7 @@
 }
 
 .summaryLeft svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -208,8 +208,8 @@
 }
 
 .pdfBtn:hover {
-  border-color: var(--crimson);
-  color: var(--crimson);
+  border-color: var(--dezhost);
+  color: var(--dezhost);
 }
 
 /* Pricing section (support packages) */
@@ -238,7 +238,7 @@
 }
 
 .featuredCard {
-  border-color: var(--crimson);
+  border-color: var(--dezhost);
   background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
 }
 
@@ -248,7 +248,7 @@
   left: 20px;
   display: inline-block;
   padding: 4px 10px;
-  background: var(--crimson);
+  background: var(--dezhost);
   color: white;
   font-size: 0.72rem;
   font-weight: 760;
@@ -270,7 +270,7 @@
 .supportPrice {
   font-size: 1.4rem;
   font-weight: 820;
-  color: var(--crimson);
+  color: var(--dezhost);
   line-height: 1;
 }
 
@@ -291,7 +291,7 @@
 }
 
 .featureList svg {
-  color: var(--crimson);
+  color: var(--dezhost);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -342,7 +342,7 @@
 }
 
 .serviceRow strong {
-  color: var(--crimson);
+  color: var(--dezhost);
   font-weight: 760;
   white-space: nowrap;
 }
@@ -381,7 +381,7 @@
 .hourlyRate strong {
   font-size: 2rem;
   font-weight: 820;
-  color: var(--crimson);
+  color: var(--dezhost);
   line-height: 1;
 }
 

@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm --workspace @crimson/web run build",
+  "buildCommand": "npm --workspace @dezhost/web run build",
   "outputDirectory": "apps/web/.next"
 }

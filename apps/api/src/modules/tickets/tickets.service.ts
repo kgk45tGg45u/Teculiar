@@ -52,7 +52,7 @@ export class TicketsService {
     });
   }
 
-  listTickets(filters: { status?: string; department?: string; userId?: string }) {
+  listTickets(filters: { status?: string; department?: string; departments?: string[]; userId?: string }) {
     return this.tickets.listTickets(filters);
   }
 

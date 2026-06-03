@@ -7,12 +7,14 @@ test("admin detail and storefront order routes point at real pages", async () =>
   const webhosting = await readFile(new URL("../../web/app/[locale]/webhosting/page.tsx", import.meta.url), "utf8");
   const hostingPackages = await readFile(new URL("../../web/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  const sidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
 
   assert.match(`${webhosting}\n${hostingPackages}`, /href=\{`\/\$\{locale\}\/order\/\$\{product\.id\}`\}/);
   assert.ok(existsSync(new URL("../../web/app/admin/orders/[orderId]/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../web/app/admin/invoices/[invoiceId]/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../web/app/admin/services/[serviceId]/page.tsx", import.meta.url)));
-  assert.match(dashboard, /href="\/admin\/logs"/);
+  assert.match(dashboard, /view === "logs"/);
+  assert.match(sidebar, /href: "\/admin\/logs"/);
 });
 
 test("admin logs endpoint and page are wired", async () => {
@@ -49,14 +51,13 @@ test("webhosting storefront uses category products and client billing toggle", a
   assert.doesNotMatch(hostingPackages, /billingCycles/);
 });
 
-test("storefront product cards and domain results link into checkout", async () => {
+test("storefront product cards and domain results route to order flows", async () => {
   const productGrid = await readFile(new URL("../../web/components/marketing/product-grid.tsx", import.meta.url), "utf8");
   const hostingPackages = await readFile(new URL("../../web/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
   const domainSearch = await readFile(new URL("../../web/app/[locale]/domains/search/page.tsx", import.meta.url), "utf8");
 
-  assert.match(productGrid, /import Link from "next\/link"/);
-  assert.match(productGrid, /className=\{styles\.cardLink\}/);
-  assert.match(productGrid, /href=\{`\/\$\{locale\}\/order\/\$\{product\.id\}`\}/);
+  assert.match(productGrid, /const fullHref = `\/\$\{locale\}\/\$\{href\}`/);
+  assert.match(productGrid, /<Button href=\{fullHref\}/);
   assert.match(hostingPackages, /import Link from "next\/link"/);
   assert.match(hostingPackages, /className=\{`\$\{styles\.packageCard\}/);
   assert.match(domainSearch, /apiGet<ApiProduct\[]>\("\/storefront\/products"\)/);

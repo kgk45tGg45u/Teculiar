@@ -91,7 +91,7 @@ function normalizeInput(dto: UpsertArticleDto, authorId?: string) {
 function scoreArticle(article: KnowledgebaseArticle, terms: string[]) {
   const title = article.title.toLowerCase();
   const body = stripHtml(article.body).toLowerCase();
-  const keywords = article.keywords.map((keyword) => keyword.toLowerCase());
+  const keywords = stringArray(article.keywords).map((keyword) => keyword.toLowerCase());
   return terms.reduce((score, term) => {
     if (title.includes(term)) score += 6;
     if (keywords.some((keyword) => keyword.includes(term))) score += 5;
@@ -117,6 +117,10 @@ function preview(value: string) {
 
 function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, " ");
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()) : [];
 }
 
 function slugify(value: string) {

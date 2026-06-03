@@ -22,9 +22,9 @@ test("middleware chooses saved locale before browser locale and keeps public pre
 });
 
 test("format helpers accept locale and use USD display for English", () => {
-  assert.match(api, /export function money\(cents: number, currency = "EUR", locale/);
-  assert.match(api, /displayCurrencyForLocale/);
-  assert.match(api, /locale === "en" \? "USD" : currency/);
+  assert.match(api, /export function money\(cents: number, _currency = "EUR", locale/);
+  assert.match(api, /currentCurrency/);
+  assert.match(api, /displayCurrency === "USD" \? convertEurToUsd\(cents\) : cents/);
   assert.match(api, /export function cycleLabel\(cycle: string, locale/);
 });
 

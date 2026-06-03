@@ -309,6 +309,78 @@ export class UsersRepository {
   updatePasswordHash(userId: string, passwordHash: string) {
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash }, select: { id: true } });
   }
+
+  // ── Admin management ─────────────────────────────────────────────────────────
+
+  listAdminUsers() {
+    return this.prisma.user.findMany({
+      where: {
+        userRoles: {
+          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
+        }
+      },
+      select: adminUserSelect,
+      orderBy: { createdAt: "asc" }
+    });
+  }
+
+  findAdminUser(id: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        id,
+        userRoles: {
+          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
+        }
+      },
+      select: adminUserSelect
+    });
+  }
+
+  async createAdminUser(input: { email: string; name: string; passwordHash: string; roleSlug: string }) {
+    const role = await this.prisma.role.upsert({
+      where: { slug: input.roleSlug },
+      create: { slug: input.roleSlug, name: adminRoleName(input.roleSlug) },
+      update: {}
+    });
+    return this.prisma.user.create({
+      data: {
+        email: input.email.toLowerCase(),
+        name: input.name,
+        passwordHash: input.passwordHash,
+        userRoles: { create: { roleId: role.id } }
+      },
+      select: adminUserSelect
+    });
+  }
+
+  async updateAdminUserRole(userId: string, newRoleSlug: string) {
+    const role = await this.prisma.role.upsert({
+      where: { slug: newRoleSlug },
+      create: { slug: newRoleSlug, name: adminRoleName(newRoleSlug) },
+      update: {}
+    });
+    // Remove existing admin roles, add the new one
+    await this.prisma.userRole.deleteMany({
+      where: {
+        userId,
+        role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } }
+      }
+    });
+    await this.prisma.userRole.create({ data: { userId, roleId: role.id } });
+    return this.findAdminUser(userId);
+  }
+
+  updateAdminUserPassword(userId: string, passwordHash: string) {
+    return this.prisma.user.update({ where: { id: userId }, data: { passwordHash }, select: { id: true } });
+  }
+
+  deleteAdminUser(userId: string) {
+    return this.prisma.user.delete({ where: { id: userId } });
+  }
+
+  adminRoleSlugs() {
+    return ["super_admin", "support_agent", "sales_agent"] as const;
+  }
 }
 
 const authUserSelect = {
@@ -358,3 +430,21 @@ const clientSelect = {
 };
 
 const pendingCheckoutEmail = "pending-checkout@dezhost.local";
+
+const adminUserSelect = {
+  createdAt: true,
+  email: true,
+  id: true,
+  name: true,
+  userRoles: { select: { role: { select: { slug: true, name: true } } } }
+};
+
+function adminRoleName(slug: string) {
+  const names: Record<string, string> = {
+    super_admin: "Super Admin",
+    support_agent: "Support Agent",
+    sales_agent: "Sales Agent",
+    admin: "Admin"
+  };
+  return names[slug] ?? slug;
+}

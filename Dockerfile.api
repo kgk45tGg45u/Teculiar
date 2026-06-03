@@ -1,0 +1,48 @@
+# ─── Build stage ─────────────────────────────────────────────────────────────
+FROM node:24-alpine AS builder
+WORKDIR /app
+
+# Copy workspace manifests first — lets Docker cache the install layer
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json         ./apps/api/
+RUN npm ci
+
+# Copy source code
+COPY tsconfig.base.json  ./
+COPY packages/shared     ./packages/shared
+COPY apps/api            ./apps/api
+COPY prisma              ./prisma
+
+# Build shared lib → generate Prisma client → compile API
+RUN npm run build --workspace @dezhost/shared
+RUN node_modules/.bin/prisma generate --schema prisma/schema.prisma
+RUN npm run build --workspace @dezhost/api
+
+# Strip dev dependencies before copying to the production image
+RUN npm prune --omit=dev
+
+# ─── Production stage ─────────────────────────────────────────────────────────
+FROM node:24-alpine AS production
+WORKDIR /app
+
+# Prisma MySQL binary depends on these system libraries
+RUN apk add --no-cache openssl libc6-compat
+
+ENV NODE_ENV=production
+
+# Pruned node_modules (includes Prisma engines + workspace symlinks)
+COPY --from=builder /app/node_modules         ./node_modules
+# Compiled packages
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/apps/api/dist        ./apps/api/dist
+# Prisma schema + migration files (needed by migrate deploy)
+COPY --from=builder /app/prisma               ./prisma
+# Root manifest so workspace symlink resolution works
+COPY --from=builder /app/package.json         ./
+
+EXPOSE 4000
+
+# On every container start: run pending migrations, then launch the server.
+# `exec` replaces the shell so the Node process receives OS signals cleanly.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma && exec node apps/api/dist/main.js"]

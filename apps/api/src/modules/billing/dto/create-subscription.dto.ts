@@ -1,5 +1,5 @@
 import { IsDateString, IsIn, IsOptional, IsString } from "class-validator";
-import { billingCycles } from "@crimson/shared";
+import { billingCycles } from "@dezhost/shared";
 
 export class CreateSubscriptionDto {
   @IsString()

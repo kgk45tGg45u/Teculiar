@@ -37,28 +37,28 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Get("orders/admin")
   adminOrders() {
     return this.orders.listAdminOrders();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post("orders/admin")
   createAdminOrder(@Body() dto: AdminCreateOrderDto) {
     return this.orders.createAdminOrder(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Get("orders/admin/domain-prices")
   adminDomainPrices() {
     return this.orders.listDomainPrices();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post("orders/admin/domain-prices")
   upsertDomainPrice(
     @Body() body: { action: string; amountCents?: number; manual?: boolean; suggested?: boolean; tld: string; years: number }
@@ -67,7 +67,7 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post("orders/admin/domain-prices/sync")
   syncDomainPrices(@Body("customerId") customerId?: number) {
     return this.orders.syncDomainPrices(customerId);
@@ -85,7 +85,7 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Patch("orders/:id/status")
   updateOrderStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.orders.updateOrderStatus(id, status);

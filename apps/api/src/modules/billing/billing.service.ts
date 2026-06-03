@@ -829,7 +829,7 @@ export class BillingService {
       couponCode: subscription.coupon?.code,
       lines: [
         {
-          description: `${subscription.service.product.name} renewal`,
+          description: `${(subscription.service.product as { name?: string } | null)?.name ?? (subscription.service.productSnapshot as { name?: string } | null)?.name ?? "Service"} renewal`,
           billingCycle: subscription.billingCycle,
           lifecycleAction: "renew",
           quantity: 1,
@@ -1256,7 +1256,8 @@ export class BillingService {
     ]);
     const enabled = gateways.filter((gateway) => gateway.enabled);
     const source = gateways.length ? enabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
-    const withSandbox = sandboxEnabled ? [...source, sandboxGateway()] : source;
+    // Sandbox is always listed first so it is the default during development/testing
+    const withSandbox = sandboxEnabled ? [sandboxGateway(), ...source] : source;
 
     return withSandbox.map((gateway) => ({
       method: gateway.method,

@@ -1,5 +1,5 @@
 {
-  "name": "crimson-hosting-platform",
+  "name": "dezhost-hosting-platform",
   "private": true,
   "version": "0.1.0",
   "description": "Production-grade SaaS platform foundation for a German hosting and IT services provider.",
@@ -9,8 +9,8 @@
   ],
   "scripts": {
     "dev": "npm run dev:web",
-    "dev:web": "npm --workspace @crimson/web run dev",
-    "dev:api": "npm --workspace @crimson/api run start:dev",
+    "dev:web": "npm --workspace @dezhost/web run dev",
+    "dev:api": "npm --workspace @dezhost/api run start:dev",
     "dev:full": "concurrently -n web,api -c cyan,magenta \"npm:dev:web\" \"npm:dev:api\"",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
@@ -18,7 +18,7 @@
     "e2e:report": "playwright show-report tests/e2e/results/html",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
-    "test": "npm --workspace @crimson/api run test",
+    "test": "npm --workspace @dezhost/api run test",
     "typecheck": "npm --workspaces run typecheck",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { hash } from "bcryptjs";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -45,13 +46,13 @@ export class UsersController {
     return this.users.requestDeletion(request.user.sub);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Get()
   clients() {
     return this.users.listClients();
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post()
   createClient(@Body() body: {
     address?: Record<string, unknown>;
@@ -66,13 +67,13 @@ export class UsersController {
     return this.users.createClient(body);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Get(":id")
   client(@Param("id") id: string) {
     return this.users.getClient(id);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Patch(":id")
   updateClient(@Param("id") id: string, @Body() body: {
     address?: Record<string, unknown>;
@@ -87,15 +88,84 @@ export class UsersController {
     return this.users.updateClient(id, body);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Delete(":id")
   deleteClient(@Param("id") id: string) {
     return this.users.deleteClient(id);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Patch(":id/segment")
   updateSegment(@Param("id") id: string, @Body("segment") segment: string) {
     return this.users.updateSegment(id, segment);
+  }
+}
+
+// ── Admin user management (super_admin only) ──────────────────────────────────
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("admin", "super_admin")
+@Controller("admin/dev/admins")
+export class AdminManagementController {
+  constructor(private readonly users: UsersService) {}
+
+  @Get()
+  list() {
+    return this.users.listAdminUsers();
+  }
+
+  @Get("roles")
+  roles() {
+    return [
+      { slug: "super_admin", name: "Super Admin", description: "Full access to all features including settings" },
+      { slug: "support_agent", name: "Support Agent", description: "Access to support & abuse tickets, all client data. No settings." },
+      { slug: "sales_agent", name: "Sales Agent", description: "Access to sales tickets, all client data. No settings." }
+    ];
+  }
+
+  @Post()
+  async create(@Body() body: { email: string; name: string; password: string; roleSlug: string }) {
+    if (!body.email || !body.name || !body.password || !body.roleSlug) {
+      throw new BadRequestException("email, name, password, and roleSlug are required");
+    }
+    const validRoles = ["super_admin", "support_agent", "sales_agent"];
+    if (!validRoles.includes(body.roleSlug)) {
+      throw new BadRequestException(`roleSlug must be one of: ${validRoles.join(", ")}`);
+    }
+    const passwordHash = await hash(body.password, 12);
+    return this.users.createAdminUser({ email: body.email, name: body.name, passwordHash, roleSlug: body.roleSlug });
+  }
+
+  @Patch(":id/role")
+  updateRole(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string } },
+    @Body("roleSlug") roleSlug: string
+  ) {
+    const validRoles = ["super_admin", "support_agent", "sales_agent"];
+    if (!validRoles.includes(roleSlug)) {
+      throw new BadRequestException(`roleSlug must be one of: ${validRoles.join(", ")}`);
+    }
+    return this.users.updateAdminUserRole(id, roleSlug);
+  }
+
+  @Patch(":id/password")
+  async updatePassword(@Param("id") id: string, @Body("password") password: string) {
+    if (!password || password.length < 12) {
+      throw new BadRequestException("Password must be at least 12 characters");
+    }
+    const passwordHash = await hash(password, 12);
+    return this.users.updateAdminUserPassword(id, passwordHash);
+  }
+
+  @Delete(":id")
+  async deleteAdmin(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string } }
+  ) {
+    if (id === request.user.sub) {
+      throw new ForbiddenException("Cannot delete your own admin account");
+    }
+    return this.users.deleteAdminUser(id);
   }
 }

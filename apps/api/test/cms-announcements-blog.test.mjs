@@ -88,21 +88,23 @@ test("manual blog UI exposes photo, category, tags, rich text, and tag pages", a
   assert.match(tagPage, /tag=/);
 });
 
-test("site chrome has collapsible mobile nav, footer theme toggle, and refined client login", async () => {
+test("site chrome has collapsible mobile nav, panel branding, and refined client login", async () => {
   const header = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
+  const mobileMenu = await readFile(new URL("../../web/components/layout/mobile-menu.tsx", import.meta.url), "utf8");
   const headerCss = await readFile(new URL("../../web/components/layout/site-header.module.css", import.meta.url), "utf8");
   const footer = await readFile(new URL("../../web/components/layout/site-footer.tsx", import.meta.url), "utf8");
   const footerCss = await readFile(new URL("../../web/components/layout/site-footer.module.css", import.meta.url), "utf8");
 
-  assert.match(header, /<details className=\{styles\.mobileMenu\}/);
-  assert.match(header, /<summary aria-label="Menu"/);
-  assert.match(header, /<AccountMenu clientLabel=\{copy\.nav\.client\} \/>/);
+  assert.match(header, /<MobileMenu/);
+  assert.match(mobileMenu, /className=\{styles\.mobileMenu\}/);
+  assert.match(mobileMenu, /aria-label=\{open \? "Close menu" : "Open menu"\}/);
+  assert.match(header, /<AccountMenu \/>/);
   assert.doesNotMatch(header, /<ThemeToggle/);
   assert.match(headerCss, /\.mobileMenu/);
   assert.match(headerCss, /position:\s*sticky/);
   assert.match(headerCss, /@media \(max-width: 980px\)[\s\S]*\.mobileMenu/);
   assert.match(headerCss, /\.clientLogin/);
   assert.match(headerCss, /border-radius:\s*999px/);
-  assert.match(footer, /<ThemeToggle \/>/);
-  assert.match(footerCss, /\.footerTools/);
+  assert.match(footer, /brandLabel = isPanel \? "Teculiar" : "Dezhost"/);
+  assert.match(footerCss, /\.footer/);
 });

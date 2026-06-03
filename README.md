@@ -1,12 +1,12 @@
-# Crimson Hosting SaaS Platform
+# Dezhost Hosting SaaS Platform
 
-Production-grade SaaS foundation for a German hosting and IT services provider. The repo is structured as a monorepo with a public marketing site, customer portal, admin panel, NestJS API, Prisma/PostgreSQL data model, and shared domain contracts.
+Production-grade SaaS foundation for a German hosting and IT services provider. The repo is structured as a monorepo with a public marketing site, Teculiar customer/admin panels, NestJS API, Prisma/MySQL data model, and shared domain contracts.
 
 ## Systems
 
-- `apps/web` - Next.js app with localized public pages, `/client`, `/admin`, dark mode, and a crimson-led design system.
+- `apps/web` - Next.js app with localized Dezhost public pages, `/client` and `/admin` Teculiar panels, dark mode, and a Dezhost-led design system.
 - `apps/api` - NestJS REST API with auth, billing, products, tickets, CMS, users, and provider abstraction modules.
-- `prisma` - PostgreSQL schema covering accounts, teams, billing, products, services, domains, support, CMS, localization, permissions, and GDPR workflows.
+- `prisma` - MySQL schema covering accounts, teams, billing, products, services, domains, support, CMS, localization, permissions, and GDPR workflows. Use MySQL 8+ or a compatible MariaDB server.
 - `packages/shared` - shared enums and DTO-level contracts used by both web and API.
 
 ## Architecture Principles
@@ -27,10 +27,10 @@ cp .env.example .env
 npm run dev
 ```
 
-For the full API stack, use any native or hosted PostgreSQL database and point `DATABASE_URL` at it. On macOS, Postgres.app or Homebrew PostgreSQL are much smaller than Docker Desktop.
+For the full API stack, use any native or hosted MySQL-compatible database and point `DATABASE_URL` at it. MySQL 8+ is the target; MariaDB works when it supports Prisma's MySQL features.
 
 ```bash
-createdb crimson_hosting
+mysql -e "CREATE DATABASE dezhost_hosting CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 npm run db:generate
 npm run db:migrate
 npm run dev:full
@@ -49,7 +49,7 @@ npm run dev:full
 - `npm run dev:full` - starts the website and API together; requires `DATABASE_URL`.
 - `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
-- `npm --workspace @crimson/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
+- `npm --workspace @dezhost/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
 - `npm run e2e` - runs Playwright browser scenarios from `tests/e2e/README.md`; setup notes live in `tests/e2e/RUN_TESTS.md`.
 
 ## Cron
@@ -60,7 +60,7 @@ Run `https://YOUR_API_HOST/api/v1/cron` every 5 minutes with the configured cron
 
 The UI intentionally avoids cloning existing German providers. It uses a conversion-focused section flow, clean readable typography, crisp cards, and a small palette:
 
-- Crimson: primary actions and emphasis
+- Dezhost: primary actions and emphasis
 - Ink: text, borders, dark mode surfaces
 - White: page background and contrast
 

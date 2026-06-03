@@ -1,4 +1,2 @@
-ALTER TABLE "Invoice"
-ADD COLUMN "customerSnapshot" JSONB NOT NULL DEFAULT '{}',
-ADD COLUMN "footerLines" JSONB NOT NULL DEFAULT '[]',
-ADD COLUMN "orderSnapshot" JSONB NOT NULL DEFAULT '{}';
+-- MySQL baseline lives in 20260504211933_new_migration.
+-- Old incremental SQL collapsed during provider switch.

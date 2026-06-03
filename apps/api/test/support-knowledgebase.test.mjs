@@ -63,11 +63,12 @@ test("client support UI shows KB, suggestions, uploads, ticket threads, and clos
 
 test("admin support UI can CRUD KB and insert KB body into replies", async () => {
   const dashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  const sidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
   const support = await readFile(new URL("../../web/components/admin/admin-support.tsx", import.meta.url), "utf8");
 
   assert.ok(existsSync(new URL("../../web/app/admin/knowledgebase/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../web/app/admin/tickets/[ticketId]/page.tsx", import.meta.url)));
-  assert.match(dashboard, /href="\/admin\/knowledgebase"/);
+  assert.match(sidebar, /href: "\/admin\/knowledgebase"/);
   assert.match(dashboard, /view === "knowledgebase"/);
   assert.match(dashboard, /KnowledgebasePanel/);
   assert.match(dashboard, /admin\/dev\/knowledgebase/);

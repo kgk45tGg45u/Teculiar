@@ -97,7 +97,9 @@ test("admin cron endpoint is role protected and runs without cron secret", async
 
 test("admin/client dashboards no longer trigger maintenance or provider refresh on page load", async () => {
   const adminDashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  const adminSidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
   const clientDashboard = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
+  const i18n = await readFile(new URL("../../web/lib/i18n.ts", import.meta.url), "utf8");
 
   assert.doesNotMatch(adminDashboard, /runMaintenance\(/);
   assert.doesNotMatch(adminDashboard, /billing\/maintenance/);
@@ -105,8 +107,8 @@ test("admin/client dashboards no longer trigger maintenance or provider refresh 
   assert.doesNotMatch(clientDashboard, /setInterval\(loadServices/);
   assert.match(clientDashboard, /function serviceListUrl\(\)[\s\S]*return `\$\{API_BASE_URL\}\/services`/);
   assert.doesNotMatch(clientDashboard, /function serviceListUrl\(\)[\s\S]*services\?refresh=1/);
-  assert.match(adminDashboard, /href="\/admin\/settings">Settings<\/a>/);
-  assert.match(adminDashboard, /settings: "Settings"/);
+  assert.match(adminSidebar, /href: "\/admin\/settings"/);
+  assert.match(i18n, /settings: "Settings"/);
 });
 
 test("settings page exposes every cron timing and IMAP mailbox field", async () => {

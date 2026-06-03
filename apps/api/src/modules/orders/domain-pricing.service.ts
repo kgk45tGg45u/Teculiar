@@ -1,6 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { randomUUID } from "node:crypto";
 import {
   credentialsFromEnv,
   ResellBizClient,
@@ -77,13 +75,11 @@ export class DomainPricingService {
     const amountCents = normalizeAmountCents(input.amountCents);
 
     if (amountCents === undefined && input.suggested) {
-      await this.prisma.$executeRaw`
-        INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
-        VALUES (${randomUUID()}, ${tld}, ${input.action}, ${years}, 0, 'EUR', false, true, NOW(), NOW())
-        ON CONFLICT ("tld", "action", "years") DO UPDATE SET
-          "suggested" = true,
-          "updatedAt" = NOW()
-      `;
+      await this.prisma.domainTldPrice.upsert({
+        where: { tld_action_years: { action: input.action, tld, years } },
+        create: { action: input.action, amountCents: 0, currency: "EUR", manual: false, suggested: true, tld, years },
+        update: { suggested: true }
+      });
 
       return { ...input, amountCents: 0, manual: false, suggested: true, tld, years };
     }
@@ -92,15 +88,23 @@ export class DomainPricingService {
       throw new Error("Domain price amount is required unless only marking a TLD as suggested.");
     }
 
-    await this.prisma.$executeRaw`
-      INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
-      VALUES (${randomUUID()}, ${tld}, ${input.action}, ${years}, ${amountCents}, 'EUR', ${Boolean(input.manual)}, ${Boolean(input.suggested)}, NOW(), NOW())
-      ON CONFLICT ("tld", "action", "years") DO UPDATE SET
-        "amountCents" = EXCLUDED."amountCents",
-        "manual" = EXCLUDED."manual",
-        "suggested" = EXCLUDED."suggested",
-        "updatedAt" = NOW()
-    `;
+    await this.prisma.domainTldPrice.upsert({
+      where: { tld_action_years: { action: input.action, tld, years } },
+      create: {
+        action: input.action,
+        amountCents,
+        currency: "EUR",
+        manual: Boolean(input.manual),
+        suggested: Boolean(input.suggested),
+        tld,
+        years
+      },
+      update: {
+        amountCents,
+        manual: Boolean(input.manual),
+        suggested: Boolean(input.suggested)
+      }
+    });
 
     return { ...input, amountCents, tld, years };
   }
@@ -110,11 +114,10 @@ export class DomainPricingService {
       return [];
     }
 
-    return this.prisma.$queryRaw`
-      SELECT "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "updatedAt"
-      FROM "DomainTldPrice"
-      ORDER BY "tld" ASC, "action" ASC, "years" ASC
-    `;
+    return this.prisma.domainTldPrice.findMany({
+      orderBy: [{ tld: "asc" }, { action: "asc" }, { years: "asc" }],
+      select: { action: true, amountCents: true, currency: true, manual: true, suggested: true, tld: true, updatedAt: true, years: true }
+    });
   }
 
   async listSuggestedTlds() {
@@ -122,12 +125,12 @@ export class DomainPricingService {
       return ["com", "net", "org"];
     }
 
-    const rows = await this.prisma.$queryRaw<Array<{ tld: string }>>`
-      SELECT DISTINCT "tld"
-      FROM "DomainTldPrice"
-      WHERE "suggested" = true
-      ORDER BY "tld" ASC
-    `;
+    const rows = await this.prisma.domainTldPrice.findMany({
+      distinct: ["tld"],
+      orderBy: { tld: "asc" },
+      select: { tld: true },
+      where: { suggested: true }
+    });
 
     return rows.length > 0 ? rows.map((row) => row.tld) : ["com", "net", "org"];
   }
@@ -137,13 +140,12 @@ export class DomainPricingService {
       return undefined;
     }
 
-    const rows = await this.prisma.$queryRaw<Array<{ amountCents: number }>>`
-      SELECT MIN("amountCents")::int AS "amountCents"
-      FROM "DomainTldPrice"
-      WHERE "action" = 'register' AND "years" = 1 AND "amountCents" > 0
-    `;
+    const result = await this.prisma.domainTldPrice.aggregate({
+      _min: { amountCents: true },
+      where: { action: "register", amountCents: { gt: 0 }, years: 1 }
+    });
 
-    return rows[0]?.amountCents;
+    return result._min.amountCents ?? undefined;
   }
 
   private async storedPrice(tld: string, action: ResellBizDomainPriceAction, years: number) {
@@ -151,14 +153,12 @@ export class DomainPricingService {
       return undefined;
     }
 
-    const rows = await this.prisma.$queryRaw<Array<{ amountCents: number }>>`
-      SELECT "amountCents"
-      FROM "DomainTldPrice"
-      WHERE "tld" = ${tld} AND "action" = ${action} AND "years" = ${years} AND "amountCents" > 0
-      LIMIT 1
-    `;
+    const row = await this.prisma.domainTldPrice.findFirst({
+      select: { amountCents: true },
+      where: { action, amountCents: { gt: 0 }, tld, years }
+    });
 
-    const amountCents = rows[0]?.amountCents;
+    const amountCents = row?.amountCents;
     return amountCents && amountCents > 0 ? amountCents : undefined;
   }
 
@@ -167,22 +167,22 @@ export class DomainPricingService {
       return;
     }
 
-    await this.prisma.$executeRaw`DELETE FROM "DomainTldPrice" WHERE "manual" = false AND "suggested" = false AND "tld" <> 'de'`;
+    await this.prisma.domainTldPrice.deleteMany({ where: { manual: false, suggested: false, tld: { not: "de" } } });
     const syncedPrices = prices.filter((price) => price.tld !== "de");
     for (let index = 0; index < syncedPrices.length; index += 400) {
       const batch = syncedPrices.slice(index, index + 400);
-      await this.prisma.$executeRaw`
-          INSERT INTO "DomainTldPrice" ("id", "tld", "action", "years", "amountCents", "currency", "manual", "suggested", "createdAt", "updatedAt")
-          VALUES ${Prisma.join(
-            batch.map((price) =>
-              Prisma.sql`(${randomUUID()}, ${price.tld}, ${price.action}, ${price.years}, ${price.amountCents}, 'EUR', false, false, NOW(), NOW())`
-            )
-          )}
-          ON CONFLICT ("tld", "action", "years") DO UPDATE SET
-            "amountCents" = EXCLUDED."amountCents",
-            "updatedAt" = NOW()
-          WHERE "DomainTldPrice"."manual" = false AND "DomainTldPrice"."tld" <> 'de'
-        `;
+      await this.prisma.domainTldPrice.createMany({
+        data: batch.map((price) => ({
+          action: price.action,
+          amountCents: price.amountCents,
+          currency: "EUR",
+          manual: false,
+          suggested: false,
+          tld: price.tld,
+          years: price.years
+        })),
+        skipDuplicates: true
+      });
     }
   }
 }

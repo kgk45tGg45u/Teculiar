@@ -1,5 +1,5 @@
 {
-  "name": "@crimson/shared",
+  "name": "@dezhost/shared",
   "private": true,
   "version": "0.1.0",
   "main": "dist/index.js",

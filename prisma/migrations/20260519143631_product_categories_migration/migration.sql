@@ -1,5 +1,2 @@
--- DropIndex
-DROP INDEX "Order_userId_status_idx";
-
--- DropIndex
-DROP INDEX "OrderItem_orderId_provisioningStatus_idx";
+-- MySQL baseline lives in 20260504211933_new_migration.
+-- Old incremental SQL collapsed during provider switch.

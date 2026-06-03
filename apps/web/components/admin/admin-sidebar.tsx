@@ -3,14 +3,14 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { clearAuth } from "../../lib/api";
+import { ADMIN_AUTH_COOKIE, clearAuth } from "../../lib/api";
 import styles from "./admin-sidebar.module.css";
 
 type NavLeaf = { href: string; label: string };
 type NavGroup = { children: NavLeaf[]; label: string };
 type NavEntry = NavLeaf | NavGroup;
 
-const nav: NavEntry[] = [
+const baseNav: NavEntry[] = [
   { href: "/admin", label: "Home" },
   {
     label: "Clients",
@@ -65,17 +65,37 @@ const nav: NavEntry[] = [
       { href: "/admin/blog/categories", label: "Categories & Tags" }
     ]
   },
-  { href: "/admin/announcements", label: "Announcements" },
-  {
-    label: "Settings",
-    children: [
-      { href: "/admin/settings", label: "General Settings" },
-      { href: "/admin/settings/cron", label: "Cron Settings" },
-      { href: "/admin/payment-gateways", label: "Payment Gateways" },
-      { href: "/admin/logs", label: "Logs" }
-    ]
-  }
+  { href: "/admin/announcements", label: "Announcements" }
 ];
+
+const settingsNav: NavEntry = {
+  label: "Settings",
+  children: [
+    { href: "/admin/settings", label: "General Settings" },
+    { href: "/admin/settings/cron", label: "Cron Settings" },
+    { href: "/admin/settings/admins", label: "Admins & Roles" },
+    { href: "/admin/payment-gateways", label: "Payment Gateways" },
+    { href: "/admin/logs", label: "Logs" }
+  ]
+};
+
+function adminRolesFromToken(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const token = window.localStorage.getItem(ADMIN_AUTH_COOKIE) ??
+      document.cookie.split("; ").find((c) => c.startsWith(`${ADMIN_AUTH_COOKIE}=`))
+        ?.split("=")[1];
+    if (!token) return [];
+    const payload = JSON.parse(atob(token.split(".")[1] ?? "")) as { roles?: string[] };
+    return payload.roles ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function isSuperAdmin(roles: string[]) {
+  return roles.some((r) => r === "admin" || r === "super_admin");
+}
 
 function isGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry;
@@ -85,12 +105,19 @@ function groupContainsPath(group: NavGroup, path: string) {
   return group.children.some((child) => path === child.href || path.startsWith(child.href + "/"));
 }
 
-export function AdminSidebar({ brandLogo }: { brandLogo?: string }) {
+export function AdminSidebar(_props: { brandLogo?: string }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [nav, setNav] = useState<NavEntry[]>(baseNav);
+
+  useEffect(() => {
+    const roles = adminRolesFromToken();
+    setNav(isSuperAdmin(roles) ? [...baseNav, settingsNav] : baseNav);
+  }, []);
+
   const [open, setOpen] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    for (const entry of nav) {
+    for (const entry of baseNav) {
       if (isGroup(entry) && groupContainsPath(entry, pathname)) {
         initial.add(entry.label);
       }
@@ -109,7 +136,7 @@ export function AdminSidebar({ brandLogo }: { brandLogo?: string }) {
       return next;
     });
     setMobileOpen(false);
-  }, [pathname]);
+  }, [pathname, nav]);
 
   function toggle(label: string) {
     setOpen((prev) => {
@@ -138,11 +165,7 @@ export function AdminSidebar({ brandLogo }: { brandLogo?: string }) {
         />
       </button>
 
-      {brandLogo ? (
-        <img alt="Logo" className={styles.brandLogo} src={brandLogo} />
-      ) : (
-        <strong className={styles.brandName}>Admin</strong>
-      )}
+      <strong className={styles.brandName}>Teculiar</strong>
 
       <nav className={`${styles.nav}${mobileOpen ? ` ${styles.navOpen}` : ""}`}>
         {nav.map((entry) => {

@@ -1,1 +1,2 @@
-ALTER TABLE "User" ADD COLUMN "balanceCents" INTEGER NOT NULL DEFAULT 0;
+-- MySQL baseline lives in 20260504211933_new_migration.
+-- Old incremental SQL collapsed during provider switch.

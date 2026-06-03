@@ -183,7 +183,7 @@ export class BillingStorefrontController {
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
 @Controller("admin/dev")
 export class BillingDevController {
   constructor(private readonly billing: BillingService) {}
@@ -214,10 +214,12 @@ export class BillingDevController {
   }
 
   @Post("billing/maintenance")
+  @Roles("admin", "super_admin")
   runAdminMaintenance() {
     return this.billing.runAdminMaintenance();
   }
 
+  @Roles("admin", "super_admin")
   @Patch("billing/settings")
   updateSettings(
     @Body()
@@ -270,6 +272,7 @@ export class BillingDevController {
     return this.billing.updateSettings(body);
   }
 
+  @Roles("admin", "super_admin")
   @Patch("billing/payment-gateways")
   updatePaymentGateways(
     @Body() body: { gateways?: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }> }
@@ -277,6 +280,7 @@ export class BillingDevController {
     return this.billing.updatePaymentGateways(body.gateways ?? []);
   }
 
+  @Roles("admin", "super_admin")
   @Post("assets/logo")
   @UseInterceptors(FileInterceptor("image"))
   uploadSiteLogo(@UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
@@ -288,6 +292,7 @@ export class BillingDevController {
     return this.billing.getModules();
   }
 
+  @Roles("admin", "super_admin")
   @Patch("modules/:name")
   updateModule(
     @Param("name") name: string,

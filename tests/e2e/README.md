@@ -27,7 +27,8 @@ Edit or add scenarios in the JSON block. Keep `id` stable so reports stay easy t
       "tags": ["smoke", "localization"],
       "steps": [
         { "goto": "/de" },
-        { "select": { "label": "Language and currency", "value": "en:EUR" } },
+        { "expectHeading": "Brauchst du Raum?" },
+        { "goto": "/en" },
         { "expectUrl": "/en" },
         { "expectHeading": "Need some space?" },
         { "expectText": "Our services" }
