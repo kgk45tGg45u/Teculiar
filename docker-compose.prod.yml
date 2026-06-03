@@ -1,8 +1,8 @@
 services:
   api:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/dezhost-api:latest
+    image: ghcr.io/kgk45tGg45u/dezhost-api:latest
     restart: unless-stopped
-    # Bind to localhost only — Nginx on the host proxies inbound traffic.
+    # Bind to localhost only — Apache in Virtualmin proxies inbound traffic.
     # Never expose port 4000 publicly.
     ports:
       - "127.0.0.1:4000:4000"
@@ -19,7 +19,7 @@ services:
       start_period: 30s
 
   web:
-    image: ghcr.io/YOUR_GITHUB_USERNAME/dezhost-web:latest
+    image: ghcr.io/kgk45tGg45u/dezhost-web:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
