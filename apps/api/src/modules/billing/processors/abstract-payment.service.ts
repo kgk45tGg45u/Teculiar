@@ -122,7 +122,7 @@ export class AbstractPaymentService {
     method: string;
     name: string;
     redirectUrl: string;
-    webhookUrl: string;
+    webhookUrl?: string;
   }) {
     const config = await this.mollieGatewayConfig(input.method);
     if (!config) {
@@ -189,7 +189,7 @@ export class AbstractPaymentService {
     invoiceId: string;
     mandateId?: string | null;
     method: string;
-    webhookUrl: string;
+    webhookUrl?: string;
   }) {
     if (input.method === "PAYPAL") {
       const vaultId = input.mandateId ?? input.customerId;
@@ -258,9 +258,12 @@ export class AbstractPaymentService {
     }
     if (["CREDIT_CARD", "SEPA"].includes(method)) {
       const config = gatewayCfg;
-      // Obtain or create a Mollie customer so a mandate can be captured on success.
+      // Credit card supports sequenceType "first" so the mandate is captured on payment success,
+      // enabling automatic future billing. SEPA directdebit with sequenceType "first" ONLY supports
+      // zero-amount mandate setup (not real charges), so SEPA is always a plain one-time payment.
+      const supportsMandateOnFirstPayment = method === "CREDIT_CARD";
       let mollieCustomerId: string | undefined;
-      if (request.userId) {
+      if (supportsMandateOnFirstPayment && request.userId) {
         const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
         if (existing?.providerCustomerId) {
           mollieCustomerId = existing.providerCustomerId;
@@ -272,7 +275,10 @@ export class AbstractPaymentService {
           }
         }
       }
-      return createMolliePayment(config, request, method, { customerId: mollieCustomerId, sequenceType: "first" });
+      const opts = supportsMandateOnFirstPayment && mollieCustomerId
+        ? { customerId: mollieCustomerId, sequenceType: "first" }
+        : undefined;
+      return createMolliePayment(config, request, method, opts);
     }
 
     return sandboxResult(method, request);
@@ -403,7 +409,7 @@ async function createMollieFirstPayment(config: Record<string, unknown>, input: 
   customerId: string;
   method: string;
   redirectUrl: string;
-  webhookUrl: string;
+  webhookUrl?: string;
 }): Promise<PaymentResult> {
   const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
   const response = await fetch("https://api.mollie.com/v2/payments", {
@@ -464,7 +470,7 @@ async function createMollieRecurringPayment(config: Record<string, unknown>, inp
   invoiceId: string;
   mandateId?: string | null;
   method: string;
-  webhookUrl: string;
+  webhookUrl?: string;
 }): Promise<PaymentResult> {
   const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
   const response = await fetch("https://api.mollie.com/v2/payments", {

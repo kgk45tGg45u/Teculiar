@@ -121,7 +121,7 @@ export class BillingService {
       method: input.method,
       name: user.name || user.email,
       redirectUrl: `${publicWebUrl()}/client/billing/payment-method-return`,
-      webhookUrl: `${publicApiUrl()}/billing/webhooks/${input.method.toLowerCase()}`
+      webhookUrl: gatewayWebhookUrl(input.method)
     }) as { mandateId?: string; paymentRedirectUrl?: string; providerReference: string; status: "FAILED" | "PENDING" | "SUCCEEDED" };
     const verified = setup.status === "SUCCEEDED";
     const paymentMethod = await this.billing.createPaymentMethod({
@@ -241,7 +241,7 @@ export class BillingService {
         paymentMethodId: dto.paymentMethodId,
         redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
         userId: invoice.userId,
-        webhookUrl: `${publicApiUrl()}/billing/webhooks/${dto.method.toLowerCase()}`
+        webhookUrl: gatewayWebhookUrl(dto.method)
       });
     } catch (error) {
       await this.recordAction({
@@ -1067,7 +1067,7 @@ export class BillingService {
         invoiceId: invoice.id,
         mandateId: paymentMethod.mandateId ?? paymentMethod.providerToken,
         method: paymentMethod.type,
-        webhookUrl: `${publicApiUrl()}/billing/webhooks/${String(paymentMethod.type).toLowerCase()}`
+        webhookUrl: gatewayWebhookUrl(String(paymentMethod.type))
       });
       const raw = { ...(result.raw ?? {}), automaticPayment: true, balanceCents, paymentMethodId: paymentMethod.id };
       await this.billing.createTransaction({
@@ -2102,6 +2102,18 @@ function publicWebUrl() {
 
 function publicApiUrl() {
   return process.env.PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+}
+
+function isLocalhostUrl(url: string) {
+  return /https?:\/\/(localhost|127\.\d+\.\d+\.\d+)/.test(url);
+}
+
+// Returns a webhook URL only when the API is publicly reachable.
+// Mollie (and other gateways) validate webhooks are accessible; sending a
+// localhost URL causes them to reject the payment.
+function gatewayWebhookUrl(method: string) {
+  const base = publicApiUrl();
+  return isLocalhostUrl(base) ? undefined : `${base}/billing/webhooks/${method.toLowerCase()}`;
 }
 
 function gatewayTitle(method: string) {
