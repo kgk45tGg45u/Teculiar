@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "installCommand": "npm install",
-  "buildCommand": "npm --workspace @dezhost/web run build",
-  "outputDirectory": "apps/web/.next"
-}

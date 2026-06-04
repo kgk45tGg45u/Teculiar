@@ -323,11 +323,13 @@ test("client dashboard does not ship sample client data", async () => {
 test("checkout form pays new-client order before trying client login", async () => {
   const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
   const checkoutIndex = source.indexOf('postJson<{ order: { id: string } }>("/orders/checkout"');
-  const payIndex = source.indexOf("`/orders/${checkoutResponse.order.id}/pay`");
+  const checkoutOrderIdIndex = source.indexOf("checkoutOrderId = checkoutResponse.order.id", checkoutIndex);
+  const payIndex = source.indexOf("`/orders/${checkoutOrderId}/pay`", checkoutOrderIdIndex);
   const loginIndex = source.indexOf('postJson<AuthPayload>("/auth/login"', checkoutIndex);
 
   assert.ok(checkoutIndex > 0);
-  assert.ok(payIndex > checkoutIndex);
+  assert.ok(checkoutOrderIdIndex > checkoutIndex);
+  assert.ok(payIndex > checkoutOrderIdIndex);
   assert.ok(loginIndex > payIndex);
 });
 
