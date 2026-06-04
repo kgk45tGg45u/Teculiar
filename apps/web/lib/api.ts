@@ -36,7 +36,16 @@ export type ApiProductCategory = {
 };
 
 export type ApiPaymentGateway = {
-  method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | string;
+  config?: {
+    accountHolder?: string;
+    bankName?: string;
+    bic?: string;
+    clientId?: string;
+    iban?: string;
+    mode?: string;
+    referenceNote?: string;
+  };
+  method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | "BANK_TRANSFER" | string;
   title: string;
 };
 

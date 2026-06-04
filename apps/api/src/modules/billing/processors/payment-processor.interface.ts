@@ -5,6 +5,7 @@ export type PaymentRequest = {
   paymentMethodId: string;
   description?: string;
   redirectUrl?: string;
+  userId?: string;
   webhookUrl?: string;
 };
 

@@ -1434,65 +1434,100 @@ function AddFunds() {
 function PaymentInfo() {
   const [methods, setMethods] = useState<ApiPaymentMethod[]>([]);
   const [message, setMessage] = useState("");
-  const [method, setMethod] = useState("CREDIT_CARD");
-  const needsIban = method === "SEPA";
+  const [settingDefault, setSettingDefault] = useState<string | null>(null);
 
   async function load() {
-    fetch(`${API_BASE_URL}/billing/payment-methods`, { headers: authHeaders("client") }).then(json).then((payload) => Array.isArray(payload) && setMethods(payload)).catch(() => undefined);
+    fetch(`${API_BASE_URL}/billing/payment-methods`, { headers: authHeaders("client") })
+      .then(json)
+      .then((payload) => Array.isArray(payload) && setMethods(payload))
+      .catch(() => undefined);
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/billing/payment-methods/setup`, {
-      body: JSON.stringify({
-        iban: formData.get("iban") || undefined,
-        method
-      }),
-      headers: { "Content-Type": "application/json", ...authHeaders("client") },
-      method: "POST"
-    });
-    const payload = await response.clone().json().catch(() => undefined);
-    if (response.ok && payload?.paymentRedirectUrl) {
-      window.location.assign(payload.paymentRedirectUrl);
-      return;
-    }
-    if (response.ok) {
-      await load();
-    }
-    setMessage(await notifyResponse(response, "Payment method saved.", "Payment method failed."));
-  }
+  useEffect(() => { void load(); }, []);
 
   async function remove(id: string) {
     const response = await fetch(`${API_BASE_URL}/billing/payment-methods/${id}`, {
       headers: authHeaders("client"),
       method: "DELETE"
     });
+    if (response.ok) setMethods((items) => items.filter((item) => item.id !== id));
+    else setMessage("Remove failed. Please try again.");
+  }
+
+  async function setDefault(id: string) {
+    setSettingDefault(id);
+    const response = await fetch(`${API_BASE_URL}/billing/payment-methods/${id}/set-default`, {
+      headers: authHeaders("client"),
+      method: "POST"
+    });
+    setSettingDefault(null);
     if (response.ok) {
-      setMethods((items) => items.filter((item) => item.id !== id));
+      setMethods((items) => items.map((item) => ({ ...item, default: item.id === id })));
+      notify.success("Default payment method updated.");
+    } else {
+      setMessage("Could not update default. Please try again.");
     }
   }
+
+  const defaultMethod = methods.find((m) => m.default);
 
   return (
     <section className={styles.module}>
       <CreditCard aria-hidden />
-      <h2>Payments</h2>
-      <form action={submit} className={styles.inlineForm}>
-        <label>Method<select className="input" value={method} onChange={(event) => setMethod(event.target.value)}><option value="CREDIT_CARD">Credit/debit card</option><option value="SEPA">SEPA Direct Debit</option><option value="PAYPAL">PayPal</option></select></label>
-        {needsIban ? <label>IBAN<input className="input" name="iban" placeholder="DE00 0000 0000 0000 0000 00" required /></label> : null}
-        <Button icon={CreditCard} type="submit">Authorize Automatic Payments</Button>
-      </form>
-      <div className={styles.tableWrap}>
-        <table className="table">
-          <thead><tr><th>Method</th><th>Status</th><th>Automatic</th><th></th></tr></thead>
-          <tbody>{methods.length ? methods.map((item) => (
-            <tr key={item.id}><td>{item.label}</td><td><StatusPill label={item.status.toLowerCase()} tone={item.status === "VALID" ? "good" : "warn"} /></td><td>{item.automatic ? "Enabled" : "Disabled"}</td><td><Button type="button" variant="secondary" onClick={() => void remove(item.id)}>Remove</Button></td></tr>
-          )) : <tr><td colSpan={4}>No automatic payment method yet.</td></tr>}</tbody>
-        </table>
-      </div>
-      {message ? <p>{message}</p> : null}
+      <h2>Saved Payment Methods</h2>
+      <p>
+        {methods.length
+          ? "Your saved payment methods are used for automatic invoice billing. Set one as default to control which method is charged automatically."
+          : "Pay your first invoice with PayPal, credit/debit card, or SEPA to automatically save it here for future billing."}
+      </p>
+
+      {defaultMethod && (
+        <div className={styles.defaultBanner}>
+          <strong>Active:</strong> {defaultMethod.label} — used for automatic billing on due date
+        </div>
+      )}
+
+      {methods.length > 0 && (
+        <div className={styles.tableWrap}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Auto billing</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {methods.map((item) => (
+                <tr key={item.id} data-default={item.default || undefined}>
+                  <td>
+                    {item.label}
+                    {item.default ? <span className={styles.defaultTag}>default</span> : null}
+                  </td>
+                  <td><StatusPill label={item.status.toLowerCase()} tone={item.status === "VALID" ? "good" : "warn"} /></td>
+                  <td>{item.automatic ? "Enabled" : "Disabled"}</td>
+                  <td className={styles.methodActions}>
+                    {!item.default && (
+                      <Button
+                        disabled={settingDefault === item.id}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void setDefault(item.id)}
+                      >
+                        {settingDefault === item.id ? "…" : "Set default"}
+                      </Button>
+                    )}
+                    <Button type="button" variant="ghost" onClick={() => void remove(item.id)}>Remove</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {message ? <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>{message}</p> : null}
     </section>
   );
 }

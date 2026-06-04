@@ -240,6 +240,7 @@ export class BillingService {
         description: `Invoice ${invoice.invoiceNumber}`,
         paymentMethodId: dto.paymentMethodId,
         redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
+        userId: invoice.userId,
         webhookUrl: `${publicApiUrl()}/billing/webhooks/${dto.method.toLowerCase()}`
       });
     } catch (error) {
@@ -293,7 +294,7 @@ export class BillingService {
       subjectId: id
     });
     const pending = await this.billing.updateInvoiceStatus(id, "PENDING");
-    return { ...pending, paymentRedirectUrl: result.paymentRedirectUrl };
+    return { ...pending, paymentRedirectUrl: result.paymentRedirectUrl, providerReference: result.providerReference };
   }
 
   async addFunds(userId: string, input: { amountCents: number; method: string }) {
@@ -348,6 +349,26 @@ export class BillingService {
     await this.billing.updateTransactionStatus(transaction.id, result.status, result.raw ?? {});
     if (result.status === "SUCCEEDED") {
       await this.applyAutomaticBalanceDebit(invoice, transaction);
+
+      if (transaction.method === "PAYPAL" && isRecord(result.raw)) {
+        const vaultId = stringFrom(result.raw.paypalVaultId);
+        const customerId = stringFrom(result.raw.paypalCustomerId);
+        if (vaultId) {
+          void this.savePayPalVaultToken(invoice.userId, vaultId, customerId).catch(() => undefined);
+        }
+      }
+
+      if (["CREDIT_CARD", "SEPA"].includes(transaction.method)) {
+        const customerIdFromRaw = isRecord(result.raw)
+          ? (stringFrom(result.raw.customerId) ?? stringFrom(result.raw.mollieCustomerId))
+          : undefined;
+        const customerIdFromTx = isRecord(transaction.raw) ? stringFrom(transaction.raw.mollieCustomerId) : undefined;
+        const mollieCustomerId = customerIdFromRaw ?? customerIdFromTx;
+        if (mollieCustomerId) {
+          void this.saveMollieMandate(invoice.userId, mollieCustomerId, String(transaction.method)).catch(() => undefined);
+        }
+      }
+
       const paid = await this.finalizePaidInvoice(id, { source: "gateway" });
       return { invoice: paid, status: "PAID" };
     }
@@ -355,6 +376,56 @@ export class BillingService {
       return { invoice: await this.billing.updateInvoiceStatus(id, "FAILED"), status: "FAILED" };
     }
     return { invoice: await this.billing.updateInvoiceStatus(id, "PENDING"), status: "PENDING" };
+  }
+
+  private async saveMollieMandate(userId: string, mollieCustomerId: string, method: string) {
+    const result = await this.payments.getMollieMandateForCustomer(mollieCustomerId, method);
+    if (!result) {
+      return;
+    }
+    const existing = await this.billing.findUserPaymentMethodByToken(userId, result.mandateId);
+    if (existing) {
+      return existing;
+    }
+    return this.billing.createPaymentMethod({
+      automatic: true,
+      label: method === "CREDIT_CARD" ? "Credit/debit card" : "SEPA Direct Debit",
+      mandateId: result.mandateId,
+      provider: "mollie",
+      providerCustomerId: mollieCustomerId,
+      providerToken: result.mandateId,
+      status: "VALID",
+      type: method,
+      userId,
+      verifiedAt: new Date()
+    });
+  }
+
+  async setDefaultPaymentMethod(userId: string, id: string) {
+    const method = await this.billing.findPaymentMethod(id, userId);
+    if (!method) {
+      throw new NotFoundException("Payment method not found");
+    }
+    return this.billing.setDefaultPaymentMethod(userId, id);
+  }
+
+  private async savePayPalVaultToken(userId: string, vaultId: string, customerId?: string) {
+    const existing = await this.billing.findUserPaymentMethodByToken(userId, vaultId);
+    if (existing) {
+      return existing;
+    }
+    return this.billing.createPaymentMethod({
+      automatic: true,
+      label: "PayPal",
+      mandateId: vaultId,
+      provider: "paypal",
+      providerCustomerId: customerId,
+      providerToken: vaultId,
+      status: "VALID",
+      type: "PAYPAL",
+      userId,
+      verifiedAt: new Date()
+    });
   }
 
   async markInvoiceUnpaid(id: string, input: { actorId?: string; reason?: string } = {}) {
@@ -1250,30 +1321,83 @@ export class BillingService {
   }
 
   async storefrontPaymentGateways() {
-    const [gateways, sandboxEnabled] = await Promise.all([
+    const [gateways, sandboxEnabled, bankWireEnabled, bankWireIban, bankWireBic, bankWireBankName, bankWireHolder, bankWireRef] = await Promise.all([
       this.billing.listPaymentGateways(),
-      this.billing.settingNumber("sandboxGatewayEnabled", 1)
+      this.billing.settingNumber("sandboxGatewayEnabled", 1),
+      this.billing.settingNumber("bankTransfer.enabled", 0),
+      this.billing.settingString("bankTransfer.iban"),
+      this.billing.settingString("bankTransfer.bic"),
+      this.billing.settingString("bankTransfer.bankName"),
+      this.billing.settingString("bankTransfer.accountHolder"),
+      this.billing.settingString("bankTransfer.referenceNote")
     ]);
     const enabled = gateways.filter((gateway) => gateway.enabled);
     const source = gateways.length ? enabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
-    // Sandbox is always listed first so it is the default during development/testing
     const withSandbox = sandboxEnabled ? [sandboxGateway(), ...source] : source;
 
-    return withSandbox.map((gateway) => ({
-      method: gateway.method,
-      title: gatewayTitle(gateway.method)
-    }));
+    const result: Array<{ config?: Record<string, string | undefined> | undefined; method: string; title: string }> = withSandbox.map((gateway) => {
+      const cfg = gateway.config && isRecord(gateway.config) ? gateway.config : {};
+      const publicConfig: Record<string, string> = {};
+      if (gateway.method === "PAYPAL" && typeof cfg.clientId === "string" && cfg.clientId) {
+        publicConfig.clientId = cfg.clientId;
+        publicConfig.mode = typeof cfg.mode === "string" ? cfg.mode : "test";
+      }
+      return {
+        config: Object.keys(publicConfig).length ? publicConfig : undefined,
+        method: String(gateway.method),
+        title: gatewayTitle(String(gateway.method))
+      };
+    });
+
+    if (bankWireEnabled) {
+      result.push({
+        config: {
+          accountHolder: bankWireHolder,
+          bankName: bankWireBankName,
+          bic: bankWireBic,
+          iban: bankWireIban,
+          referenceNote: bankWireRef
+        },
+        method: "BANK_TRANSFER",
+        title: "Bank Wire Transfer"
+      });
+    }
+    return result;
   }
 
   async adminPaymentGateways() {
-    const [gateways, sandboxEnabled] = await Promise.all([
+    const [gateways, sandboxEnabled, bankWireEnabled, bankWireIban, bankWireBic, bankWireBankName, bankWireHolder, bankWireRef] = await Promise.all([
       this.billing.listPaymentGateways(),
-      this.billing.settingNumber("sandboxGatewayEnabled", 1)
+      this.billing.settingNumber("sandboxGatewayEnabled", 1),
+      this.billing.settingNumber("bankTransfer.enabled", 0),
+      this.billing.settingString("bankTransfer.iban"),
+      this.billing.settingString("bankTransfer.bic"),
+      this.billing.settingString("bankTransfer.bankName"),
+      this.billing.settingString("bankTransfer.accountHolder"),
+      this.billing.settingString("bankTransfer.referenceNote")
     ]);
     const byMethod = new Map(gateways.map((gateway) => [gateway.method, gateway]));
-    return defaultPaymentGateways().map((gateway) => gateway.method === "SANDBOX"
-      ? { ...gateway, enabled: Boolean(sandboxEnabled) }
-      : byMethod.get(gateway.method) ?? gateway);
+    const result: Array<{ config: Record<string, unknown>; enabled: boolean; method: string }> = defaultPaymentGateways().map((gateway) => {
+      if (gateway.method === "SANDBOX") {
+        return { config: {}, enabled: Boolean(sandboxEnabled), method: "SANDBOX" };
+      }
+      const stored = byMethod.get(gateway.method);
+      return stored
+        ? { config: isRecord(stored.config) ? stored.config : {}, enabled: stored.enabled, method: stored.method }
+        : gateway;
+    });
+    result.push({
+      config: {
+        accountHolder: bankWireHolder,
+        bankName: bankWireBankName,
+        bic: bankWireBic,
+        iban: bankWireIban,
+        referenceNote: bankWireRef
+      },
+      enabled: Boolean(bankWireEnabled),
+      method: "BANK_TRANSFER"
+    });
+    return result;
   }
 
   async updatePaymentGateways(input: Array<{ config?: Record<string, unknown>; enabled?: boolean; method: string }>) {
@@ -1282,6 +1406,19 @@ export class BillingService {
       if (gateway.method === "SANDBOX") {
         await this.billing.upsertSettingNumber("sandboxGatewayEnabled", gateway.enabled ? 1 : 0);
         results.push({ config: {}, enabled: Boolean(gateway.enabled), method: "SANDBOX", validation: { ok: true, message: "Sandbox gateway saved." } });
+        continue;
+      }
+      if (gateway.method === "BANK_TRANSFER") {
+        const cfg = gateway.config ?? {};
+        await Promise.all([
+          this.billing.upsertSettingNumber("bankTransfer.enabled", gateway.enabled ? 1 : 0),
+          this.billing.upsertSettingString("bankTransfer.iban", String(cfg.iban ?? "")),
+          this.billing.upsertSettingString("bankTransfer.bic", String(cfg.bic ?? "")),
+          this.billing.upsertSettingString("bankTransfer.bankName", String(cfg.bankName ?? "")),
+          this.billing.upsertSettingString("bankTransfer.accountHolder", String(cfg.accountHolder ?? "")),
+          this.billing.upsertSettingString("bankTransfer.referenceNote", String(cfg.referenceNote ?? ""))
+        ]);
+        results.push({ config: cfg, enabled: Boolean(gateway.enabled), method: "BANK_TRANSFER", validation: { ok: true, message: "Bank wire settings saved." } });
         continue;
       }
       const validation = await this.payments.validateConfig({

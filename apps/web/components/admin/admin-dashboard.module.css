@@ -925,3 +925,76 @@
     padding: 16px;
   }
 }
+
+/* ── Payment Gateway Cards ─────────────────────────────────────── */
+.gatewayCard {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  background: var(--bg);
+}
+
+.gatewayCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gatewayToggle {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  cursor: pointer;
+}
+
+.gatewayBadge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+.gatewayFields {
+  display: grid;
+  gap: 10px;
+}
+
+.gatewayHint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.gatewayHint code {
+  font-family: monospace;
+  background: var(--surface);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.85em;
+}
+
+.gatewayVerified {
+  font-size: 0.8rem;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.gatewayError {
+  font-size: 0.8rem;
+  color: #dc2626;
+  font-weight: 600;
+}

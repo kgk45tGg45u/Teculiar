@@ -659,6 +659,22 @@ export class BillingRepository {
     return this.prisma.paymentMethod.findFirst({ where: { id, userId } });
   }
 
+  findUserPaymentMethodByToken(userId: string, providerToken: string) {
+    return this.prisma.paymentMethod.findFirst({ where: { userId, providerToken } });
+  }
+
+  findUserPaymentMethodByProvider(userId: string, provider: string) {
+    return this.prisma.paymentMethod.findFirst({
+      where: { userId, provider, providerCustomerId: { not: null } },
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  async setDefaultPaymentMethod(userId: string, id: string) {
+    await this.prisma.paymentMethod.updateMany({ where: { userId }, data: { default: false } });
+    return this.prisma.paymentMethod.update({ where: { id }, data: { default: true } });
+  }
+
   findTransactionByProviderReference(providerReference: string) {
     return this.prisma.transaction.findUnique({
       where: { providerReference },

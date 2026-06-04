@@ -1,0 +1,223 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 16px 80px;
+  background: var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  padding: 28px 32px 32px;
+  display: grid;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.header h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Invoice summary ─── */
+.invoiceSummary {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: grid;
+  gap: 7px;
+}
+
+.invoiceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.invoiceRow span { color: var(--muted); }
+
+.amount {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+/* ── Method tabs ─── */
+.methodTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.methodTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+}
+
+.methodTab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.methodTab[data-active="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft, rgba(59,130,246,.08));
+  color: var(--accent);
+}
+
+/* ── Method panel ─── */
+.methodPanel {
+  display: grid;
+  gap: 14px;
+  min-height: 120px;
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ── PayPal ─── */
+.paypalSection { display: grid; gap: 12px; }
+.paypalContainer { min-height: 55px; }
+
+/* ── Mollie / pay button ─── */
+.mollieSection { display: grid; gap: 12px; }
+
+.payBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 140ms;
+}
+
+.payBtn:hover { opacity: 0.88; }
+
+/* ── Bank Wire ─── */
+.bankWirePanel { display: grid; gap: 14px; }
+
+.bankDetails {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bankRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 14px;
+  font-size: 0.87rem;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bankRow:last-child { border-bottom: none; }
+.bankRow span { color: var(--muted); flex-shrink: 0; }
+.bankRow strong { text-align: right; word-break: break-all; }
+
+.mono { font-family: monospace; font-size: 0.9rem; letter-spacing: 0.03em; }
+
+.referenceNote {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.bankNote {
+  font-size: 0.8rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #92400e;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── States ─── */
+.processing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+}
+
+.iconSuccess { color: #16a34a; margin: 0 auto; }
+.iconError { color: #dc2626; margin: 0 auto; }
+
+.spinner { animation: spin 1s linear infinite; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.back {
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  justify-self: start;
+}
+
+.back:hover { color: var(--accent); }
+
+.noGateway {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+}

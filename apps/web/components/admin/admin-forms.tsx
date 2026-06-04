@@ -1089,11 +1089,12 @@ export function SettingsForm() {
   );
 }
 
-type Gateway = { config?: Record<string, unknown>; enabled: boolean; method: string };
+type Gateway = { config?: Record<string, unknown>; enabled: boolean; method: string; validation?: { message?: string; ok?: boolean } };
 
 export function PaymentGatewayForm() {
   const [gateways, setGateways] = useState<Gateway[]>([]);
-  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [results, setResults] = useState<Record<string, { message?: string; ok?: boolean }>>({});
 
   useEffect(() => {
     void fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, { headers: authHeaders() })
@@ -1103,17 +1104,34 @@ export function PaymentGatewayForm() {
   }, []);
 
   async function submit(formData: FormData) {
-    const next = gateways.map((gateway) => ({
-      config: {
-        apiKey: String(formData.get(`${gateway.method}_apiKey`) ?? ""),
-        clientId: String(formData.get(`${gateway.method}_clientId`) ?? ""),
-        clientSecret: String(formData.get(`${gateway.method}_clientSecret`) ?? ""),
-        mode: String(formData.get(`${gateway.method}_mode`) ?? "test"),
-        provider: String(formData.get(`${gateway.method}_provider`) ?? gatewayProvider(gateway.method))
-      },
-      enabled: formData.get(`${gateway.method}_enabled`) === "on",
-      method: gateway.method
-    }));
+    setSaving(true);
+    const next = gateways.map((gateway) => {
+      const enabled = formData.get(`${gateway.method}_enabled`) === "on";
+      if (gateway.method === "BANK_TRANSFER") {
+        return {
+          config: {
+            accountHolder: String(formData.get(`${gateway.method}_accountHolder`) ?? ""),
+            bankName: String(formData.get(`${gateway.method}_bankName`) ?? ""),
+            bic: String(formData.get(`${gateway.method}_bic`) ?? ""),
+            iban: String(formData.get(`${gateway.method}_iban`) ?? ""),
+            referenceNote: String(formData.get(`${gateway.method}_referenceNote`) ?? "")
+          },
+          enabled,
+          method: gateway.method
+        };
+      }
+      return {
+        config: {
+          apiKey: String(formData.get(`${gateway.method}_apiKey`) ?? ""),
+          clientId: String(formData.get(`${gateway.method}_clientId`) ?? ""),
+          clientSecret: String(formData.get(`${gateway.method}_clientSecret`) ?? ""),
+          mode: String(formData.get(`${gateway.method}_mode`) ?? "test"),
+          provider: gatewayProvider(gateway.method)
+        },
+        enabled,
+        method: gateway.method
+      };
+    });
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, {
       body: JSON.stringify({ gateways: next }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -1121,38 +1139,158 @@ export function PaymentGatewayForm() {
     });
 
     const payload = await response.clone().json().catch(() => undefined);
+    setSaving(false);
     if (response.ok && Array.isArray(payload)) {
-      setGateways(payload);
-      const messages = payload.map((gateway) => gateway.validation?.message).filter(Boolean).join(" ");
-      setMessage(messages || "Payment gateways saved.");
-      notify.success(messages || "Payment gateways saved.");
+      setGateways(payload as Gateway[]);
+      const resultMap: Record<string, { message?: string; ok?: boolean }> = {};
+      for (const item of payload as Gateway[]) {
+        resultMap[item.method] = item.validation ?? { ok: true };
+      }
+      setResults(resultMap);
+      const allOk = Object.values(resultMap).every((r) => r.ok);
+      if (allOk) {
+        notify.success("Payment gateways saved and verified.");
+      } else {
+        notify.error("Some gateways could not be verified — check the details.");
+      }
       return;
     }
-    setMessage(await notifyResponse(response, "Payment gateways saved.", "Payment gateways failed."));
+    notifyResponse(response, "Saved.", "Save failed.").catch(() => undefined);
   }
 
   return (
     <form action={submit} className={styles.form}>
-      {gateways.map((gateway) => (
-        <fieldset className={styles.form} key={gateway.method}>
-          <label><input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" /> {gatewayTitle(gateway.method)}</label>
-          <label>Gateway/provider<input defaultValue={String(gateway.config?.provider ?? gatewayProvider(gateway.method))} name={`${gateway.method}_provider`} readOnly /></label>
-          {gateway.method === "SANDBOX" ? (
-            <p>Dummy gateway for checkout and client-area test payments. No external API call.</p>
-          ) : gateway.method === "PAYPAL" ? (
-            <>
-              <label>Mode<select defaultValue={String(gateway.config?.mode ?? "test")} name={`${gateway.method}_mode`}><option value="test">Sandbox</option><option value="live">Live</option></select></label>
-              <label>Client ID<input defaultValue={String(gateway.config?.clientId ?? "")} name={`${gateway.method}_clientId`} /></label>
-              <label>Client secret<input defaultValue={String(gateway.config?.clientSecret ?? "")} name={`${gateway.method}_clientSecret`} type="password" /></label>
-            </>
-          ) : (
-            <label>Mollie API key<input defaultValue={String(gateway.config?.apiKey ?? "")} name={`${gateway.method}_apiKey`} placeholder="test_xxx" type="password" /></label>
-          )}
-          {gateway.config?.verifiedAt ? <small>Verified: {String(gateway.config.verifiedAt)}</small> : null}
-        </fieldset>
-      ))}
-      <Button icon={CreditCard} type="submit">Save Payment Gateways</Button>
-      {message ? <p>{message}</p> : null}
+      <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: 0 }}>
+        Enable and configure payment gateways. Credentials are verified on save. Sandbox mode uses test accounts only.
+      </p>
+
+      {gateways.map((gateway) => {
+        const result = results[gateway.method];
+        const verified = gateway.config?.verifiedAt;
+        return (
+          <fieldset className={styles.gatewayCard} key={gateway.method}>
+            <div className={styles.gatewayCardHeader}>
+              <label className={styles.gatewayToggle}>
+                <input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" />
+                <strong>{gatewayTitle(gateway.method)}</strong>
+              </label>
+              <span className={styles.gatewayBadge}>{gatewayProvider(gateway.method)}</span>
+            </div>
+
+            {gateway.method === "SANDBOX" ? (
+              <p className={styles.gatewayHint}>Simulated gateway — no real payments. Use to test the checkout and client portal flow.</p>
+            ) : gateway.method === "PAYPAL" ? (
+              <div className={styles.gatewayFields}>
+                <label>
+                  Environment
+                  <select defaultValue={String(gateway.config?.mode ?? "test")} name={`${gateway.method}_mode`}>
+                    <option value="test">Sandbox (test)</option>
+                    <option value="live">Live (production)</option>
+                  </select>
+                </label>
+                <label>
+                  Client ID
+                  <input
+                    autoComplete="off"
+                    defaultValue={String(gateway.config?.clientId ?? "")}
+                    name={`${gateway.method}_clientId`}
+                    placeholder="AQriNUWPj..."
+                    spellCheck={false}
+                  />
+                </label>
+                <label>
+                  Client Secret
+                  <input
+                    autoComplete="new-password"
+                    defaultValue={String(gateway.config?.clientSecret ?? "")}
+                    name={`${gateway.method}_clientSecret`}
+                    placeholder="EIf2sU-Hg..."
+                    type="password"
+                  />
+                </label>
+                <p className={styles.gatewayHint}>
+                  PayPal vault is enabled automatically — customers who pay once are saved for future automatic billing via cron.
+                </p>
+              </div>
+            ) : gateway.method === "BANK_TRANSFER" ? (
+              <div className={styles.gatewayFields}>
+                <label>
+                  Account holder name
+                  <input
+                    defaultValue={String(gateway.config?.accountHolder ?? "")}
+                    name={`${gateway.method}_accountHolder`}
+                    placeholder="Dezhost GmbH"
+                  />
+                </label>
+                <label>
+                  Bank name
+                  <input
+                    defaultValue={String(gateway.config?.bankName ?? "")}
+                    name={`${gateway.method}_bankName`}
+                    placeholder="Deutsche Bank"
+                  />
+                </label>
+                <label>
+                  IBAN
+                  <input
+                    defaultValue={String(gateway.config?.iban ?? "")}
+                    name={`${gateway.method}_iban`}
+                    placeholder="DE89 3704 0044 0532 0130 00"
+                    spellCheck={false}
+                  />
+                </label>
+                <label>
+                  BIC / SWIFT
+                  <input
+                    defaultValue={String(gateway.config?.bic ?? "")}
+                    name={`${gateway.method}_bic`}
+                    placeholder="DEUTDEDB"
+                    spellCheck={false}
+                  />
+                </label>
+                <label>
+                  Reference instructions (shown to customer)
+                  <input
+                    defaultValue={String(gateway.config?.referenceNote ?? "")}
+                    name={`${gateway.method}_referenceNote`}
+                    placeholder="Please include your invoice number as payment reference."
+                  />
+                </label>
+                <p className={styles.gatewayHint}>
+                  Manual gateway. The customer sees your bank details, wires the amount, and the admin marks the invoice as paid. A sales ticket is opened if provisioning doesn't complete.
+                </p>
+              </div>
+            ) : (
+              <div className={styles.gatewayFields}>
+                <label>
+                  Mollie API Key
+                  <input
+                    autoComplete="new-password"
+                    defaultValue={String(gateway.config?.apiKey ?? "")}
+                    name={`${gateway.method}_apiKey`}
+                    placeholder={gateway.config?.mode === "live" ? "live_xxx" : "test_xxx"}
+                    type="password"
+                  />
+                </label>
+                <p className={styles.gatewayHint}>Use a <code>test_</code> key for sandbox mode, <code>live_</code> for production. One key covers both Credit Card and SEPA. A Mollie mandate is captured on first payment for automatic future billing.</p>
+              </div>
+            )}
+
+            {result && (
+              <div className={result.ok ? styles.gatewayVerified : styles.gatewayError}>
+                {result.ok ? "✓" : "✗"} {result.message ?? (result.ok ? "Verified" : "Verification failed")}
+              </div>
+            )}
+            {!result && verified ? (
+              <div className={styles.gatewayVerified}>
+                ✓ Last verified {new Date(String(verified)).toLocaleDateString("de-DE")}
+              </div>
+            ) : null}
+          </fieldset>
+        );
+      })}
+
+      <Button disabled={saving} icon={CreditCard} type="submit">{saving ? "Saving…" : "Save & Verify Gateways"}</Button>
     </form>
   );
 }

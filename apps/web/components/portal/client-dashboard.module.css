@@ -1525,3 +1525,33 @@
     padding: 11px;
   }
 }
+
+/* ── Payment method list ─── */
+.defaultBanner {
+  background: var(--accent-soft, rgba(59,130,246,.08));
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 9px 13px;
+  font-size: 0.83rem;
+  color: var(--accent);
+}
+
+.defaultTag {
+  display: inline-block;
+  margin-left: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 20px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+
+.methodActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}

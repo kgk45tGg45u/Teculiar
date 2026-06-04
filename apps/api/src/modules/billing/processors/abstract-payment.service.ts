@@ -36,6 +36,68 @@ export class AbstractPaymentService {
     return { ok: true, message: "Gateway uses sandbox fallback." };
   }
 
+  // ─── PayPal vault: charge saved payment method ────────────────────────────
+
+  async chargePayPalVault(input: {
+    amountCents: number;
+    currency: "EUR";
+    description: string;
+    invoiceId: string;
+    vaultId: string;
+    webhookUrl?: string;
+  }): Promise<PaymentResult> {
+    const config = await this.billing.paymentGateway("PAYPAL");
+    if (!config?.enabled || !config.config) {
+      return {
+        providerReference: `paypal_vault_${randomUUID()}`,
+        raw: { invoiceId: input.invoiceId, sandbox: true },
+        status: "SUCCEEDED"
+      };
+    }
+    const cfg = config.config as Record<string, unknown>;
+    const token = await paypalAccessToken(cfg);
+    const baseUrl = paypalBaseUrl(cfg);
+    const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        processing_instruction: "ORDER_COMPLETE_ON_PAYMENT_APPROVAL",
+        purchase_units: [{
+          amount: { currency_code: input.currency, value: centsToAmount(input.amountCents) },
+          description: input.description,
+          reference_id: input.invoiceId
+        }],
+        payment_source: {
+          paypal: {
+            vault_id: input.vaultId,
+            experience_context: {
+              return_url: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`,
+              cancel_url: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`
+            }
+          }
+        }
+      }),
+      headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json", "PayPal-Request-Id": `vault_${input.invoiceId}` },
+      method: "POST"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new BadRequestException(gatewayMessage(payload, "PayPal vault charge failed."));
+    }
+    const orderStatus = String(payload.status ?? "").toUpperCase();
+    if (orderStatus === "COMPLETED") {
+      return { providerReference: String(payload.id ?? `paypal_vault_${randomUUID()}`), raw: payload as Record<string, unknown>, status: "SUCCEEDED" };
+    }
+    if (orderStatus === "APPROVED") {
+      return capturePayPalOrder(cfg, String(payload.id));
+    }
+    return {
+      paymentRedirectUrl: approvalUrl(payload),
+      providerReference: String(payload.id ?? `paypal_vault_${randomUUID()}`),
+      raw: payload as Record<string, unknown>,
+      status: "PENDING"
+    };
+  }
+
   async createMollieCustomer(input: { email: string; name: string }) {
     const config = await this.mollieGatewayConfig("CREDIT_CARD");
     if (!config) {
@@ -129,6 +191,19 @@ export class AbstractPaymentService {
     method: string;
     webhookUrl: string;
   }) {
+    if (input.method === "PAYPAL") {
+      const vaultId = input.mandateId ?? input.customerId;
+      if (!vaultId) {
+        throw new BadRequestException("PayPal vault token is missing.");
+      }
+      return this.chargePayPalVault({
+        amountCents: input.amountCents,
+        currency: input.currency,
+        description: input.description,
+        invoiceId: input.invoiceId,
+        vaultId
+      });
+    }
     const config = await this.mollieGatewayConfig(input.method);
     if (!config) {
       return {
@@ -141,6 +216,19 @@ export class AbstractPaymentService {
       throw new BadRequestException("Saved payment method is missing mandate details.");
     }
     return createMollieRecurringPayment(config, input);
+  }
+
+  async getMollieMandateForCustomer(customerId: string, method: string): Promise<{ mandateId: string; raw: Record<string, unknown> } | undefined> {
+    const config = await this.mollieGatewayConfig(method);
+    if (!config) {
+      return undefined;
+    }
+    try {
+      const mandate = await latestMollieMandate(config, customerId, method);
+      return { mandateId: mandate.id, raw: mandate.raw };
+    } catch {
+      return undefined;
+    }
   }
 
   private async charge(method: string, request: PaymentRequest): Promise<PaymentResult> {
@@ -157,10 +245,30 @@ export class AbstractPaymentService {
       if (isMollieConfig(gateway.config as Record<string, unknown>)) {
         return createMolliePayment(gateway.config as Record<string, unknown>, request, method);
       }
-      return createPayPalOrder(gateway.config as Record<string, unknown>, request);
+      // paymentMethodId="paypal" signals JS SDK mode — omit redirectUrl so PayPal popup works.
+      const sdkMode = request.paymentMethodId === "paypal";
+      return createPayPalOrder(gateway.config as Record<string, unknown>, {
+        ...request,
+        redirectUrl: sdkMode ? undefined : request.redirectUrl
+      });
     }
     if (["CREDIT_CARD", "SEPA"].includes(method)) {
-      return createMolliePayment(gateway.config as Record<string, unknown>, request, method);
+      const config = gateway.config as Record<string, unknown>;
+      // Obtain or create a Mollie customer so a mandate can be captured on success.
+      let mollieCustomerId: string | undefined;
+      if (request.userId) {
+        const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
+        if (existing?.providerCustomerId) {
+          mollieCustomerId = existing.providerCustomerId;
+        } else {
+          const user = await this.billing.findUserForPaymentSetup(request.userId);
+          if (user) {
+            const customer = await createMollieCustomerWithConfig(config, user.email, user.name ?? user.email);
+            mollieCustomerId = customer.id;
+          }
+        }
+      }
+      return createMolliePayment(config, request, method, { customerId: mollieCustomerId, sequenceType: "first" });
     }
 
     return sandboxResult(method, request);
@@ -234,16 +342,41 @@ async function validatePayPal(config: Record<string, unknown>) {
   return { ok: true, message: "PayPal connection verified.", raw: { tokenType: token.tokenType } };
 }
 
-async function createMolliePayment(config: Record<string, unknown>, request: PaymentRequest, method: string): Promise<PaymentResult> {
+async function createMollieCustomerWithConfig(config: Record<string, unknown>, email: string, name: string) {
   const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
+  const response = await fetch("https://api.mollie.com/v2/customers", {
+    body: JSON.stringify({ email, name }),
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    method: "POST"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new BadRequestException(gatewayMessage(payload, "Mollie customer creation failed."));
+  }
+  return { id: String(payload.id), raw: payload as Record<string, unknown> };
+}
+
+async function createMolliePayment(
+  config: Record<string, unknown>,
+  request: PaymentRequest,
+  method: string,
+  options?: { customerId?: string; sequenceType?: string }
+): Promise<PaymentResult> {
+  const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
+  const body: Record<string, unknown> = {
+    amount: { currency: request.currency, value: centsToAmount(request.amountCents) },
+    description: request.description ?? `Dezhost payment ${request.invoiceId}`,
+    method: mollieMethod(method),
+    redirectUrl: request.redirectUrl,
+    webhookUrl: request.webhookUrl
+  };
+  if (options?.customerId) {
+    body.customerId = options.customerId;
+    body.sequenceType = options.sequenceType ?? "first";
+    body.metadata = { invoiceId: request.invoiceId };
+  }
   const response = await fetch("https://api.mollie.com/v2/payments", {
-    body: JSON.stringify({
-      amount: { currency: request.currency, value: centsToAmount(request.amountCents) },
-      description: request.description ?? `Dezhost payment ${request.invoiceId}`,
-      method: mollieMethod(method),
-      redirectUrl: request.redirectUrl,
-      webhookUrl: request.webhookUrl
-    }),
+    body: JSON.stringify(body),
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     method: "POST"
   });
@@ -255,7 +388,7 @@ async function createMolliePayment(config: Record<string, unknown>, request: Pay
   return {
     paymentRedirectUrl: link(payload, "checkout"),
     providerReference: String(payload.id ?? `mollie_${randomUUID()}`),
-    raw: payload as Record<string, unknown>,
+    raw: { ...(payload as Record<string, unknown>), mollieCustomerId: options?.customerId } as Record<string, unknown>,
     status: "PENDING"
   };
 }
@@ -375,24 +508,40 @@ async function latestMollieMandate(config: Record<string, unknown>, customerId: 
 
 async function createPayPalOrder(config: Record<string, unknown>, request: PaymentRequest): Promise<PaymentResult> {
   const token = await paypalAccessToken(config);
+  // When a redirectUrl is provided this is a redirect-based flow (not JS SDK popup).
+  // In SDK popup mode the payment_source block must be omitted so PayPal handles the UX.
+  const paymentSource = request.redirectUrl
+    ? {
+        payment_source: {
+          paypal: {
+            experience_context: {
+              cancel_url: request.redirectUrl,
+              return_url: request.redirectUrl,
+              user_action: "PAY_NOW",
+              vault_instruction: "ON_PAYER_APPROVAL"
+            },
+            attributes: {
+              vault: {
+                store_in_vault: "ON_SUCCESS",
+                usage_type: "MERCHANT",
+                customer_type: "CONSUMER"
+              }
+            }
+          }
+        }
+      }
+    : {};
   const response = await fetch(`${paypalBaseUrl(config)}/v2/checkout/orders`, {
     body: JSON.stringify({
       intent: "CAPTURE",
       purchase_units: [{
         amount: { currency_code: request.currency, value: centsToAmount(request.amountCents) },
+        description: request.description,
         reference_id: request.invoiceId
       }],
-      payment_source: {
-        paypal: {
-          experience_context: {
-            cancel_url: request.redirectUrl,
-            return_url: request.redirectUrl,
-            user_action: "PAY_NOW"
-          }
-        }
-      }
+      ...paymentSource
     }),
-    headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json", "PayPal-Request-Id": request.invoiceId },
     method: "POST"
   });
   const payload = await response.json().catch(() => ({}));
@@ -411,17 +560,25 @@ async function createPayPalOrder(config: Record<string, unknown>, request: Payme
 async function capturePayPalOrder(config: Record<string, unknown>, providerReference: string): Promise<PaymentResult> {
   const token = await paypalAccessToken(config);
   const response = await fetch(`${paypalBaseUrl(config)}/v2/checkout/orders/${providerReference}/capture`, {
-    headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json", "PayPal-Request-Id": `capture_${providerReference}` },
     method: "POST"
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new BadRequestException(gatewayMessage(payload, "PayPal capture failed."));
   }
+  const completed = String(payload.status).toUpperCase() === "COMPLETED";
+  const vault = isRecord(payload.payment_source) && isRecord(payload.payment_source.paypal)
+    ? isRecord((payload.payment_source.paypal as Record<string, unknown>).attributes)
+      ? isRecord(((payload.payment_source.paypal as Record<string, unknown>).attributes as Record<string, unknown>).vault)
+        ? (((payload.payment_source.paypal as Record<string, unknown>).attributes as Record<string, unknown>).vault as Record<string, unknown>)
+        : undefined
+      : undefined
+    : undefined;
   return {
     providerReference,
-    raw: payload as Record<string, unknown>,
-    status: String(payload.status).toUpperCase() === "COMPLETED" ? "SUCCEEDED" : "PENDING"
+    raw: { ...(payload as Record<string, unknown>), paypalVaultId: vault?.id, paypalCustomerId: vault?.customer && isRecord(vault.customer) ? vault.customer.id : undefined },
+    status: completed ? "SUCCEEDED" : "PENDING"
   };
 }
 
@@ -462,6 +619,10 @@ async function paypalAccessToken(config: Record<string, unknown>) {
 
 function paypalBaseUrl(config: Record<string, unknown>) {
   return stringConfig(config, "mode") === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+}
+
+function publicWebUrl() {
+  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000";
 }
 
 function approvalUrl(payload: unknown) {

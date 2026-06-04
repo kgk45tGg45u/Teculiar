@@ -108,6 +108,11 @@ export class BillingController {
     return this.billing.updatePaymentMethod(request.user.sub, id, body);
   }
 
+  @Post("payment-methods/:id/set-default")
+  setDefaultPaymentMethod(@Param("id") id: string, @Req() request: Request & { user: { sub: string } }) {
+    return this.billing.setDefaultPaymentMethod(request.user.sub, id);
+  }
+
   @Delete("payment-methods/:id")
   deletePaymentMethod(@Param("id") id: string, @Req() request: Request & { user: { sub: string } }) {
     return this.billing.deletePaymentMethod(request.user.sub, id);
