@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -50,5 +51,17 @@ export class EmailAdminController {
   @Post("mailpit-preset")
   mailpitPreset() {
     return this.emails.useMailpitPreset();
+  }
+
+  @Post("users/:userId/send-event")
+  sendEventToUser(@Param("userId") userId: string, @Body() body: { eventKey: string }) {
+    if (!body.eventKey) throw new BadRequestException("eventKey is required");
+    return this.emails.sendEventToUser(userId, body.eventKey);
+  }
+
+  @Post("users/:userId/send-custom")
+  sendCustomToUser(@Param("userId") userId: string, @Body() body: { body: string; subject: string }) {
+    if (!body.subject || !body.body) throw new BadRequestException("subject and body are required");
+    return this.emails.sendCustomToUser(userId, body.subject, body.body);
   }
 }

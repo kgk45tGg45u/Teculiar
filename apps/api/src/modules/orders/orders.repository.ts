@@ -55,6 +55,18 @@ export class OrdersRepository {
     });
   }
 
+  findActiveServiceForUserProduct(userId: string, productId: string) {
+    return this.prisma.service.findFirst({
+      where: { userId, productId, status: { notIn: ["CANCELLED", "TERMINATED"] } }
+    });
+  }
+
+  findActiveDomainRecord(domain: string) {
+    return this.prisma.domainRecord.findFirst({
+      where: { domain: domain.toLowerCase().trim(), status: { notIn: ["CANCELLED"] } }
+    });
+  }
+
   async createOrder(input: {
     customerSnapshot: Record<string, unknown>;
     invoiceId: string;

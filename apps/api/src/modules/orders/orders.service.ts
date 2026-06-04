@@ -125,6 +125,23 @@ export class OrdersService {
     if (preview.items.some((item) => item.type === "DOMAIN")) {
       assertDomainRegistrantContact(dto.customer);
     }
+
+    if (existing) {
+      for (const item of preview.items) {
+        if (item.type === "DOMAIN" && item.domainName) {
+          const existingDomain = await this.orders.findActiveDomainRecord(item.domainName);
+          if (existingDomain) {
+            throw new BadRequestException(`Domain ${item.domainName} already exists in the system. An invoice can be created manually instead.`);
+          }
+        } else if (item.type !== "DOMAIN" && item.productId) {
+          const existingService = await this.orders.findActiveServiceForUserProduct(existing.id, item.productId);
+          if (existingService) {
+            throw new BadRequestException(`You already have an active service for "${item.description}". An invoice can be created manually instead.`);
+          }
+        }
+      }
+    }
+
     const pendingPasswordHash = existing ? undefined : await hash(dto.customer.password, 12);
     const user =
       existing ??
@@ -200,6 +217,20 @@ export class OrdersService {
       throw new NotFoundException("Client not found");
     }
     const items = await this.priceItems(dto.items);
+
+    for (const item of items) {
+      if (item.type === "DOMAIN" && item.domainName) {
+        const existingDomain = await this.orders.findActiveDomainRecord(item.domainName);
+        if (existingDomain) {
+          throw new BadRequestException(`Domain ${item.domainName} already exists in the system. Create an invoice manually instead.`);
+        }
+      } else if (item.type !== "DOMAIN" && item.productId) {
+        const existingService = await this.orders.findActiveServiceForUserProduct(user.id, item.productId);
+        if (existingService) {
+          throw new BadRequestException(`Client already has an active service for "${item.description}". Create an invoice manually instead.`);
+        }
+      }
+    }
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;

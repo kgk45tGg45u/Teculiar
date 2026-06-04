@@ -1858,11 +1858,16 @@ export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId
 type LineItem = { id: number };
 
 export function AdminClientActions({ client }: { client: ApiClient }) {
-  const [open, setOpen] = useState<"profile" | "password" | "invoice" | null>(null);
+  const [open, setOpen] = useState<"profile" | "password" | "invoice" | "welcome-email" | "send-email" | null>(null);
   const [lines, setLines] = useState<LineItem[]>([{ id: 0 }]);
   const [profileMsg, setProfileMsg] = useState("");
   const [pwMsg, setPwMsg] = useState("");
   const [invoiceMsg, setInvoiceMsg] = useState("");
+  const [emailMsg, setEmailMsg] = useState("");
+  const [emailEvents, setEmailEvents] = useState<Array<{ key: string; subject: string }>>([]);
+  const [selectedEventKey, setSelectedEventKey] = useState("welcome");
+  const [customSubject, setCustomSubject] = useState("");
+  const [customBody, setCustomBody] = useState("");
   const contact = client.contacts?.[0];
   const address = contact?.address ?? {};
 
@@ -1871,6 +1876,55 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
     setProfileMsg("");
     setPwMsg("");
     setInvoiceMsg("");
+    setEmailMsg("");
+  }
+
+  async function openSendEmail() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/emails`, { headers: authHeaders() });
+    if (response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const events: Array<{ key: string; subject: string }> = Array.isArray(payload.events) ? payload.events : [];
+      setEmailEvents(events);
+      if (events.length && !selectedEventKey && events[0]) setSelectedEventKey(events[0].key);
+    }
+    setOpen("send-email");
+  }
+
+  async function sendEventEmail() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
+      body: JSON.stringify({ eventKey: selectedEventKey }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    const msg = await notifyResponse(response, "Email sent.", "Email send failed.");
+    setEmailMsg(msg);
+    if (response.ok) closeModal();
+  }
+
+  async function sendCustomEmail() {
+    if (!customSubject.trim() || !customBody.trim()) {
+      setEmailMsg("Subject and body are required.");
+      return;
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-custom`, {
+      body: JSON.stringify({ body: customBody, subject: customSubject }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    const msg = await notifyResponse(response, "Email sent.", "Email send failed.");
+    setEmailMsg(msg);
+    if (response.ok) closeModal();
+  }
+
+  async function sendWelcomeEmail() {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
+      body: JSON.stringify({ eventKey: "welcome" }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "POST"
+    });
+    const msg = await notifyResponse(response, "Welcome email sent.", "Welcome email failed.");
+    setEmailMsg(msg);
+    if (response.ok) closeModal();
   }
 
   async function saveProfile(formData: FormData) {
@@ -1970,6 +2024,8 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
         <Button type="button" onClick={() => setOpen("profile")}>Edit Profile</Button>
         <Button type="button" variant="secondary" onClick={() => setOpen("password")}>Change Password</Button>
         <Button type="button" variant="secondary" onClick={() => setOpen("invoice")}>Create Invoice</Button>
+        <Button type="button" variant="secondary" onClick={sendWelcomeEmail}>Send Welcome Email</Button>
+        <Button type="button" variant="secondary" onClick={openSendEmail}>Send Email</Button>
         <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>Delete Client</Button>
       </div>
 
@@ -1978,7 +2034,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
           <div className={styles.modal}>
             <div className={styles.modalHead}>
               <strong>
-                {open === "profile" ? "Edit Profile" : open === "password" ? "Change Password" : "Create Invoice"}
+                {open === "profile" ? "Edit Profile" : open === "password" ? "Change Password" : open === "invoice" ? "Create Invoice" : open === "welcome-email" ? "Send Welcome Email" : "Send Email"}
               </strong>
               <button className={styles.modalClose} type="button" onClick={closeModal}>✕</button>
             </div>
@@ -2063,6 +2119,39 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
                 </div>
                 {invoiceMsg ? <p className={styles.formMessage}>{invoiceMsg}</p> : null}
               </form>
+            ) : null}
+
+            {open === "send-email" ? (
+              <div className={styles.form}>
+                <div className={styles.formGrid}>
+                  <label className={styles.formSpan2}>
+                    Template
+                    <select value={selectedEventKey} onChange={(e) => {
+                      const key = e.target.value;
+                      setSelectedEventKey(key);
+                      const event = emailEvents.find((ev) => ev.key === key);
+                      if (event) setCustomSubject(event.subject);
+                    }}>
+                      {emailEvents.map((ev) => <option key={ev.key} value={ev.key}>{ev.key} — {ev.subject}</option>)}
+                      {emailEvents.length === 0 && <option value="">Loading…</option>}
+                    </select>
+                  </label>
+                  <label className={styles.formSpan2}>
+                    Subject
+                    <input value={customSubject} onChange={(e) => setCustomSubject(e.target.value)} placeholder="Subject line" />
+                  </label>
+                  <label className={styles.formSpan2}>
+                    Body (HTML allowed)
+                    <textarea value={customBody} onChange={(e) => setCustomBody(e.target.value)} rows={8} placeholder="Write your message here…" />
+                  </label>
+                </div>
+                <div className={styles.formActions}>
+                  <Button type="button" onClick={sendEventEmail}>Send Using Template</Button>
+                  <Button type="button" variant="secondary" onClick={sendCustomEmail}>Send Custom (above subject+body)</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                </div>
+                {emailMsg ? <p className={styles.formMessage}>{emailMsg}</p> : null}
+              </div>
             ) : null}
           </div>
         </div>

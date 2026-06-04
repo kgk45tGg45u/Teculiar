@@ -64,6 +64,7 @@ export class ProductsRepository {
         description: dto.description,
         homepageVisible: dto.homepageVisible ?? true,
         provisioningModule: normalizeModule(dto.provisioningModule),
+        sortOrder: dto.sortOrder ?? 0,
         prices: {
           create: productPrices(dto).map((price) => ({
             billingCycle: price.billingCycle as BillingCycle,
@@ -100,6 +101,7 @@ export class ProductsRepository {
           name: dto.name,
           provisioningModule: normalizeModule(dto.provisioningModule),
           slug: dto.slug,
+          sortOrder: dto.sortOrder ?? 0,
           type: dto.type as ProductType,
           configs: {
             deleteMany: {},

@@ -30,7 +30,7 @@ export function AdminCategoryManager() {
   }
 
   async function saveCategory(formData: FormData) {
-    setState({ kind: "loading", message: "Speichere Kategorie..." });
+    setState({ kind: "loading", message: "Saving category…" });
     const categoryId = String(formData.get("categoryId") ?? "");
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
       body: JSON.stringify({
@@ -45,92 +45,90 @@ export function AdminCategoryManager() {
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      const message = typeof payload.message === "string" ? payload.message : "Kategorie konnte nicht gespeichert werden.";
+      const message = typeof payload.message === "string" ? payload.message : "Category could not be saved.";
       setState({ kind: "error", message });
       notify.error(message);
       return;
     }
-    setState({ kind: "ok", message: "Kategorie gespeichert." });
-    notify.success("Kategorie gespeichert.");
+    setState({ kind: "ok", message: "Category saved." });
+    notify.success("Category saved.");
     setEditingCategory(undefined);
     await refreshCategories();
   }
 
   async function removeCategory(category: ApiProductCategory) {
-    setState({ kind: "loading", message: "Entferne Kategorie..." });
+    setState({ kind: "loading", message: "Removing category…" });
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories/${category.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
-      setState({ kind: "error", message: "Kategorie konnte nicht entfernt werden." });
-      notify.error("Kategorie konnte nicht entfernt werden.");
+      setState({ kind: "error", message: "Category could not be removed." });
+      notify.error("Category could not be removed.");
       return;
     }
-    setState({ kind: "ok", message: "Kategorie entfernt." });
-    notify.success("Kategorie entfernt.");
+    setState({ kind: "ok", message: "Category removed." });
+    notify.success("Category removed.");
     await refreshCategories();
   }
 
   return (
     <div className={styles.stack}>
-      <section className={styles.products}>
-        <form action={saveCategory} className={styles.categoryForm} key={editingCategory?.id ?? "new-category"}>
+      <section className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2>{editingCategory ? `Edit: ${editingCategory.name}` : "New Category"}</h2>
+        </div>
+        <form action={saveCategory} className={styles.form} key={editingCategory?.id ?? "new-category"}>
           <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
           <div className={styles.grid}>
+            <label>Name<input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Web Hosting" /></label>
+            <label>Slug<input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" /></label>
             <label>
-              Name
-              <input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Webhosting" />
-            </label>
-            <label>
-              Slug
-              <input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" />
-            </label>
-            <label>
-              Modul
+              Module
               <select defaultValue={editingCategory?.provisioningModule ?? "none"} name="categoryModule">
                 <option value="virtualmin">Virtualmin</option>
                 <option value="resellbiz">ResellBiz</option>
                 <option value="hetzner">Hetzner</option>
-                <option value="none">Manuell</option>
+                <option value="none">Manual</option>
               </select>
             </label>
-            <label>
-              Sortierung
-              <input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" />
-            </label>
+            <label>Sort Order<input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" min="0" /></label>
           </div>
-          <label>
-            Beschreibung
-            <textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} />
-          </label>
-          <div className={styles.actions}>
-            <Button type="submit">Kategorie speichern</Button>
-            {editingCategory ? <Button type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>Neue Kategorie</Button> : null}
+          <label>Description<textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} /></label>
+          <div className={styles.formActions}>
+            <Button size="sm" type="submit">Save Category</Button>
+            {editingCategory ? <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>+ New Category</Button> : null}
+            {state.message ? <span className={styles[state.kind]}>{state.message}</span> : null}
           </div>
-          {state.message ? <p className={styles[state.kind]}>{state.message}</p> : null}
         </form>
+      </section>
+
+      <section className={styles.card}>
+        <div className={styles.cardHeader}><h2>Categories</h2></div>
         <div className={styles.tableWrap}>
           <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Name</th>
                 <th>Slug</th>
-                <th>Modul</th>
-                <th>Produkte</th>
-                <th>Aktion</th>
+                <th>Module</th>
+                <th>Products</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {categories.map((category) => (
                 <tr key={category.id}>
+                  <td className={styles.muted}>{category.sortOrder ?? 0}</td>
                   <td>{category.name}</td>
-                  <td>{category.slug}</td>
+                  <td className={styles.mono}>{category.slug}</td>
                   <td>{moduleLabel(category.provisioningModule)}</td>
                   <td>{category.products?.length ?? 0}</td>
-                  <td className={styles.actions}>
-                    <Button type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
-                    <Button type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
+                  <td className={styles.rowActions}>
+                    <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
                   </td>
                 </tr>
               ))}
+              {categories.length === 0 && <tr><td colSpan={6} className={styles.empty}>No categories yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -154,12 +152,11 @@ export function AdminProductManager() {
   useEffect(() => {
     void refreshProducts();
     void refreshCategories();
-    void detectVirtualminPlans();
   }, []);
 
   async function submit(formData: FormData) {
-    setState({ kind: "loading", message: "Speichere Produkt..." });
-    notify.info("Speichere Produkt...");
+    setState({ kind: "loading", message: "Saving product…" });
+    notify.info("Saving product…");
     const setupFeeCents = cents(formData.get("setupFee"));
     const prices = ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"]
       .map((billingCycle) => {
@@ -182,6 +179,7 @@ export function AdminProductManager() {
           name: String(formData.get("name") ?? ""),
           prices,
           slug: String(formData.get("slug") ?? ""),
+          sortOrder: Number(formData.get("sortOrder") ?? 0),
           type: String(formData.get("type") ?? "DOMAIN")
         }),
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -190,32 +188,42 @@ export function AdminProductManager() {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(typeof payload.message === "string" ? payload.message : "Produkt konnte nicht gespeichert werden.");
+        throw new Error(typeof payload.message === "string" ? payload.message : "Product could not be saved.");
       }
 
-      setState({ kind: "ok", message: "Produkt gespeichert." });
-      notify.success("Produkt gespeichert.");
+      setState({ kind: "ok", message: "Product saved." });
+      notify.success("Product saved.");
       setEditing(undefined);
       setCategoryId("");
       await refreshProducts();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Produkt fehlgeschlagen.";
+      const message = error instanceof Error ? error.message : "Product save failed.";
       setState({ kind: "error", message });
       notify.error(message);
     }
   }
 
   async function removeProduct(product: ApiProduct) {
-    setState({ kind: "loading", message: "Entferne Produkt..." });
+    if (!confirm(`Remove product "${product.name}"? This cannot be undone.`)) return;
+    setState({ kind: "loading", message: "Removing product…" });
     const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
-      setState({ kind: "error", message: "Produkt konnte nicht entfernt werden." });
-      notify.error("Produkt konnte nicht entfernt werden.");
+      setState({ kind: "error", message: "Product could not be removed." });
+      notify.error("Product could not be removed.");
       return;
     }
-    setState({ kind: "ok", message: "Produkt entfernt." });
-    notify.success("Produkt entfernt.");
+    setState({ kind: "ok", message: "Product removed." });
+    notify.success("Product removed.");
     await refreshProducts();
+  }
+
+  function editProduct(product: ApiProduct) {
+    setEditing(product);
+    setCategoryId(product.categoryId ?? product.category?.id ?? "");
+    setModule(product.category ? product.category.provisioningModule ?? "none" : product.provisioningModule ?? "none");
+    setType(product.type);
+    setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function refreshProducts() {
@@ -265,176 +273,198 @@ export function AdminProductManager() {
 
   return (
     <div className={styles.stack}>
-      <section className={styles.products}>
-        <div className={styles.actions}>
-          <Button type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect Virtualmin plans</Button>
-          <Button type="button" onClick={syncVirtualminPlans}>Confirm and save plans</Button>
+      <section className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2>{editing ? `Edit: ${editing.name}` : "New Product"}</h2>
+          {editing ? (
+            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setCategoryId(""); setType("DOMAIN"); }}>
+              + New Product
+            </Button>
+          ) : null}
         </div>
-        {detectedPlans.length ? (
+
+        <form action={submit} className={styles.form} key={editing?.id ?? "new"}>
+          <input name="productId" type="hidden" value={editing?.id ?? ""} />
+          <input name="categoryModule" type="hidden" value={effectiveModule ?? "none"} />
+
+          <fieldset className={styles.fieldset}>
+            <legend>Basic Info</legend>
+            <div className={styles.grid}>
+              <label>Name<input defaultValue={editing?.name ?? ""} name="name" required placeholder="Web Hosting Basic" /></label>
+              <label>Slug<input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="web-hosting-basic" /></label>
+              <label>
+                Type
+                <select defaultValue={editing?.type ?? "DOMAIN"} name="type" onChange={(e) => setType(e.target.value)}>
+                  <option value="DOMAIN">Domain</option>
+                  <option value="SHARED_HOSTING">Web Hosting</option>
+                  <option value="VPS">VPS</option>
+                </select>
+              </label>
+              <label>
+                Category
+                <select defaultValue={editing?.categoryId ?? editing?.category?.id ?? ""} name="categoryId" onChange={(e) => {
+                  const nextCategory = categories.find((c) => c.id === e.target.value);
+                  setCategoryId(e.target.value);
+                  setModule(nextCategory?.provisioningModule ?? "none");
+                }}>
+                  <option value="">No Category</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              <label>Sort Order<input defaultValue={editing?.sortOrder ?? 0} name="sortOrder" type="number" min="0" placeholder="0" /></label>
+              <label>Custom Fields<input defaultValue={customFieldsValue(editing)} name="customFields" placeholder="Hostname, PHP Version" /></label>
+            </div>
+            <label>Description<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
+          </fieldset>
+
+          {type === "DOMAIN" ? (
+            <p className={styles.note}>Domain pricing comes from Admin / Domain Prices. The product price shows "from" the cheapest TLD.</p>
+          ) : (
+            <fieldset className={styles.fieldset}>
+              <legend>Pricing (EUR)</legend>
+              <div className={styles.priceGrid}>
+                {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
+                  <label key={cycle}>
+                    <span className={styles.cycleLabel}>{cycleLabel(cycle)}</span>
+                    <input defaultValue={priceValue(editing, cycle)} name={`price_${cycle}`} placeholder="—" />
+                  </label>
+                ))}
+                <label>
+                  <span className={styles.cycleLabel}>Setup Fee</span>
+                  <input name="setupFee" placeholder="0" />
+                </label>
+              </div>
+            </fieldset>
+          )}
+
+          {effectiveModule === "virtualmin" ? (
+            <fieldset className={styles.fieldset}>
+              <legend>Virtualmin</legend>
+              <div className={styles.virtualminRow}>
+                <label className={styles.flexGrow}>
+                  Plan
+                  <select defaultValue={String(editing?.configs?.find((c) => c.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(e) => setSelectedPlan(e.target.value)}>
+                    <option value="">Select plan</option>
+                    {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  </select>
+                </label>
+                <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect plans</Button>
+              </div>
+              {plan ? (
+                <div className={styles.limits}>
+                  <span>Disk: {plan.limits?.disk ?? "?"}</span>
+                  <span>Bandwidth: {plan.limits?.bandwidth ?? "?"}</span>
+                  <span>Email: {plan.limits?.mailboxes ?? "?"}</span>
+                  <span>Databases: {plan.limits?.databases ?? "?"}</span>
+                  <span>Subdomains: {plan.limits?.subServers ?? "?"}</span>
+                </div>
+              ) : null}
+            </fieldset>
+          ) : null}
+
+          <div className={styles.formActions}>
+            <Button size="sm" type="submit">Save Product</Button>
+            {state.message ? <span className={styles[state.kind]}>{state.message}</span> : null}
+          </div>
+        </form>
+      </section>
+
+      {detectedPlans.length > 0 ? (
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2>Detected Virtualmin Plans</h2>
+            <Button size="sm" type="button" onClick={syncVirtualminPlans}>Confirm &amp; Save</Button>
+          </div>
           <div className={styles.planReview}>
-            {detectedPlans.map((plan) => (
-              <article key={plan.id}>
-                <strong>{plan.name}</strong>
-                <span>Virtualmin ID {plan.id}</span>
+            {detectedPlans.map((p) => (
+              <article key={p.id}>
+                <strong>{p.name}</strong>
+                <span className={styles.muted}>ID: {p.id}</span>
                 <ul>
-                  {(plan.differences ?? []).map((item) => <li key={item.key}>{item.label}: {item.value}</li>)}
+                  {(p.differences ?? []).map((item) => <li key={item.key}>{item.label}: {item.value}</li>)}
                 </ul>
               </article>
             ))}
           </div>
-        ) : null}
+        </section>
+      ) : (
+        <div className={styles.vmRow}>
+          <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect Virtualmin plans</Button>
+        </div>
+      )}
+
+      <section className={styles.card}>
+        <div className={styles.cardHeader}><h2>Products</h2></div>
         <div className={styles.tableWrap}>
           <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Name</th>
-                <th>Typ</th>
-                <th>Kategorie</th>
-                <th>Modul</th>
-                <th>Aktion</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Module</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {products.map((product) => (
                 <tr key={product.id}>
+                  <td className={styles.muted}>{product.sortOrder ?? 0}</td>
                   <td>{product.name}</td>
                   <td>{typeLabel(product.type)}</td>
-                  <td>{product.category?.name ?? "Keine"}</td>
+                  <td>{product.category?.name ?? <span className={styles.muted}>—</span>}</td>
                   <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule)}</td>
-                  <td className={styles.actions}>
-                    <Button type="button" variant="secondary" onClick={() => {
-                      setEditing(product);
-                      setCategoryId(product.categoryId ?? product.category?.id ?? "");
-                      setModule(product.category ? product.category.provisioningModule ?? "none" : product.provisioningModule ?? "none");
-                      setType(product.type);
-                      setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
-                    }}>Edit</Button>
-                    <Button type="button" variant="ghost" onClick={() => removeProduct(product)}>Remove</Button>
+                  <td className={styles.rowActions}>
+                    <Button size="sm" type="button" variant="secondary" onClick={() => editProduct(product)}>Edit</Button>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => removeProduct(product)}>Remove</Button>
                   </td>
                 </tr>
               ))}
+              {products.length === 0 && <tr><td colSpan={6} className={styles.empty}>No products yet.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
-
-    <form action={submit} className={styles.form} key={editing?.id ?? "new"}>
-      <input name="productId" type="hidden" value={editing?.id ?? ""} />
-      <input name="categoryModule" type="hidden" value={effectiveModule ?? "none"} />
-      <div className={styles.grid}>
-        <label>
-          Name
-          <input defaultValue={editing?.name ?? ""} name="name" required placeholder="Domain .de" />
-        </label>
-        <label>
-          Slug
-          <input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="domain-de" />
-        </label>
-        <label>
-          Typ
-          <select defaultValue={editing?.type ?? "DOMAIN"} name="type" onChange={(event) => setType(event.target.value)}>
-            <option value="DOMAIN">Domain</option>
-            <option value="SHARED_HOSTING">Web Hosting</option>
-            <option value="VPS">VPS</option>
-          </select>
-        </label>
-        <label>
-          Kategorie
-          <select defaultValue={editing?.categoryId ?? editing?.category?.id ?? ""} name="categoryId" onChange={(event) => {
-            const nextCategory = categories.find((category) => category.id === event.target.value);
-            setCategoryId(event.target.value);
-            setModule(nextCategory?.provisioningModule ?? "none");
-          }}>
-            <option value="">Keine Kategorie</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
-        </label>
-        {type === "DOMAIN" ? (
-          <p className={styles.note}>Domain pricing comes from Admin / Domain Prices. Product pricing is only shown as "from" the cheapest TLD.</p>
-        ) : (
-          ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
-            <label key={cycle}>
-              {cycle} EUR
-              <input defaultValue={priceValue(editing, cycle)} name={`price_${cycle}`} placeholder="9.90" />
-            </label>
-          ))
-        )}
-        <label>
-          Setup EUR
-          <input name="setupFee" placeholder="0" />
-        </label>
-        <label>
-          Custom Fields
-          <input name="customFields" placeholder="Hostname, PHP Version" />
-        </label>
-      </div>
-      <label>
-        Beschreibung
-        <textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} />
-      </label>
-      {effectiveModule === "virtualmin" ? (
-        <section className={styles.virtualminBox}>
-          <label>
-            Virtualmin Plan
-            <select defaultValue={String(editing?.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(event) => setSelectedPlan(event.target.value)}>
-              <option value="">Select plan</option>
-              {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-            </select>
-          </label>
-          {plan ? (
-            <div className={styles.limits}>
-              <span>Disk: {plan.limits?.disk ?? "Unknown"}</span>
-              <span>Bandwidth: {plan.limits?.bandwidth ?? "Unknown"}</span>
-              <span>Email accounts: {plan.limits?.mailboxes ?? "Unknown"}</span>
-              <span>Databases: {plan.limits?.databases ?? "Unknown"}</span>
-              <span>Subdomains: {plan.limits?.subServers ?? "Unknown"}</span>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-      <Button type="submit">Produkt speichern</Button>
-      {state.message ? <p className={styles[state.kind]}>{state.message}</p> : null}
-    </form>
     </div>
   );
 }
 
 function cents(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
-  if (!raw) {
-    return undefined;
-  }
-
+  if (!raw) return undefined;
   return Math.round(Number(raw.replace(",", ".")) * 100);
 }
 
 function customFields(value: FormDataEntryValue | null) {
   return String(value ?? "")
     .split(",")
-    .map((field) => field.trim())
+    .map((f) => f.trim())
     .filter(Boolean)
-    .map((field) => ({
-      key: field.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-      label: field,
+    .map((f) => ({
+      key: f.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+      label: f,
       required: false,
       values: []
     }));
 }
 
-function virtualminFields(formData: FormData) {
-  if (String(formData.get("categoryModule") ?? "") !== "virtualmin") {
-    return [];
-  }
+function customFieldsValue(product?: ApiProduct) {
+  return (product?.configs ?? [])
+    .filter((c) => !["virtualmin_plan", "virtualmin_template", "disk_space", "bandwidth", "databases", "mailboxes", "subdomains"].includes(c.key))
+    .map((c) => c.label)
+    .join(", ");
+}
 
+function virtualminFields(formData: FormData) {
+  if (String(formData.get("categoryModule") ?? "") !== "virtualmin") return [];
   return [
-    { key: "virtualmin_plan", label: "Virtualmin Plan", required: true, values: [String(formData.get("virtualminPlan") ?? "")] },
+    { key: "virtualmin_plan", label: "Virtualmin Plan", required: true, values: [String(formData.get("virtualminPlan") ?? "")] }
   ];
 }
 
 function preservedConfigs(product?: ApiProduct) {
-  return (product?.configs ?? []).filter((config) => !["virtualmin_plan", "virtualmin_template"].includes(config.key));
+  return (product?.configs ?? []).filter((c) => !["virtualmin_plan", "virtualmin_template"].includes(c.key));
 }
 
 function priceValue(product: ApiProduct | undefined, cycle: string) {
@@ -442,17 +472,28 @@ function priceValue(product: ApiProduct | undefined, cycle: string) {
   return price ? String(price.amountCents / 100).replace(".", ",") : "";
 }
 
+function cycleLabel(cycle: string) {
+  const map: Record<string, string> = {
+    MONTHLY: "Monthly",
+    QUARTERLY: "Quarterly",
+    SEMI_ANNUAL: "Semi-annual",
+    YEAR_1: "1 Year",
+    YEAR_2: "2 Years",
+    YEAR_3: "3 Years",
+    YEAR_4: "4 Years"
+  };
+  return map[cycle] ?? cycle;
+}
+
 function typeLabel(type: string) {
   return {
     DOMAIN: "Domain",
-    SHARED_HOSTING: "Web hosting",
+    SHARED_HOSTING: "Web Hosting",
     VPS: "VPS"
   }[type] ?? type.toLowerCase().replace(/_/g, " ");
 }
 
 function moduleLabel(moduleName?: string | null) {
-  if (!moduleName || moduleName === "none") {
-    return "Manuell";
-  }
+  if (!moduleName || moduleName === "none") return "Manual";
   return moduleName === "resellbiz" ? "ResellBiz" : moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
 }

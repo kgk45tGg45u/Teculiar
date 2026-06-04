@@ -14,6 +14,7 @@ export type ApiProduct = {
   homepageVisible?: boolean;
   minimumPriceCents?: number;
   provisioningModule?: string | null;
+  sortOrder?: number;
   prices: Array<{
     id: string;
     billingCycle: string;

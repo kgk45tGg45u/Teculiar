@@ -216,6 +216,79 @@ export class EmailService {
     return logs;
   }
 
+  async sendEventToUser(userId: string, eventKey: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, locale: true } });
+    if (!user?.email) {
+      return [];
+    }
+    const definition = emailEventDefinition(eventKey);
+    if (!definition) {
+      return [];
+    }
+    const [smtp, layoutConfigs, templateHtml, template] = await Promise.all([
+      this.smtpSettings(),
+      this.layoutConfigs(),
+      this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
+      this.templateFor(eventKey, locale(user.locale))
+    ]);
+    const context = normalizeContext({
+      brand_name: smtp.fromName || "Dezhost",
+      current_date: formatDate(new Date()),
+      customer_email: user.email,
+      customer_name: user.name ?? user.email
+    });
+    const subject = renderText(template?.subject ?? definition.subject, context);
+    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? definition.body);
+    const content = renderEmailLayout(layoutBlocks, context);
+    const html = renderShell(templateHtml, { ...context, content, subject });
+    const text = stripHtml(content);
+    const delivery = await this.deliver({ html, recipient: user.email, smtp, subject, text });
+    return [await this.prisma.emailLog.create({
+      data: {
+        payload: { context, from: emailFrom(smtp), html, recipientType: "client", replyTo: smtp.replyTo, smtpDelivery: delivery, smtp: { enabled: Boolean(smtp.enabled), host: smtp.host, port: smtp.port, secure: Boolean(smtp.secure) }, text } as Prisma.InputJsonValue,
+        sentAt: delivery.status === "SENT" ? new Date() : undefined,
+        status: delivery.status,
+        subject,
+        template: eventKey,
+        to: user.email,
+        userId: user.id
+      }
+    })];
+  }
+
+  async sendCustomToUser(userId: string, subject: string, body: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, locale: true } });
+    if (!user?.email) {
+      return [];
+    }
+    const [smtp, templateHtml] = await Promise.all([
+      this.smtpSettings(),
+      this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML)
+    ]);
+    const context = normalizeContext({
+      brand_name: smtp.fromName || "Dezhost",
+      current_date: formatDate(new Date()),
+      customer_email: user.email,
+      customer_name: user.name ?? user.email
+    });
+    const resolvedSubject = renderText(subject, context);
+    const content = renderText(body, context);
+    const html = renderShell(templateHtml, { ...context, content, subject: resolvedSubject });
+    const text = stripHtml(content);
+    const delivery = await this.deliver({ html, recipient: user.email, smtp, subject: resolvedSubject, text });
+    return [await this.prisma.emailLog.create({
+      data: {
+        payload: { context, from: emailFrom(smtp), html, recipientType: "client", smtpDelivery: delivery, smtp: { enabled: Boolean(smtp.enabled), host: smtp.host, port: smtp.port, secure: Boolean(smtp.secure) }, text } as Prisma.InputJsonValue,
+        sentAt: delivery.status === "SENT" ? new Date() : undefined,
+        status: delivery.status,
+        subject: resolvedSubject,
+        template: "custom",
+        to: user.email,
+        userId: user.id
+      }
+    })];
+  }
+
   async useMailpitPreset() {
     await this.saveSmtpSettings({
       adminEmails: "admin@example.test",

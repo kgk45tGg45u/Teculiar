@@ -53,6 +53,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   configurableOptions?: Array<{ key: string; label: string; required?: boolean; values: unknown[] }>;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  sortOrder?: number;
 }
 
 export class ProductCategoryDto {
