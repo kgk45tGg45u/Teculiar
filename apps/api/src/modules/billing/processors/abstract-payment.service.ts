@@ -241,19 +241,23 @@ export class AbstractPaymentService {
       return sandboxResult(method, request);
     }
 
+    const gatewayCfg = gateway.config && isRecord(gateway.config) ? gateway.config as Record<string, unknown> : {} as Record<string, unknown>;
     if (method === "PAYPAL") {
-      if (isMollieConfig(gateway.config as Record<string, unknown>)) {
-        return createMolliePayment(gateway.config as Record<string, unknown>, request, method);
+      if (isMollieConfig(gatewayCfg)) {
+        return createMolliePayment(gatewayCfg, request, method);
+      }
+      if (!gatewayCfg.clientId) {
+        return sandboxResult(method, request);
       }
       // paymentMethodId="paypal" signals JS SDK mode — omit redirectUrl so PayPal popup works.
       const sdkMode = request.paymentMethodId === "paypal";
-      return createPayPalOrder(gateway.config as Record<string, unknown>, {
+      return createPayPalOrder(gatewayCfg, {
         ...request,
         redirectUrl: sdkMode ? undefined : request.redirectUrl
       });
     }
     if (["CREDIT_CARD", "SEPA"].includes(method)) {
-      const config = gateway.config as Record<string, unknown>;
+      const config = gatewayCfg;
       // Obtain or create a Mollie customer so a mandate can be captured on success.
       let mollieCustomerId: string | undefined;
       if (request.userId) {
@@ -275,24 +279,23 @@ export class AbstractPaymentService {
   }
 
   private async mollieGatewayConfig(method: string) {
+    const asCfg = (gw: { config: unknown } | null) => gw?.config && isRecord(gw.config) ? gw.config as Record<string, unknown> : undefined;
     const primary = await this.billing.paymentGateway(method);
-    if (primary?.enabled && isMollieConfig(primary.config as Record<string, unknown>)) {
-      return primary.config as Record<string, unknown>;
-    }
+    const primaryCfg = asCfg(primary);
+    if (primary?.enabled && primaryCfg && isMollieConfig(primaryCfg)) return primaryCfg;
     const fallback = await this.billing.paymentGateway("CREDIT_CARD");
-    if (fallback?.enabled && isMollieConfig(fallback.config as Record<string, unknown>)) {
-      return fallback.config as Record<string, unknown>;
-    }
+    const fallbackCfg = asCfg(fallback);
+    if (fallback?.enabled && fallbackCfg && isMollieConfig(fallbackCfg)) return fallbackCfg;
     const sepa = await this.billing.paymentGateway("SEPA");
-    if (sepa?.enabled && isMollieConfig(sepa.config as Record<string, unknown>)) {
-      return sepa.config as Record<string, unknown>;
-    }
+    const sepaCfg = asCfg(sepa);
+    if (sepa?.enabled && sepaCfg && isMollieConfig(sepaCfg)) return sepaCfg;
     return undefined;
   }
 
   private async confirm(method: string, providerReference: string): Promise<PaymentResult> {
     const gateway = await this.billing.paymentGateway(method);
-    if (!gateway?.enabled) {
+    const cfg = gateway?.config && isRecord(gateway.config) ? gateway.config as Record<string, unknown> : undefined;
+    if (!gateway?.enabled || !cfg) {
       if (method === "PAYPAL") {
         const mollieConfig = await this.mollieGatewayConfig(method);
         if (mollieConfig) {
@@ -302,13 +305,16 @@ export class AbstractPaymentService {
       return { providerReference, status: "SUCCEEDED", raw: { sandbox: true } };
     }
     if (method === "PAYPAL") {
-      if (isMollieConfig(gateway.config as Record<string, unknown>)) {
-        return fetchMolliePayment(gateway.config as Record<string, unknown>, providerReference);
+      if (isMollieConfig(cfg)) {
+        return fetchMolliePayment(cfg, providerReference);
       }
-      return capturePayPalOrder(gateway.config as Record<string, unknown>, providerReference);
+      if (!cfg.clientId) {
+        return { providerReference, status: "SUCCEEDED", raw: { sandbox: true } };
+      }
+      return capturePayPalOrder(cfg, providerReference);
     }
     if (["CREDIT_CARD", "SEPA"].includes(method)) {
-      return fetchMolliePayment(gateway.config as Record<string, unknown>, providerReference);
+      return fetchMolliePayment(cfg, providerReference);
     }
     return { providerReference, status: "SUCCEEDED", raw: { sandbox: true } };
   }
@@ -629,7 +635,8 @@ function approvalUrl(payload: unknown) {
   if (!isRecord(payload) || !Array.isArray(payload.links)) {
     return undefined;
   }
-  const approve = payload.links.find((item) => isRecord(item) && item.rel === "approve");
+  // PayPal returns "approve" for basic orders and "payer-action" when payment_source.paypal is set
+  const approve = payload.links.find((item) => isRecord(item) && (item.rel === "approve" || item.rel === "payer-action"));
   return isRecord(approve) && typeof approve.href === "string" ? approve.href : undefined;
 }
 
@@ -658,8 +665,8 @@ function mollieMethod(method: string) {
   return undefined;
 }
 
-function isMollieConfig(config: Record<string, unknown>) {
-  return typeof config.apiKey === "string" && config.apiKey.length > 0;
+function isMollieConfig(config: Record<string, unknown> | null | undefined) {
+  return Boolean(config) && typeof (config as Record<string, unknown>).apiKey === "string" && ((config as Record<string, unknown>).apiKey as string).length > 0;
 }
 
 function stringValue(input: unknown, key: string) {
