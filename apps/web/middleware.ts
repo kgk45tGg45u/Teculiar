@@ -39,7 +39,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === "/login" || pathname === "/admin/login" || pathname === "/reset-password") {
+  // Payment return pages must be accessible without a session so new customers
+  // can complete the auto-login flow after paying with PayPal / Mollie.
+  if (
+    pathname === "/login" ||
+    pathname === "/admin/login" ||
+    pathname === "/reset-password" ||
+    pathname === "/client/billing/payment-return" ||
+    pathname === "/client/billing/payment-method-return"
+  ) {
     return NextResponse.next();
   }
 

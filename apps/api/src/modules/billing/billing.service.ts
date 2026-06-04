@@ -401,6 +401,10 @@ export class BillingService {
     });
   }
 
+  async getUserForAutoLogin(userId: string) {
+    return this.billing.findUserForAutoLogin(userId);
+  }
+
   async setDefaultPaymentMethod(userId: string, id: string) {
     const method = await this.billing.findPaymentMethod(id, userId);
     if (!method) {

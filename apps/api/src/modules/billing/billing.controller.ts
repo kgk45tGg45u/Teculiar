@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors, NotFoundException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Res } from "@nestjs/common";
+import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JwtAuthGuard, OptionalJwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { BillingService } from "./billing.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { CreateSubscriptionDto } from "./dto/create-subscription.dto";
@@ -13,7 +14,10 @@ import { PayInvoiceDto } from "./dto/pay-invoice.dto";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("billing")
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly jwt: JwtService
+  ) {}
 
   @Get("invoices")
   listInvoices(
@@ -68,9 +72,41 @@ export class BillingController {
     return this.billing.payInvoice(id, dto);
   }
 
+  // Public endpoint — OptionalJwtAuthGuard so logged-in clients can also call it.
+  // New customers returning from a payment gateway don't have a session yet.
+  // On success the response includes an accessToken so the frontend can call
+  // storeAuth() and land the user directly in the client area without a login step.
+  @UseGuards(OptionalJwtAuthGuard)
   @Post("invoices/:id/confirm-payment")
-  confirmInvoicePayment(@Param("id") id: string) {
-    return this.billing.confirmInvoicePayment(id);
+  async confirmInvoicePayment(
+    @Param("id") id: string,
+    @Req() request: Request & { user?: { sub?: string } }
+  ) {
+    const result = await this.billing.confirmInvoicePayment(id);
+
+    // Auto-login: issue a JWT when payment succeeded and the caller has no existing session.
+    // Re-fetch the invoice to get the post-materialization userId (the pending-checkout user
+    // gets replaced with the real user during finalizePaidInvoice → materializePaidCheckoutUser).
+    if (result.status === "PAID" && !request.user?.sub) {
+      const freshInvoice = await this.billing.getInvoice(id);
+      const userId = (freshInvoice as Record<string, unknown> | null)?.userId;
+      if (typeof userId === "string") {
+        const user = await this.billing.getUserForAutoLogin(userId);
+        if (user) {
+          const expiresIn = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
+          const accessToken = await this.jwt.signAsync(
+            { sub: user.id, email: user.email, roles: user.roles },
+            { expiresIn, secret: process.env.JWT_ACCESS_SECRET }
+          );
+          const refreshToken = await this.jwt.signAsync(
+            { sub: user.id },
+            { expiresIn: (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"], secret: process.env.JWT_REFRESH_SECRET }
+          );
+          return { ...result, accessToken, refreshToken, tokenType: "Bearer", user };
+        }
+      }
+    }
+    return result;
   }
 
   @Post("add-funds")

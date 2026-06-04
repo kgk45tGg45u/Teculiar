@@ -659,6 +659,21 @@ export class BillingRepository {
     return this.prisma.paymentMethod.findFirst({ where: { id, userId } });
   }
 
+  findUserForAutoLogin(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        id: true,
+        name: true,
+        userRoles: { select: { role: { select: { slug: true } } } }
+      }
+    }).then((user) => {
+      if (!user) return null;
+      return { ...user, roles: user.userRoles.map((ur) => ur.role.slug) };
+    });
+  }
+
   findUserPaymentMethodByToken(userId: string, providerToken: string) {
     return this.prisma.paymentMethod.findFirst({ where: { userId, providerToken } });
   }
