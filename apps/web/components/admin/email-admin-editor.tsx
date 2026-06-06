@@ -33,7 +33,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
     setSettings(next);
   }
 
-  async function save(payload: EmailSettingsPatch) {
+  async function save(payload: EmailSettingsPatch): Promise<boolean> {
     const response = await fetch(`${API_BASE_URL}/admin/dev/emails`, {
       body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -44,6 +44,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
       setSettings(responsePayload as ApiEmailAdminSettings);
     }
     setMessage(await notifyResponse(response, "Email settings saved.", "Email settings failed."));
+    return response.ok;
   }
 
   async function sendTest(eventKey: string) {
@@ -82,7 +83,7 @@ function EmailSubnav({ current }: { current: "emails" | "logs" | "settings" | "t
 }
 
 function EmailSmtpSettingsSection({ save, sendTest, settings }: {
-  save: (payload: EmailSettingsPatch) => Promise<void>;
+  save: (payload: EmailSettingsPatch) => Promise<boolean>;
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {
@@ -117,7 +118,12 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
     setTestResult(null);
     setTesting(true);
     const smtp = collectSmtp(formData);
-    await save({ smtp, testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}")) });
+    const saved = await save({ smtp, testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}")) });
+    if (!saved) {
+      setTestResult({ ok: false, message: "Settings could not be saved. Check the error above." });
+      setTesting(false);
+      return;
+    }
     try {
       const response = await fetch(`${API_BASE_URL}/admin/dev/emails/test-connection`, {
         body: JSON.stringify({ smtp }),
@@ -166,7 +172,7 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
 }
 
 function EmailTemplateEditor({ save, settings }: {
-  save: (payload: EmailSettingsPatch) => Promise<void>;
+  save: (payload: EmailSettingsPatch) => Promise<boolean>;
   settings: ApiEmailAdminSettings;
 }) {
   const [templateHtml, setTemplateHtml] = useState(settings.templateHtml);
@@ -194,7 +200,7 @@ function EmailTemplateEditor({ save, settings }: {
 }
 
 function EmailEventsEditor({ save, sendTest, settings }: {
-  save: (payload: EmailSettingsPatch) => Promise<void>;
+  save: (payload: EmailSettingsPatch) => Promise<boolean>;
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {

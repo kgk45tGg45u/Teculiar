@@ -290,17 +290,27 @@ export class EmailService {
   }
 
   async testSmtpConnection(smtp?: EmailSmtpSettings) {
-    const settings = smtp ? { ...(await this.smtpSettings()), ...smtp, password: smtp.password === "********" ? (await this.settingJson<EmailSmtpSettings>("emailSmtp", {})).password ?? "" : smtp.password ?? "" } : await this.smtpSettings();
+    const current = await this.settingJson<EmailSmtpSettings>("emailSmtp", {});
+    const base = await this.smtpSettings();
+    const settings: EmailSmtpSettings = smtp
+      ? { ...base, ...smtp, password: smtp.password === "********" ? current.password ?? "" : smtp.password ?? "" }
+      : base;
+
     if (!settings.enabled) {
       return { ok: false, message: "SMTP is not enabled. Enable SMTP first." };
     }
     if (!settings.host) {
       return { ok: false, message: "SMTP host is not configured." };
     }
-    try {
-      const socket = await connectSmtp(settings);
-      const reader = smtpReader(socket);
+
+    let sock: net.Socket | undefined;
+    const timeoutMs = 12000;
+
+    const run = async (): Promise<{ ok: boolean; message: string }> => {
       try {
+        sock = await connectSmtp(settings);
+        sock.on("error", () => undefined);
+        const reader = smtpCloseAwareReader(sock);
         await reader.read();
         await reader.command(`EHLO ${settings.host}`, [2]);
         if (settings.username || settings.password) {
@@ -310,12 +320,21 @@ export class EmailService {
         }
         await reader.command("QUIT", [2]).catch(() => undefined);
         return { ok: true, message: `Connected to ${settings.host}:${settings.port ?? 587} successfully.` };
+      } catch (error) {
+        return { ok: false, message: error instanceof Error ? error.message : "Connection failed." };
       } finally {
-        socket.end();
+        sock?.destroy();
       }
-    } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : "Connection failed." };
-    }
+    };
+
+    const deadline = new Promise<{ ok: boolean; message: string }>((resolve) => {
+      setTimeout(() => {
+        sock?.destroy();
+        resolve({ ok: false, message: `SMTP test timed out after ${timeoutMs / 1000} seconds.` });
+      }, timeoutMs);
+    });
+
+    return Promise.race([run(), deadline]);
   }
 
   private async deliver(input: { html: string; recipient: string; smtp: EmailSmtpSettings; subject: string; text: string }) {
@@ -544,6 +563,7 @@ async function sendSmtp(input: {
     throw new Error("SMTP host is required");
   }
   const socket = await connectSmtp(input.smtp);
+  socket.on("error", () => undefined);
   const reader = smtpReader(socket);
   try {
     await reader.read();
@@ -638,6 +658,75 @@ function smtpReader(socket: net.Socket) {
           return;
         }
         waiters.push(done);
+      });
+    }
+  };
+}
+
+function smtpCloseAwareReader(socket: net.Socket) {
+  let chunkBuffer = "";
+  let current: string[] = [];
+  const responses: Array<{ code: number; message: string }> = [];
+  const waiters: Array<{ resolve: (r: { code: number; message: string }) => void; reject: (e: Error) => void }> = [];
+  let closeError: Error | null = null;
+
+  socket.setEncoding("utf8");
+  socket.on("data", (chunk) => {
+    chunkBuffer += chunk;
+    let index = chunkBuffer.indexOf("\n");
+    while (index >= 0) {
+      const line = chunkBuffer.slice(0, index).replace(/\r$/, "");
+      chunkBuffer = chunkBuffer.slice(index + 1);
+      current.push(line);
+      const match = line.match(/^(\d{3})\s/);
+      if (match) {
+        const response = { code: Number(match[1]), message: current.join("\n") };
+        current = [];
+        const waiter = waiters.shift();
+        if (waiter) {
+          waiter.resolve(response);
+        } else {
+          responses.push(response);
+        }
+      }
+      index = chunkBuffer.indexOf("\n");
+    }
+  });
+
+  const failWaiters = (error: Error) => {
+    closeError = error;
+    for (const waiter of waiters.splice(0)) {
+      waiter.reject(error);
+    }
+  };
+
+  socket.once("error", (err) => failWaiters(err));
+  socket.once("close", () => failWaiters(closeError ?? new Error("SMTP connection closed.")));
+
+  return {
+    async command(command: string, expected: number[]) {
+      socket.write(`${command}\r\n`);
+      return this.read(expected);
+    },
+    read(expected: number[] = [2, 3]) {
+      return new Promise<{ code: number; message: string }>((resolve, reject) => {
+        if (closeError) {
+          reject(closeError);
+          return;
+        }
+        const done = (response: { code: number; message: string }) => {
+          if (!expected.includes(Math.floor(response.code / 100))) {
+            reject(new Error(`SMTP rejected command: ${response.message}`));
+            return;
+          }
+          resolve(response);
+        };
+        const existing = responses.shift();
+        if (existing) {
+          done(existing);
+          return;
+        }
+        waiters.push({ resolve: done, reject });
       });
     }
   };
