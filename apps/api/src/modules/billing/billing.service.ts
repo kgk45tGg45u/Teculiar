@@ -1230,7 +1230,8 @@ export class BillingService {
       salesMailboxAddress,
       termsUrl,
       usdExchangeRate,
-      usdBufferCents
+      usdBufferCents,
+      adminTimezone
     ] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
       this.billing.settingNumber("ticketAutoCloseHours", 24),
@@ -1274,10 +1275,12 @@ export class BillingService {
       this.billing.settingString("salesMailboxAddress", "sales@dezhost.com"),
       this.billing.settingString("termsUrl"),
       this.billing.settingNumber("usdExchangeRate", 1.0),
-      this.billing.settingNumber("usdBufferCents", 0)
+      this.billing.settingNumber("usdBufferCents", 0),
+      this.billing.settingString("adminTimezone", "UTC")
     ]);
 
     return {
+      adminTimezone,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
       domainExpirationUpdateHours,
       domainPriceUpdateHours,
@@ -1441,6 +1444,7 @@ export class BillingService {
   }
 
   updateSettings(input: {
+    adminTimezone?: string;
     cronSecret?: string;
     domainExpirationUpdateHours?: number;
     domainPriceUpdateHours?: number;
@@ -1580,7 +1584,10 @@ export class BillingService {
         : this.billing.upsertSettingNumber("usdExchangeRate", Math.max(0.0001, input.usdExchangeRate)),
       input.usdBufferCents === undefined
         ? undefined
-        : this.billing.upsertSettingNumber("usdBufferCents", Math.max(0, Math.round(input.usdBufferCents)))
+        : this.billing.upsertSettingNumber("usdBufferCents", Math.max(0, Math.round(input.usdBufferCents))),
+      input.adminTimezone === undefined
+        ? undefined
+        : this.billing.upsertSettingString("adminTimezone", input.adminTimezone)
     ]);
   }
 

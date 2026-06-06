@@ -265,6 +265,7 @@ export class BillingDevController {
   updateSettings(
     @Body()
     body: {
+      adminTimezone?: string;
       cronSecret?: string;
       domainExpirationUpdateHours?: number;
       domainPriceUpdateHours?: number;

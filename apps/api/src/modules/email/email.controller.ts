@@ -48,9 +48,21 @@ export class EmailAdminController {
     return this.emails.sendTest(body.eventKey ?? "new_invoice", body.context ?? {});
   }
 
-  @Post("mailpit-preset")
-  mailpitPreset() {
-    return this.emails.useMailpitPreset();
+  @Post("test-connection")
+  testConnection(@Body() body: {
+    smtp?: {
+      enabled?: boolean;
+      fromEmail?: string;
+      fromName?: string;
+      host?: string;
+      password?: string;
+      port?: number;
+      replyTo?: string;
+      secure?: boolean;
+      username?: string;
+    };
+  }) {
+    return this.emails.testSmtpConnection(body.smtp);
   }
 
   @Post("users/:userId/send-event")

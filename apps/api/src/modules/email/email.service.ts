@@ -289,20 +289,33 @@ export class EmailService {
     })];
   }
 
-  async useMailpitPreset() {
-    await this.saveSmtpSettings({
-      adminEmails: "admin@example.test",
-      enabled: true,
-      fromEmail: "no-reply@dezhost.local",
-      fromName: "Dezhost Local",
-      host: "127.0.0.1",
-      password: "",
-      port: 1025,
-      replyTo: "support@dezhost.local",
-      secure: false,
-      username: ""
-    });
-    return this.adminSettings();
+  async testSmtpConnection(smtp?: EmailSmtpSettings) {
+    const settings = smtp ? { ...(await this.smtpSettings()), ...smtp, password: smtp.password === "********" ? (await this.settingJson<EmailSmtpSettings>("emailSmtp", {})).password ?? "" : smtp.password ?? "" } : await this.smtpSettings();
+    if (!settings.enabled) {
+      return { ok: false, message: "SMTP is not enabled. Enable SMTP first." };
+    }
+    if (!settings.host) {
+      return { ok: false, message: "SMTP host is not configured." };
+    }
+    try {
+      const socket = await connectSmtp(settings);
+      const reader = smtpReader(socket);
+      try {
+        await reader.read();
+        await reader.command(`EHLO ${settings.host}`, [2]);
+        if (settings.username || settings.password) {
+          await reader.command("AUTH LOGIN", [3]);
+          await reader.command(Buffer.from(settings.username ?? "").toString("base64"), [3]);
+          await reader.command(Buffer.from(settings.password ?? "").toString("base64"), [2]);
+        }
+        await reader.command("QUIT", [2]).catch(() => undefined);
+        return { ok: true, message: `Connected to ${settings.host}:${settings.port ?? 587} successfully.` };
+      } finally {
+        socket.end();
+      }
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "Connection failed." };
+    }
   }
 
   private async deliver(input: { html: string; recipient: string; smtp: EmailSmtpSettings; subject: string; text: string }) {

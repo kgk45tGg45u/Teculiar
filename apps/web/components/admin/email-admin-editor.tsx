@@ -2,7 +2,7 @@
 
 import type { DragEvent } from "react";
 import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
 import { Button } from "../ui/button";
 import { notifyResponse } from "../ui/toast-provider";
@@ -24,7 +24,7 @@ type EmailSettingsPatch = {
 
 type EmailEvent = ApiEmailAdminSettings["events"][number];
 
-export function EmailSettingsForm({ initial, section = "emails" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template" }) {
+export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template"; timezone?: string }) {
   const [settings, setSettings] = useState(initial);
   const [message, setMessage] = useState("");
 
@@ -59,24 +59,12 @@ export function EmailSettingsForm({ initial, section = "emails" }: { initial: Ap
     }
   }
 
-  async function useMailpitPreset() {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/mailpit-preset`, {
-      headers: authHeaders(),
-      method: "POST"
-    });
-    const payload = await response.clone().json().catch(() => undefined);
-    if (response.ok && payload?.events) {
-      setSettings(payload as ApiEmailAdminSettings);
-    }
-    setMessage(await notifyResponse(response, "Mailpit preset saved.", "Mailpit preset failed."));
-  }
-
   return (
     <div className={styles.form}>
       <EmailSubnav current={section} />
-      {section === "settings" ? <EmailSmtpSettingsSection settings={settings} save={save} sendTest={sendTest} useMailpitPreset={useMailpitPreset} /> : null}
+      {section === "settings" ? <EmailSmtpSettingsSection settings={settings} save={save} sendTest={sendTest} /> : null}
       {section === "template" ? <EmailTemplateEditor settings={settings} save={save} /> : null}
-      {section === "logs" ? <EmailLogsTable logs={settings.logs} /> : null}
+      {section === "logs" ? <EmailLogsTable logs={settings.logs} timezone={timezone} /> : null}
       {section === "emails" ? <EmailEventsEditor settings={settings} save={save} sendTest={sendTest} /> : null}
       {message ? <p>{message}</p> : null}
     </div>
@@ -93,32 +81,60 @@ function EmailSubnav({ current }: { current: "emails" | "logs" | "settings" | "t
   return <nav className={styles.emailSubnav}>{links.map((link) => <a aria-current={current === link.key ? "page" : undefined} href={link.href} key={link.key}>{link.label}</a>)}</nav>;
 }
 
-function EmailSmtpSettingsSection({ save, sendTest, settings, useMailpitPreset }: {
+function EmailSmtpSettingsSection({ save, sendTest, settings }: {
   save: (payload: EmailSettingsPatch) => Promise<void>;
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
-  useMailpitPreset: () => Promise<void>;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  function collectSmtp(formData: FormData): ApiEmailAdminSettings["smtp"] {
+    return {
+      adminEmails: splitComma(formData.get("adminEmails")),
+      enabled: formData.get("smtpEnabled") === "on",
+      fromEmail: String(formData.get("fromEmail") ?? ""),
+      fromName: String(formData.get("fromName") ?? ""),
+      host: String(formData.get("host") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      port: Number(formData.get("port") ?? 587),
+      replyTo: String(formData.get("replyTo") ?? ""),
+      secure: formData.get("secure") === "on",
+      username: String(formData.get("username") ?? "")
+    };
+  }
+
   async function submit(formData: FormData) {
+    setTestResult(null);
     await save({
-      smtp: {
-        adminEmails: splitComma(formData.get("adminEmails")),
-        enabled: formData.get("smtpEnabled") === "on",
-        fromEmail: String(formData.get("fromEmail") ?? ""),
-        fromName: String(formData.get("fromName") ?? ""),
-        host: String(formData.get("host") ?? ""),
-        password: String(formData.get("password") ?? ""),
-        port: Number(formData.get("port") ?? 587),
-        replyTo: String(formData.get("replyTo") ?? ""),
-        secure: formData.get("secure") === "on",
-        username: String(formData.get("username") ?? "")
-      },
+      smtp: collectSmtp(formData),
       testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}"))
     });
   }
 
+  async function saveAndTest(formData: FormData) {
+    setTestResult(null);
+    setTesting(true);
+    const smtp = collectSmtp(formData);
+    await save({ smtp, testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}")) });
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/dev/emails/test-connection`, {
+        body: JSON.stringify({ smtp }),
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        method: "POST"
+      });
+      const result = await response.json().catch(() => ({ ok: false, message: "Unexpected response" }));
+      setTestResult(result as { ok: boolean; message: string });
+    } catch {
+      setTestResult({ ok: false, message: "Request failed." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
-    <form action={submit} className={styles.form}>
+    <form ref={formRef} className={styles.form} onSubmit={(e) => e.preventDefault()}>
       <fieldset className={styles.lineEditor}>
         <legend>SMTP</legend>
         <label><span><input defaultChecked={Boolean(settings.smtp.enabled)} name="smtpEnabled" type="checkbox" /> Enable SMTP</span></label>
@@ -126,18 +142,24 @@ function EmailSmtpSettingsSection({ save, sendTest, settings, useMailpitPreset }
         <label>From email<input defaultValue={settings.smtp.fromEmail ?? ""} name="fromEmail" type="email" /></label>
         <label>Reply-to<input defaultValue={settings.smtp.replyTo ?? ""} name="replyTo" type="email" /></label>
         <label>Admin recipients<input defaultValue={(settings.smtp.adminEmails ?? []).join(", ")} name="adminEmails" placeholder="admin@example.com, billing@example.com" /></label>
-        <label>Host<input defaultValue={settings.smtp.host ?? ""} name="host" placeholder="127.0.0.1" /></label>
-        <label>Port<input defaultValue={settings.smtp.port ?? 1025} name="port" type="number" /></label>
+        <label>Host<input defaultValue={settings.smtp.host ?? ""} name="host" placeholder="smtp.example.com" /></label>
+        <label>Port<input defaultValue={settings.smtp.port ?? 587} name="port" type="number" /></label>
         <label>Username<input defaultValue={settings.smtp.username ?? ""} name="username" /></label>
         <label>Password<input defaultValue={settings.smtp.password ?? ""} name="password" type="password" /></label>
         <label><span><input defaultChecked={Boolean(settings.smtp.secure)} name="secure" type="checkbox" /> TLS/SSL</span></label>
       </fieldset>
       <label>Test variables JSON<textarea defaultValue={JSON.stringify(settings.testVariables, null, 2)} name="testVariables" rows={10} /></label>
+      {testResult ? (
+        <p style={{ color: testResult.ok ? "var(--success, green)" : "var(--danger, red)", fontWeight: 600 }}>
+          {testResult.ok ? "✓" : "✗"} {testResult.message}
+        </p>
+      ) : null}
       <div className={styles.inlineForm}>
-        <Button icon={Save} type="submit">Save Settings</Button>
-        <Button icon={Mail} type="button" variant="secondary" onClick={useMailpitPreset}>Use Mailpit Local</Button>
+        <Button icon={Save} type="button" onClick={() => { if (formRef.current) submit(new FormData(formRef.current)); }}>Save Settings</Button>
+        <Button icon={Mail} type="button" variant="secondary" disabled={testing} onClick={() => { if (formRef.current) saveAndTest(new FormData(formRef.current)); }}>
+          {testing ? "Testing…" : "Save & Test Connection"}
+        </Button>
         <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest("new_invoice")}>Send Test Email</Button>
-        <a href="http://localhost:8025" target="_blank" rel="noreferrer">Open Mailpit</a>
       </div>
     </form>
   );
@@ -384,15 +406,15 @@ function EmailPreviewFrames({ html }: { html: string }) {
   );
 }
 
-function EmailLogsTable({ logs }: { logs: ApiEmailLog[] }) {
+function EmailLogsTable({ logs, timezone = "UTC" }: { logs: ApiEmailLog[]; timezone?: string }) {
   return (
     <div className={styles.form}>
       <table className="table">
-        <thead><tr><th>Time</th><th>Event</th><th>From</th><th>To</th><th>Recipient</th><th>Subject</th><th>Status</th><th>SMTP</th></tr></thead>
+        <thead><tr><th>Time ({timezone})</th><th>Event</th><th>From</th><th>To</th><th>Recipient</th><th>Subject</th><th>Status</th><th>SMTP</th></tr></thead>
         <tbody>
           {logs.length ? logs.map((log) => (
             <tr key={log.id}>
-              <td>{dateTimeLabel(log.createdAt)}</td>
+              <td>{dateTimeLabel(log.createdAt, timezone)}</td>
               <td>{log.template ?? "-"}</td>
               <td>{log.payload?.from ?? "-"}</td>
               <td>{log.to}</td>
@@ -547,6 +569,6 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#039;");
 }
 
-function dateTimeLabel(value?: string | null) {
-  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
+function dateTimeLabel(value?: string | null, timezone = "UTC") {
+  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone: timezone }).format(new Date(value)) : "-";
 }

@@ -10,6 +10,7 @@ import {
   type ApiActionLog,
   type ApiClient,
   type ApiEmailAdminSettings,
+  type ApiEmailLog,
   type ApiInvoice,
   type ApiKnowledgebaseArticle,
   type ApiDomainPrice,
@@ -67,7 +68,8 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
     redirect("/admin/login" as never);
   }
 
-  const settings = (await apiGetAuth<{ siteLogoUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};
+  const settings = (await apiGetAuth<{ adminTimezone?: string; siteLogoUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};
+  const adminTimezone = settings.adminTimezone || "UTC";
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
   )) ?? { activeServices: 0, failedPayments: 0, mrrCents: 0, openTickets: 0 };
@@ -143,7 +145,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "clients-new" ? <ClientsNewPanel /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
-        {view === "logs" ? <LogsPanel locale={locale} logs={logs} /> : null}
+        {view === "logs" ? <LogsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
         {view === "tickets" ? <TicketsPanel locale={locale} tickets={tickets} /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogPanel /> : null}
@@ -151,10 +153,10 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "products-categories" ? <ProductCategoriesPanel /> : null}
         {view === "modules" ? <ModulesRedirect /> : null}
         {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
-        {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} /> : null}
+        {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} timezone={adminTimezone} /> : null}
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
-        {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} /> : null}
+        {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
         {view === "admins" ? <AdminsPanel /> : null}
       </main>
     </div>
@@ -250,7 +252,7 @@ function PaymentGatewaysPanel() {
   );
 }
 
-function EmailsPanel({ section, settings }: { section: EmailAdminSection; settings: ApiEmailAdminSettings }) {
+function EmailsPanel({ section, settings, timezone }: { section: EmailAdminSection; settings: ApiEmailAdminSettings; timezone: string }) {
   const title = {
     emails: "Emails",
     logs: "Email Logs",
@@ -264,9 +266,9 @@ function EmailsPanel({ section, settings }: { section: EmailAdminSection; settin
           <span className="eyebrow">Messaging</span>
           <h2>{title}</h2>
         </div>
-        <StatusPill label={`${settings.logs.length} outbox logs`} tone={settings.logs.length ? "good" : "neutral"} />
+        <StatusPill label={emailLogSummary(settings.logs)} tone={settings.logs.some((l) => l.status === "FAILED") ? "danger" : settings.logs.length ? "good" : "neutral"} />
       </div>
-      <EmailSettingsForm initial={settings} section={section} />
+      <EmailSettingsForm initial={settings} section={section} timezone={timezone} />
     </section>
   );
 }
@@ -521,7 +523,7 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
   );
 }
 
-function LogsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
+function LogsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiActionLog[]; timezone: string }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -532,10 +534,10 @@ function LogsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
         <StatusPill label={`${logs.length} events`} tone={logs.length ? "good" : "neutral"} />
       </div>
       <table className="table">
-        <thead><tr><th>Time</th><th>Source</th><th>Action</th><th>Subject</th><th>Actor</th><th>Status</th><th>Message</th></tr></thead>
+        <thead><tr><th>Time ({timezone})</th><th>Source</th><th>Action</th><th>Subject</th><th>Actor</th><th>Status</th><th>Message</th></tr></thead>
         <tbody>{logs.length ? logs.map((log) => (
           <tr key={`${log.source}-${log.id}`}>
-            <td>{dateTimeLabel(log.createdAt, locale)}</td>
+            <td>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
             <td>{log.source}</td>
             <td>{log.action}</td>
             <td>{log.subject}{log.subjectId ? `:${log.subjectId.slice(-6)}` : ""}</td>
@@ -549,7 +551,7 @@ function LogsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
   );
 }
 
-function CronSettingsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLog[] }) {
+function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiActionLog[]; timezone: string }) {
   const cronLogs = logs.filter((log) => log.source === "cron");
   return (
     <section className={styles.panel}>
@@ -565,11 +567,11 @@ function CronSettingsPanel({ locale, logs }: { locale: Locale; logs: ApiActionLo
         <div style={{ padding: "0 16px 16px" }}>
           <h3 style={{ margin: "12px 0 8px", fontSize: "0.9rem" }}>Recent Cron Activity</h3>
           <table className="table">
-            <thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Message</th></tr></thead>
+            <thead><tr><th>Time ({timezone})</th><th>Action</th><th>Status</th><th>Message</th></tr></thead>
             <tbody>
               {cronLogs.slice(0, 20).map((log) => (
                 <tr key={log.id}>
-                  <td>{dateTimeLabel(log.createdAt, locale)}</td>
+                  <td>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
                   <td>{log.action}</td>
                   <td>{log.status}</td>
                   <td>{log.message ?? "-"}</td>
@@ -688,6 +690,18 @@ function emptyEmailSettings(): ApiEmailAdminSettings {
   };
 }
 
+function emailLogSummary(logs: ApiEmailLog[]) {
+  if (!logs.length) return "0 email logs";
+  const sent = logs.filter((l) => l.status === "SENT" && l.payload?.smtpDelivery?.mode !== "local-outbox").length;
+  const failed = logs.filter((l) => l.status === "FAILED").length;
+  const queued = logs.filter((l) => l.status === "SENT" && l.payload?.smtpDelivery?.mode === "local-outbox").length;
+  const parts: string[] = [];
+  if (sent) parts.push(`${sent} sent`);
+  if (failed) parts.push(`${failed} failed`);
+  if (queued) parts.push(`${queued} queued (SMTP off)`);
+  return parts.length ? parts.join(", ") : `${logs.length} email logs`;
+}
+
 function serviceKindLabel(type: string) {
   return { DOMAIN: "Domain", SHARED_HOSTING: "Hosting", VPS: "VPS" }[type] ?? type.toLowerCase().replaceAll("_", " ");
 }
@@ -700,10 +714,10 @@ function ticketLabel(status: string) {
   return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
 }
 
-function shortDateLabel(value?: string | null, locale: Locale = "de") {
-  return formatDate(value, locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
+function shortDateLabel(value?: string | null, locale: Locale = "de", timezone?: string) {
+  return formatDate(value, locale, { day: "2-digit", month: "2-digit", year: "2-digit", ...(timezone ? { timeZone: timezone } : {}) });
 }
 
-function dateTimeLabel(value?: string | null, locale: Locale = "de") {
-  return formatDate(value, locale, { dateStyle: "short", timeStyle: "short" });
+function dateTimeLabel(value?: string | null, locale: Locale = "de", timezone?: string) {
+  return formatDate(value, locale, { dateStyle: "short", timeStyle: "short", ...(timezone ? { timeZone: timezone } : {}) });
 }

@@ -976,9 +976,36 @@ export function CronSettingsForm() {
   );
 }
 
+const COMMON_TIMEZONES = [
+  "UTC",
+  "Europe/Berlin",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Amsterdam",
+  "Europe/Vienna",
+  "Europe/Zurich",
+  "Europe/Warsaw",
+  "Europe/Istanbul",
+  "Europe/Moscow",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Sao_Paulo",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "Pacific/Auckland"
+];
+
 export function SettingsForm() {
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
+    adminTimezone: "UTC",
     invoiceBankDetails: "",
     invoiceCompanyAddress: "",
     invoiceCompanyCity: "",
@@ -1003,6 +1030,7 @@ export function SettingsForm() {
     void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((p) => setS({
+        adminTimezone: p.adminTimezone ?? "UTC",
         invoiceBankDetails: p.invoiceBankDetails ?? "",
         invoiceCompanyAddress: p.invoiceCompanyAddress ?? "",
         invoiceCompanyCity: p.invoiceCompanyCity ?? "",
@@ -1028,6 +1056,7 @@ export function SettingsForm() {
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
+        adminTimezone: String(formData.get("adminTimezone") ?? "UTC"),
         invoiceBankDetails: String(formData.get("invoiceBankDetails") ?? ""),
         invoiceCompanyAddress: String(formData.get("invoiceCompanyAddress") ?? ""),
         invoiceCompanyCity: String(formData.get("invoiceCompanyCity") ?? ""),
@@ -1055,6 +1084,14 @@ export function SettingsForm() {
 
   return (
     <form action={submit} className={styles.form}>
+      <h3>General</h3>
+      <label>
+        Admin timezone
+        <select value={s.adminTimezone} name="adminTimezone" onChange={(e) => setS({ ...s, adminTimezone: e.target.value })}>
+          {COMMON_TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+          {!COMMON_TIMEZONES.includes(s.adminTimezone) && <option value={s.adminTimezone}>{s.adminTimezone}</option>}
+        </select>
+      </label>
       <h3>Legal</h3>
       <label>AGB / Terms URL<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
       <h3>Currency (USD)</h3>
