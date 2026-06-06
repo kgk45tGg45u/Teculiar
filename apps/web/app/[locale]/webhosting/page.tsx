@@ -17,7 +17,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         { icon: RefreshCw, title: "Tägliche Backups", body: "Wir sichern deine Daten täglich. Falls etwas schiefgeht, stellen wir alles wieder her." },
         { icon: Lock, title: "SSL-Zertifikat inklusive", body: "Das Schloss in der Browserzeile ist bei uns immer dabei – kostenlos und automatisch erneuert." },
         { icon: Mail, title: "E-Mail-Postfächer", body: "Professionelle E-Mail-Adressen mit deiner Domain. Einfach einrichten, zuverlässig nutzen." },
-        { icon: Zap, title: "PHP 8.1 – 8.4", body: "Aktuelle PHP-Versionen für WordPress, Joomla und andere CMS. Wir halten alles aktuell." },
+        { icon: Zap, title: "PHP 8.3 – 8.5", body: "Aktuelle PHP-Versionen für WordPress, Nextcloud und andere CMS. Wir halten alles aktuell." },
         { icon: ShieldCheck, title: "DSGVO-konform", body: "Alle Server stehen in Deutschland. Deine Daten bleiben in der EU – ohne Ausnahme." }
       ]
     : [
@@ -25,7 +25,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         { icon: RefreshCw, title: "Daily backups", body: "We back up your data daily. If something goes wrong, we restore everything." },
         { icon: Lock, title: "SSL certificate included", body: "The padlock in the browser bar is always included – free and automatically renewed." },
         { icon: Mail, title: "Email mailboxes", body: "Professional email addresses with your domain. Easy to set up, reliable to use." },
-        { icon: Zap, title: "PHP 8.1 – 8.4", body: "Current PHP versions for WordPress, Joomla and other CMS. We keep everything up to date." },
+        { icon: Zap, title: "PHP 8.3 – 8.5", body: "Current PHP versions for WordPress, Nextcloud and other CMS. We keep everything up to date." },
         { icon: ShieldCheck, title: "GDPR-compliant", body: "All servers are located in Germany. Your data stays in the EU – without exception." }
       ];
 
@@ -67,7 +67,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         },
         {
           q: "Wie lange dauert die Einrichtung?",
-          a: "In der Regel ist dein Hosting innerhalb weniger Stunden aktiv. Bei komplexeren Projekten sprechen wir vorher alles durch."
+          a: "In der Regel ist dein Hosting innerhalb weniger Sekunden nach Zahlungseingang aktiv. Bei komplexeren Projekten sprechen wir vorher alles durch."
         }
       ]
     : [
@@ -89,7 +89,7 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         },
         {
           q: "How long does setup take?",
-          a: "Usually your hosting is active within a few hours. For more complex projects, we discuss everything beforehand."
+          a: "Usually your hosting is active within a few seconds of successful payment. For more complex projects, we discuss everything beforehand."
         }
       ];
 
@@ -150,8 +150,8 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
               <h3>{isDe ? "Wir setzen auf Open Source." : "We rely on open source."}</h3>
               <p>
                 {isDe
-                  ? "Unsere Infrastruktur basiert auf bewährter Open-Source-Software: Linux, Nginx, MariaDB, PHP, WordPress, Nextcloud und mehr. Keine Vendor-Lock-ins, keine proprietären Abhängigkeiten – nur transparente, community-geprüfte Technologie."
-                  : "Our infrastructure is built on proven open-source software: Linux, Nginx, MariaDB, PHP, WordPress, Nextcloud and more. No vendor lock-ins, no proprietary dependencies – just transparent, community-reviewed technology."}
+                  ? "Unsere Infrastruktur basiert auf bewährter Open-Source-Software: Linux, Apache, MariaDB, PHP, WordPress, Nextcloud und mehr. Keine Vendor-Lock-ins, keine proprietären Abhängigkeiten – nur transparente, community-geprüfte Technologie."
+                  : "Our infrastructure is built on proven open-source software: Linux, Apache, MariaDB, PHP, WordPress, Nextcloud and more. No vendor lock-ins, no proprietary dependencies – just transparent, community-reviewed technology."}
               </p>
             </div>
           </div>
@@ -179,15 +179,15 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
             <div className={styles.specTable}>
               <div className={styles.specRow}>
                 <span>{isDe ? "Speicher" : "Storage"}</span>
-                <strong>10 GB – 500 GB NVMe</strong>
+                <strong>10 GB – 100 GB NVMe SSD</strong>
               </div>
               <div className={styles.specRow}>
                 <span>PHP</span>
-                <strong>8.1 – 8.4</strong>
+                <strong>8.3 – 8.5</strong>
               </div>
               <div className={styles.specRow}>
                 <span>{isDe ? "Backups" : "Backups"}</span>
-                <strong>{isDe ? "Täglich, 30 Tage" : "Daily, 30 days"}</strong>
+                <strong>{isDe ? "Täglich, 60 Tage" : "Daily, 60 days"}</strong>
               </div>
               <div className={styles.specRow}>
                 <span>SSL</span>

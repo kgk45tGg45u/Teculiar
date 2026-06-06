@@ -20,8 +20,8 @@ const CARDS: StaticCard[] = [
     Icon: HardDrive,
     titleDe: "Webhosting",
     titleEn: "Web Hosting",
-    priceDe: "ab 2,99 €/Monat",
-    priceEn: "from €2.99/month",
+    priceDe: "ab 3,99 €/Monat",
+    priceEn: "from €3.99/month",
     highlightsDe: ["NVMe SSD Speicher", "Tägliche Backups", "SSL inklusive", "DSGVO-konform", "PHP 8.1–8.4"],
     highlightsEn: ["NVMe SSD storage", "Daily backups", "SSL included", "GDPR-compliant", "PHP 8.1–8.4"],
     href: "webhosting"
@@ -40,8 +40,8 @@ const CARDS: StaticCard[] = [
     Icon: Cloud,
     titleDe: "Nextcloud Server",
     titleEn: "Nextcloud Server",
-    priceDe: "Einrichtung ab 89 €",
-    priceEn: "Setup from €89",
+    priceDe: "Einrichtung ab 20 €",
+    priceEn: "Setup from €20",
     highlightsDe: ["Eigene private Cloud", "Kein Google / Dropbox", "DSGVO-konform", "Deutsche Server"],
     highlightsEn: ["Your own private cloud", "No Google / Dropbox", "GDPR-compliant", "German servers"],
     href: "it-losungen"
