@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Dark background -->
+  <rect width="1200" height="630" fill="#0f1117"/>
+
+  <!-- Subtle grid pattern -->
+  <line x1="0" y1="210" x2="1200" y2="210" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+  <line x1="0" y1="420" x2="1200" y2="420" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+  <line x1="400" y1="0" x2="400" y2="630" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+  <line x1="800" y1="0" x2="800" y2="630" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+
+  <!-- Bottom accent -->
+  <rect x="0" y="623" width="1200" height="7" fill="#e5e7eb"/>
+
+  <!-- ── LOGO ─────────────────────────────────────── -->
+  <!-- "dezhost" wordmark in white -->
+  <text
+    x="72" y="120"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="52"
+    font-weight="800"
+    fill="#ffffff"
+    letter-spacing="-2"
+  >dezhost</text>
+  <!-- underscore cursor -->
+  <rect x="370" y="96" width="34" height="7" rx="2" fill="#ffffff"/>
+
+  <!-- Separator -->
+  <rect x="72" y="155" width="460" height="1.5" fill="#ffffff" fill-opacity="0.15"/>
+
+  <!-- Product name badge -->
+  <rect x="72" y="185" width="168" height="34" rx="6" fill="#ffffff" fill-opacity="0.08"/>
+  <text
+    x="88" y="207"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="15"
+    font-weight="600"
+    fill="#9ca3af"
+    letter-spacing="0.5"
+  >TECULIAR</text>
+
+  <!-- ── HEADLINE ─────────────────────────────────── -->
+  <text
+    x="72" y="320"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="68"
+    font-weight="800"
+    fill="#ffffff"
+    letter-spacing="-3"
+  >Dein persönliches</text>
+
+  <text
+    x="72" y="402"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="68"
+    font-weight="800"
+    fill="#ffffff"
+    fill-opacity="0.35"
+    letter-spacing="-3"
+  >Dashboard.</text>
+
+  <!-- ── SUBLINE ─────────────────────────────────── -->
+  <text
+    x="72" y="480"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="24"
+    font-weight="400"
+    fill="#6b7280"
+  >Rechnungen · Dienste · Support · Domains</text>
+
+  <!-- ── DOMAIN ──────────────────────────────────── -->
+  <text
+    x="72" y="575"
+    font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-size="20"
+    font-weight="500"
+    fill="#4b5563"
+  >dezhost.com</text>
+</svg>

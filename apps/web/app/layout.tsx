@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastProvider } from "../components/ui/toast-provider";
+import { apiGet } from "../lib/api";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Dezhost",
-  description: "German Webhosting and IT services"
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await apiGet<{ faviconUrl?: string }>("/storefront/settings");
+  const faviconUrl = settings?.faviconUrl;
+  return {
+    title: "Dezhost",
+    description: "German Webhosting and IT services",
+    icons: faviconUrl ? { icon: faviconUrl, shortcut: faviconUrl } : undefined
+  };
+}
 
 function ThemeBootstrap() {
   return (

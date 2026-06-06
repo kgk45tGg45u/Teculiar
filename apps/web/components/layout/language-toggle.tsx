@@ -5,7 +5,7 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
-import { currencySymbols, localeFlags, type Currency, type Locale } from "../../lib/i18n";
+import { currencySymbols, localeNames, type Currency, type Locale } from "../../lib/i18n";
 import styles from "./site-header.module.css";
 
 const COMBOS: Array<{ locale: Locale; currency: Currency }> = [
@@ -48,7 +48,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   return (
     <details ref={detailsRef} className={styles.languageDropdown}>
       <summary className={styles.languageToggle}>
-        <span>{localeFlags[locale]} {locale.toUpperCase()} · {currencySymbols[currency]}</span>
+        <span>{locale.toUpperCase()} · {currencySymbols[currency]}</span>
         <ChevronDown aria-hidden size={13} className={styles.languageChevron} />
       </summary>
       <div className={styles.languageDropdownMenu}>
@@ -59,7 +59,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
             className={`${styles.languageOption}${locale === l && currency === c ? ` ${styles.languageOptionActive}` : ""}`}
             onClick={() => selectCombo(l, c)}
           >
-            {localeFlags[l]} {l.toUpperCase()} · {currencySymbols[c]}
+            {localeNames[l]} · {currencySymbols[c]}
           </button>
         ))}
       </div>

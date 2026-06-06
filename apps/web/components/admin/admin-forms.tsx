@@ -1006,6 +1006,8 @@ export function SettingsForm() {
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
     adminTimezone: "UTC",
+    faviconUrl: "",
+    founderPhotoUrl: "",
     invoiceBankDetails: "",
     invoiceCompanyAddress: "",
     invoiceCompanyCity: "",
@@ -1020,6 +1022,7 @@ export function SettingsForm() {
     invoicePaymentInstructions: "",
     invoiceVatNumber: "",
     siteLogoUrl: "",
+    siteUrl: "",
     termsUrl: "",
     usdBufferCents: 0,
     usdExchangeRate: 1.0,
@@ -1031,6 +1034,8 @@ export function SettingsForm() {
       .then((r) => r.json())
       .then((p) => setS({
         adminTimezone: p.adminTimezone ?? "UTC",
+        faviconUrl: p.faviconUrl ?? "",
+        founderPhotoUrl: p.founderPhotoUrl ?? "",
         invoiceBankDetails: p.invoiceBankDetails ?? "",
         invoiceCompanyAddress: p.invoiceCompanyAddress ?? "",
         invoiceCompanyCity: p.invoiceCompanyCity ?? "",
@@ -1045,6 +1050,7 @@ export function SettingsForm() {
         invoicePaymentInstructions: p.invoicePaymentInstructions ?? "",
         invoiceVatNumber: p.invoiceVatNumber ?? "",
         siteLogoUrl: p.siteLogoUrl ?? "",
+        siteUrl: p.siteUrl ?? "",
         termsUrl: p.termsUrl ?? "",
         usdBufferCents: p.usdBufferCents ?? 0,
         usdExchangeRate: p.usdExchangeRate ?? 1.0,
@@ -1070,7 +1076,9 @@ export function SettingsForm() {
         invoiceFooterLine3: String(formData.get("invoiceFooterLine3") ?? ""),
         invoicePaymentInstructions: String(formData.get("invoicePaymentInstructions") ?? ""),
         invoiceVatNumber: String(formData.get("invoiceVatNumber") ?? ""),
+        founderPhotoUrl: String(formData.get("founderPhotoUrl") ?? ""),
         siteLogoUrl: s.siteLogoUrl,
+        siteUrl: String(formData.get("siteUrl") ?? ""),
         termsUrl: String(formData.get("termsUrl") ?? ""),
         usdBufferCents: Number(formData.get("usdBufferCents") ?? 0),
         usdExchangeRate: Number(formData.get("usdExchangeRate") ?? 1.0),
@@ -1092,6 +1100,41 @@ export function SettingsForm() {
           {!COMMON_TIMEZONES.includes(s.adminTimezone) && <option value={s.adminTimezone}>{s.adminTimezone}</option>}
         </select>
       </label>
+      <label>
+        Site URL
+        <input
+          value={s.siteUrl}
+          name="siteUrl"
+          placeholder="https://dezhost.com"
+          type="url"
+          onChange={(e) => setS({ ...s, siteUrl: e.target.value })}
+        />
+      </label>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
+        Used for the XML sitemap and absolute URLs in emails. Include the protocol and no trailing slash (e.g. <code>https://dezhost.com</code>).
+      </p>
+      <h3>About Us</h3>
+      <ImageUploader
+        accept="image/png,image/jpeg,image/webp"
+        action={`${API_BASE_URL}/admin/dev/assets/founder-photo`}
+        headers={authHeaders()}
+        label="Founder / team photo (About Us page)"
+        onUploaded={(payload) => setS({ ...s, founderPhotoUrl: String(payload.photoUrl ?? "") })}
+        previewUrl={s.founderPhotoUrl}
+      />
+      <label>
+        Founder photo URL (or paste URL manually)
+        <input
+          value={s.founderPhotoUrl}
+          name="founderPhotoUrl"
+          placeholder="/uploads/founder-photo.jpg"
+          onChange={(e) => setS({ ...s, founderPhotoUrl: e.target.value })}
+        />
+      </label>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
+        Portrait photo shown on the About Us page. Recommended: vertical format (3:4 ratio). PNG or JPG.
+        You can also upload your photo to <code>/uploads/</code> via the uploader above and the URL will be set automatically.
+      </p>
       <h3>Legal</h3>
       <label>AGB / Terms URL<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
       <h3>Currency (USD)</h3>
@@ -1107,6 +1150,17 @@ export function SettingsForm() {
         onUploaded={(payload) => setS({ ...s, siteLogoUrl: String(payload.logoUrl ?? "") })}
         previewUrl={s.siteLogoUrl}
       />
+      <ImageUploader
+        accept="image/png,image/x-icon,image/svg+xml,image/webp"
+        action={`${API_BASE_URL}/admin/dev/assets/favicon`}
+        headers={authHeaders()}
+        label="Favicon"
+        onUploaded={(payload) => setS({ ...s, faviconUrl: String(payload.faviconUrl ?? "") })}
+        previewUrl={s.faviconUrl}
+      />
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
+        The favicon appears in browser tabs and bookmarks. Accepted formats: <strong>PNG, ICO, SVG, WebP</strong>. Ideal size: <strong>32×32 px or 64×64 px</strong>. Keep it under 512 KB. A square image works best — it will be displayed at a very small size, so use a simple, bold design (e.g. your logo mark, not the full wordmark).
+      </p>
       <label>Company name<input value={s.invoiceCompanyName} name="invoiceCompanyName" onChange={(e) => setS({ ...s, invoiceCompanyName: e.target.value })} /></label>
       <label>Company address<input value={s.invoiceCompanyAddress} name="invoiceCompanyAddress" onChange={(e) => setS({ ...s, invoiceCompanyAddress: e.target.value })} /></label>
       <label>ZIP<input value={s.invoiceCompanyZip} name="invoiceCompanyZip" onChange={(e) => setS({ ...s, invoiceCompanyZip: e.target.value })} /></label>
@@ -1424,13 +1478,13 @@ export function BlogManager() {
           onUploaded={(payload) => setFeatureImage(String(payload.imageUrl ?? ""))}
           previewUrl={featureImage}
         />
-        <label>Feature photo URL<input name="featureImage" onChange={(event) => setFeatureImage(event.target.value)} required value={featureImage} /></label>
+        <label>Feature photo URL (optional)<input name="featureImage" onChange={(event) => setFeatureImage(event.target.value)} value={featureImage} /></label>
         <label>Category<input defaultValue={editing?.category ?? editing?.content?.category ?? ""} list="blog-categories" name="category" placeholder="Hosting" required /></label>
         <datalist id="blog-categories">
           {categories.map((category) => <option key={category} value={category} />)}
         </datalist>
         <label>Tags<input defaultValue={(editing?.tags ?? editing?.content?.tags ?? editing?.content?.keywords ?? []).join(", ")} name="tags" placeholder="hosting, email, security" /></label>
-        <label><input defaultChecked={Boolean(editing?.publishedAt ?? editing?.content?.published)} name="published" type="checkbox" /> Published</label>
+        <label><input defaultChecked={editing ? Boolean(editing.publishedAt ?? editing.content?.published) : true} name="published" type="checkbox" /> Published</label>
         <label>Excerpt<input defaultValue={editing?.excerpt ?? ""} name="excerpt" /></label>
         <RichTextEditor initialValue={editing?.content?.body ?? ""} />
         <Button icon={Save} type="submit">{editing ? "Update Article" : "Create Article"}</Button>
@@ -2483,5 +2537,135 @@ export function AdminsPanel() {
         )}
       </section>
     </div>
+  );
+}
+
+export function SeoSettingsForm() {
+  const [message, setMessage] = useState("");
+  const [s, setS] = useState({
+    siteName: "Dezhost",
+    metaDescription: "",
+    blogMetaDescription: "",
+    ogTitleSuffix: "| Dezhost",
+    ogImageStatic: "",
+    ogImageDashboard: "",
+    ogImageBlog: ""
+  });
+
+  useEffect(() => {
+    void fetch(`${API_BASE_URL}/admin/dev/seo-settings`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((p) => setS({
+        siteName: p.siteName || "Dezhost",
+        metaDescription: p.metaDescription || "",
+        blogMetaDescription: p.blogMetaDescription || "",
+        ogTitleSuffix: p.ogTitleSuffix || "| Dezhost",
+        ogImageStatic: p.ogImageStatic || "",
+        ogImageDashboard: p.ogImageDashboard || "",
+        ogImageBlog: p.ogImageBlog || ""
+      }))
+      .catch(() => undefined);
+  }, []);
+
+  async function submit(formData: FormData) {
+    const response = await fetch(`${API_BASE_URL}/admin/dev/seo-settings`, {
+      body: JSON.stringify({
+        siteName: String(formData.get("siteName") ?? "Dezhost"),
+        metaDescription: String(formData.get("metaDescription") ?? ""),
+        blogMetaDescription: String(formData.get("blogMetaDescription") ?? ""),
+        ogTitleSuffix: String(formData.get("ogTitleSuffix") ?? "| Dezhost"),
+        ogImageStatic: s.ogImageStatic,
+        ogImageDashboard: s.ogImageDashboard,
+        ogImageBlog: s.ogImageBlog
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setMessage(await notifyResponse(response, "SEO settings saved.", "Save failed."));
+  }
+
+  return (
+    <form action={submit} className={styles.form}>
+      <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: 0, lineHeight: 1.6 }}>
+        These settings control how your website appears in search results and when shared on social media (Facebook, Twitter/X, Telegram, Signal, LinkedIn).
+      </p>
+
+      <h3>Site Identity</h3>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }}>Used in <code>&lt;title&gt;</code> tags and OG titles across the site.</p>
+      <label>
+        Site name
+        <input value={s.siteName} name="siteName" placeholder="Dezhost" onChange={(e) => setS({ ...s, siteName: e.target.value })} />
+      </label>
+      <label>
+        Title suffix (appended to page titles)
+        <input value={s.ogTitleSuffix} name="ogTitleSuffix" placeholder="| Dezhost" onChange={(e) => setS({ ...s, ogTitleSuffix: e.target.value })} />
+      </label>
+
+      <h3>Meta Descriptions</h3>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }}>
+        Ideal length: <strong>120–158 characters</strong>. Search engines truncate longer descriptions. Write in plain language, focus on what you offer. Avoid keyword stuffing.
+      </p>
+      <label>
+        Static pages (homepage, hosting, domains, about, etc.)
+        <textarea
+          value={s.metaDescription}
+          name="metaDescription"
+          rows={3}
+          maxLength={160}
+          placeholder="Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, full GDPR compliance. For associations, NGOs, and small businesses."
+          onChange={(e) => setS({ ...s, metaDescription: e.target.value })}
+        />
+        <small style={{ color: "var(--muted)" }}>{s.metaDescription.length}/160 characters</small>
+      </label>
+      <label>
+        Blog &amp; blog posts
+        <textarea
+          value={s.blogMetaDescription}
+          name="blogMetaDescription"
+          rows={3}
+          maxLength={160}
+          placeholder="Articles about web hosting, domains, privacy and digital tools for associations and small organisations. Written clearly, without expertise required."
+          onChange={(e) => setS({ ...s, blogMetaDescription: e.target.value })}
+        />
+        <small style={{ color: "var(--muted)" }}>{s.blogMetaDescription.length}/160 characters</small>
+      </label>
+
+      <h3>OG Images for Social Media</h3>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0", lineHeight: 1.6 }}>
+        OG images appear when a link is shared on Telegram, Signal, Facebook, X/Twitter, LinkedIn, etc.
+        Standard size: <strong>1200×630 px</strong>. Use PNG or JPG. Keep under 1 MB.
+        Use a simple, bold design with your logo or brand name — it will appear as a thumbnail. The three images below let you use different visuals for different areas of the site.
+      </p>
+      <ImageUploader
+        accept="image/png,image/jpeg,image/webp"
+        action={`${API_BASE_URL}/admin/dev/assets/og-image`}
+        extraFields={{ type: "static" }}
+        headers={authHeaders()}
+        label="OG image — Static pages (homepage, hosting, domains, about…)"
+        onUploaded={(payload) => setS({ ...s, ogImageStatic: String(payload.imageUrl ?? "") })}
+        previewUrl={s.ogImageStatic}
+      />
+      <ImageUploader
+        accept="image/png,image/jpeg,image/webp"
+        action={`${API_BASE_URL}/admin/dev/assets/og-image`}
+        extraFields={{ type: "dashboard" }}
+        headers={authHeaders()}
+        label="OG image — Client &amp; admin dashboards"
+        onUploaded={(payload) => setS({ ...s, ogImageDashboard: String(payload.imageUrl ?? "") })}
+        previewUrl={s.ogImageDashboard}
+      />
+      <ImageUploader
+        accept="image/png,image/jpeg,image/webp"
+        action={`${API_BASE_URL}/admin/dev/assets/og-image`}
+        extraFields={{ type: "blog" }}
+        headers={authHeaders()}
+        label="OG image — Blog &amp; blog posts"
+        onUploaded={(payload) => setS({ ...s, ogImageBlog: String(payload.imageUrl ?? "") })}
+        previewUrl={s.ogImageBlog}
+      />
+
+      <Button icon={Save} type="submit">Save SEO Settings</Button>
+      {message ? <p>{message}</p> : null}
+    </form>
   );
 }

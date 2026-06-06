@@ -1,6 +1,9 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { mkdir, writeFile } from "node:fs/promises";
 import { timingSafeEqual } from "node:crypto";
+import { join, resolve } from "node:path";
 import { BillingService } from "../billing/billing.service";
+import { CmsService } from "../cms/cms.service";
 import { OrdersService } from "../orders/orders.service";
 import { ProductsService } from "../products/products.service";
 import { TicketsService } from "../tickets/tickets.service";
@@ -34,6 +37,7 @@ export class CronService {
 
   constructor(
     private readonly billing: BillingService,
+    private readonly cms: CmsService,
     private readonly orders: OrdersService,
     private readonly products: ProductsService,
     private readonly tickets: TicketsService
@@ -88,6 +92,8 @@ export class CronService {
         this.tickets.importMailboxTickets(settings as Record<string, unknown>)
       );
 
+      await this.runDaily("sitemap", now, ran, skipped, () => this.generateSitemap());
+
       await this.billing.recordAction({
         action: "cron.completed",
         metadata: { ran: ran.map((item) => ({ name: item.name, status: item.status })), skipped: skipped.map((item) => item.name) },
@@ -97,6 +103,65 @@ export class CronService {
     } finally {
       this.running = false;
     }
+  }
+
+  private async generateSitemap() {
+    const storedSiteUrl = await this.billing.siteUrl().catch(() => null);
+    const siteUrl = (storedSiteUrl || process.env.SITE_URL || "https://dezhost.com").replace(/\/$/, "");
+    const locales = ["de", "en"];
+    const staticPaths = [
+      "",
+      "/domains",
+      "/domains/pricing",
+      "/hosting",
+      "/webhosting",
+      "/virtual-servers",
+      "/vps",
+      "/webdesign",
+      "/it-losungen",
+      "/blog",
+      "/uber-uns",
+      "/kontakt",
+      "/knowledgebase",
+      "/legal/agb",
+      "/legal/datenschutz",
+      "/legal/impressum"
+    ];
+
+    const now = new Date().toISOString().slice(0, 10);
+    const urls: string[] = [];
+
+    for (const locale of locales) {
+      for (const path of staticPaths) {
+        urls.push(`  <url><loc>${siteUrl}/${locale}${path}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${path === "" ? "1.0" : "0.8"}</priority></url>`);
+      }
+    }
+
+    const [dePosts, enPosts] = await Promise.all([
+      this.cms.listPosts("de", {}).catch(() => []),
+      this.cms.listPosts("en", {}).catch(() => [])
+    ]);
+
+    for (const post of dePosts) {
+      urls.push(`  <url><loc>${siteUrl}/de/blog/${post.slug}</loc><lastmod>${post.publishedAt ? new Date(post.publishedAt as unknown as string).toISOString().slice(0, 10) : now}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
+    }
+    for (const post of enPosts) {
+      urls.push(`  <url><loc>${siteUrl}/en/blog/${post.slug}</loc><lastmod>${post.publishedAt ? new Date(post.publishedAt as unknown as string).toISOString().slice(0, 10) : now}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
+    }
+
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...urls,
+      "</urlset>"
+    ].join("\n");
+
+    const dir = process.cwd().endsWith("apps/api")
+      ? resolve(process.cwd(), "../web/public")
+      : resolve(process.cwd(), "apps/web/public");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "sitemap.xml"), xml, "utf8");
+    return { urls: urls.length };
   }
 
   private async maybeRunTimed(

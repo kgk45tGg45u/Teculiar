@@ -1,5 +1,6 @@
-import { ArrowRight, Globe, HandHeart, Lock, MessageCircle, Phone, Sprout } from "lucide-react";
+import { ArrowRight, Globe, HandHeart, Lock, MessageCircle, Phone, Sprout, User } from "lucide-react";
 import { Button } from "../../../components/ui/button";
+import { apiGet } from "../../../lib/api";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./uber-uns.module.css";
 
@@ -7,6 +8,8 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
+  const settings = await apiGet<{ founderPhotoUrl?: string }>("/storefront/settings");
+  const founderPhotoUrl = settings?.founderPhotoUrl || null;
 
   const values = isDe
     ? [
@@ -203,6 +206,43 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
                 ? "Das bedeutet: Wir nehmen keine Kunden an, die wir nicht gut betreuen können. Wir wachsen langsam. Wir bleiben erreichbar. Und wir erklären alles – auch wenn du dieselbe Frage zum dritten Mal stellst."
                 : "That means: we don't take on clients we can't support well. We grow slowly. We stay reachable. And we explain everything – even if you ask the same question for the third time."}
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Founder photo */}
+      <section className={`section tight ${styles.founderSection}`}>
+        <div className="container">
+          <div className={styles.founderLayout}>
+            <div className={styles.founderPhotoWrap}>
+              {founderPhotoUrl ? (
+                <img
+                  alt={isDe ? "Gründer von Dezhost" : "Dezhost founder"}
+                  className={styles.founderPhoto}
+                  src={founderPhotoUrl}
+                />
+              ) : (
+                <div className={styles.founderPhotoPlaceholder}>
+                  <User aria-hidden size={64} />
+                  <span>{isDe ? "Foto folgt" : "Photo coming soon"}</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.founderText}>
+              <span className="eyebrow">{isDe ? "Gründer" : "Founder"}</span>
+              <h2>{isDe ? "Hinter Dezhost steht ein Mensch." : "A person stands behind Dezhost."}</h2>
+              <span className={styles.role}>{isDe ? "Gründer & Geschäftsführer" : "Founder & Managing Director"}</span>
+              <p>
+                {isDe
+                  ? "Dezhost wurde mit einem einfachen Ziel gegründet: digitale Infrastruktur zugänglich machen – für alle, nicht nur für Konzerne. Als Gründer kenne ich die Herausforderungen kleiner Organisationen aus eigener Erfahrung."
+                  : "Dezhost was founded with a simple goal: to make digital infrastructure accessible – for everyone, not just corporations. As founder, I know the challenges of small organisations from personal experience."}
+              </p>
+              <p>
+                {isDe
+                  ? "Ich stehe persönlich für jeden Kunden zur Verfügung. Keine Hotlines, keine Warteschlangen – ein echter Ansprechpartner."
+                  : "I am personally available for every client. No hotlines, no queues – a real contact person."}
+              </p>
+            </div>
           </div>
         </div>
       </section>

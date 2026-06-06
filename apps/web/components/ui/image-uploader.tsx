@@ -7,6 +7,7 @@ import { Button } from "./button";
 export function ImageUploader({
   action,
   accept = "image/png,image/jpeg,image/webp,image/svg+xml",
+  extraFields,
   headers,
   label,
   name = "image",
@@ -15,6 +16,7 @@ export function ImageUploader({
 }: {
   accept?: string;
   action: string;
+  extraFields?: Record<string, string>;
   headers?: Record<string, string>;
   label: string;
   name?: string;
@@ -32,6 +34,11 @@ export function ImageUploader({
     }
     const formData = new FormData();
     formData.set(name, file);
+    if (extraFields) {
+      for (const [key, value] of Object.entries(extraFields)) {
+        formData.set(key, value);
+      }
+    }
     const response = await fetch(action, {
       body: formData,
       headers,

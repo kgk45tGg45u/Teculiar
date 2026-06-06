@@ -1155,16 +1155,30 @@ export class BillingService {
     return this.billing.settingNumber("vatPercent", 19);
   }
 
+  siteUrl() {
+    return this.billing.settingString("siteUrl");
+  }
+
   async publicSettings() {
-    const [vatPercent, siteLogoUrl, termsUrl, usdExchangeRate, usdBufferCents] = await Promise.all([
+    const [vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, siteName, metaDescription, blogMetaDescription, ogTitleSuffix, ogImageStatic, ogImageDashboard, ogImageBlog] = await Promise.all([
       this.vatPercent(),
       this.billing.settingString("siteLogoUrl"),
+      this.billing.settingString("faviconUrl"),
+      this.billing.settingString("founderPhotoUrl"),
+      this.billing.settingString("siteUrl"),
       this.billing.settingString("termsUrl"),
       this.billing.settingNumber("usdExchangeRate", 1.0),
-      this.billing.settingNumber("usdBufferCents", 0)
+      this.billing.settingNumber("usdBufferCents", 0),
+      this.billing.settingString("seo.siteName"),
+      this.billing.settingString("seo.metaDescription"),
+      this.billing.settingString("seo.blogMetaDescription"),
+      this.billing.settingString("seo.ogTitleSuffix"),
+      this.billing.settingString("seo.ogImageStatic"),
+      this.billing.settingString("seo.ogImageDashboard"),
+      this.billing.settingString("seo.ogImageBlog")
     ]);
 
-    return { siteLogoUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent };
+    return { blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard, ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent };
   }
 
   settings() {
@@ -1279,6 +1293,11 @@ export class BillingService {
       this.billing.settingString("adminTimezone", "UTC")
     ]);
 
+    const [founderPhotoUrl, siteUrl] = await Promise.all([
+      this.billing.settingString("founderPhotoUrl"),
+      this.billing.settingString("siteUrl")
+    ]);
+
     return {
       adminTimezone,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
@@ -1310,7 +1329,9 @@ export class BillingService {
       salesImapSecure: Boolean(salesImapSecure),
       salesImapUsername,
       salesMailboxAddress,
+      founderPhotoUrl,
       siteLogoUrl,
+      siteUrl,
       supportImapEnabled: Boolean(supportImapEnabled),
       supportImapHost,
       supportImapMailbox,
@@ -1474,7 +1495,9 @@ export class BillingService {
     salesImapSecure?: boolean;
     salesImapUsername?: string;
     salesMailboxAddress?: string;
+    founderPhotoUrl?: string;
     siteLogoUrl?: string;
+    siteUrl?: string;
     supportImapEnabled?: boolean;
     supportImapHost?: string;
     supportImapMailbox?: string;
@@ -1533,7 +1556,9 @@ export class BillingService {
         ? undefined
         : this.billing.upsertSettingString("invoicePaymentInstructions", input.invoicePaymentInstructions),
       input.invoiceBankDetails === undefined ? undefined : this.billing.upsertSettingString("invoiceBankDetails", input.invoiceBankDetails),
+      input.founderPhotoUrl === undefined ? undefined : this.billing.upsertSettingString("founderPhotoUrl", input.founderPhotoUrl),
       input.siteLogoUrl === undefined ? undefined : this.billing.upsertSettingString("siteLogoUrl", input.siteLogoUrl),
+      input.siteUrl === undefined ? undefined : this.billing.upsertSettingString("siteUrl", input.siteUrl),
       input.termsUrl === undefined ? undefined : this.billing.upsertSettingString("termsUrl", input.termsUrl),
       input.supportImapEnabled === undefined
         ? undefined
@@ -1607,10 +1632,82 @@ export class BillingService {
       `<image href="data:${file.mimetype};base64,${file.buffer.toString("base64")}" width="180" height="60" preserveAspectRatio="xMidYMid meet"/>`,
       "</svg>"
     ].join("");
-    await writeFile(join(dir, "site-logo.svg"), svg, "utf8");
-    const logoUrl = `/uploads/site-logo.svg?v=${Date.now()}`;
+    const filename = `site-logo-${Date.now()}.svg`;
+    await writeFile(join(dir, filename), svg, "utf8");
+    const logoUrl = `/uploads/${filename}`;
     await this.billing.upsertSettingString("siteLogoUrl", logoUrl);
     return { height: 60, logoUrl, width: 180 };
+  }
+
+  async getSeoSettings() {
+    const keys = ["seo.siteName", "seo.metaDescription", "seo.blogMetaDescription", "seo.ogTitleSuffix", "seo.ogImageStatic", "seo.ogImageDashboard", "seo.ogImageBlog"];
+    const values = await Promise.all(keys.map((k) => this.billing.settingString(k)));
+    return Object.fromEntries(keys.map((k, i) => [k.replace("seo.", ""), values[i] ?? ""]));
+  }
+
+  async updateSeoSettings(input: Record<string, string>) {
+    const allowed = ["siteName", "metaDescription", "blogMetaDescription", "ogTitleSuffix", "ogImageStatic", "ogImageDashboard", "ogImageBlog"];
+    await Promise.all(
+      Object.entries(input)
+        .filter(([k]) => allowed.includes(k))
+        .map(([k, v]) => this.billing.upsertSettingString(`seo.${k}`, v))
+    );
+    return this.getSeoSettings();
+  }
+
+  async uploadOgImage(file: { buffer: Buffer; mimetype: string; originalname?: string; size: number } | undefined, type: string) {
+    if (!file) throw new BadRequestException("Image is required.");
+    if (file.size > 1_000_000) throw new BadRequestException("OG image must be smaller than 1 MB.");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
+      throw new BadRequestException("OG image must be PNG, JPG, or WebP.");
+    }
+    const allowed = ["static", "dashboard", "blog"];
+    const safeType = allowed.includes(type) ? type : "static";
+    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+    const dir = await webUploadsDir();
+    const filename = `og-${safeType}-${Date.now()}.${ext}`;
+    await writeFile(join(dir, filename), file.buffer);
+    const imageUrl = `/uploads/${filename}`;
+    await this.billing.upsertSettingString(`seo.ogImage${safeType.charAt(0).toUpperCase() + safeType.slice(1)}`, imageUrl);
+    return { imageUrl, type: safeType };
+  }
+
+  async uploadFounderPhoto(file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    if (!file) throw new BadRequestException("Photo is required.");
+    if (file.size > 5_000_000) throw new BadRequestException("Photo must be smaller than 5 MB.");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
+      throw new BadRequestException("Photo must be PNG, JPG, or WebP.");
+    }
+    const dir = await webUploadsDir();
+    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+    const filename = `founder-photo-${Date.now()}.${ext}`;
+    await writeFile(join(dir, filename), file.buffer);
+    const photoUrl = `/uploads/${filename}`;
+    await this.billing.upsertSettingString("founderPhotoUrl", photoUrl);
+    return { photoUrl };
+  }
+
+  async uploadFavicon(file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    if (!file) {
+      throw new BadRequestException("Favicon image is required.");
+    }
+    if (file.size > 512_000) {
+      throw new BadRequestException("Favicon must be smaller than 512 KB.");
+    }
+    const allowed = ["image/png", "image/x-icon", "image/vnd.microsoft.icon", "image/svg+xml", "image/webp"];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException("Favicon must be PNG, ICO, SVG, or WebP.");
+    }
+    const dir = await webUploadsDir();
+    const ext = file.mimetype === "image/x-icon" || file.mimetype === "image/vnd.microsoft.icon" ? "ico"
+      : file.mimetype === "image/svg+xml" ? "svg"
+      : file.mimetype === "image/webp" ? "webp"
+      : "png";
+    const filename = `favicon-${Date.now()}.${ext}`;
+    await writeFile(join(dir, filename), file.buffer);
+    const faviconUrl = `/uploads/${filename}`;
+    await this.billing.upsertSettingString("faviconUrl", faviconUrl);
+    return { faviconUrl };
   }
 
   async getModules() {

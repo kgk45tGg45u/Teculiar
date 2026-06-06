@@ -14,7 +14,7 @@ Edit or add scenarios in the JSON block. Keep `id` stable so reports stay easy t
       "tags": ["smoke", "storefront"],
       "steps": [
         { "goto": "/de" },
-        { "expectHeading": "Brauchst du Raum?" },
+        { "expectHeading": "Brauchst du Freiraum?" },
         { "expectText": "Unsere Leistungen" },
         { "expectText": "NVMe SSD Speicher" },
         { "expectText": "DNS-Verwaltung" },
@@ -27,7 +27,7 @@ Edit or add scenarios in the JSON block. Keep `id` stable so reports stay easy t
       "tags": ["smoke", "localization"],
       "steps": [
         { "goto": "/de" },
-        { "expectHeading": "Brauchst du Raum?" },
+        { "expectHeading": "Brauchst du Freiraum?" },
         { "goto": "/en" },
         { "expectUrl": "/en" },
         { "expectHeading": "Need some space?" },
@@ -64,7 +64,7 @@ Edit or add scenarios in the JSON block. Keep `id` stable so reports stay easy t
         { "goto": "/en/webhosting" },
         { "expectHeading": "Web hosting you actually understand." },
         { "expectText": "Daily backups" },
-        { "expectText": "What is web hosting?" },
+        { "expectText": "What exactly is web hosting?" },
         { "expectText": "Ask a question" }
       ]
     },

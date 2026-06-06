@@ -1,4 +1,4 @@
-import { ArrowRight, Globe, Mail, Search, Settings, ShieldCheck } from "lucide-react";
+import { ArrowRight, Globe, Mail, Search, Settings } from "lucide-react";
 import { DomainSearch } from "../../../components/marketing/domain-search";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
@@ -106,42 +106,6 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
       {/* Domain search */}
       <DomainSearch locale={locale} />
 
-      {/* What is a domain */}
-      <section className="section tight">
-        <div className="container">
-          <div className={styles.explainRow}>
-            <div>
-              <span className="eyebrow">{isDe ? "Für Einsteiger" : "For beginners"}</span>
-              <h2>{isDe ? "Was ist eine Domain?" : "What is a domain?"}</h2>
-              <p>
-                {isDe
-                  ? "Stell dir das Internet wie eine riesige Stadt vor. Jede Website hat eine Adresse – das ist die Domain. Zum Beispiel: deinverein.de. Wenn jemand diese Adresse in den Browser eingibt, landet er auf deiner Website."
-                  : "Think of the internet like a huge city. Every website has an address – that's the domain. For example: yourclub.org. When someone types this address into their browser, they land on your website."}
-              </p>
-              <p>
-                {isDe
-                  ? "Eine Domain besteht aus zwei Teilen: dem Namen (z. B. \"deinverein\") und der Endung (z. B. \".de\"). Zusammen ergibt das deine einzigartige Adresse im Internet."
-                  : "A domain consists of two parts: the name (e.g. \"yourclub\") and the extension (e.g. \".org\"). Together they form your unique address on the internet."}
-              </p>
-            </div>
-            <div className={styles.emailExample}>
-              <span className="eyebrow">{isDe ? "Professionelle E-Mail" : "Professional email"}</span>
-              <h3>{isDe ? "Mit deiner Domain bekommst du auch E-Mail." : "With your domain you also get email."}</h3>
-              <p>
-                {isDe
-                  ? "Statt info@gmail.com kannst du info@deinverein.de nutzen. Das wirkt professioneller und stärkt das Vertrauen deiner Kontakte."
-                  : "Instead of info@gmail.com you can use info@yourclub.org. This looks more professional and builds trust with your contacts."}
-              </p>
-              <div className={styles.emailExamples}>
-                <code>info@deinverein.de</code>
-                <code>vorstand@deinverein.de</code>
-                <code>kontakt@deinverein.de</code>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* How it works */}
       <section className={`section ${styles.stepsSection}`}>
         <div className="container">
@@ -198,23 +162,6 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
             <Button href={`/${locale}/domains/pricing`} icon={ArrowRight}>
               {isDe ? "Preisliste ansehen" : "View price list"}
             </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* DNS explained */}
-      <section className={`section tight ${styles.dnsSection}`}>
-        <div className="container">
-          <div className={styles.dnsInner}>
-            <ShieldCheck aria-hidden size={32} />
-            <div>
-              <h2>{isDe ? "DNS – das Telefonbuch des Internets." : "DNS – the phone book of the internet."}</h2>
-              <p>
-                {isDe
-                  ? "DNS steht für Domain Name System. Es übersetzt deinen Domainnamen in eine IP-Adresse – damit Browser wissen, wo deine Website liegt. Das klingt kompliziert, aber du musst dich darum nicht kümmern. Wir richten das für dich ein."
-                  : "DNS stands for Domain Name System. It translates your domain name into an IP address – so browsers know where your website is. This sounds complicated, but you don't need to worry about it. We set it up for you."}
-              </p>
-            </div>
           </div>
         </div>
       </section>

@@ -183,6 +183,92 @@
   font-size: 1rem;
 }
 
+/* Founder / Team photo */
+.founderSection {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.founderLayout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.founderPhotoWrap {
+  position: relative;
+  width: 280px;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.founderPhoto {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.founderPhotoPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.founderPhotoPlaceholder svg {
+  opacity: 0.4;
+}
+
+.founderPhotoPlaceholder span {
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.founderText h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.founderText .role {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: var(--dezhost);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.founderText p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+@media (max-width: 860px) {
+  .founderLayout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .founderPhotoWrap {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
 /* CTA */
 .ctaSection {
   background: var(--surface);

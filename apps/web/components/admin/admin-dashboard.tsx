@@ -28,7 +28,7 @@ import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
-import { AddClientForm, AdminsPanel, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AdminsPanel, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
@@ -56,6 +56,7 @@ type AdminView =
   | "announcements"
   | "settings"
   | "settings-cron"
+  | "settings-seo"
   | "admins";
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
@@ -157,6 +158,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
         {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
+        {view === "settings-seo" ? <SeoSettingsPanel /> : null}
         {view === "admins" ? <AdminsPanel /> : null}
       </main>
     </div>
@@ -562,6 +564,40 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
         </div>
         <Button href="/admin/settings" variant="secondary">← General Settings</Button>
       </div>
+
+      <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--border)" }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: "0.95rem" }}>What the Cron Does</h3>
+        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 12px", lineHeight: 1.6 }}>
+          The cron runner is triggered by an external HTTP request. Each call checks which jobs are due and runs them. Jobs are throttled — they only execute after their configured interval has passed.
+        </p>
+        <table className="table" style={{ fontSize: "0.85rem" }}>
+          <thead>
+            <tr><th>Job</th><th>Frequency</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>domainPrices</td><td>Every 24 h (configurable)</td><td>Syncs TLD pricing from Resell.biz into the domain price list.</td></tr>
+            <tr><td>domainExpirations</td><td>Every 12 h (configurable)</td><td>Refreshes expiry dates for all registered domains.</td></tr>
+            <tr><td>domainStatuses</td><td>Every 15 min (configurable)</td><td>Checks and updates domain registration statuses.</td></tr>
+            <tr><td>hostingStatuses</td><td>Every 15 min (configurable)</td><td>Checks Virtualmin hosting account statuses.</td></tr>
+            <tr><td>billingMaintenance</td><td>Every cron run</td><td>Generates upcoming invoices, marks overdue invoices, and runs subscription renewals.</td></tr>
+            <tr><td>invoiceReminders</td><td>Once per day</td><td>Sends payment reminder emails to clients with invoices due within the configured days.</td></tr>
+            <tr><td>ticketsClose</td><td>Every cron run</td><td>Auto-closes tickets that have been answered and have had no reply for the configured hours.</td></tr>
+            <tr><td>mailboxes</td><td>Every 5 min (configurable)</td><td>Polls support and sales IMAP mailboxes to convert incoming emails into tickets.</td></tr>
+            <tr><td>sitemap</td><td>Once per day</td><td>Generates <code>/sitemap.xml</code> with all static pages and published blog posts. Set <code>SITE_URL</code> in the server environment to your production domain (e.g. <code>https://dezhost.com</code>).</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>How to Activate the Cron on Your Server</h3>
+        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }}>
+          The cron is triggered via a GET request to <code>/cron/run?secret=YOUR_SECRET</code>. Set up a system cron job on your server to call this endpoint every minute:
+        </p>
+        <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`* * * * * curl -s "https://dezhost.com/api/cron/run?secret=YOUR_SECRET" > /dev/null`}</pre>
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0 }}>
+          Replace <code>YOUR_SECRET</code> with the Cron Secret set below and <code>dezhost.com/api</code> with your API base URL.
+          You can also trigger it manually using the "Run Cron Now" button below.
+        </p>
+      </div>
+
       <CronSettingsForm />
       {cronLogs.length > 0 && (
         <div style={{ padding: "0 16px 16px" }}>
@@ -644,9 +680,27 @@ function SettingsPanel() {
           <span className="eyebrow">System</span>
           <h2>General Settings</h2>
         </div>
-        <Button href="/admin/settings/cron" variant="secondary">Cron Settings →</Button>
+        <div className={styles.headerActions} style={{ gap: 8 }}>
+          <Button href="/admin/settings/seo" variant="secondary">SEO Settings →</Button>
+          <Button href="/admin/settings/cron" variant="secondary">Cron Settings →</Button>
+        </div>
       </div>
       <SettingsForm />
+    </section>
+  );
+}
+
+function SeoSettingsPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">SEO</span>
+          <h2>SEO &amp; Social Settings</h2>
+        </div>
+        <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+      </div>
+      <SeoSettingsForm />
     </section>
   );
 }
@@ -672,6 +726,7 @@ function adminTitle(view: AdminView, locale: Locale) {
     services: copy.services,
     settings: copy.settings,
     "settings-cron": "Cron Settings",
+    "settings-seo": "SEO & Social Settings",
     admins: "Admins & Roles",
     "payment-gateways": copy.paymentGateways,
     tickets: copy.tickets

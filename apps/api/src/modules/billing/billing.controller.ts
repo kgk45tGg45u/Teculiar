@@ -329,6 +329,42 @@ export class BillingDevController {
     return this.billing.uploadSiteLogo(file);
   }
 
+  @Roles("admin", "super_admin")
+  @Post("assets/favicon")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadFavicon(@UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    return this.billing.uploadFavicon(file);
+  }
+
+  @Roles("admin", "super_admin")
+  @Post("assets/founder-photo")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadFounderPhoto(@UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
+    return this.billing.uploadFounderPhoto(file);
+  }
+
+  @Roles("admin", "super_admin")
+  @Post("assets/og-image")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadOgImage(
+    @UploadedFile() file: { buffer: Buffer; mimetype: string; originalname?: string; size: number } | undefined,
+    @Body("type") type: string
+  ) {
+    return this.billing.uploadOgImage(file, type);
+  }
+
+  @Roles("admin", "super_admin")
+  @Get("seo-settings")
+  getSeoSettings() {
+    return this.billing.getSeoSettings();
+  }
+
+  @Roles("admin", "super_admin")
+  @Patch("seo-settings")
+  updateSeoSettings(@Body() body: Record<string, string>) {
+    return this.billing.updateSeoSettings(body);
+  }
+
   @Get("modules")
   getModules() {
     return this.billing.getModules();

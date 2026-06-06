@@ -66,8 +66,8 @@ export default function DomainPricingPage() {
           <h1>{isDe ? "Domain-Preisliste" : "Domain Pricing"}</h1>
           <p>
             {isDe
-              ? "Alle Preise werden direkt aus unserem System geladen. Preise zzgl. 19% MwSt."
-              : "All prices are loaded directly from our system. Prices excl. 19% VAT."}
+              ? "Alle Preise sind aktuell."
+              : "All prices are current."}
           </p>
         </div>
       </section>

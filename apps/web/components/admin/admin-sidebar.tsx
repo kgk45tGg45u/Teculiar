@@ -72,6 +72,7 @@ const settingsNav: NavEntry = {
   label: "Settings",
   children: [
     { href: "/admin/settings", label: "General Settings" },
+    { href: "/admin/settings/seo", label: "SEO & Social Settings" },
     { href: "/admin/settings/cron", label: "Cron Settings" },
     { href: "/admin/settings/admins", label: "Admins & Roles" },
     { href: "/admin/payment-gateways", label: "Payment Gateways" },

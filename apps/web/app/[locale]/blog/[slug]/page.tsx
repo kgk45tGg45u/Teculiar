@@ -8,14 +8,26 @@ import styles from "../blog.module.css";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
   const { locale: rawLocale, slug } = await params;
   const locale = getLocale(rawLocale);
-  const post = await apiGet<ApiBlogPost>(`/cms/posts/${locale}/${slug}`);
+  const [post, settings] = await Promise.all([
+    apiGet<ApiBlogPost>(`/cms/posts/${locale}/${slug}`),
+    apiGet<{ siteName?: string; ogTitleSuffix?: string; ogImageBlog?: string }>("/storefront/settings")
+  ]);
+  const featureImage = post?.featureImage ?? post?.content?.featureImage ?? post?.content?.images?.[0];
+  const ogImage = featureImage || settings?.ogImageBlog;
+  const siteName = settings?.siteName || "Dezhost";
+  const description = post?.excerpt ?? post?.content?.body?.replace(/<[^>]+>/g, "").slice(0, 155) ?? undefined;
   return {
-    description: post?.excerpt ?? post?.content?.body?.replace(/<[^>]+>/g, "").slice(0, 150),
+    description,
+    title: post?.title ?? "Blog",
     openGraph: {
-      images: post?.featureImage ?? post?.content?.featureImage ? [post.featureImage ?? post.content?.featureImage ?? ""] : undefined,
-      title: post?.title
+      images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: post?.title ?? siteName }] : undefined,
+      title: post?.title ?? "Blog",
+      type: "article"
     },
-    title: post ? `${post.title} | Dezhost` : "Blog | Dezhost"
+    twitter: {
+      card: "summary_large_image",
+      images: ogImage ? [ogImage] : undefined
+    }
   };
 }
 
@@ -46,7 +58,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ local
               ))}
             </div>
           ) : null}
-          {featureImage ? <img alt="" className={styles.heroImage} src={featureImage} /> : null}
+          {featureImage ? <img alt={post.title} className={styles.heroImage} src={featureImage} /> : null}
         </div>
       </section>
       <div className="container">

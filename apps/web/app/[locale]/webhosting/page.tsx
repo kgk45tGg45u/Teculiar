@@ -158,22 +158,17 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         </div>
       </section>
 
-      {/* What is hosting */}
+      {/* Quick spec overview */}
       <section className="section tight">
         <div className="container">
           <div className={styles.explainRow}>
             <div>
-              <span className="eyebrow">{isDe ? "Für Einsteiger" : "For beginners"}</span>
-              <h2>{isDe ? "Was ist Webhosting?" : "What is web hosting?"}</h2>
+              <span className="eyebrow">{isDe ? "Auf einen Blick" : "At a glance"}</span>
+              <h2>{isDe ? "Was ist dabei?" : "What's included?"}</h2>
               <p>
                 {isDe
-                  ? "Stell dir das Internet wie eine riesige Stadt vor. Deine Domain ist deine Adresse – und dein Hosting ist das Gebäude, in dem deine Website wohnt. Ohne Hosting ist deine Website nirgendwo gespeichert und niemand kann sie aufrufen."
-                  : "Think of the internet like a huge city. Your domain is your address – and your hosting is the building where your website lives. Without hosting, your website isn't stored anywhere and nobody can access it."}
-              </p>
-              <p>
-                {isDe
-                  ? "Bei Dezhost kümmern wir uns um alles Technische. Du musst nur wissen, was du online stellen möchtest."
-                  : "At Dezhost, we take care of everything technical. You just need to know what you want to put online."}
+                  ? "Unsere Hosting-Pakete kommen mit allem, was du für einen professionellen Auftritt brauchst – inklusive E-Mail, SSL und täglichen Backups. Keine versteckten Kosten."
+                  : "Our hosting packages come with everything you need for a professional presence – including email, SSL and daily backups. No hidden costs."}
               </p>
             </div>
             <div className={styles.specTable}>

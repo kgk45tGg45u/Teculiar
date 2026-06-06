@@ -11,6 +11,10 @@ services:
     # Extra hosts lets the container reach MariaDB running on the host machine.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Shared uploads volume — the API writes logo/favicon/blog images here;
+    # the web container reads them as Next.js static files.
+    volumes:
+      - uploads:/app/apps/web/public/uploads
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
       interval: 20s
@@ -26,6 +30,9 @@ services:
       - "127.0.0.1:3000:3000"
     env_file:
       - /opt/dezhost/.env
+    # Same uploads volume so the web container can serve files written by the API.
+    volumes:
+      - uploads:/app/apps/web/public/uploads
     # service_started (not service_healthy) so the deploy does not block
     # waiting for health checks — the web container handles API-not-ready
     # gracefully on its own.
@@ -38,3 +45,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+volumes:
+  uploads:
+    # Named volume persisted on the host across deploys.
+    # Existing uploads survive image updates.

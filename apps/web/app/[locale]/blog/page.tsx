@@ -10,11 +10,17 @@ import styles from "./blog.module.css";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  const settings = await apiGet<{ blogMetaDescription?: string; ogImageBlog?: string; siteName?: string }>("/storefront/settings");
+  const description = settings?.blogMetaDescription || (locale === "de"
+    ? "Artikel über Hosting, Domains, Datenschutz, WordPress und digitale Werkzeuge für Vereine und kleine Organisationen."
+    : "Articles about hosting, domains, privacy, WordPress, and digital tools for associations and small organisations.");
+  const ogImage = settings?.ogImageBlog;
   return {
-    description: locale === "de"
-      ? "Artikel ueber Hosting, Domains, Datenschutz, WordPress und digitale Werkzeuge."
-      : "Articles about hosting, domains, privacy, WordPress, and digital tools.",
-    title: locale === "de" ? "Blog | Dezhost" : "Blog | Dezhost"
+    description,
+    title: "Blog",
+    openGraph: {
+      images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: settings?.siteName || "Dezhost" }] : undefined
+    }
   };
 }
 
@@ -100,7 +106,7 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
                 const postTags = post.tags ?? post.content?.tags ?? [];
                 return (
                   <Link className={styles.postCard} href={`/${locale}/blog/${post.slug}` as Route} key={post.id}>
-                    {featureImage ? <img alt="" className={styles.postImage} src={featureImage} /> : null}
+                    {featureImage ? <img alt={post.title} className={styles.postImage} src={featureImage} /> : null}
                     <div className={styles.postMeta}>
                       <span className={styles.postCategory}>{post.category ?? post.content?.category ?? "Blog"}</span>
                       <span className={styles.postDate}>{dateLabel(post.publishedAt)}</span>
