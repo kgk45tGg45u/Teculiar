@@ -540,6 +540,7 @@ function formatDate(date: Date) {
 }
 
 function defaultTestVariables() {
+  const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return {
     customer_email: "client@example.test",
     customer_name: "Test Client",
@@ -548,7 +549,7 @@ function defaultTestVariables() {
     invoice_number: "N-100001",
     invoice_total_amount: "29.00 EUR",
     order_number: "123456",
-    password_reset_link: "http://localhost:3000/reset-password?token=test",
+    password_reset_link: `${baseUrl}/reset-password?token=test`,
     service: "Starter Hosting",
     ticket_content: "My website does not load.",
     ticket_id: "ABC12345",
