@@ -1,9 +1,8 @@
-import { redirect } from "next/navigation";
 import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
 import { dictionary } from "../../../../lib/i18n";
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
-import { apiGetAuth } from "../../../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/portal/client-dashboard.module.css";
@@ -13,7 +12,7 @@ import { StatusPill } from "../../../../components/ui/status-pill";
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
   const { invoiceId } = await params;
   const [invoice, settings, locale] = await Promise.all([

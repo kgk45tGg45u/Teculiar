@@ -11,17 +11,17 @@ export function DomainSearch({ locale }: { locale: Locale }) {
       <div className={`container ${styles.inner}`}>
         <div>
           <span className="eyebrow">{isDe ? "Domains" : "Domains"}</span>
-          <h2>{isDe ? "Suchen, transferieren, verlängern." : "Search, transfer, renew."}</h2>
+          <h2>{isDe ? "Suchen, registrieren oder transferieren." : "Search, register or transfer."}</h2>
           <p>
             {isDe
-              ? "Domain-Workflows sind im Portal mit Rechnungen, Kontakten und Services verbunden."
-              : "Domain workflows connect to portal billing, contacts, and services."}
+              ? "Premium-Service muss nicht teuer sein: Domains in derselben zuverlässigen Qualität – zu fairen Preisen und mit Unterstützung für hunderte TLDs."
+              : "Premium service doesn't have to be expensive: domains with the same reliable quality, fair pricing, and support for hundreds of TLDs."}
           </p>
         </div>
         <form action={`/${locale}/domains/search`} className={styles.form}>
-          <input className="input" defaultValue="meinefirma.de" aria-label="Domain" name="domain" />
+          <input className="input" defaultValue="meinname.com" aria-label="Domain" name="domain" />
           <Button icon={Search} type="submit">
-            {isDe ? "Prüfen" : "Check"}
+            {isDe ? "Verfügbarkeit prüfen" : "Check availability"}
           </Button>
         </form>
       </div>

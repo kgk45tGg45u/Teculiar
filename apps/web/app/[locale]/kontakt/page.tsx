@@ -120,8 +120,8 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
                 <Mail aria-hidden size={22} />
                 <div>
                   <strong>{isDe ? "Per E-Mail" : "By email"}</strong>
-                  <a href="mailto:kontakt@dezhost.de">kontakt@dezhost.de</a>
-                  <span>{isDe ? "Antwort innerhalb von 24h" : "Response within 24h"}</span>
+                  <a href="mailto:sales@dezhost.com">sales@dezhost.com</a>
+                  <span>{isDe ? "Kontakt: Bijan Sabbagh" : "Contact: Bijan Sabbagh"}</span>
                 </div>
               </div>
 
@@ -129,7 +129,7 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
                 <Phone aria-hidden size={22} />
                 <div>
                   <strong>{isDe ? "Telefonisch" : "By phone"}</strong>
-                  <span>{isDe ? "Auf Anfrage – wir rufen zurück." : "On request – we call back."}</span>
+                  <span>{isDe ? "+49 1590 6809725" : "+49 1590 6809725"}</span>
                 </div>
               </div>
 

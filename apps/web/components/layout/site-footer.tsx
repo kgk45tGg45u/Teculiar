@@ -98,7 +98,7 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
                   : "We explain everything step by step. Free and without obligation."}
               </p>
               <Button href={`${base}/kontakt` as Route} icon={ArrowRight}>
-                {isDe ? "Jetzt sich beraten lassen" : "Get consultation"}
+                {isDe ? "Jetzt beraten lassen" : "Get consultation"}
               </Button>
             </div>
           </div>

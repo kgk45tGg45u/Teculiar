@@ -6,6 +6,13 @@ const locales = ["de", "en"];
 const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
 const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
 
+function nextWithPath(request: NextRequest) {
+  const pathnameHeader = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+  const headers = new Headers(request.headers);
+  headers.set("x-pathname", pathnameHeader);
+  return NextResponse.next({ request: { headers } });
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -26,7 +33,7 @@ export function middleware(request: NextRequest) {
       url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
-    return NextResponse.next();
+    return nextWithPath(request);
   }
 
   if (pathname.startsWith("/client")) {
@@ -36,7 +43,7 @@ export function middleware(request: NextRequest) {
       url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
-    return NextResponse.next();
+    return nextWithPath(request);
   }
 
   // Payment return pages must be accessible without a session so new customers

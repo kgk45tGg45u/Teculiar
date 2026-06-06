@@ -24,7 +24,7 @@ import { dictionary, type Locale } from "../../lib/i18n";
 import { requestLocale } from "../../lib/server-locale";
 import { LanguageToggle } from "../layout/language-toggle";
 import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
-import { apiGetAuth } from "../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
@@ -65,7 +65,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
   const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
 
   const settings = (await apiGetAuth<{ adminTimezone?: string; siteLogoUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};

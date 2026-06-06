@@ -11,10 +11,10 @@ export function Hero({ locale }: { locale: Locale }) {
       <div className="container">
         <span className="eyebrow">
           <ShieldCheck aria-hidden size={16} />
-          {isDe ? "Schnell und sicheres Hosting aus Deutschland" : "Fast and secure hosting from Germany"}
+          {isDe ? "Schnell und sicheres Hosting aus Berlin" : "Fast and secure hosting from Berlin"}
         </span>
         <h1 className="display">
-          {isDe ? "Brauchst du Raum?" : "Need some space?"}
+          {isDe ? "Brauchst du Freiraum?" : "Need some space?"}
         </h1>
         <p className="lead">
           {isDe

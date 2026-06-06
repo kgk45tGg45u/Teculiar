@@ -307,19 +307,31 @@ export class EmailService {
     const timeoutMs = 12000;
 
     const run = async (): Promise<{ ok: boolean; message: string }> => {
+      const port = Number(settings.port || 587);
+      const useImplicitTls = Boolean(settings.secure) && port === 465;
+      const useStartTls = Boolean(settings.secure) && !useImplicitTls;
       try {
-        sock = await connectSmtp(settings);
+        sock = await openSmtpTcp({ host: settings.host!, port, implicitTls: useImplicitTls });
         sock.on("error", () => undefined);
-        const reader = smtpCloseAwareReader(sock);
+        let reader = smtpCloseAwareReader(sock);
         await reader.read();
         await reader.command(`EHLO ${settings.host}`, [2]);
+        if (useStartTls) {
+          await reader.command("STARTTLS", [2]);
+          sock.removeAllListeners();
+          sock.on("error", () => undefined);
+          sock = await upgradeToTls(sock, settings.host!);
+          sock.on("error", () => undefined);
+          reader = smtpCloseAwareReader(sock);
+          await reader.command(`EHLO ${settings.host}`, [2]);
+        }
         if (settings.username || settings.password) {
           await reader.command("AUTH LOGIN", [3]);
           await reader.command(Buffer.from(settings.username ?? "").toString("base64"), [3]);
           await reader.command(Buffer.from(settings.password ?? "").toString("base64"), [2]);
         }
         await reader.command("QUIT", [2]).catch(() => undefined);
-        return { ok: true, message: `Connected to ${settings.host}:${settings.port ?? 587} successfully.` };
+        return { ok: true, message: `Connected to ${settings.host}:${port} successfully.` };
       } catch (error) {
         return { ok: false, message: error instanceof Error ? error.message : "Connection failed." };
       } finally {
@@ -562,12 +574,25 @@ async function sendSmtp(input: {
   if (!input.smtp.host) {
     throw new Error("SMTP host is required");
   }
-  const socket = await connectSmtp(input.smtp);
-  socket.on("error", () => undefined);
-  const reader = smtpReader(socket);
+  const port = Number(input.smtp.port || 587);
+  const useImplicitTls = Boolean(input.smtp.secure) && port === 465;
+  const useStartTls = Boolean(input.smtp.secure) && !useImplicitTls;
+
+  let sock = await openSmtpTcp({ host: input.smtp.host, port, implicitTls: useImplicitTls });
+  sock.on("error", () => undefined);
+  let reader = smtpCloseAwareReader(sock);
   try {
     await reader.read();
     await reader.command(`EHLO ${input.smtp.host}`, [2]);
+    if (useStartTls) {
+      await reader.command("STARTTLS", [2]);
+      sock.removeAllListeners();
+      sock.on("error", () => undefined);
+      sock = await upgradeToTls(sock, input.smtp.host);
+      sock.on("error", () => undefined);
+      reader = smtpCloseAwareReader(sock);
+      await reader.command(`EHLO ${input.smtp.host}`, [2]);
+    }
     if (input.smtp.username || input.smtp.password) {
       await reader.command("AUTH LOGIN", [3]);
       await reader.command(Buffer.from(input.smtp.username ?? "").toString("base64"), [3]);
@@ -576,36 +601,38 @@ async function sendSmtp(input: {
     await reader.command(`MAIL FROM:<${input.from}>`, [2]);
     await reader.command(`RCPT TO:<${input.recipient}>`, [2]);
     await reader.command("DATA", [3]);
-    socket.write(`${dotStuff(buildMimeMessage(input))}\r\n.\r\n`);
+    sock.write(`${dotStuff(buildMimeMessage(input))}\r\n.\r\n`);
     const response = await reader.read([2]);
     await reader.command("QUIT", [2]).catch(() => undefined);
     return response.message;
   } finally {
-    socket.end();
+    sock.destroy();
   }
 }
 
-function connectSmtp(smtp: EmailSmtpSettings) {
-  const port = Number(smtp.port || 587);
-  const host = smtp.host ?? "127.0.0.1";
+function openSmtpTcp({ host, port, implicitTls }: { host: string; implicitTls: boolean; port: number }) {
   return new Promise<net.Socket>((resolve, reject) => {
-    const socket = smtp.secure
-      ? tls.connect({ host, port, rejectUnauthorized: false })
-      : net.connect({ host, port });
-    const timer = setTimeout(() => {
-      socket.destroy();
-      reject(new Error("SMTP connection timed out"));
-    }, 5000);
-    socket.once("connect", () => {
-      clearTimeout(timer);
-      socket.setTimeout(5000);
-      socket.once("timeout", () => socket.destroy(new Error("SMTP response timed out")));
-      resolve(socket);
-    });
-    socket.once("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
+    const timer = setTimeout(() => { socket?.destroy(); reject(new Error("SMTP connection timed out")); }, 8000);
+    let socket: net.Socket;
+    if (implicitTls) {
+      const tlsSock = tls.connect({ host, port, rejectUnauthorized: false });
+      socket = tlsSock;
+      tlsSock.once("secureConnect", () => { clearTimeout(timer); resolve(tlsSock); });
+    } else {
+      const tcpSock = net.connect({ host, port });
+      socket = tcpSock;
+      tcpSock.once("connect", () => { clearTimeout(timer); resolve(tcpSock); });
+    }
+    socket.once("error", (err) => { clearTimeout(timer); reject(err); });
+  });
+}
+
+function upgradeToTls(socket: net.Socket, host: string): Promise<net.Socket> {
+  return new Promise((resolve, reject) => {
+    const tlsSock = tls.connect({ socket, host, rejectUnauthorized: false });
+    const timer = setTimeout(() => { tlsSock.destroy(); reject(new Error("STARTTLS upgrade timed out")); }, 8000);
+    tlsSock.once("secureConnect", () => { clearTimeout(timer); resolve(tlsSock); });
+    tlsSock.once("error", (err) => { clearTimeout(timer); reject(err); });
   });
 }
 

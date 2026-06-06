@@ -16,12 +16,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         {
           icon: Globe,
           title: "Domain",
-          body: "Deine Adresse im Internet – zum Beispiel deinverein.de. Ohne Domain findet dich niemand."
+          body: "Deine Internetadresse – zum Beispiel deinverein.de. So wirst du auf dem Internet gefunden."
         },
         {
           icon: Server,
           title: "Webhosting",
-          body: "Der Platz, auf dem deine Website gespeichert wird. Wie eine Wohnung für deine Inhalte."
+          body: "Der Ort, an dem deine Website gespeichert wird. Wie ein Zuhause für deine Daten."
         },
         {
           icon: Mail,
@@ -43,7 +43,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         {
           icon: Globe,
           title: "Domain",
-          body: "Your address on the internet – for example yourclub.org. Without a domain, nobody can find you."
+          body: "Your address on the internet – for example yourclub.org. People find you on the Internet using this address."
         },
         {
           icon: Server,

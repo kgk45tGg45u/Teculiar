@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type AuthUser } from "../../../../lib/api";
-import { apiGetAuth } from "../../../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { requestLocale } from "../../../../lib/server-locale";
 import { dictionary } from "../../../../lib/i18n";
 import { AdminClientActions } from "../../../../components/admin/admin-forms";
@@ -14,7 +13,7 @@ import { invoiceStatusLabel, serviceStatusLabel } from "../../../../lib/status-l
 export default async function AdminClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
   const { clientId } = await params;
   const [client, settings, locale] = await Promise.all([

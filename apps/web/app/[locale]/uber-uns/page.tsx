@@ -245,7 +245,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
                 ? "Du kannst uns auch einfach anrufen. Wir erklären alles am Telefon – auf Deutsch, verständlich und ohne Zeitdruck."
                 : "You can also just call us. We explain everything on the phone – clearly and without time pressure."}
             </p>
-            <a href="mailto:kontakt@dezhost.de">kontakt@dezhost.de</a>
+            <a href="mailto:info@dezhost.com">info@dezhost.com</a>
           </div>
         </div>
       </section>

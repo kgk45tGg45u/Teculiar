@@ -11,8 +11,8 @@ export function PlatformSection({ locale }: { locale: Locale }) {
       icon: HandHeart,
       title: isDe ? "Für Vereine & NGOs" : "For associations & NGOs",
       body: isDe
-        ? "Wir kennen die Herausforderungen kleiner Organisationen. Kein Fachjargon, kein Druck – nur ehrliche Hilfe."
-        : "We understand the challenges of small organisations. No jargon, no pressure – just honest help."
+        ? "Wir kennen die Herausforderungen kleiner Organisationen. Kein Fachjargon – nur ehrlich und schnelle Hilfe."
+        : "We understand the challenges of small organisations. No jargon – just fast and honest help."
     },
     {
       icon: Lock,
@@ -39,13 +39,13 @@ export function PlatformSection({ locale }: { locale: Locale }) {
 
   const steps = isDe
     ? [
-        { num: "01", title: "Idee erzählen", body: "Schreib uns einfach, was du brauchst. Kein Formular, kein Stress." },
+        { num: "01", title: "Idee erzählen", body: "Schreib uns einfach, was du brauchst. Wir melden uns schnell zurück." },
         { num: "02", title: "Domain & Hosting auswählen", body: "Wir helfen dir, das Richtige zu finden – ohne Überforderung." },
         { num: "03", title: "Einrichtung durch uns", body: "Wir richten alles ein. Du musst nichts selbst konfigurieren." },
         { num: "04", title: "Online gehen", body: "Deine Website ist live. Wir bleiben erreichbar, wenn du Fragen hast." }
       ]
     : [
-        { num: "01", title: "Tell us your idea", body: "Just write to us about what you need. No form, no stress." },
+        { num: "01", title: "Tell us your idea", body: "Just write to us about what you need. We answer you quickly." },
         { num: "02", title: "Choose domain & hosting", body: "We help you find the right fit – without overwhelm." },
         { num: "03", title: "We handle setup", body: "We configure everything. You don't need to touch a single setting." },
         { num: "04", title: "Go live", body: "Your website is live. We stay reachable whenever you have questions." }

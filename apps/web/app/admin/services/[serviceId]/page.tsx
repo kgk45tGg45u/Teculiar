@@ -1,8 +1,7 @@
-import { redirect } from "next/navigation";
 import { cycleLabel, money, type ApiService, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
 import { serviceStatusLabel } from "../../../../lib/status-labels";
-import { apiGetAuth } from "../../../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminServiceDueDateForm, AdminServiceStatusForm } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
@@ -11,7 +10,7 @@ import { StatusPill } from "../../../../components/ui/status-pill";
 export default async function AdminServicePage({ params }: { params: Promise<{ serviceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
   const { serviceId } = await params;
   const [service, settings, locale] = await Promise.all([

@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Dezhost",
-  description: "German hosting and IT services SaaS platform"
+  description: "German Webhosting and IT services"
 };
 
 function ThemeBootstrap() {

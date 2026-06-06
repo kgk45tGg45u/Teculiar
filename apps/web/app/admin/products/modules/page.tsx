@@ -1,10 +1,9 @@
-import { redirect } from "next/navigation";
 import { ModulesManager } from "../../../../components/admin/admin-modules";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { LogoutButton } from "../../../../components/auth/logout-button";
 import { LanguageToggle } from "../../../../components/layout/language-toggle";
 import { Button } from "../../../../components/ui/button";
-import { apiGetAuth } from "../../../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { requestLocale } from "../../../../lib/server-locale";
 import { dictionary } from "../../../../lib/i18n";
 import type { AuthUser, ApiDomainPrice } from "../../../../lib/api";
@@ -16,7 +15,7 @@ export default async function AdminModulesPage() {
   const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
 
   const settings = (await apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings")) ?? {};

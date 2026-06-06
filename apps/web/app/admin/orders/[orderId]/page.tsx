@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import { cycleLabel, invoiceDisplayNumber, money, type ApiOrder, type AuthUser } from "../../../../lib/api";
 import { orderStatusLabel, serviceStatusLabel } from "../../../../lib/status-labels";
-import { apiGetAuth } from "../../../../lib/server-api";
+import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
 import { LogoutButton } from "../../../../components/auth/logout-button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
@@ -20,7 +19,7 @@ type AdminOrder = Omit<ApiOrder, "items"> & {
 export default async function AdminOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
-    redirect("/admin/login" as never);
+    await redirectToAdminLogin();
   }
   const { orderId } = await params;
   const order = await apiGetAuth<AdminOrder>(`/orders/${orderId}`);

@@ -1,4 +1,5 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { ADMIN_AUTH_COOKIE, API_BASE_URL } from "./api";
 
 export async function apiGetAuth<T>(path: string): Promise<T | null> {
@@ -16,4 +17,10 @@ export async function apiGetAuth<T>(path: string): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+export async function redirectToAdminLogin(): Promise<never> {
+  const requestHeaders = await headers();
+  const currentPath = requestHeaders.get("x-pathname") ?? "/admin";
+  redirect(`/admin/login?next=${encodeURIComponent(currentPath)}` as never);
 }
