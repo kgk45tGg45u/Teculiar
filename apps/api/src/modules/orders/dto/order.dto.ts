@@ -110,6 +110,10 @@ export class PayOrderDto {
 
   @IsString()
   paymentMethodId: string;
+
+  @IsOptional()
+  @IsString()
+  iban?: string;
 }
 
 export class AdminProductPriceDto {
