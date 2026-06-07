@@ -65,7 +65,7 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
                 : "Secure hosting for associations, NGOs, initiatives and small businesses. Personal. Transparent. Reliable."}
             </p>
             <div className={styles.contact}>
-              <span>kontakt@dezhost.de</span>
+              <span>sales@dezhost.com</span>
             </div>
           </div>
 
