@@ -90,6 +90,7 @@ enum PaymentMethodType {
   SEPA
   CRYPTO
   ACCOUNT_BALANCE
+  BANK_TRANSFER
 }
 
 enum TransactionStatus {

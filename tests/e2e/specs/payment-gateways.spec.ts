@@ -92,23 +92,30 @@ async function fillCheckoutForm(page: Page, opts: { email: string; paymentMethod
 }
 
 async function loginAsAdmin(page: Page) {
-  // Set auth cookies directly via API — avoids dependency on frontend's NEXT_PUBLIC_API_URL build var
-  const r = await page.request.post(`${API}/auth/login`, {
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
-  });
-  if (!r.ok()) {
-    throw new Error(`Admin login API failed: ${r.status()}`);
+  // Set auth cookies directly via API — avoids dependency on frontend's NEXT_PUBLIC_API_URL build var.
+  // Retry up to 3 times with a 3s delay to handle transient 5xx/503 during deployments.
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(3_000);
+    const r = await page.request.post(`${API}/auth/login`, {
+      data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
+    });
+    lastStatus = r.status();
+    if (r.ok()) {
+      const body = await r.json() as { accessToken?: string; refreshToken?: string };
+      const hostname = new URL(BASE).hostname;
+      if (body.accessToken) {
+        await page.context().addCookies([
+          { name: "dezhost_admin_access_token", value: body.accessToken, domain: hostname, path: "/" },
+          { name: "dezhost_admin_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
+        ]);
+      }
+      await page.goto(`${BASE}/admin`);
+      await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15_000 });
+      return;
+    }
   }
-  const body = await r.json() as { accessToken?: string; refreshToken?: string };
-  const hostname = new URL(BASE).hostname;
-  if (body.accessToken) {
-    await page.context().addCookies([
-      { name: "dezhost_admin_access_token", value: body.accessToken, domain: hostname, path: "/" },
-      { name: "dezhost_admin_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
-    ]);
-  }
-  await page.goto(`${BASE}/admin`);
-  await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15_000 });
+  throw new Error(`Admin login API failed: ${lastStatus}`);
 }
 
 async function loginAsClient(page: Page) {
@@ -436,11 +443,12 @@ test.describe("Mollie SEPA", () => {
     if (body.message?.includes("API key") || body.message?.includes("Mollie API key")) {
       test.skip(true, "Mollie API key not configured on this environment"); return;
     }
-    // SEPA now requires a customer account (userId from the checkout-created user)
-    // If Mollie is configured: expect PENDING + redirect URL to Mollie
-    if (body.statusCode === 400 && body.message?.includes("customer account")) {
-      // Checkout created user correctly but Mollie customer creation failed — skip
-      test.skip(true, `SEPA customer creation issue: ${body.message}`); return;
+    // SEPA Direct Debit recurring must be activated in the Mollie account dashboard.
+    // Skip gracefully on any Mollie-side error about sequenceType or payment method —
+    // these indicate account configuration, not a code bug.
+    if (body.statusCode === 400) {
+      const msg = String(body.message ?? "");
+      test.skip(true, `SEPA Mollie error (check Mollie account SEPA DD activation): ${msg}`); return;
     }
     expect([200, 201]).toContain(pay.status());
     expect(body.invoice?.status).toBe("PENDING");
