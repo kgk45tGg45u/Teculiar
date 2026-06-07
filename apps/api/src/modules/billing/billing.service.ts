@@ -232,6 +232,28 @@ export class BillingService {
       subjectId: id
     });
 
+    // Bank Wire Transfer is an internal manual gateway — no payment processor involved.
+    // The invoice stays PENDING until admin manually confirms receipt via the claimed endpoint.
+    if (dto.method === "BANK_TRANSFER") {
+      const providerReference = `wire-${id}`;
+      await this.billing.createTransaction({
+        invoiceId: id,
+        method: "BANK_TRANSFER",
+        status: "PENDING",
+        amountCents: invoice.totalCents,
+        currency: "EUR",
+        providerReference,
+        raw: { manual: true }
+      });
+      await this.recordAction({
+        action: "invoice.payment_pending",
+        metadata: { method: "BANK_TRANSFER", providerReference },
+        subject: "invoice",
+        subjectId: id
+      });
+      return this.billing.updateInvoiceStatus(id, "PENDING");
+    }
+
     const processor = this.payments.get(dto.method);
     let result;
     try {
@@ -973,7 +995,7 @@ export class BillingService {
       this.billing.settingNumber("ticketAutoCloseHours", 24)
     ]);
     const dueSubscriptions = await this.billing.dueSubscriptions(invoiceDaysAhead, now);
-    let generatedInvoices = 0;
+    const generatedInvoiceList: { id: string; invoiceNumber: string; subscriptionId: string; totalCents: number }[] = [];
 
     for (const subscription of dueSubscriptions) {
       const latest = subscription.invoices[0];
@@ -981,8 +1003,13 @@ export class BillingService {
         continue;
       }
 
-      await this.renewSubscription(subscription.id);
-      generatedInvoices += 1;
+      const inv = await this.renewSubscription(subscription.id);
+      generatedInvoiceList.push({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber ?? inv.tempInvoiceNumber ?? inv.id,
+        subscriptionId: subscription.id,
+        totalCents: inv.totalCents
+      });
     }
 
     const automaticPayments = await this.payInvoicesAutomatically(now);
@@ -1000,12 +1027,19 @@ export class BillingService {
     }
 
     return {
-      balancePaidInvoices: automaticPayments.paid,
       automaticPayments,
-      generatedInvoices,
+      generatedInvoices: generatedInvoiceList.length,
+      generatedInvoiceList,
       invoiceDaysAhead,
       overdueInvoices: overdueInvoices.length,
+      overdueInvoiceList: overdueInvoices.map((inv) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber ?? inv.tempInvoiceNumber ?? inv.id,
+        totalCents: inv.totalCents,
+        userId: inv.userId
+      })),
       suspendedServices: suspended.count,
+      suspendedServiceList: servicesToSuspend.map((s) => ({ id: s.id, domain: (s as Record<string, unknown>).domain ?? null })),
       ticketCloseHours
     };
   }
@@ -1015,7 +1049,15 @@ export class BillingService {
     for (const invoice of reminderInvoices) {
       await this.dispatchInvoiceEmail("invoice_reminder", invoice);
     }
-    return { invoiceReminders: reminderInvoices.length };
+    return {
+      invoiceReminders: reminderInvoices.length,
+      reminderList: reminderInvoices.map((inv) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber ?? inv.tempInvoiceNumber ?? inv.id,
+        dueAt: inv.dueAt,
+        totalCents: inv.totalCents
+      }))
+    };
   }
 
   private async payInvoicesFromAccountBalance() {
@@ -1054,9 +1096,9 @@ export class BillingService {
 
   private async payInvoicesAutomatically(now = new Date()) {
     const invoices = await this.billing.automaticPayableInvoices(now);
-    let paid = 0;
-    let pending = 0;
-    let failed = 0;
+    const paidInvoices: { id: string; invoiceNumber: string; method: string; totalCents: number }[] = [];
+    const pendingInvoices: { id: string; invoiceNumber: string; method: string; totalCents: number }[] = [];
+    const failedInvoices: { id: string; invoiceNumber: string; method: string; totalCents: number }[] = [];
 
     for (const invoice of invoices) {
       const snapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
@@ -1083,7 +1125,7 @@ export class BillingService {
           status: "SUCCEEDED"
         });
         await this.finalizePaidInvoice(invoice.id, { source: "account_balance" });
-        paid += 1;
+        paidInvoices.push({ id: invoice.id, invoiceNumber: invoice.invoiceNumber, method: "ACCOUNT_BALANCE", totalCents: invoice.totalCents });
         continue;
       }
 
@@ -1113,20 +1155,28 @@ export class BillingService {
         raw,
         status: result.status
       });
+      const invoiceEntry = { id: invoice.id, invoiceNumber: invoice.invoiceNumber, method: String(paymentMethod.type), totalCents: invoice.totalCents };
       if (result.status === "SUCCEEDED") {
         await this.applyAutomaticBalanceDebit({ ...invoice, transactions: [{ raw }] }, { raw });
         await this.finalizePaidInvoice(invoice.id, { source: "automatic_payment" });
-        paid += 1;
+        paidInvoices.push(invoiceEntry);
       } else if (result.status === "PENDING") {
         await this.billing.updateInvoiceStatus(invoice.id, "PENDING");
-        pending += 1;
+        pendingInvoices.push(invoiceEntry);
       } else {
         await this.billing.updateInvoiceStatus(invoice.id, "FAILED");
-        failed += 1;
+        failedInvoices.push(invoiceEntry);
       }
     }
 
-    return { failed, paid, pending };
+    return {
+      failed: failedInvoices.length,
+      failedInvoices,
+      paid: paidInvoices.length,
+      paidInvoices,
+      pending: pendingInvoices.length,
+      pendingInvoices
+    };
   }
 
   async handlePaymentWebhook(method: string, body: Record<string, unknown>) {

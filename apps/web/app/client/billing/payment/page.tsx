@@ -26,7 +26,7 @@ type Status = "loading" | "ready" | "processing" | "paid" | "error";
 const METHOD_LABELS: Record<string, string> = {
   PAYPAL: "PayPal",
   CREDIT_CARD: "Credit/Debit Card",
-  SEPA: "SEPA Bank Transfer",
+  SEPA: "SEPA Direct Debit",
   BANK_TRANSFER: "Bank Wire Transfer",
   SANDBOX: "Sandbox (test)"
 };
@@ -199,9 +199,9 @@ export default function InvoicePaymentPage() {
               {/* SEPA */}
               {selected === "SEPA" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Pay via SEPA bank transfer. You will receive bank account details on the next page and transfer the amount from your own bank. Processing takes 1–3 business days.</p>
+                  <p className={styles.hint}>Pay via SEPA Direct Debit. Mollie will debit the amount from your bank account. You will need to authorise the mandate on the next page.</p>
                   <button className={styles.payBtn} type="button" onClick={() => payWithMollie("SEPA")}>
-                    <Building2 size={17} /> Pay with SEPA Bank Transfer
+                    <Building2 size={17} /> Pay with SEPA Direct Debit
                   </button>
                 </div>
               )}
