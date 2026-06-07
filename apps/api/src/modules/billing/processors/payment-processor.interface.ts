@@ -4,6 +4,7 @@ export type PaymentRequest = {
   currency: "EUR";
   paymentMethodId: string;
   description?: string;
+  iban?: string;
   redirectUrl?: string;
   userId?: string;
   webhookUrl?: string;

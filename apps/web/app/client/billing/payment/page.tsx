@@ -37,6 +37,7 @@ export default function InvoicePaymentPage() {
   const [selected, setSelected] = useState<Method | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState("");
+  const [sepaIban, setSepaIban] = useState("");
   const paypalRef = useRef<HTMLDivElement>(null);
   const sdkLoadedRef = useRef(false);
 
@@ -90,17 +91,25 @@ export default function InvoicePaymentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
-  async function payWithMollie(method: "CREDIT_CARD" | "SEPA" | "SANDBOX") {
+  async function payWithMollie(method: "CREDIT_CARD" | "SEPA" | "SANDBOX", iban?: string) {
     setStatus("processing");
-    setMessage("Redirecting to payment…");
+    setMessage("Processing payment…");
+    const body: Record<string, string> = { method, paymentMethodId: "mollie" };
+    if (method === "SEPA" && iban) body.iban = iban.replace(/\s/g, "");
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
-      body: JSON.stringify({ method, paymentMethodId: "mollie" }),
+      body: JSON.stringify(body),
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) { setStatus("error"); setMessage(payload?.message ?? "Payment failed."); return; }
     if (payload?.paymentRedirectUrl) { window.location.assign(payload.paymentRedirectUrl); return; }
+    if (payload?.invoice?.status === "PENDING" || payload?.status === "PENDING") {
+      setStatus("paid");
+      setMessage("Your SEPA debit has been initiated. It may take 1–3 business days to process.");
+      setTimeout(() => window.location.assign(`/client/invoices/${invoiceId}`), 3000);
+      return;
+    }
     if (payload?.status === "PAID") { window.location.assign(`/client/invoices/${invoiceId}`); return; }
     setStatus("error");
     setMessage("Payment could not be started. Please try again.");
@@ -199,8 +208,21 @@ export default function InvoicePaymentPage() {
               {/* SEPA */}
               {selected === "SEPA" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Pay via SEPA Direct Debit. Mollie will debit the amount from your bank account. You will need to authorise the mandate on the next page.</p>
-                  <button className={styles.payBtn} type="button" onClick={() => payWithMollie("SEPA")}>
+                  <p className={styles.hint}>Pay via SEPA Direct Debit. Enter your IBAN and we will initiate the debit. It may take 1–3 business days to clear.</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                    <label htmlFor="sepaIban" style={{ fontSize: "14px", fontWeight: 500 }}>IBAN</label>
+                    <input
+                      autoComplete="off"
+                      id="sepaIban"
+                      maxLength={34}
+                      onChange={(e) => setSepaIban(e.target.value.toUpperCase())}
+                      placeholder="DE89 3704 0044 0532 0130 00"
+                      style={{ border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px", fontFamily: "monospace", padding: "8px 12px" }}
+                      type="text"
+                      value={sepaIban}
+                    />
+                  </div>
+                  <button className={styles.payBtn} disabled={!sepaIban.replace(/\s/g, "")} type="button" onClick={() => payWithMollie("SEPA", sepaIban)}>
                     <Building2 size={17} /> Pay with SEPA Direct Debit
                   </button>
                 </div>

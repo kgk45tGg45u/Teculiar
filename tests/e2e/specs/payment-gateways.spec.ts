@@ -462,7 +462,7 @@ test.describe("Mollie SEPA", () => {
   // invoice is charged via sequenceType=recurring, and the mandate is saved for
   // automatic future billing.
 
-  test("SEPA checkout creates Mollie payment and returns hosted checkout redirect URL", async ({ page }) => {
+  test("SEPA checkout: direct mandate + recurring charge returns PENDING invoice", async ({ page }) => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No hosting product found"); return; }
 
@@ -488,25 +488,22 @@ test.describe("Mollie SEPA", () => {
     if (!checkout.ok()) { test.skip(true, "Checkout creation failed"); return; }
     const { order } = await checkout.json() as { order: { id: string } };
 
+    // Pass a Mollie test IBAN — the API creates the mandate directly + charges via recurring
     const pay = await page.request.post(`${API}/orders/${order.id}/pay`, {
-      data: { method: "SEPA", paymentMethodId: "checkout" }
+      data: { method: "SEPA", paymentMethodId: "checkout", iban: "NL55INGB0000000000" }
     });
-    const body = await pay.json() as { statusCode?: number; message?: string; invoice?: { status?: string; paymentRedirectUrl?: string } };
+    const body = await pay.json() as { statusCode?: number; message?: string; invoice?: { status?: string } };
 
     if (body.message?.includes("API key") || body.message?.includes("Mollie API key")) {
       test.skip(true, "Mollie API key not configured on this environment"); return;
     }
-    // SEPA Direct Debit recurring must be activated in the Mollie account dashboard.
-    // Skip gracefully on any Mollie-side error about sequenceType or payment method —
-    // these indicate account configuration, not a code bug.
     if (body.statusCode === 400) {
       const msg = String(body.message ?? "");
-      test.skip(true, `SEPA Mollie error (check Mollie account SEPA DD activation): ${msg}`); return;
+      test.skip(true, `SEPA error: ${msg}`); return;
     }
     expect([200, 201]).toContain(pay.status());
+    // SEPA direct debit is asynchronous — invoice is PENDING until the debit clears
     expect(body.invoice?.status).toBe("PENDING");
-    // Should return a Mollie hosted checkout URL
-    expect(body.invoice?.paymentRedirectUrl).toMatch(/mollie\.com/);
   });
 
   test("SEPA mandate setup via payment-methods API redirects to Mollie", async ({ page }) => {

@@ -64,6 +64,7 @@ export function CheckoutForm({
     : product.prices[0];
   const [priceSelection, setPriceSelection] = useState(firstPrice ? priceSelectionKey(firstPrice, product.type) : "");
   const [paymentMethod, setPaymentMethod] = useState("CREDIT_CARD");
+  const [sepaIban, setSepaIban] = useState("");
   const [domainUse, setDomainUse] = useState<"register" | "transfer" | "external">(initialDomainAction);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -308,7 +309,8 @@ export function CheckoutForm({
       try {
         paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutOrderId}/pay`, {
           method: paymentMethod === "SANDBOX" ? "CREDIT_CARD" : paymentMethod,
-          paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout"
+          paymentMethodId: paymentMethod === "SANDBOX" ? "sandbox" : "checkout",
+          ...(paymentMethod === "SEPA" && sepaIban ? { iban: sepaIban.replace(/\s/g, "") } : {})
         });
       } catch (payError) {
         const raw = payError instanceof Error ? payError.message : copy.orderFailed;
@@ -733,6 +735,24 @@ export function CheckoutForm({
                 </label>
               ))}
             </div>
+            {paymentMethod === "SEPA" && (
+              <div className={styles.formGroup} style={{ marginTop: "12px" }}>
+                <label className={styles.label} htmlFor="sepaIban">
+                  {locale === "de" ? "IBAN" : "IBAN"}
+                </label>
+                <input
+                  autoComplete="off"
+                  className={styles.input}
+                  id="sepaIban"
+                  maxLength={34}
+                  onChange={(e) => setSepaIban(e.target.value.toUpperCase())}
+                  placeholder="DE89 3704 0044 0532 0130 00"
+                  required={paymentMethod === "SEPA"}
+                  type="text"
+                  value={sepaIban}
+                />
+              </div>
+            )}
           </div>
 
           {/* Submit */}

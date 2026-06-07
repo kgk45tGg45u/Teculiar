@@ -262,6 +262,7 @@ export class BillingService {
         amountCents: invoice.totalCents,
         currency: "EUR",
         description: `Invoice ${invoice.invoiceNumber}`,
+        iban: dto.iban,
         paymentMethodId: dto.paymentMethodId,
         redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
         userId: invoice.userId,

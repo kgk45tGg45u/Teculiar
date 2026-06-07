@@ -21,7 +21,7 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
-const API           = process.env.E2E_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
+const API           = (process.env.E2E_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 const ADMIN_EMAIL   = process.env.E2E_ADMIN_EMAIL    ?? "admin@dezhost.local";
 const ADMIN_PASS    = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
 const RUN_LIVE_TEST = process.env.MAIL_TESTER_TEST === "1";
@@ -101,8 +101,8 @@ test.describe("mail-tester.com DKIM score", () => {
     await page.goto("https://www.mail-tester.com/", { timeout: 30_000 });
     await page.waitForLoadState("networkidle");
 
-    // The test email address is in an input with id="content" (or similar)
-    const emailLocator = page.locator("input#content, input[readonly][value*='mail-tester'], #content");
+    // mail-tester.com shows the test address in input#email (updated selector — was input#content before 2026)
+    const emailLocator = page.locator("input#email, input#content, input[readonly][value*='mail-tester']");
     await expect(emailLocator.first()).toBeVisible({ timeout: 15_000 });
     const testEmail = (await emailLocator.first().inputValue()
       .catch(async () => emailLocator.first().innerText())

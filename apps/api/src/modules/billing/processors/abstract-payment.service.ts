@@ -256,12 +256,75 @@ export class AbstractPaymentService {
         redirectUrl: sdkMode ? undefined : request.redirectUrl
       });
     }
-    if (["CREDIT_CARD", "SEPA"].includes(method)) {
+    if (method === "SEPA") {
       const config = gatewayCfg;
-      // Both CREDIT_CARD and SEPA require a Mollie customer + sequenceType=first.
-      // Credit card: authorizes and charges in one step.
-      // SEPA directdebit: user authorizes the IBAN debit via redirect, then Mollie initiates
-      // the bank transfer. Mandate is saved on confirmation for automatic future billing.
+      // SEPA Direct Debit workflow:
+      //   1. If the user already has a saved valid mandate → charge via sequenceType=recurring immediately.
+      //   2. Otherwise the caller must supply an IBAN so we can create a mandate directly via the
+      //      Mollie mandates API and then charge via sequenceType=recurring in the same request.
+      //      (The sequenceType=first redirect flow requires the Mollie Recurring add-on; direct mandate
+      //      creation is supported by all Mollie accounts that have SEPA DD activated.)
+      if (request.userId) {
+        const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
+        if (existing?.providerCustomerId && existing?.mandateId && existing?.status === "VALID") {
+          return createMollieRecurringPayment(config, {
+            amountCents: request.amountCents,
+            currency: request.currency,
+            customerId: existing.providerCustomerId,
+            description: request.description ?? `Invoice ${request.invoiceId}`,
+            invoiceId: request.invoiceId,
+            mandateId: existing.mandateId,
+            method: "SEPA",
+            webhookUrl: request.webhookUrl
+          });
+        }
+      }
+
+      if (!request.iban) {
+        throw new BadRequestException("IBAN is required for SEPA Direct Debit payment.");
+      }
+
+      const user = request.userId ? await this.billing.findUserForPaymentSetup(request.userId) : null;
+      const customer = await createMollieCustomerWithConfig(
+        config,
+        user?.email ?? `sepa-${request.invoiceId}@dezhost.internal`,
+        user?.name ?? "Customer"
+      );
+      const mandate = await createMollieDirectDebitMandate(config, {
+        consumerAccount: request.iban,
+        consumerName: user?.name ?? "Customer",
+        customerId: customer.id
+      });
+
+      if (request.userId) {
+        await this.billing.createPaymentMethod({
+          automatic: true,
+          label: "SEPA Direct Debit",
+          mandateId: mandate.mandateId,
+          provider: "mollie",
+          providerCustomerId: customer.id,
+          providerToken: mandate.mandateId,
+          status: "VALID",
+          type: "SEPA",
+          userId: request.userId,
+          verifiedAt: new Date()
+        });
+      }
+
+      return createMollieRecurringPayment(config, {
+        amountCents: request.amountCents,
+        currency: request.currency,
+        customerId: customer.id,
+        description: request.description ?? `Invoice ${request.invoiceId}`,
+        invoiceId: request.invoiceId,
+        mandateId: mandate.mandateId,
+        method: "SEPA",
+        webhookUrl: request.webhookUrl
+      });
+    }
+
+    if (method === "CREDIT_CARD") {
+      const config = gatewayCfg;
       let mollieCustomerId: string | undefined;
       if (request.userId) {
         const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
@@ -274,9 +337,6 @@ export class AbstractPaymentService {
             mollieCustomerId = customer.id;
           }
         }
-      }
-      if (!mollieCustomerId && method === "SEPA") {
-        throw new BadRequestException("SEPA Direct Debit requires a customer account. Please log in or create an account first.");
       }
       const opts = mollieCustomerId
         ? { customerId: mollieCustomerId, sequenceType: "first" }

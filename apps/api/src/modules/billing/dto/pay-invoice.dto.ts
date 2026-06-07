@@ -1,4 +1,4 @@
-import { IsIn, IsString } from "class-validator";
+import { IsIn, IsOptional, IsString } from "class-validator";
 
 export class PayInvoiceDto {
   @IsIn(["CREDIT_CARD", "PAYPAL", "SEPA", "CRYPTO", "BANK_TRANSFER"])
@@ -6,4 +6,8 @@ export class PayInvoiceDto {
 
   @IsString()
   paymentMethodId: string;
+
+  @IsOptional()
+  @IsString()
+  iban?: string;
 }
