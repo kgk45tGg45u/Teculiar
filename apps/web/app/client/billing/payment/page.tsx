@@ -38,6 +38,7 @@ export default function InvoicePaymentPage() {
   const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState("");
   const [sepaIban, setSepaIban] = useState("");
+  const [balanceCents, setBalanceCents] = useState(0);
   const paypalRef = useRef<HTMLDivElement>(null);
   const sdkLoadedRef = useRef(false);
 
@@ -47,8 +48,9 @@ export default function InvoicePaymentPage() {
     if (!invoiceId) { setStatus("error"); setMessage("No invoice specified."); return; }
     Promise.all([
       fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers: authHeaders("client") }).then((r) => r.ok ? r.json() : null),
-      fetch(`${API_BASE_URL}/storefront/payment-gateways`).then((r) => r.json()).catch(() => [])
-    ]).then(([inv, gws]) => {
+      fetch(`${API_BASE_URL}/storefront/payment-gateways`).then((r) => r.json()).catch(() => []),
+      fetch(`${API_BASE_URL}/users/me`, { headers: authHeaders("client") }).then((r) => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([inv, gws, profile]) => {
       if (!inv) { setStatus("error"); setMessage("Invoice not found."); return; }
       setInvoice(inv as ApiInvoice);
       const list = (Array.isArray(gws) ? gws : []) as GatewayEntry[];
@@ -56,6 +58,9 @@ export default function InvoicePaymentPage() {
       // Pre-select first available method
       const first = list[0]?.method as Method | undefined;
       if (first) setSelected(first);
+      if (profile && typeof (profile as { balanceCents?: number }).balanceCents === "number") {
+        setBalanceCents((profile as { balanceCents: number }).balanceCents);
+      }
       setStatus("ready");
     });
   }, [invoiceId]);
@@ -137,7 +142,11 @@ export default function InvoicePaymentPage() {
   );
 
   const displayNumber = invoice ? invoiceDisplayNumber(invoice) : "";
-  const amount = invoice ? money(invoice.totalCents, invoice.currency ?? "EUR") : "";
+  const totalCents = invoice?.totalCents ?? 0;
+  const appliedBalanceCents = Math.min(balanceCents, totalCents);
+  const netAmountCents = totalCents - appliedBalanceCents;
+  const amount = invoice ? money(totalCents, invoice.currency ?? "EUR") : "";
+  const netAmount = invoice ? money(netAmountCents, invoice.currency ?? "EUR") : "";
   const bankWire = gateways.find((g) => g.method === "BANK_TRANSFER");
   const isProcessing = status === "processing";
 
@@ -152,7 +161,14 @@ export default function InvoicePaymentPage() {
         {invoice && (
           <div className={styles.invoiceSummary}>
             <div className={styles.invoiceRow}><span>Invoice</span><strong>{displayNumber}</strong></div>
-            <div className={styles.invoiceRow}><span>Amount due</span><strong className={styles.amount}>{amount}</strong></div>
+            <div className={styles.invoiceRow}><span>Invoice total</span><strong>{amount}</strong></div>
+            {appliedBalanceCents > 0 && (
+              <div className={styles.invoiceRow} style={{ color: "#16a34a" }}>
+                <span><Wallet size={13} aria-hidden style={{ display: "inline", marginRight: "4px" }} />Account balance</span>
+                <strong>-{money(appliedBalanceCents, invoice.currency ?? "EUR")}</strong>
+              </div>
+            )}
+            <div className={styles.invoiceRow}><span>Amount due</span><strong className={styles.amount}>{appliedBalanceCents > 0 ? netAmount : amount}</strong></div>
           </div>
         )}
 

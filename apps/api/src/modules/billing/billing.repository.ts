@@ -948,6 +948,7 @@ export class BillingRepository {
 }
 
 const publicUserSelect = {
+  balanceCents: true,
   countryCode: true,
   customerNumber: true,
   customerType: true,

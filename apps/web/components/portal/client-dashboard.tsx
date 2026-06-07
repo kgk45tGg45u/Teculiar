@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, CreditCard, Database, ExternalLink, FileText, Globe, HardDrive, KeyRound, Landmark, LifeBuoy, Mail, Paperclip, Send, Server, UserRound, UsersRound, Wallet, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   API_BASE_URL,
@@ -1402,33 +1402,137 @@ function AttachmentList({ files }: { files: Array<{ fileName: string; id: string
   return <div className={styles.attachmentLinks}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank"><Paperclip aria-hidden size={13} />{file.fileName}</a>)}</div>;
 }
 
+type AddFundsGateway = { config?: Record<string, string | undefined>; method: string; title: string };
+
 function AddFunds() {
   const [message, setMessage] = useState("");
+  const [gateways, setGateways] = useState<AddFundsGateway[]>([]);
+  const [selectedMethod, setSelectedMethod] = useState("");
+  const [sepaIban, setSepaIban] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [bankWireInfo, setBankWireInfo] = useState<{ gateway: AddFundsGateway; invoiceNumber: string } | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/storefront/payment-gateways`)
+      .then((r) => r.json() as Promise<AddFundsGateway[]>)
+      .then((gws) => {
+        if (Array.isArray(gws)) {
+          setGateways(gws);
+          if (gws.length > 0) setSelectedMethod(gws[0]?.method ?? "");
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/billing/add-funds`, {
-      body: JSON.stringify({
-        amountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
-        method: String(formData.get("method") ?? "PAYPAL")
-      }),
-      headers: { "Content-Type": "application/json", ...authHeaders("client") },
-      method: "POST"
-    });
-    const payload = await response.clone().json().catch(() => undefined);
-    if (response.ok) {
-      if (payload?.paymentRedirectUrl) {
-        window.location.assign(payload.paymentRedirectUrl);
-        return;
-      }
-      if (payload?.status === "PAID" && payload?.invoiceId) {
-        window.location.assign(`/client/invoices/${payload.invoiceId}`);
-        return;
-      }
-      window.location.assign("/client");
-      return;
+    setSubmitting(true);
+    setMessage("");
+    const amountCents = Math.round(Number(formData.get("amount") ?? 0) * 100);
+    const body: Record<string, unknown> = { amountCents, method: selectedMethod };
+    if (selectedMethod === "SEPA" && sepaIban) {
+      body.iban = sepaIban.replace(/\s+/g, "").toUpperCase();
     }
-    setMessage(await notifyResponse(response, "Funds added.", "Add funds failed."));
+    try {
+      const response = await fetch(`${API_BASE_URL}/billing/add-funds`, {
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json", ...authHeaders("client") },
+        method: "POST"
+      });
+      const payload = await response.clone().json().catch(() => undefined) as Record<string, unknown> | undefined;
+      if (response.ok) {
+        if (payload?.paymentRedirectUrl) {
+          window.location.assign(String(payload.paymentRedirectUrl));
+          return;
+        }
+        if (payload?.status === "PAID" && payload?.invoiceId) {
+          window.location.assign(`/client/invoices/${payload.invoiceId}`);
+          return;
+        }
+        if (payload?.status === "PENDING") {
+          if (selectedMethod === "BANK_TRANSFER") {
+            const bankGateway = gateways.find((g) => g.method === "BANK_TRANSFER") ?? { method: "BANK_TRANSFER", title: "Bank Transfer" };
+            setBankWireInfo({ gateway: bankGateway, invoiceNumber: String(payload.invoiceNumber ?? payload.invoiceId ?? "") });
+            return;
+          }
+          setMessage("Your SEPA debit has been initiated. It may take 1–3 business days to process.");
+          setTimeout(() => window.location.assign(`/client/invoices/${payload.invoiceId}`), 3000);
+          return;
+        }
+        window.location.assign("/client");
+        return;
+      }
+      setMessage((payload as { message?: string } | undefined)?.message ?? "Add funds failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
-  return <form action={submit} className={styles.module}><Wallet aria-hidden /><h2>Add Funds</h2><p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p><label>Amount<input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" /></label><label>Payment gateway<select className="input" name="method"><option value="SANDBOX">Sandbox</option><option value="PAYPAL">PayPal</option><option value="CREDIT_CARD">Mollie card</option><option value="SEPA">Mollie SEPA</option></select></label><Button icon={CreditCard} type="submit">Add Funds</Button>{message ? <p>{message}</p> : null}</form>;
+
+  const methodLabels: Record<string, string> = {
+    BANK_TRANSFER: "Bank Wire Transfer",
+    CREDIT_CARD: "Credit / Debit Card",
+    PAYPAL: "PayPal",
+    SANDBOX: "Sandbox (test)",
+    SEPA: "SEPA Direct Debit"
+  };
+
+  if (bankWireInfo) {
+    const cfg = bankWireInfo.gateway.config ?? {};
+    return (
+      <div className={styles.module}>
+        <Landmark aria-hidden />
+        <h2>Bank Transfer Details</h2>
+        <p>Transfer the exact amount using the reference below. Your funds will be credited once we confirm receipt.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "12px 0", fontSize: "14px" }}>
+          {cfg.accountHolder && <div><strong>Account holder:</strong> {cfg.accountHolder}</div>}
+          {cfg.bankName && <div><strong>Bank:</strong> {cfg.bankName}</div>}
+          {cfg.iban && <div><strong>IBAN:</strong> <code>{cfg.iban}</code></div>}
+          {cfg.bic && <div><strong>BIC / SWIFT:</strong> <code>{cfg.bic}</code></div>}
+          <div><strong>Reference:</strong> <code>{bankWireInfo.invoiceNumber}</code></div>
+        </div>
+        {cfg.referenceNote && <p style={{ fontSize: "13px", color: "#6b7280" }}>{cfg.referenceNote}</p>}
+        <Button icon={FileText} type="button" onClick={() => window.location.assign("/client/invoices")}>View Invoices</Button>
+      </div>
+    );
+  }
+
+  return (
+    <form action={submit} className={styles.module}>
+      <Wallet aria-hidden />
+      <h2>Add Funds</h2>
+      <p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p>
+      <label>Amount
+        <input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" />
+      </label>
+      {gateways.length > 0 && (
+        <label>Payment method
+          <select className="input" value={selectedMethod} onChange={(e) => { setSelectedMethod(e.target.value); setSepaIban(""); }}>
+            {gateways.map((g) => (
+              <option key={g.method} value={g.method}>{methodLabels[g.method] ?? g.title}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {selectedMethod === "SEPA" && (
+        <label>IBAN
+          <input
+            autoComplete="off"
+            className="input"
+            maxLength={34}
+            placeholder="DE89 3704 0044 0532 0130 00"
+            required
+            style={{ fontFamily: "monospace" }}
+            type="text"
+            value={sepaIban}
+            onChange={(e) => setSepaIban(e.target.value.toUpperCase())}
+          />
+        </label>
+      )}
+      <Button disabled={submitting || (selectedMethod === "SEPA" && !sepaIban.replace(/\s/g, ""))} icon={CreditCard} type="submit">
+        {submitting ? "Processing…" : "Add Funds"}
+      </Button>
+      {message ? <p>{message}</p> : null}
+    </form>
+  );
 }
 
 function PaymentInfo() {

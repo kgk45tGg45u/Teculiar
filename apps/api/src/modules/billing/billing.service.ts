@@ -254,15 +254,47 @@ export class BillingService {
       return this.billing.updateInvoiceStatus(id, "PENDING");
     }
 
+    // Apply account balance for non-funds-deposit invoices
+    const invoiceSnapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
+    const isFundsDeposit = typeof invoiceSnapshot.accountCreditCents === "number" && invoiceSnapshot.accountCreditCents > 0;
+    const userBalanceCents = !isFundsDeposit ? (invoice.user?.balanceCents ?? 0) : 0;
+    const appliedBalanceCents = Math.min(userBalanceCents, invoice.totalCents);
+    const externalAmountCents = invoice.totalCents - appliedBalanceCents;
+
+    // Balance covers the full invoice — no external payment needed
+    if (!isFundsDeposit && appliedBalanceCents >= invoice.totalCents) {
+      const debit = await this.billing.debitUserBalance(invoice.userId, invoice.totalCents);
+      if (debit.count !== 1) {
+        throw new BadRequestException("Account balance is no longer sufficient to cover this invoice.");
+      }
+      await this.billing.createTransaction({
+        invoiceId: id,
+        method: "ACCOUNT_BALANCE",
+        status: "SUCCEEDED",
+        amountCents: invoice.totalCents,
+        currency: "EUR",
+        providerReference: `account_balance_${id}_${Date.now()}`,
+        raw: { source: "account_balance" }
+      });
+      await this.recordAction({
+        action: "invoice.payment_succeeded",
+        metadata: { method: "ACCOUNT_BALANCE", totalCents: invoice.totalCents },
+        subject: "invoice",
+        subjectId: id
+      });
+      const fullyPaid = await this.finalizePaidInvoice(id, { source: "account_balance" }, options);
+      return options.processLifecycle === false ? fullyPaid : { ...fullyPaid, lifecycleProcessed: true };
+    }
+
     const processor = this.payments.get(dto.method);
     let result;
     try {
       result = await processor.charge({
         invoiceId: id,
-        amountCents: invoice.totalCents,
+        amountCents: externalAmountCents,
         currency: "EUR",
         description: `Invoice ${invoice.invoiceNumber}`,
-        iban: dto.iban,
+        iban: dto.iban ? validateAndNormalizeIban(dto.iban) : undefined,
         paymentMethodId: dto.paymentMethodId,
         redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
         userId: invoice.userId,
@@ -282,10 +314,10 @@ export class BillingService {
       invoiceId: id,
       method: dto.method,
       status: result.status,
-      amountCents: invoice.totalCents,
+      amountCents: externalAmountCents,
       currency: "EUR",
       providerReference: result.providerReference,
-      raw: result.raw ?? {}
+      raw: { ...(result.raw ?? {}), ...(appliedBalanceCents > 0 ? { balanceCents: appliedBalanceCents } : {}) }
     });
 
     if (result.status === "SUCCEEDED") {
@@ -322,7 +354,7 @@ export class BillingService {
     return { ...pending, paymentRedirectUrl: result.paymentRedirectUrl, providerReference: result.providerReference };
   }
 
-  async addFunds(userId: string, input: { amountCents: number; method: string }) {
+  async addFunds(userId: string, input: { amountCents: number; iban?: string; method: string }) {
     if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
       throw new BadRequestException("Amount must be greater than zero.");
     }
@@ -330,7 +362,10 @@ export class BillingService {
     if (!user) {
       throw new NotFoundException("User not found");
     }
-    const payment = paymentInputForGateway(input.method);
+    const normalizedIban = input.iban ? validateAndNormalizeIban(input.iban) : undefined;
+    const payment: PayInvoiceDto = input.method === "SANDBOX"
+      ? { method: "CREDIT_CARD", paymentMethodId: "sandbox" }
+      : { method: input.method, paymentMethodId: input.method.toLowerCase(), ...(normalizedIban ? { iban: normalizedIban } : {}) } as PayInvoiceDto;
     const invoice = await this.createInvoice({
       buyerCountryCode: "DE",
       customerSnapshot: customerSnapshotFromBillingProfile(user),
@@ -349,7 +384,8 @@ export class BillingService {
     const paid = await this.payInvoice(invoice.id, payment, { processLifecycle: false });
     return {
       amountCents: input.amountCents,
-      invoiceId: paid.status === "PAID" ? paid.id : invoice.id,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
       paymentRedirectUrl: (paid as { paymentRedirectUrl?: string }).paymentRedirectUrl,
       status: paid.status
     };
@@ -2343,6 +2379,17 @@ function customerSnapshotFromBillingProfile(user: {
     userId: user.id,
     vatId: user.vatId ?? undefined
   };
+}
+
+function validateAndNormalizeIban(raw: string): string {
+  const iban = raw.replace(/\s+/g, "").toUpperCase();
+  if (iban.length < 15 || iban.length > 34) {
+    throw new BadRequestException(`Invalid IBAN: length must be 15–34 characters (got ${iban.length}).`);
+  }
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(iban)) {
+    throw new BadRequestException("Invalid IBAN format: must start with a 2-letter country code and 2 check digits.");
+  }
+  return iban;
 }
 
 async function webUploadsDir() {

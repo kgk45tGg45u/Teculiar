@@ -120,7 +120,7 @@ export class BillingController {
   @Post("add-funds")
   addFunds(
     @Req() request: Request & { user: { sub: string } },
-    @Body() body: { amountCents: number; method: string }
+    @Body() body: { amountCents: number; iban?: string; method: string }
   ) {
     return this.billing.addFunds(request.user.sub, body);
   }
