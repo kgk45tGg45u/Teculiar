@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-
+  
 jobs:
   build-and-push:
     name: Build Docker images
@@ -76,6 +76,9 @@ jobs:
     environment: production
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       # Write the private key to a file and add the server to known_hosts
       # so ssh does not prompt for confirmation.
       - name: Setup SSH
