@@ -95,7 +95,7 @@ test.describe("mail-tester.com DKIM score", () => {
     test.setTimeout(180_000);
 
     const token = await adminToken(page);
-    if (!token) { test.fail(true, "Admin login failed — check E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD"); return; }
+    if (!token) { throw new Error("Admin login failed — check E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD"); }
 
     // ── Step 1: Get a unique test address from mail-tester.com ───────────────
     await page.goto("https://www.mail-tester.com/", { timeout: 30_000 });
@@ -151,8 +151,7 @@ test.describe("mail-tester.com DKIM score", () => {
     await page.screenshot({ path: "tests/e2e/artifacts/mail-tester-result.png", fullPage: true });
 
     if (!score) {
-      test.fail(true, `Email did not arrive at mail-tester.com within 2 minutes. Check: https://www.mail-tester.com/${testId}`);
-      return;
+      throw new Error(`Email did not arrive at mail-tester.com within 2 minutes. Check: https://www.mail-tester.com/${testId}`);
     }
 
     console.log(`mail-tester.com score: ${score.score}/10`);
