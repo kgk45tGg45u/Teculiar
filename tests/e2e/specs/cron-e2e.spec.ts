@@ -137,9 +137,10 @@ test.describe("Cron Admin UI", () => {
     await runBtn.click();
 
     // Wait for the result message
+    // Cron calls external services (Virtualmin, Resell.biz) so give it generous time.
     await expect(
       page.locator("text=/Cron finished\\..*Ran \\d+.*skipped \\d+/")
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: 90_000 });
   });
 
   test("Cron Settings page lists all expected jobs in the table", async ({ page }) => {

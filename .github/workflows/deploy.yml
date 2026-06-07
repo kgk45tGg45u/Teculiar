@@ -89,6 +89,12 @@ jobs:
       # docker login is NOT done here — credentials are stored permanently on
       # the server after a one-time setup (see DEPLOYMENT.md step 2.9).
       # This keeps secrets out of every deploy run entirely.
+      - name: Sync compose file to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            docker-compose.prod.yml \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/dezhost/docker-compose.prod.yml"
+
       - name: Deploy via SSH
         run: |
           ssh -i ~/.ssh/deploy_key \
