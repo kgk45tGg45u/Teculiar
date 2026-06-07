@@ -25,8 +25,7 @@
     fill="#1a1a1a"
     letter-spacing="-2"
   >dezhost</text>
-  <!-- underscore cursor -->
-  <rect x="370" y="96" width="34" height="7" rx="2" fill="#1a1a1a"/>
+  <rect x="257" y="122" width="31" height="8" rx="1" fill="#1a1a1a"/>
 
   <!-- Separator line -->
   <rect x="72" y="155" width="520" height="1.5" fill="#1a1a1a" fill-opacity="0.12"/>

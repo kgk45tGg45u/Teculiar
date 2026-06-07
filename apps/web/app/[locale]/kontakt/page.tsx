@@ -1,34 +1,12 @@
-import { ArrowRight, Mail, MessageCircle, Phone } from "lucide-react";
-import { Button } from "../../../components/ui/button";
+import { Mail, MessageCircle, Phone } from "lucide-react";
 import { getLocale } from "../../../lib/i18n";
+import { ContactForm } from "./contact-form";
 import styles from "./kontakt.module.css";
 
 export default async function ContactPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
-
-  const topics = isDe
-    ? [
-        "Webhosting",
-        "Domain registrieren",
-        "Website erstellen lassen",
-        "IT-Lösungen & Managed Services",
-        "Nextcloud einrichten",
-        "Migration von anderem Anbieter",
-        "Allgemeine Beratung",
-        "Sonstiges"
-      ]
-    : [
-        "Web hosting",
-        "Register domain",
-        "Have website created",
-        "IT solutions & managed services",
-        "Set up Nextcloud",
-        "Migration from another provider",
-        "General consultation",
-        "Other"
-      ];
 
   return (
     <>
@@ -40,9 +18,7 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
             {isDe ? "Kontakt" : "Contact"}
           </span>
           <h1>
-            {isDe
-              ? "Schreib uns einfach."
-              : "Just write to us."}
+            {isDe ? "Schreib uns einfach." : "Just write to us."}
           </h1>
           <p>
             {isDe
@@ -64,54 +40,7 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
                   ? "Wir antworten in der Regel innerhalb von 24 Stunden. Für dringende Anfragen erreichst du uns auch per E-Mail direkt."
                   : "We usually respond within 24 hours. For urgent enquiries you can also reach us directly by email."}
               </p>
-              <form className={styles.form}>
-                <div className={styles.formRow}>
-                  <div className={styles.field}>
-                    <label htmlFor="name">{isDe ? "Dein Name" : "Your name"}</label>
-                    <input
-                      className="input"
-                      id="name"
-                      name="name"
-                      placeholder={isDe ? "z. B. Maria Müller" : "e.g. Jane Smith"}
-                      type="text"
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label htmlFor="email">E-Mail</label>
-                    <input
-                      className="input"
-                      id="email"
-                      name="email"
-                      placeholder={isDe ? "deine@email.de" : "your@email.com"}
-                      type="email"
-                    />
-                  </div>
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="topic">{isDe ? "Worum geht es?" : "What is it about?"}</label>
-                  <select className="input" id="topic" name="topic" defaultValue="">
-                    <option value="" disabled>{isDe ? "Thema auswählen" : "Select topic"}</option>
-                    {topics.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="message">{isDe ? "Deine Nachricht" : "Your message"}</label>
-                  <textarea
-                    className={`input ${styles.textarea}`}
-                    id="message"
-                    name="message"
-                    placeholder={isDe
-                      ? "Erzähl uns, was du brauchst. Kein Fachwissen nötig – einfach drauflosschreiben."
-                      : "Tell us what you need. No expertise required – just write freely."}
-                    rows={5}
-                  />
-                </div>
-                <Button icon={ArrowRight} type="submit">
-                  {isDe ? "Anfrage senden" : "Send enquiry"}
-                </Button>
-              </form>
+              <ContactForm locale={locale} />
             </div>
 
             {/* Sidebar */}
@@ -147,7 +76,6 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
                 <a href={`/${locale}/webhosting`}>{isDe ? "Webhosting ansehen" : "View web hosting"}</a>
                 <a href={`/${locale}/domains`}>{isDe ? "Domains erklärt" : "Domains explained"}</a>
                 <a href={`/${locale}/it-losungen`}>{isDe ? "IT-Lösungen" : "IT Solutions"}</a>
-                <a href={`/${locale}/it-losungen`}>{isDe ? "IT-Lösungen" : "IT solutions"}</a>
               </div>
             </div>
           </div>

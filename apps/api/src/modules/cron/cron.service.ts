@@ -196,10 +196,23 @@ export class CronService {
   }
 
   private async runAction(name: string, ran: CronRunItem[], action: () => Promise<unknown>) {
+    const startedAt = new Date().toISOString();
     try {
-      ran.push({ name, result: await action(), status: "ran" });
+      const result = await action();
+      ran.push({ name, result, status: "ran" });
+      await this.billing.recordAction({
+        action: `cron.${name}`,
+        metadata: { result: result ?? null, startedAt, status: "ran" },
+        subject: "cron"
+      }).catch(() => undefined);
     } catch (error) {
-      ran.push({ name, result: error instanceof Error ? error.message : "Action failed", status: "failed" });
+      const message = error instanceof Error ? error.message : "Action failed";
+      ran.push({ name, result: message, status: "failed" });
+      await this.billing.recordAction({
+        action: `cron.${name}`,
+        metadata: { error: message, startedAt, status: "failed" },
+        subject: "cron"
+      }).catch(() => undefined);
     }
   }
 }

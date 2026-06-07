@@ -663,7 +663,9 @@ function mollieMethod(method: string) {
     return "creditcard";
   }
   if (method === "SEPA") {
-    return "directdebit";
+    // Use banktransfer (SEPA Credit Transfer) — works without the Mollie Recurring module.
+    // The customer receives bank details and transfers manually; Mollie notifies via webhook.
+    return "banktransfer";
   }
   if (method === "PAYPAL") {
     return "paypal";

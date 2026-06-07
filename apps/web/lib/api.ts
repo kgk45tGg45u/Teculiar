@@ -532,15 +532,21 @@ export function authToken(scope: AuthScope = currentScope()) {
   return browserToken(scope);
 }
 
-export function storeAuth(payload: AuthPayload, scope: AuthScope = "client") {
+export function storeAuth(payload: AuthPayload, scope: AuthScope = "client", remember = true) {
   if (typeof window === "undefined") {
     return;
   }
 
   const names = authCookieNames(scope);
-  window.localStorage.setItem(names.auth, payload.accessToken);
-  window.localStorage.setItem(names.refresh, payload.refreshToken);
-  window.localStorage.setItem(`${scope}_dezhost_roles`, payload.user.roles.join(","));
+  const storage = remember ? window.localStorage : window.sessionStorage;
+  storage.setItem(names.auth, payload.accessToken);
+  storage.setItem(names.refresh, payload.refreshToken);
+  storage.setItem(`${scope}_dezhost_roles`, payload.user.roles.join(","));
+  if (!remember) {
+    window.localStorage.removeItem(names.auth);
+    window.localStorage.removeItem(names.refresh);
+    window.localStorage.removeItem(`${scope}_dezhost_roles`);
+  }
   setCookie(names.auth, payload.accessToken);
   setCookie(names.refresh, payload.refreshToken);
   expireCookie(LEGACY_AUTH_COOKIE);
@@ -557,10 +563,14 @@ export function clearAuth(scope?: AuthScope) {
     window.localStorage.removeItem(names.auth);
     window.localStorage.removeItem(names.refresh);
     window.localStorage.removeItem(`${item}_dezhost_roles`);
+    window.sessionStorage.removeItem(names.auth);
+    window.sessionStorage.removeItem(names.refresh);
+    window.sessionStorage.removeItem(`${item}_dezhost_roles`);
     expireCookie(names.auth);
     expireCookie(names.refresh);
   }
   window.localStorage.removeItem("dezhost_roles");
+  window.sessionStorage.removeItem("dezhost_roles");
   expireCookie(LEGACY_AUTH_COOKIE);
   expireCookie(LEGACY_REFRESH_COOKIE);
 }
@@ -570,7 +580,11 @@ function browserToken(scope: AuthScope) {
     return undefined;
   }
   const names = authCookieNames(scope);
-  return window.localStorage.getItem(names.auth) ?? readCookie(names.auth);
+  return (
+    window.localStorage.getItem(names.auth) ??
+    window.sessionStorage.getItem(names.auth) ??
+    readCookie(names.auth)
+  );
 }
 
 function currentScope(): AuthScope {

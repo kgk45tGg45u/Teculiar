@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
+import { TicketsService } from "../tickets/tickets.service";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
@@ -20,7 +21,8 @@ export class BillingService {
     private readonly engine: BillingEngineService,
     private readonly payments: AbstractPaymentService,
     private readonly external?: ExternalService,
-    private readonly emails?: EmailService
+    private readonly emails?: EmailService,
+    private readonly ticketsService?: TicketsService
   ) {}
 
   async createInvoice(dto: CreateInvoiceDto) {
@@ -411,6 +413,34 @@ export class BillingService {
       throw new NotFoundException("Payment method not found");
     }
     return this.billing.setDefaultPaymentMethod(userId, id);
+  }
+
+  async claimBankTransferPaid(invoiceId: string, userId: string) {
+    const invoice = await this.billing.findInvoice(invoiceId);
+    if (!invoice) throw new NotFoundException("Invoice not found");
+    if (invoice.userId !== userId) throw new NotFoundException("Invoice not found");
+    if (!["UNPAID", "OVERDUE", "FAILED"].includes(invoice.status)) {
+      throw new BadRequestException("Invoice is not awaiting payment");
+    }
+
+    await this.recordAction({
+      action: "invoice.bank_transfer_claimed",
+      metadata: { invoiceId, userId },
+      subject: "invoice",
+      subjectId: invoiceId
+    });
+
+    if (this.ticketsService) {
+      const invoiceLabel = invoice.invoiceNumber ?? invoice.id;
+      await this.ticketsService.createTicket(userId, {
+        body: `Customer has indicated payment via bank wire transfer for invoice ${invoiceLabel}.\n\nPlease verify the payment in your bank account and activate the service manually once confirmed.`,
+        department: "SALES",
+        priority: "NORMAL",
+        subject: `Bank Transfer Claimed — Invoice ${invoiceLabel}`
+      });
+    }
+
+    return { ok: true };
   }
 
   private async savePayPalVaultToken(userId: string, vaultId: string, customerId?: string) {
@@ -1657,13 +1687,13 @@ export class BillingService {
 
   async uploadOgImage(file: { buffer: Buffer; mimetype: string; originalname?: string; size: number } | undefined, type: string) {
     if (!file) throw new BadRequestException("Image is required.");
-    if (file.size > 1_000_000) throw new BadRequestException("OG image must be smaller than 1 MB.");
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
-      throw new BadRequestException("OG image must be PNG, JPG, or WebP.");
+    if (file.size > 2_000_000) throw new BadRequestException("OG image must be smaller than 2 MB.");
+    if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.mimetype)) {
+      throw new BadRequestException("OG image must be PNG, JPG, WebP, or SVG.");
     }
     const allowed = ["static", "dashboard", "blog"];
     const safeType = allowed.includes(type) ? type : "static";
-    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : file.mimetype === "image/svg+xml" ? "svg" : "png";
     const dir = await webUploadsDir();
     const filename = `og-${safeType}-${Date.now()}.${ext}`;
     await writeFile(join(dir, filename), file.buffer);
@@ -1675,11 +1705,11 @@ export class BillingService {
   async uploadFounderPhoto(file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }) {
     if (!file) throw new BadRequestException("Photo is required.");
     if (file.size > 5_000_000) throw new BadRequestException("Photo must be smaller than 5 MB.");
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
-      throw new BadRequestException("Photo must be PNG, JPG, or WebP.");
+    if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.mimetype)) {
+      throw new BadRequestException("Photo must be PNG, JPG, WebP, or SVG.");
     }
     const dir = await webUploadsDir();
-    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : "png";
+    const ext = file.mimetype === "image/jpeg" ? "jpg" : file.mimetype === "image/webp" ? "webp" : file.mimetype === "image/svg+xml" ? "svg" : "png";
     const filename = `founder-photo-${Date.now()}.${ext}`;
     await writeFile(join(dir, filename), file.buffer);
     const photoUrl = `/uploads/${filename}`;
@@ -1803,6 +1833,7 @@ export class BillingService {
         customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
         customer_name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email),
         invoice_due_date: invoice.dueAt ? formatDateLabel(invoice.dueAt) : "",
+        invoice_link: `${publicWebUrl()}/client/invoices/${invoice.id}`,
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
         invoice_total_amount: formatEuro(invoice.totalCents),
         order_number: stringFrom(invoice.order?.orderNumber),
@@ -2205,7 +2236,7 @@ function sandboxGateway() {
 }
 
 function publicWebUrl() {
-  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000";
+  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000";
 }
 
 function publicApiUrl() {

@@ -72,6 +72,14 @@ export class BillingController {
     return this.billing.payInvoice(id, dto);
   }
 
+  @Post("invoices/:id/bank-transfer-claimed")
+  claimBankTransferPaid(
+    @Param("id") id: string,
+    @Req() request: Request & { user: { sub: string } }
+  ) {
+    return this.billing.claimBankTransferPaid(id, request.user.sub);
+  }
+
   // Public endpoint — OptionalJwtAuthGuard so logged-in clients can also call it.
   // New customers returning from a payment gateway don't have a session yet.
   // On success the response includes an accessToken so the frontend can call

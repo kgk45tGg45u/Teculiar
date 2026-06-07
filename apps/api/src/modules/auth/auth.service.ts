@@ -285,7 +285,7 @@ export class AuthService {
     const expiresAt = Date.now() + 1000 * 60 * 60;
     const payload = Buffer.from(JSON.stringify({ email: user.email, exp: expiresAt, id: user.id, nonce: randomUUID() })).toString("base64url");
     const signature = this.passwordResetSignature(payload, user.passwordHash);
-    const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
     return `${baseUrl}/reset-password?token=${encodeURIComponent(`${payload}.${signature}`)}`;
   }
 

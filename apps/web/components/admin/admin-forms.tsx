@@ -1115,7 +1115,7 @@ export function SettingsForm() {
       </p>
       <h3>About Us</h3>
       <ImageUploader
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/founder-photo`}
         headers={authHeaders()}
         label="Founder / team photo (About Us page)"
@@ -2633,11 +2633,11 @@ export function SeoSettingsForm() {
       <h3>OG Images for Social Media</h3>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0", lineHeight: 1.6 }}>
         OG images appear when a link is shared on Telegram, Signal, Facebook, X/Twitter, LinkedIn, etc.
-        Standard size: <strong>1200×630 px</strong>. Use PNG or JPG. Keep under 1 MB.
+        Standard size: <strong>1200×630 px</strong>. Accepts PNG, JPG, WebP, or SVG. Keep under 2 MB.
         Use a simple, bold design with your logo or brand name — it will appear as a thumbnail. The three images below let you use different visuals for different areas of the site.
       </p>
       <ImageUploader
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "static" }}
         headers={authHeaders()}
@@ -2646,7 +2646,7 @@ export function SeoSettingsForm() {
         previewUrl={s.ogImageStatic}
       />
       <ImageUploader
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "dashboard" }}
         headers={authHeaders()}
@@ -2655,7 +2655,7 @@ export function SeoSettingsForm() {
         previewUrl={s.ogImageDashboard}
       />
       <ImageUploader
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "blog" }}
         headers={authHeaders()}

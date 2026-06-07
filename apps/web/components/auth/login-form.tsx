@@ -1,10 +1,10 @@
 "use client";
 
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { API_BASE_URL, storeAuth, type AuthPayload } from "../../lib/api";
 import type { Locale } from "../../lib/i18n";
-import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
 import styles from "./login-form.module.css";
 
@@ -12,7 +12,11 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
   const params = useSearchParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
+  const [resetSent, setResetSent] = useState(false);
   const copy = loginCopy[locale];
 
   async function submit(formData: FormData) {
@@ -30,9 +34,8 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
     setLoading(false);
 
     if (!response.ok || !payload.accessToken || !payload.refreshToken || !payload.user) {
-      const message = copy.loginFailed;
-      setError(message);
-      notify.error(message);
+      setError(copy.loginFailed);
+      notify.error(copy.loginFailed);
       return;
     }
     if (admin && !payload.user.roles.some((role) => role === "admin" || role === "staff")) {
@@ -41,102 +44,151 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
       return;
     }
 
-    storeAuth(payload as AuthPayload, admin ? "admin" : "client");
+    storeAuth(payload as AuthPayload, admin ? "admin" : "client", rememberMe);
     notify.success(copy.loginSuccess);
     window.location.assign(safeNext(params.get("next"), admin ? "/admin" : "/client"));
   }
 
-  async function setupAdmin(formData: FormData) {
-    setError("");
-    setLoading(true);
-    const response = await fetch(`${API_BASE_URL}/auth/bootstrap-admin`, {
-      body: JSON.stringify({
-        email: String(formData.get("adminEmail") ?? ""),
-        name: String(formData.get("adminName") ?? ""),
-        password: String(formData.get("adminPassword") ?? "")
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST"
-    });
-    const payload = (await response.json().catch(() => ({}))) as Partial<AuthPayload> & { message?: string };
-    setLoading(false);
-
-    if (!response.ok || !payload.accessToken || !payload.refreshToken || !payload.user) {
-      const message = copy.adminSetupFailed;
-      setError(message);
-      notify.error(message);
-      return;
-    }
-
-    storeAuth(payload as AuthPayload, "admin");
-    notify.success(copy.adminCreated);
-    window.location.assign("/admin");
-  }
-
   async function requestReset(formData: FormData) {
+    setLoading(true);
     const response = await fetch(`${API_BASE_URL}/auth/password-reset/request`, {
       body: JSON.stringify({ email: String(formData.get("resetEmail") ?? "") }),
       headers: { "Content-Type": "application/json" },
       method: "POST"
     });
-    const message = response.ok ? copy.resetSent : copy.resetFailed;
-    setResetMessage(message);
-    response.ok ? notify.success(message) : notify.error(message);
+    setLoading(false);
+    if (response.ok) {
+      setResetSent(true);
+      setResetMessage(copy.resetSent);
+    } else {
+      setResetMessage(copy.resetFailed);
+    }
+  }
+
+  if (forgotMode) {
+    return (
+      <main className={styles.shell}>
+        <div className={styles.card}>
+          <div className={styles.logoWrap}>
+            <span className={styles.logoIcon}>D</span>
+          </div>
+          <div className={styles.cardHead}>
+            <h1>{copy.forgotTitle}</h1>
+            <p className={styles.subtitle}>{copy.forgotSubtitle}</p>
+          </div>
+
+          {resetSent ? (
+            <div className={styles.resetSuccess}>
+              <p>{resetMessage}</p>
+              <button
+                className={styles.textLink}
+                type="button"
+                onClick={() => { setForgotMode(false); setResetSent(false); setResetMessage(""); }}
+              >
+                {copy.backToLogin}
+              </button>
+            </div>
+          ) : (
+            <form action={requestReset} className={styles.form}>
+              <div className={styles.inputWrap}>
+                <Mail className={styles.inputIcon} size={17} aria-hidden />
+                <input
+                  autoComplete="email"
+                  className={styles.inputWithIcon}
+                  name="resetEmail"
+                  placeholder={copy.emailPlaceholder}
+                  required
+                  type="email"
+                />
+              </div>
+              {resetMessage && <p className={styles.error}>{resetMessage}</p>}
+              <button className={styles.submitBtn} disabled={loading} type="submit">
+                {loading ? copy.loading : copy.sendReset}
+              </button>
+              <button
+                className={styles.textLink}
+                type="button"
+                onClick={() => { setForgotMode(false); setResetMessage(""); }}
+              >
+                {copy.backToLogin}
+              </button>
+            </form>
+          )}
+        </div>
+      </main>
+    );
   }
 
   return (
     <main className={styles.shell}>
-      <section className={styles.card}>
-        <div className={styles.cardHead}>
-          <span className="eyebrow">{admin ? copy.adminEyebrow : copy.clientEyebrow}</span>
-          <h1>{admin ? copy.adminTitle : copy.clientTitle}</h1>
+      <div className={styles.card}>
+        <div className={styles.logoWrap}>
+          <span className={styles.logoIcon}>D</span>
         </div>
+        <div className={styles.cardHead}>
+          <h1>{admin ? copy.adminTitle : copy.clientTitle}</h1>
+          <p className={styles.subtitle}>{copy.subtitle}</p>
+        </div>
+
         <form action={submit} className={styles.form}>
-          <label>
-            {copy.email}
-            <input autoComplete="email" name="email" required type="email" />
-          </label>
-          <label>
-            {copy.password}
-            <input autoComplete="current-password" name="password" required type="password" />
-          </label>
-          <Button type="submit">{loading ? copy.loading : copy.loginButton}</Button>
+          <div className={styles.inputWrap}>
+            <Mail className={styles.inputIcon} size={17} aria-hidden />
+            <input
+              autoComplete="email"
+              className={styles.inputWithIcon}
+              name="email"
+              placeholder={copy.emailPlaceholder}
+              required
+              type="email"
+            />
+          </div>
+
+          <div className={styles.inputWrap}>
+            <Lock className={styles.inputIcon} size={17} aria-hidden />
+            <input
+              autoComplete="current-password"
+              className={styles.inputWithIconRight}
+              name="password"
+              placeholder={copy.passwordPlaceholder}
+              required
+              type={showPassword ? "text" : "password"}
+            />
+            <button
+              aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+              className={styles.eyeBtn}
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+            </button>
+          </div>
+
+          <div className={styles.rememberRow}>
+            <label className={styles.checkLabel}>
+              <input
+                checked={rememberMe}
+                className={styles.checkbox}
+                type="checkbox"
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              {copy.rememberMe}
+            </label>
+            <button
+              className={styles.forgotLink}
+              type="button"
+              onClick={() => { setForgotMode(true); setError(""); }}
+            >
+              {copy.forgotPassword}
+            </button>
+          </div>
+
           {error ? <p className={styles.error}>{error}</p> : null}
+
+          <button className={styles.submitBtn} disabled={loading} type="submit">
+            {loading ? copy.loading : copy.loginButton}
+          </button>
         </form>
-        {admin ? (
-          <details>
-            <summary>{copy.firstAdminSetup}</summary>
-            <form action={setupAdmin} className={styles.form}>
-              <label>
-                {copy.name}
-                <input name="adminName" required />
-              </label>
-              <label>
-                {copy.email}
-                <input name="adminEmail" required type="email" />
-              </label>
-              <label>
-                {copy.password}
-                <input minLength={12} name="adminPassword" required type="password" />
-              </label>
-              <Button type="submit" variant="secondary">{loading ? copy.loading : copy.createAdmin}</Button>
-            </form>
-          </details>
-        ) : null}
-        {!admin ? (
-          <details>
-            <summary>{copy.forgotPassword}</summary>
-            <form action={requestReset} className={styles.form}>
-              <label>
-                {copy.email}
-                <input name="resetEmail" required type="email" />
-              </label>
-              <Button type="submit" variant="secondary">{copy.sendReset}</Button>
-              {resetMessage ? <p>{resetMessage}</p> : null}
-            </form>
-          </details>
-        ) : null}
-      </section>
+      </div>
     </main>
   );
 }
@@ -150,47 +202,47 @@ function safeNext(next: string | null, fallback: string) {
 
 const loginCopy = {
   de: {
-    adminCreated: "Admin erstellt.",
-    adminEyebrow: "Admin",
     adminRequired: "Admin-Zugriff erforderlich.",
-    adminSetupFailed: "Admin-Einrichtung fehlgeschlagen.",
     adminTitle: "Admin-Anmeldung",
-    clientEyebrow: "Kunde",
+    backToLogin: "Zurück zur Anmeldung",
     clientTitle: "Anmelden",
-    createAdmin: "Admin erstellen",
-    email: "E-Mail",
-    firstAdminSetup: "Ersten Admin einrichten",
+    emailPlaceholder: "deine@email.de",
     forgotPassword: "Passwort vergessen?",
+    forgotSubtitle: "Gib deine E-Mail-Adresse ein – wir schicken dir einen Link.",
+    forgotTitle: "Passwort zurücksetzen",
+    hidePassword: "Passwort verbergen",
     loading: "Bitte warten...",
     loginButton: "Anmelden",
     loginFailed: "Anmeldung fehlgeschlagen.",
     loginSuccess: "Anmeldung erfolgreich.",
-    name: "Name",
-    password: "Passwort",
+    passwordPlaceholder: "••••••••",
+    rememberMe: "Angemeldet bleiben",
     resetFailed: "Passwort-Zurücksetzen fehlgeschlagen.",
-    resetSent: "Falls das Konto existiert, wurde eine E-Mail zum Zurücksetzen erstellt oder gesendet.",
-    sendReset: "Link zum Zurücksetzen senden"
+    resetSent: "Falls das Konto existiert, wurde ein Zurücksetzen-Link verschickt.",
+    sendReset: "Link senden",
+    showPassword: "Passwort anzeigen",
+    subtitle: "Gib deine Anmeldedaten ein, um fortzufahren."
   },
   en: {
-    adminCreated: "Admin created.",
-    adminEyebrow: "Admin",
     adminRequired: "Admin access required.",
-    adminSetupFailed: "Admin setup failed.",
     adminTitle: "Admin Login",
-    clientEyebrow: "Client",
-    clientTitle: "Login",
-    createAdmin: "Create admin",
-    email: "Email",
-    firstAdminSetup: "First admin setup",
+    backToLogin: "Back to login",
+    clientTitle: "Login to your account",
+    emailPlaceholder: "you@example.com",
     forgotPassword: "Forgot password?",
+    forgotSubtitle: "Enter your email and we'll send you a reset link.",
+    forgotTitle: "Reset your password",
+    hidePassword: "Hide password",
     loading: "Please wait...",
-    loginButton: "Login",
+    loginButton: "Sign in",
     loginFailed: "Login failed.",
     loginSuccess: "Login successful.",
-    name: "Name",
-    password: "Password",
+    passwordPlaceholder: "••••••••",
+    rememberMe: "Remember me",
     resetFailed: "Password reset failed.",
-    resetSent: "If the account exists, a reset email was logged or sent.",
-    sendReset: "Send reset link"
+    resetSent: "If an account exists, a reset link has been sent.",
+    sendReset: "Send reset link",
+    showPassword: "Show password",
+    subtitle: "Enter your credentials to access your account."
   }
 } satisfies Record<Locale, Record<string, string>>;

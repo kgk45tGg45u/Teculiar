@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { EmailModule } from "../email/email.module";
 import { ExternalModule } from "../external/external.module";
+import { TicketsModule } from "../tickets/tickets.module";
 import { BillingController, BillingDevController, BillingStorefrontController, BillingWebhookController } from "./billing.controller";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
@@ -10,7 +11,7 @@ import { AbstractPaymentService } from "./processors/abstract-payment.service";
 import { TaxService } from "./tax.service";
 
 @Module({
-  imports: [EmailModule, ExternalModule, JwtModule.register({})],
+  imports: [EmailModule, ExternalModule, JwtModule.register({}), TicketsModule],
   controllers: [BillingController, BillingDevController, BillingStorefrontController, BillingWebhookController],
   providers: [BillingService, BillingRepository, BillingEngineService, TaxService, AbstractPaymentService],
   exports: [BillingService]

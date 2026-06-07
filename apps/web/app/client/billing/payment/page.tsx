@@ -26,7 +26,7 @@ type Status = "loading" | "ready" | "processing" | "paid" | "error";
 const METHOD_LABELS: Record<string, string> = {
   PAYPAL: "PayPal",
   CREDIT_CARD: "Credit/Debit Card",
-  SEPA: "SEPA Direct Debit",
+  SEPA: "SEPA Bank Transfer",
   BANK_TRANSFER: "Bank Wire Transfer",
   SANDBOX: "Sandbox (test)"
 };
@@ -199,9 +199,9 @@ export default function InvoicePaymentPage() {
               {/* SEPA */}
               {selected === "SEPA" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Pay by SEPA Direct Debit. You will enter your IBAN on the next page. Your account will be saved for automatic future invoices.</p>
+                  <p className={styles.hint}>Pay via SEPA bank transfer. You will receive bank account details on the next page and transfer the amount from your own bank. Processing takes 1–3 business days.</p>
                   <button className={styles.payBtn} type="button" onClick={() => payWithMollie("SEPA")}>
-                    <Building2 size={17} /> Pay with SEPA Direct Debit
+                    <Building2 size={17} /> Pay with SEPA Bank Transfer
                   </button>
                 </div>
               )}
@@ -218,7 +218,7 @@ export default function InvoicePaymentPage() {
 
               {/* Bank Wire */}
               {selected === "BANK_TRANSFER" && !isProcessing && (
-                <BankWirePanel bankWire={bankWire} invoiceNumber={displayNumber} amount={amount} />
+                <BankWirePanel amount={amount} bankWire={bankWire} invoiceId={invoiceId} invoiceNumber={displayNumber} />
               )}
             </div>
 
@@ -280,8 +280,37 @@ function MethodIcon({ method }: { method: string }) {
   return <CreditCard size={16} aria-hidden />;
 }
 
-function BankWirePanel({ bankWire, invoiceNumber, amount }: { amount: string; bankWire?: GatewayEntry; invoiceNumber: string }) {
+function BankWirePanel({ bankWire, invoiceNumber, amount, invoiceId }: { amount: string; bankWire?: GatewayEntry; invoiceNumber: string; invoiceId: string }) {
   const cfg = bankWire?.config ?? {};
+  const [claimed, setClaimed] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+
+  async function handleClaimed() {
+    setClaiming(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/bank-transfer-claimed`, {
+        headers: authHeaders("client"),
+        method: "POST"
+      });
+      if (res.ok) {
+        setClaimed(true);
+      }
+    } finally {
+      setClaiming(false);
+    }
+  }
+
+  if (claimed) {
+    return (
+      <div className={styles.bankWirePanel}>
+        <CheckCircle size={32} className={styles.iconSuccess} />
+        <p style={{ fontWeight: 700, margin: "8px 0 4px" }}>Thank you — payment noted!</p>
+        <p className={styles.hint}>Our team has been notified and will verify your transfer. Your service will be activated once we confirm receipt.</p>
+        <a className={styles.back} href="/client/invoices">Back to invoices</a>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.bankWirePanel}>
       <p className={styles.hint}>Please transfer the exact amount to the bank account below. Use your invoice number as the payment reference.</p>
@@ -294,7 +323,10 @@ function BankWirePanel({ bankWire, invoiceNumber, amount }: { amount: string; ba
         <div className={styles.bankRow}><span>Reference</span><strong className={styles.mono}>{invoiceNumber}</strong></div>
       </div>
       {cfg.referenceNote && <p className={styles.referenceNote}>{cfg.referenceNote}</p>}
-      <p className={styles.bankNote}>Your service will be activated once we confirm receipt of your payment. If your service doesn't activate within 2 business days, please open a sales ticket.</p>
+      <p className={styles.bankNote}>Your service will be activated once we confirm receipt of your payment. After you have transferred the amount, click the button below.</p>
+      <button className={styles.payBtn} disabled={claiming} style={{ marginTop: 8 }} type="button" onClick={handleClaimed}>
+        <Landmark size={17} /> {claiming ? "Notifying…" : "I have paid — notify the team"}
+      </button>
     </div>
   );
 }

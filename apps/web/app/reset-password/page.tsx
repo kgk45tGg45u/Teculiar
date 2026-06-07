@@ -3,7 +3,6 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { API_BASE_URL } from "../../lib/api";
-import { Button } from "../../components/ui/button";
 import { notify } from "../../components/ui/toast-provider";
 import styles from "../../components/auth/login-form.module.css";
 
@@ -18,8 +17,11 @@ export default function ResetPasswordPage() {
 function ResetPasswordForm() {
   const params = useSearchParams();
   const [message, setMessage] = useState("");
+  const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function submit(formData: FormData) {
+    setLoading(true);
     const response = await fetch(`${API_BASE_URL}/auth/password-reset/confirm`, {
       body: JSON.stringify({
         password: String(formData.get("password") ?? ""),
@@ -28,27 +30,53 @@ function ResetPasswordForm() {
       headers: { "Content-Type": "application/json" },
       method: "POST"
     });
-    const next = response.ok ? "Password changed. You can log in now." : "Password reset failed or expired.";
-    setMessage(next);
-    response.ok ? notify.success(next) : notify.error(next);
+    setLoading(false);
+    if (response.ok) {
+      const msg = "Password changed. You can now log in.";
+      setMessage(msg);
+      setDone(true);
+      notify.success(msg);
+    } else {
+      const msg = "Password reset failed or link has expired.";
+      setMessage(msg);
+      notify.error(msg);
+    }
   }
 
   return (
     <main className={styles.shell}>
-      <section className={styles.card}>
-        <div>
-          <span className="eyebrow">Account</span>
-          <h1>Reset Password</h1>
+      <div className={styles.card}>
+        <div className={styles.logoWrap}>
+          <span className={styles.logoIcon}>D</span>
         </div>
-        <form action={submit} className={styles.form}>
-          <label>
-            New password
-            <input minLength={12} name="password" required type="password" />
-          </label>
-          <Button type="submit">Change Password</Button>
-          {message ? <p>{message}</p> : null}
-        </form>
-      </section>
+        <div className={styles.cardHead}>
+          <h1>Reset Password</h1>
+          <p className={styles.subtitle}>Enter your new password below.</p>
+        </div>
+
+        {done ? (
+          <div className={styles.resetSuccess}>
+            <p>{message}</p>
+            <a className={styles.textLink} href="/login">Go to login</a>
+          </div>
+        ) : (
+          <form action={submit} className={styles.form}>
+            <input
+              autoComplete="new-password"
+              className={styles.plainInput}
+              minLength={9}
+              name="password"
+              placeholder="New password"
+              required
+              type="password"
+            />
+            {message && <p className={styles.error}>{message}</p>}
+            <button className={styles.submitBtn} disabled={loading} type="submit">
+              {loading ? "Please wait…" : "Change Password"}
+            </button>
+          </form>
+        )}
+      </div>
     </main>
   );
 }
