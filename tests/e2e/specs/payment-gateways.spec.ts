@@ -22,8 +22,10 @@
  */
 import { expect, test, type Page } from "@playwright/test";
 
-const BASE = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
-const API  = process.env.NEXT_PUBLIC_API_URL  ?? "http://127.0.0.1:4000/api/v1";
+// Support both the E2E_* vars (passed on CLI) and the legacy PLAYWRIGHT_BASE_URL /
+// NEXT_PUBLIC_API_URL vars (set internally by playwright.config.ts in some setups).
+const BASE = (process.env.E2E_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
+const API  = (process.env.E2E_API_URL  ?? process.env.NEXT_PUBLIC_API_URL  ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 
 const ADMIN_EMAIL    = process.env.E2E_ADMIN_EMAIL    ?? "admin@dezhost.local";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
@@ -48,12 +50,19 @@ async function getTestProduct(page: Page): Promise<{ id: string; priceId: string
   return { id: p.id, priceId: price!.id };
 }
 
+// Cache the admin token for the lifetime of the test suite to avoid hitting
+// the production rate limiter when many tests call the login endpoint.
+let _cachedAdminToken: string | undefined;
+
 async function adminToken(page: Page): Promise<string> {
+  if (_cachedAdminToken) return _cachedAdminToken;
   const r = await page.request.post(`${API}/auth/login`, {
     data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
   });
+  if (!r.ok()) return "";
   const body = await r.json() as { accessToken?: string };
-  return body.accessToken ?? "";
+  _cachedAdminToken = body.accessToken ?? "";
+  return _cachedAdminToken;
 }
 
 async function createOrderViaApi(page: Page, token: string, productId: string, priceId: string) {
@@ -92,30 +101,29 @@ async function fillCheckoutForm(page: Page, opts: { email: string; paymentMethod
 }
 
 async function loginAsAdmin(page: Page) {
-  // Set auth cookies directly via API — avoids dependency on frontend's NEXT_PUBLIC_API_URL build var.
-  // Retry up to 3 times with a 3s delay to handle transient 5xx/503 during deployments.
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await page.waitForTimeout(3_000);
-    const r = await page.request.post(`${API}/auth/login`, {
-      data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
-    });
-    lastStatus = r.status();
-    if (r.ok()) {
-      const body = await r.json() as { accessToken?: string; refreshToken?: string };
-      const hostname = new URL(BASE).hostname;
-      if (body.accessToken) {
-        await page.context().addCookies([
-          { name: "dezhost_admin_access_token", value: body.accessToken, domain: hostname, path: "/" },
-          { name: "dezhost_admin_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
-        ]);
-      }
-      await page.goto(`${BASE}/admin`);
+  // Reuse the cached admin token to avoid hitting the production rate limiter.
+  // On failure, invalidate the cache and retry once with a fresh token.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      _cachedAdminToken = undefined;
+      await page.waitForTimeout(3_000);
+    }
+    const token = await adminToken(page);
+    if (!token) continue;
+    const hostname = new URL(BASE).hostname;
+    await page.context().addCookies([
+      { name: "dezhost_admin_access_token", value: token, domain: hostname, path: "/" },
+      { name: "dezhost_admin_refresh_token", value: "", domain: hostname, path: "/" }
+    ]);
+    await page.goto(`${BASE}/admin`);
+    try {
       await page.waitForURL(/\/admin(?!\/login)/, { timeout: 15_000 });
       return;
+    } catch {
+      // Token might be stale — try once more with a fresh one
     }
   }
-  throw new Error(`Admin login API failed: ${lastStatus}`);
+  throw new Error("Admin login failed after retries");
 }
 
 async function loginAsClient(page: Page) {
@@ -154,6 +162,11 @@ test.describe("Sandbox gateway", () => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No hosting product found"); return; }
 
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "SANDBOX")) {
+      test.skip(true, "Sandbox gateway not enabled in storefront"); return;
+    }
+
     await page.goto(`${BASE}/de/order/${product.id}`);
     await page.waitForLoadState("networkidle");
 
@@ -169,6 +182,11 @@ test.describe("Sandbox gateway", () => {
   test("sandbox: invoice is marked PAID immediately", async ({ page }) => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "SANDBOX")) {
+      test.skip(true, "Sandbox gateway not enabled in storefront"); return;
+    }
 
     // Intercept the pay response to read the invoice status
     let invoiceStatus = "";
@@ -241,18 +259,39 @@ test.describe("PayPal gateway", () => {
       return;
     }
 
-    // Log in as a real client so the payment page doesn't redirect to login
-    await loginAsClient(page);
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
 
-    // Get an unpaid invoice for this client via API
-    const cToken = await clientToken(page);
-    const invResp = await page.request.get(`${API}/billing/invoices?status=UNPAID`, { headers: { Authorization: `Bearer ${cToken}` } });
+    // Create a fresh client via checkout — avoids dependency on a pre-existing test account
+    const ts2 = Date.now();
+    const newEmail = `paypal-ui-${ts2}@dezhost.test`;
+    const co = await page.request.post(`${API}/orders/checkout`, {
+      data: {
+        customer: { email: newEmail, name: "PP UI Test", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "Berlin", postalCode: "10115", state: "" } },
+        items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("pp-ui"), domainUse: "external" } }]
+      }
+    });
+    if (!co.ok()) { test.skip(true, "Checkout creation failed"); return; }
+
+    // Log in as the newly-created client
+    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
+    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
+    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
+    const hostname = new URL(BASE).hostname;
+    if (loginBody.accessToken) {
+      await page.context().addCookies([
+        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
+        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
+      ]);
+    }
+
+    // Fetch the unpaid invoice for this client
+    const invResp = await page.request.get(`${API}/billing/invoices?status=UNPAID`, {
+      headers: { Authorization: `Bearer ${loginBody.accessToken}` }
+    });
     const invoices = await invResp.json() as Array<{ id: string }>;
     const invoiceId = invoices[0]?.id;
-    if (!invoiceId) {
-      test.skip(true, "No unpaid invoice for test client");
-      return;
-    }
+    if (!invoiceId) { test.skip(true, "No unpaid invoice for new client"); return; }
 
     await page.goto(`${BASE}/client/billing/payment?invoice=${invoiceId}`);
     await page.waitForLoadState("networkidle");
@@ -263,13 +302,6 @@ test.describe("PayPal gateway", () => {
   });
 
   test("payment-return page confirms a pending PayPal invoice (via client session)", async ({ page }) => {
-    // Log in as a client so the /client/billing/payment-return route isn't blocked by middleware
-    await loginAsClient(page);
-
-    const cToken = await clientToken(page);
-    if (!cToken) { test.skip(true, "Client token unavailable"); return; }
-
-    // We need a PENDING invoice. Create one by initiating a PayPal payment.
     const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
     if (!gateways.some((g) => g.method === "PAYPAL")) {
       test.skip(true, "PayPal gateway not enabled"); return;
@@ -277,9 +309,11 @@ test.describe("PayPal gateway", () => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No product found"); return; }
 
+    // Create a fresh user via checkout and pay with PayPal to get a PENDING invoice
     const ts2 = Date.now();
+    const newEmail = `paypal-return-${ts2}@dezhost.test`;
     const co = await page.request.post(`${API}/orders/checkout`, {
-      data: { customer: { email: `paypal-return-test-${ts2}@dezhost.test`, name: "T", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "B", postalCode: "10115", state: "" } }, items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("pp-ret"), domainUse: "external" } }] }
+      data: { customer: { email: newEmail, name: "T", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "B", postalCode: "10115", state: "" } }, items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("pp-ret"), domainUse: "external" } }] }
     });
     if (!co.ok()) { test.skip(true, "Checkout failed"); return; }
     const { order } = await co.json() as { order: { id: string } };
@@ -287,6 +321,18 @@ test.describe("PayPal gateway", () => {
     const payBody = await payResp.json() as { invoice?: { id?: string } };
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID from pay"); return; }
+
+    // Log in as the newly-created user — avoids dependency on a pre-existing test account
+    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
+    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
+    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
+    const hostname = new URL(BASE).hostname;
+    if (loginBody.accessToken) {
+      await page.context().addCookies([
+        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
+        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
+      ]);
+    }
 
     // Mock confirm-payment so we don't need PayPal to approve
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
@@ -368,19 +414,14 @@ test.describe("Mollie Credit Card", () => {
   });
 
   test("payment-return confirms Mollie payment (client session + mocked API)", async ({ page }) => {
-    // Log in as client so middleware doesn't block the /client page
-    await loginAsClient(page);
-
-    const cToken = await clientToken(page);
-    if (!cToken) { test.skip(true, "Client token unavailable"); return; }
-
-    // Create a Mollie PENDING invoice
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No product found"); return; }
 
+    // Create a fresh user via checkout and pay with Mollie CC
     const ts2 = Date.now();
+    const newEmail = `mollie-ret-${ts2}@dezhost.test`;
     const co = await page.request.post(`${API}/orders/checkout`, {
-      data: { customer: { email: `mollie-ret-${ts2}@dezhost.test`, name: "T", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "B", postalCode: "10115", state: "" } }, items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("ml-ret"), domainUse: "external" } }] }
+      data: { customer: { email: newEmail, name: "T", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "B", postalCode: "10115", state: "" } }, items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("ml-ret"), domainUse: "external" } }] }
     });
     if (!co.ok()) { test.skip(true, "Checkout failed"); return; }
     const { order } = await co.json() as { order: { id: string } };
@@ -389,6 +430,18 @@ test.describe("Mollie Credit Card", () => {
     const payBody = await payResp.json() as { invoice?: { id?: string } };
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID"); return; }
+
+    // Log in as the newly-created user — avoids dependency on a pre-existing test account
+    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
+    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
+    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
+    const hostname = new URL(BASE).hostname;
+    if (loginBody.accessToken) {
+      await page.context().addCookies([
+        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
+        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
+      ]);
+    }
 
     // Mock the confirm endpoint to avoid hitting real Mollie
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
