@@ -134,12 +134,13 @@ export class EmailService {
     return this.adminSettings();
   }
 
-  async sendTest(eventKey: string, context: Record<string, unknown> = {}) {
+  async sendTest(eventKey: string, context: Record<string, unknown> = {}, to?: string) {
     const testVariables = await this.settingJson<Record<string, unknown>>("emailTestVariables", defaultTestVariables());
+    const recipientEmail = to ?? stringValue(context.customer_email) ?? stringValue(testVariables.customer_email);
     return this.dispatch(eventKey, {
       context: { ...testVariables, ...context },
       user: {
-        email: stringValue(context.customer_email) ?? stringValue(testVariables.customer_email),
+        email: recipientEmail,
         name: stringValue(context.customer_name) ?? stringValue(testVariables.customer_name)
       }
     });
@@ -762,29 +763,71 @@ function smtpCloseAwareReader(socket: net.Socket) {
 
 function buildMimeMessage(input: { from: string; fromName: string; html: string; recipient: string; subject: string; text: string }) {
   const boundary = `dezhost-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const fromDomain = input.from.includes("@") ? input.from.split("@")[1] : "dezhost.com";
   return [
     `From: ${input.fromName} <${input.from}>`,
     `To: <${input.recipient}>`,
     `Subject: ${input.subject}`,
     "MIME-Version: 1.0",
     `Date: ${new Date().toUTCString()}`,
-    `Message-ID: <${Date.now()}.${Math.random().toString(16).slice(2)}@dezhost.local>`,
+    `Message-ID: <${Date.now()}.${Math.random().toString(16).slice(2)}@${fromDomain}>`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
     `--${boundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
-    "Content-Transfer-Encoding: 8bit",
+    "Content-Transfer-Encoding: quoted-printable",
     "",
-    input.text,
+    toQuotedPrintable(input.text),
     "",
     `--${boundary}`,
     'Content-Type: text/html; charset="UTF-8"',
-    "Content-Transfer-Encoding: 8bit",
+    "Content-Transfer-Encoding: quoted-printable",
     "",
-    input.html,
+    toQuotedPrintable(input.html),
     "",
     `--${boundary}--`
   ].join("\r\n");
+}
+
+function toQuotedPrintable(input: string): string {
+  // Normalize line endings to CRLF before encoding
+  const normalized = input.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n/g, "\r\n");
+  let result = "";
+  for (const line of normalized.split("\r\n")) {
+    let encoded = "";
+    for (let i = 0; i < line.length; i++) {
+      const code = line.charCodeAt(i);
+      // Encode non-printable ASCII, non-ASCII, and the '=' character
+      if (code === 61 || code < 33 || code > 126) {
+        // Tab (9) and space (32) are printable but must be encoded at end of line (handled below)
+        if (code === 9 || code === 32) {
+          encoded += line[i];
+        } else {
+          encoded += `=${code.toString(16).toUpperCase().padStart(2, "0")}`;
+        }
+      } else {
+        encoded += line[i];
+      }
+    }
+    // Trailing whitespace must be encoded in QP
+    encoded = encoded.replace(/([ \t]+)$/, (match) =>
+      [...match].map((ch) => `=${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`).join("")
+    );
+    // Soft line breaks at 76 characters (including the trailing =)
+    while (encoded.length > 75) {
+      // Don't break inside an encoded sequence =XX or leave a dangling =
+      let split = 75;
+      while (split > 0 && (encoded[split - 1] === "=" || encoded[split - 2] === "=")) {
+        split--;
+      }
+      if (split === 0) split = 75;
+      result += encoded.slice(0, split) + "=\r\n";
+      encoded = encoded.slice(split);
+    }
+    result += encoded + "\r\n";
+  }
+  // Remove trailing CRLF added to last line
+  return result.endsWith("\r\n") ? result.slice(0, -2) : result;
 }
 
 function dotStuff(message: string) {

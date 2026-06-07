@@ -44,8 +44,8 @@ export class EmailAdminController {
   }
 
   @Post("test")
-  test(@Body() body: { context?: Record<string, unknown>; eventKey?: string }) {
-    return this.emails.sendTest(body.eventKey ?? "new_invoice", body.context ?? {});
+  test(@Body() body: { context?: Record<string, unknown>; eventKey?: string; to?: string }) {
+    return this.emails.sendTest(body.eventKey ?? "new_invoice", body.context ?? {}, body.to);
   }
 
   @Post("test-connection")

@@ -105,8 +105,8 @@ export class AdminCreateOrderDto {
 }
 
 export class PayOrderDto {
-  @IsIn(["CREDIT_CARD", "PAYPAL", "SEPA", "CRYPTO"])
-  method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | "CRYPTO";
+  @IsIn(["CREDIT_CARD", "PAYPAL", "SEPA", "CRYPTO", "BANK_TRANSFER"])
+  method: "CREDIT_CARD" | "PAYPAL" | "SEPA" | "CRYPTO" | "BANK_TRANSFER";
 
   @IsString()
   paymentMethodId: string;

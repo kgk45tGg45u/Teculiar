@@ -258,12 +258,12 @@ export class AbstractPaymentService {
     }
     if (["CREDIT_CARD", "SEPA"].includes(method)) {
       const config = gatewayCfg;
-      // Credit card supports sequenceType "first" so the mandate is captured on payment success,
-      // enabling automatic future billing. SEPA directdebit with sequenceType "first" ONLY supports
-      // zero-amount mandate setup (not real charges), so SEPA is always a plain one-time payment.
-      const supportsMandateOnFirstPayment = method === "CREDIT_CARD";
+      // Both CREDIT_CARD and SEPA require a Mollie customer + sequenceType=first.
+      // Credit card: authorizes and charges in one step.
+      // SEPA directdebit: user authorizes the IBAN debit via redirect, then Mollie initiates
+      // the bank transfer. Mandate is saved on confirmation for automatic future billing.
       let mollieCustomerId: string | undefined;
-      if (supportsMandateOnFirstPayment && request.userId) {
+      if (request.userId) {
         const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
         if (existing?.providerCustomerId) {
           mollieCustomerId = existing.providerCustomerId;
@@ -275,7 +275,10 @@ export class AbstractPaymentService {
           }
         }
       }
-      const opts = supportsMandateOnFirstPayment && mollieCustomerId
+      if (!mollieCustomerId && method === "SEPA") {
+        throw new BadRequestException("SEPA Direct Debit requires a customer account. Please log in or create an account first.");
+      }
+      const opts = mollieCustomerId
         ? { customerId: mollieCustomerId, sequenceType: "first" }
         : undefined;
       return createMolliePayment(config, request, method, opts);
