@@ -92,7 +92,7 @@ test.describe("mail-tester.com DKIM score", () => {
   test.skip(!RUN_LIVE_TEST, "Set MAIL_TESTER_TEST=1 to run live DKIM test");
 
   test("send test email and verify DKIM passes on mail-tester.com", async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
 
     const token = await adminToken(page);
     if (!token) { throw new Error("Admin login failed — check E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD"); }
@@ -126,13 +126,13 @@ test.describe("mail-tester.com DKIM score", () => {
     expect(sendResp.ok(), `sendTest API failed: ${JSON.stringify(sendBody)}`).toBeTruthy();
 
     // ── Step 3: Poll mail-tester.com until the score becomes available ───────
-    // Emails typically arrive within 15–30s; poll every 10s for up to 120s.
+    // Emails typically arrive within 15–60s; poll every 10s for up to 180s.
     type MailTesterScore = {
       score?: number;
       items?: Array<{ name?: string; rating?: string; title?: string }>;
     };
     let score: MailTesterScore | null = null;
-    const deadline = Date.now() + 120_000;
+    const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
       await page.waitForTimeout(10_000);
       const scoreResp = await page.request.get(`https://www.mail-tester.com/json/${testId}.json`);
@@ -151,7 +151,7 @@ test.describe("mail-tester.com DKIM score", () => {
     await page.screenshot({ path: "tests/e2e/artifacts/mail-tester-result.png", fullPage: true });
 
     if (!score) {
-      throw new Error(`Email did not arrive at mail-tester.com within 2 minutes. Check: https://www.mail-tester.com/${testId}`);
+      throw new Error(`Email did not arrive at mail-tester.com within 3 minutes. Check: https://www.mail-tester.com/${testId}`);
     }
 
     console.log(`mail-tester.com score: ${score.score}/10`);
