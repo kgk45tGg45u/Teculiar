@@ -46,4 +46,10 @@ EXPOSE 4000
 
 # On every container start: run pending migrations, then launch the server.
 # `exec` replaces the shell so the Node process receives OS signals cleanly.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma && exec node apps/api/dist/main.js"]
+#
+# The resolve step marks migration 20260607120000 as applied before migrate deploy.
+# That migration had a typo (ALTER TABLE Invoice instead of Order) so it can never
+# succeed on its own — resolved here so the corrected migration 20260607120001 runs.
+# On fresh databases, resolve creates a "skipped" entry so the corrected migration
+# still applies all the intended changes. Safe to re-run (idempotent).
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate resolve --applied 20260607120000_add_bank_transfer_payment_method --schema prisma/schema.prisma 2>/dev/null || true && node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma && exec node apps/api/dist/main.js"]
