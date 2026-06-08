@@ -25,6 +25,12 @@ export class BillingService {
     private readonly ticketsService?: TicketsService
   ) {}
 
+  private onCheckoutInvoicePaidHook?: (invoiceId: string) => Promise<void>;
+
+  registerOnCheckoutInvoicePaid(fn: (invoiceId: string) => Promise<void>): void {
+    this.onCheckoutInvoicePaidHook = fn;
+  }
+
   async createInvoice(dto: CreateInvoiceDto) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
     const [vatRate, sellerSnapshot, footerLines] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines()]);
@@ -572,6 +578,10 @@ export class BillingService {
   }
 
   async onInvoicePaid(invoiceId: string, input: { actorId?: string; source?: string } = {}) {
+    // Allow orders.service to create the Order record before lifecycle items are loaded
+    if (this.onCheckoutInvoicePaidHook) {
+      await this.onCheckoutInvoicePaidHook(invoiceId).catch(() => undefined);
+    }
     const invoice = await this.billing.findInvoiceForLifecycle(invoiceId);
     if (!invoice) {
       throw new NotFoundException("Invoice not found");

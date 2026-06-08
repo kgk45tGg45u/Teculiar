@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
@@ -10,7 +10,7 @@ import type { AdminCreateOrderDto, CheckoutOrderDto, OrderItemDto, PayOrderDto, 
 import { OrdersRepository, type PricedOrderItem } from "./orders.repository";
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   constructor(
     private readonly orders: OrdersRepository,
     private readonly billing: BillingService,
@@ -20,6 +20,18 @@ export class OrdersService {
     private readonly domainAvailability?: DomainAvailabilityService,
     private readonly emails?: EmailService
   ) {}
+
+  onModuleInit() {
+    const billing = this.billing as unknown as { registerOnCheckoutInvoicePaid?: (fn: (invoiceId: string) => Promise<void>) => void };
+    if (typeof billing.registerOnCheckoutInvoicePaid === "function") {
+      billing.registerOnCheckoutInvoicePaid(async (invoiceId) => {
+        const result = await this.ensureOrderForInvoice(invoiceId).catch(() => null);
+        if (result && !result.existed && result.order?.id) {
+          await this.orders.markOrderPaid(result.order.id as string).catch(() => undefined);
+        }
+      });
+    }
+  }
 
   async homepageProducts(categorySlug?: string) {
     const products = await this.orders.listHomepageProducts(categorySlug);
@@ -184,31 +196,9 @@ export class OrdersService {
       status: "UNPAID",
       userId: user.id
     });
-    const order = await this.orders.createOrder({
-      customerSnapshot: customerSnapshot(dto.customer, email, existing?.customerNumber),
-      invoiceId: invoice.id,
-      items: preview.items,
-      setupFeeCents: preview.setupFeeCents,
-      subtotalCents: invoice.subtotalCents,
-      taxAmountCents: invoice.taxAmountCents,
-      totalCents: invoice.totalCents,
-      userId: user.id
-    });
-    if (typeof (this.orders as unknown as { createPendingEntitiesForOrder?: unknown }).createPendingEntitiesForOrder === "function") {
-      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string) => Promise<unknown> }).createPendingEntitiesForOrder(
-        order,
-        invoice.id
-      );
-    }
-    await this.billing.recordAction?.({
-      action: "order.created",
-      metadata: { invoiceId: invoice.id, source: "storefront", totalCents: invoice.totalCents },
-      subject: "order",
-      subjectId: order.id
-    });
-    void this.dispatchOrderEmail(order, invoice, customerSnapshot(dto.customer, email, existing?.customerNumber)).catch(() => undefined);
-
-    return { invoice, order };
+    // Order creation is deferred to payment confirmation time.
+    // The invoice ID doubles as the checkout session ID until payment succeeds.
+    return { invoice, order: { id: invoice.id } };
   }
 
   async createAdminOrder(dto: AdminCreateOrderDto) {
@@ -321,7 +311,13 @@ export class OrdersService {
   async payOrder(id: string, dto: PayOrderDto) {
     const order = await this.orders.findOrderForActivation(id);
     if (!order) {
-      throw new NotFoundException("Order not found");
+      // No Order found — might be a checkout invoice ID (order deferred until payment)
+      try {
+        await this.billing.getInvoice(id);
+      } catch {
+        throw new NotFoundException("Order not found");
+      }
+      return this.payCheckoutInvoice(id, dto);
     }
     if (!order.invoiceId) {
       throw new BadRequestException("Order has no invoice");
@@ -397,6 +393,81 @@ export class OrdersService {
       invoice,
       order: await this.orders.findOrderForActivation(id)
     };
+  }
+
+  private async payCheckoutInvoice(invoiceId: string, dto: PayOrderDto) {
+    let invoice;
+    try {
+      invoice = await this.billing.payInvoice(invoiceId, dto, { processLifecycle: false });
+    } catch (error) {
+      await this.billing.recordAction?.({
+        action: "order.payment_error",
+        metadata: { error: error instanceof Error ? error.message : "Payment failed", invoiceId },
+        subject: "order",
+        subjectId: invoiceId
+      });
+      throw error;
+    }
+    if (invoice.status !== "PAID") {
+      // Redirect-based payment (PayPal/Mollie) — order will be created on confirm-payment
+      return { invoice, order: { id: invoiceId } };
+    }
+    // Synchronous payment (Sandbox/TEST) — create the order now
+    const result = await this.ensureOrderForInvoice(invoiceId);
+    if (result?.order?.id) {
+      const orderId = result.order.id as string;
+      await this.orders.markOrderPaid(orderId, dto.method);
+      await this.orders.markOrderInProgress(orderId, "Payment received. Provisioning is running in the background.");
+    }
+    if (typeof (this.billing as unknown as { onInvoicePaid?: unknown }).onInvoicePaid === "function") {
+      void (this.billing as unknown as { onInvoicePaid: (invoiceId: string, input: { source: string }) => Promise<unknown> })
+        .onInvoicePaid(invoiceId, { source: "gateway" })
+        .catch(() => undefined);
+    }
+    const finalOrder = result?.order?.id ? await this.orders.findOrderForActivation(result.order.id as string) : { id: invoiceId };
+    return { invoice, order: finalOrder };
+  }
+
+  private async ensureOrderForInvoice(invoiceId: string): Promise<{ existed: boolean; order: Record<string, any> } | null> {
+    const invoice = await this.billing.getInvoice(invoiceId).catch(() => null);
+    if (!invoice) return null;
+
+    const existingOrder = (invoice as Record<string, any>).order;
+    if (existingOrder) return { existed: true, order: existingOrder };
+
+    const snapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
+    const items = Array.isArray(snapshot.items) ? (snapshot.items as PricedOrderItem[]) : null;
+    if (!items) return null;
+
+    const cs = isRecord(invoice.customerSnapshot) ? invoice.customerSnapshot : {};
+    const order = await this.orders.createOrder({
+      customerSnapshot: cs,
+      invoiceId,
+      items,
+      setupFeeCents: typeof snapshot.setupFeeCents === "number" ? snapshot.setupFeeCents : 0,
+      subtotalCents: (invoice as Record<string, any>).subtotalCents as number,
+      taxAmountCents: (invoice as Record<string, any>).taxAmountCents as number,
+      totalCents: (invoice as Record<string, any>).totalCents as number,
+      userId: (invoice as Record<string, any>).userId as string
+    });
+
+    if (typeof (this.orders as unknown as { createPendingEntitiesForOrder?: unknown }).createPendingEntitiesForOrder === "function") {
+      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string) => Promise<unknown> }).createPendingEntitiesForOrder(
+        order,
+        invoiceId
+      );
+    }
+
+    await this.billing.recordAction?.({
+      action: "order.created",
+      metadata: { invoiceId, source: "storefront", totalCents: (invoice as Record<string, any>).totalCents },
+      subject: "order",
+      subjectId: order.id
+    });
+
+    void this.dispatchOrderEmail(order, invoice as Record<string, any>, cs).catch(() => undefined);
+
+    return { existed: false, order };
   }
 
   private async priceItems(items: OrderItemDto[]): Promise<PricedOrderItem[]> {
