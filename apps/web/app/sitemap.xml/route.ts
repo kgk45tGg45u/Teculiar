@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const SITE_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? process.env.SITE_URL ?? "https://dezhost.com").replace(/\/$/, "");
+const FALLBACK_SITE_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? process.env.SITE_URL ?? "https://dezhost.com").replace(/\/$/, "");
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 
 const STATIC_PATHS = [
@@ -24,7 +24,21 @@ const STATIC_PATHS = [
 
 export const revalidate = 3600;
 
+async function fetchSiteUrl(): Promise<string> {
+  try {
+    const res = await fetch(`${API_URL}/storefront/settings`, { next: { revalidate: 3600 } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.siteUrl) return String(data.siteUrl).replace(/\/$/, "");
+    }
+  } catch {
+    // fall through to env fallback
+  }
+  return FALLBACK_SITE_URL;
+}
+
 export async function GET() {
+  const SITE_URL = await fetchSiteUrl();
   const now = new Date().toISOString().slice(0, 10);
   const locales = ["de", "en"];
   const urls: string[] = [];

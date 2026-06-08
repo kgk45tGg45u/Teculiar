@@ -8,6 +8,7 @@ import { getLocale } from "../../lib/i18n";
 
 type SiteSettings = {
   siteLogoUrl?: string;
+  siteUrl?: string;
   usdExchangeRate?: number;
   usdBufferCents?: number;
   siteName?: string;
@@ -25,12 +26,15 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? "Dezhost – ethisches Webhosting und IT-Dienstleistungen aus Deutschland. Faire Preise, persönlicher Support, DSGVO-konform."
     : "Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, GDPR compliant.");
   const ogImage = settings?.ogImageStatic;
+  const siteUrl = settings?.siteUrl?.replace(/\/$/, "") || process.env.SITE_URL || "https://www.dezhost.com";
+  const logoUrl = settings?.siteLogoUrl;
   return {
-    metadataBase: new URL(process.env.SITE_URL || "https://www.dezhost.com"),
+    metadataBase: new URL(siteUrl),
     title: { default: siteName, template: `%s ${settings?.ogTitleSuffix || `| ${siteName}`}` },
     description,
     openGraph: {
       siteName,
+      url: siteUrl,
       locale: locale === "de" ? "de_DE" : "en_US",
       type: "website",
       images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: siteName }] : undefined
@@ -38,7 +42,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     twitter: {
       card: "summary_large_image",
       images: ogImage ? [ogImage] : undefined
-    }
+    },
+    other: logoUrl ? { "og:logo": logoUrl } : undefined
   };
 }
 
