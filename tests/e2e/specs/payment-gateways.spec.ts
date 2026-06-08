@@ -891,3 +891,165 @@ test.describe("Webhook handling", () => {
     expect(body.ok).toBe(true);
   });
 });
+
+// ─── Bug fix: middleware - payment-return accessible without auth ──────────────
+
+test.describe("Middleware: payment-return accessible without auth", () => {
+  test("unauthenticated GET /client/billing/payment-return does NOT redirect to /login", async ({ page }) => {
+    // Before the fix, the /client block ran first and redirected to /login.
+    // After the fix, the exception for /client/billing/payment-return runs first.
+    const fakeInvoiceId = "nonexistent-invoice-test-id";
+    const response = await page.goto(`${BASE}/client/billing/payment-return?invoiceId=${fakeInvoiceId}`, {
+      waitUntil: "commit"
+    });
+    // Must NOT be redirected to /login
+    expect(page.url()).not.toMatch(/\/login/);
+    // Must land on the payment-return page (200 or render the page)
+    expect(response?.status()).not.toBe(302);
+    await page.waitForLoadState("domcontentloaded");
+    // Page should say "Payment" (the h1), not the login form
+    await expect(page.locator("h1")).not.toContainText(/login|anmelden/i, { timeout: 5_000 });
+  });
+
+  test("payment-return page shows cancel/fail message and new-order link for unknown invoice", async ({ page }) => {
+    // Mock the confirm-payment endpoint to return FAILED (simulating a canceled PayPal order)
+    await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "FAILED", invoice: { id: "fake-id" } })
+      });
+    });
+
+    await page.goto(`${BASE}/client/billing/payment-return?invoiceId=fake-canceled-order`);
+    await page.waitForLoadState("networkidle");
+
+    // Must not redirect to /login
+    expect(page.url()).not.toMatch(/\/login/);
+
+    // Should show the failure message
+    await expect(page.locator("body")).toContainText(/not completed|try again|new order/i, { timeout: 8_000 });
+
+    // Should show a "place new order" or "go back" button
+    const retryLink = page.locator("a").filter({ hasText: /new order|back|home|kontakt|support/i });
+    await expect(retryLink.first()).toBeVisible({ timeout: 5_000 });
+  });
+});
+
+// ─── Bug fix: radio button grouping ──────────────────────────────────────────
+
+test.describe("Payment gateway radio grouping", () => {
+  test("only one payment gateway is visually selected at a time", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    const methods = gateways.map((g) => g.method);
+    if (methods.length < 2) { test.skip(true, "Need at least 2 payment gateways for this test"); return; }
+
+    // All radio inputs must have the same name attribute to form a group
+    const radios = page.locator('input[type="radio"][value]');
+    const count = await radios.count();
+    expect(count).toBeGreaterThanOrEqual(2);
+
+    for (let i = 0; i < count; i++) {
+      const name = await radios.nth(i).getAttribute("name");
+      expect(name).toBe("paymentMethod");
+    }
+
+    // Click a second gateway by its parent label (radio input is visually hidden; label is the clickable card)
+    const secondRadio = radios.nth(1);
+    const secondValue = await secondRadio.getAttribute("value");
+    // Click via the parent label element to simulate real user interaction on the card
+    const secondLabel = page.locator(`label:has(input[type="radio"][value="${secondValue}"])`);
+    await secondLabel.first().click();
+
+    // All other radios must not be checked
+    for (let i = 0; i < count; i++) {
+      const r = radios.nth(i);
+      const v = await r.getAttribute("value");
+      if (v === secondValue) {
+        await expect(r).toBeChecked();
+      } else {
+        await expect(r).not.toBeChecked();
+      }
+    }
+  });
+});
+
+// ─── Bug fix: payment gateway UI redesign (logo icons) ───────────────────────
+
+test.describe("Payment gateway icon-based UI", () => {
+  test("BANK_TRANSFER card does not show 'VISA' or 'MC' text", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "BANK_TRANSFER")) {
+      test.skip(true, "Bank wire not enabled in storefront"); return;
+    }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    // Find the BANK_TRANSFER card label
+    const bankLabel = page.locator('label:has(input[value="BANK_TRANSFER"])');
+    if (await bankLabel.count() === 0) { test.skip(true, "BANK_TRANSFER label not found"); return; }
+
+    const bankCardText = await bankLabel.first().textContent() ?? "";
+    // Must NOT show Visa/MC text (the old bug)
+    expect(bankCardText).not.toMatch(/VISA\s*·\s*MC/i);
+    expect(bankCardText).not.toMatch(/visa.*mc|visa.*mastercard/i);
+  });
+
+  test("payment gateway cards use logo/icon spans (not plain text marks)", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    // Each card should have a .paymentLogo span (contains SVG or icon, not raw text)
+    const logoSpans = page.locator('[class*="paymentLogo"]');
+    const count = await logoSpans.count();
+    // At least one gateway must have the redesigned logo container
+    expect(count).toBeGreaterThan(0);
+
+    // SVGs or images should be inside the logo spans
+    const svgCount = await page.locator('[class*="paymentLogo"] svg').count();
+    // At least one SVG logo must be rendered
+    expect(svgCount).toBeGreaterThan(0);
+  });
+
+  test("clicking a payment gateway card selects only that gateway", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (gateways.length < 2) { test.skip(true, "Need at least 2 gateways"); return; }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    // Click each gateway card and verify only that card gets the selected CSS class
+    for (const gw of gateways.slice(0, Math.min(gateways.length, 3))) {
+      const label = page.locator(`label:has(input[value="${gw.method}"])`);
+      if (await label.count() === 0) continue;
+      await label.first().click();
+
+      // The clicked label must have the selected class
+      await expect(label.first()).toHaveClass(/paymentSelected/, { timeout: 3_000 });
+
+      // Other labels must NOT have the selected class
+      for (const other of gateways) {
+        if (other.method === gw.method) continue;
+        const otherLabel = page.locator(`label:has(input[value="${other.method}"])`);
+        if (await otherLabel.count() === 0) continue;
+        await expect(otherLabel.first()).not.toHaveClass(/paymentSelected/);
+      }
+    }
+  });
+});
