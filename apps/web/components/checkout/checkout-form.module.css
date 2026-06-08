@@ -664,6 +664,35 @@
   text-underline-offset: 2px;
 }
 
+.bankDetails {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: rgba(21, 127, 59, 0.05);
+  border: 1px solid rgba(21, 127, 59, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.bankRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+  align-items: baseline;
+}
+
+.bankRow dt {
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.bankRow dd {
+  margin: 0;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
 /* ── Hosting modal ── */
 .modalBackdrop {
   position: fixed;

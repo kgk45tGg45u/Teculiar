@@ -753,6 +753,119 @@ test.describe("Payment method conflict prevention", () => {
   });
 });
 
+// ─── Bank Wire full UI flow (regression: was showing "Invalid credentials") ────
+
+test.describe("Bank Wire checkout UI (full flow)", () => {
+  test("bank wire checkout: new user sees pending message with bank details, NOT 'Invalid credentials'", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "BANK_TRANSFER")) {
+      test.skip(true, "Bank wire not enabled in storefront"); return;
+    }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    const bankRadio = page.locator('input[type="radio"][value="BANK_TRANSFER"]');
+    if (await bankRadio.count() === 0) { test.skip(true, "Bank wire radio not visible"); return; }
+
+    await fillCheckoutForm(page, { email: email("bankwire-ui"), paymentMethod: "BANK_TRANSFER" });
+    await page.click('button[type="submit"]');
+
+    // Wait for UI to respond — should show pending message, NOT "Invalid credentials"
+    await page.waitForTimeout(15_000);
+
+    const bodyText = await page.locator("body").textContent() ?? "";
+    // Must not show "Invalid credentials" (the old bug)
+    expect(bodyText).not.toContain("Invalid credentials");
+    // Should show a pending/bank-wire message or IBAN
+    const hasPendingMsg = /IBAN|pending|Auftrag|ausstehend|überweisen|bank/i.test(bodyText);
+    expect(hasPendingMsg).toBe(true);
+  });
+
+  test("SEPA checkout: new user sees pending message, NOT 'Invalid credentials'", async ({ page }) => {
+    const product = await getTestProduct(page);
+    if (!product) { test.skip(true, "No hosting product found"); return; }
+
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "SEPA")) {
+      test.skip(true, "SEPA gateway not enabled"); return;
+    }
+
+    await page.goto(`${BASE}/de/order/${product.id}`);
+    await page.waitForLoadState("networkidle");
+
+    const sepaRadio = page.locator('input[type="radio"][value="SEPA"]');
+    if (await sepaRadio.count() === 0) { test.skip(true, "SEPA radio not visible"); return; }
+
+    await fillCheckoutForm(page, { email: email("sepa-ui"), paymentMethod: "SEPA" });
+
+    // Fill IBAN
+    const ibanInput = page.locator('input#sepaIban, input[placeholder*="IBAN"], input[id*="sepa"]');
+    if (await ibanInput.count() > 0) {
+      await ibanInput.first().fill("NL55INGB0000000000");
+    }
+
+    await page.click('button[type="submit"]');
+
+    // Wait for UI to respond — should show pending message, NOT "Invalid credentials"
+    await page.waitForTimeout(15_000);
+
+    const bodyText = await page.locator("body").textContent() ?? "";
+    expect(bodyText).not.toContain("Invalid credentials");
+    // Should show a pending message about SEPA
+    const hasPendingMsg = /SEPA|pending|Auftrag|ausstehend|Lastschrift/i.test(bodyText);
+    expect(hasPendingMsg).toBe(true);
+  });
+});
+
+// ─── PayPal add-funds redirect mode ──────────────────────────────────────────
+
+test.describe("PayPal add-funds (redirect mode)", () => {
+  test("add-funds with PayPal returns a redirect URL (not stuck in SDK mode)", async ({ page }) => {
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    if (!gateways.some((g) => g.method === "PAYPAL")) {
+      test.skip(true, "PayPal gateway not enabled"); return;
+    }
+
+    const token = await clientToken(page);
+    if (!token) { test.skip(true, "Client login failed — set E2E_CLIENT_EMAIL and E2E_CLIENT_PASSWORD"); return; }
+
+    const r = await page.request.post(`${API}/billing/add-funds`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      data: { amountCents: 500, method: "PAYPAL" }
+    });
+    expect(r.ok()).toBeTruthy();
+    const body = await r.json() as { paymentRedirectUrl?: string; status?: string };
+    // Must return a redirect URL pointing to PayPal (redirect mode, not SDK mode)
+    expect(body.paymentRedirectUrl).toMatch(/paypal\.com/);
+  });
+});
+
+// ─── OG image meta tag URL ────────────────────────────────────────────────────
+
+test.describe("OG image meta tag URL", () => {
+  test("homepage og:image URL uses www domain (no 302 redirect loop)", async ({ page }) => {
+    const r = await page.request.get(`${BASE}/de`);
+    const html = await r.text();
+    const match = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/);
+    const ogImageUrl = match?.[1] ?? "";
+
+    if (!ogImageUrl) {
+      // Some pages may not have OG images — skip rather than fail
+      test.skip(true, "No og:image meta tag found on homepage");
+      return;
+    }
+
+    // The URL must not use the bare dezhost.com domain (no-www redirects to www)
+    expect(ogImageUrl).not.toMatch(/^https?:\/\/dezhost\.com\//);
+    // Must use www.dezhost.com (no redirect)
+    expect(ogImageUrl).toMatch(/www\.dezhost\.com/);
+  });
+});
+
 // ─── Webhook handling ─────────────────────────────────────────────────────────
 
 test.describe("Webhook handling", () => {

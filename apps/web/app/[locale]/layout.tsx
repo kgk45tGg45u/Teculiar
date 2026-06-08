@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     : "Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, GDPR compliant.");
   const ogImage = settings?.ogImageStatic;
   return {
-    metadataBase: new URL(process.env.SITE_URL || "https://dezhost.com"),
+    metadataBase: new URL(process.env.SITE_URL || "https://www.dezhost.com"),
     title: { default: siteName, template: `%s ${settings?.ogTitleSuffix || `| ${siteName}`}` },
     description,
     openGraph: {

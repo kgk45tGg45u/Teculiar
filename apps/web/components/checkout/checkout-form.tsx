@@ -87,6 +87,7 @@ export function CheckoutForm({
   const [vatPercent, setVatPercent] = useState(0);
   const [termsUrl, setTermsUrl] = useState("");
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
+  const [pendingBankGateway, setPendingBankGateway] = useState<ApiPaymentGateway | undefined>(undefined);
   const uiLocale = checkoutLocale(locale);
   const copy = checkoutCopy[uiLocale];
   const termsHref = termsUrl || `/${checkoutLocale(locale)}/legal/agb`;
@@ -320,6 +321,19 @@ export function CheckoutForm({
       if (redirectUrl) {
         notify.info(copy.paymentRedirect);
         window.location.assign(redirectUrl);
+        return;
+      }
+      const invoiceStatus = (paymentResponse.invoice as { status?: string } | undefined)?.status;
+      if (invoiceStatus === "PENDING") {
+        if (profile) {
+          window.location.assign(`/client?order=${checkoutOrderId}`);
+          return;
+        }
+        const bankGw = paymentMethod === "BANK_TRANSFER" ? paymentGateways.find((g) => g.method === "BANK_TRANSFER") : undefined;
+        setPendingBankGateway(bankGw);
+        const pendingMsg = paymentMethod === "BANK_TRANSFER" ? copy.bankTransferPending : copy.sepaPending;
+        notify.info(pendingMsg);
+        setState({ status: "success", message: pendingMsg, orderId: checkoutOrderId });
         return;
       }
       if (!profile) {
@@ -767,10 +781,27 @@ export function CheckoutForm({
             {state.status !== "idle" ? (
               <p className={`${styles.statusMsg} ${styles[state.status]}`}>
                 {state.message}
-                {state.status === "success" ? (
+                {state.status === "success" && !pendingBankGateway ? (
                   <> <a href={`/client?order=${state.orderId}`} className={styles.portalLink}>{copy.portalLink} →</a></>
                 ) : null}
               </p>
+            ) : null}
+            {pendingBankGateway?.config?.iban ? (
+              <dl className={styles.bankDetails}>
+                {pendingBankGateway.config.accountHolder ? (
+                  <div className={styles.bankRow}><dt>{copy.bankAccountHolder}:</dt><dd>{pendingBankGateway.config.accountHolder}</dd></div>
+                ) : null}
+                {pendingBankGateway.config.bankName ? (
+                  <div className={styles.bankRow}><dt>{copy.bankNameLabel}:</dt><dd>{pendingBankGateway.config.bankName}</dd></div>
+                ) : null}
+                <div className={styles.bankRow}><dt>IBAN:</dt><dd>{pendingBankGateway.config.iban}</dd></div>
+                {pendingBankGateway.config.bic ? (
+                  <div className={styles.bankRow}><dt>BIC:</dt><dd>{pendingBankGateway.config.bic}</dd></div>
+                ) : null}
+                {pendingBankGateway.config.referenceNote ? (
+                  <div className={styles.bankRow}><dt>{copy.bankReference}:</dt><dd>{pendingBankGateway.config.referenceNote}</dd></div>
+                ) : null}
+              </dl>
             ) : null}
           </div>
         </form>
@@ -1213,6 +1244,11 @@ function splitProfilePhone(phone?: string) {
 const checkoutCopy = {
   de: {
     addHosting: "+ Hosting hinzufügen",
+    bankAccountHolder: "Kontoinhaber",
+    bankNameLabel: "Bank",
+    bankReference: "Verwendungszweck",
+    bankTransferPending: "Ihre Bestellung wurde aufgenommen. Bitte überweisen Sie den Betrag auf unser Konto. Sie erhalten Ihre Zugangsdaten per E-Mail nach Zahlungseingang.",
+    sepaPending: "Ihre Bestellung wurde aufgenommen. Die SEPA-Lastschrift wird innerhalb von 1–3 Werktagen verarbeitet. Sie erhalten Ihre Zugangsdaten per E-Mail nach Bestätigung.",
     addHostingTitle: "Hosting hinzufügen",
     addNameServers: "+ Eigene Name-Server hinzufügen",
     addressTitle: "Adresse",
@@ -1307,6 +1343,11 @@ const checkoutCopy = {
   },
   en: {
     addHosting: "+ Add hosting",
+    bankAccountHolder: "Account holder",
+    bankNameLabel: "Bank",
+    bankReference: "Reference",
+    bankTransferPending: "Your order has been placed. Please transfer the payment to our bank account. You will receive your login details by email once payment is confirmed.",
+    sepaPending: "Your order has been placed. The SEPA direct debit will be processed within 1–3 business days. You will receive your login details by email once confirmed.",
     addHostingTitle: "Add hosting",
     addNameServers: "+ Add custom name servers",
     addressTitle: "Address",

@@ -365,7 +365,9 @@ export class BillingService {
     const normalizedIban = input.iban ? validateAndNormalizeIban(input.iban) : undefined;
     const payment: PayInvoiceDto = input.method === "SANDBOX"
       ? { method: "CREDIT_CARD", paymentMethodId: "sandbox" }
-      : { method: input.method, paymentMethodId: input.method.toLowerCase(), ...(normalizedIban ? { iban: normalizedIban } : {}) } as PayInvoiceDto;
+      : input.method === "PAYPAL"
+        ? { method: "PAYPAL", paymentMethodId: "checkout" }
+        : { method: input.method, paymentMethodId: input.method.toLowerCase(), ...(normalizedIban ? { iban: normalizedIban } : {}) } as PayInvoiceDto;
     const invoice = await this.createInvoice({
       buyerCountryCode: "DE",
       customerSnapshot: customerSnapshotFromBillingProfile(user),
