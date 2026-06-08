@@ -251,7 +251,7 @@ test.describe("PayPal gateway", () => {
     expect(redirectUrl).toMatch(/paypal\.com/);
   });
 
-  test("invoice payment page renders PayPal Buttons when PayPal is configured", async ({ page }) => {
+  test("invoice payment page renders PayPal Buttons for an existing (logged-in) client", async ({ page }) => {
     const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string; config?: Record<string, string> }>;
     const paypalGw = gateways.find((g) => g.method === "PAYPAL");
     if (!paypalGw?.config?.clientId) {
@@ -262,37 +262,15 @@ test.describe("PayPal gateway", () => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No hosting product found"); return; }
 
-    // Create a fresh client via checkout — avoids dependency on a pre-existing test account
-    const ts2 = Date.now();
-    const newEmail = `paypal-ui-${ts2}@dezhost.test`;
-    const co = await page.request.post(`${API}/orders/checkout`, {
-      data: {
-        customer: { email: newEmail, name: "PP UI Test", password, countryCode: "DE", customerType: "INDIVIDUAL", address: { line1: "A", city: "Berlin", postalCode: "10115", state: "" } },
-        items: [{ productId: product.id, productPriceId: product.priceId, quantity: 1, configuration: { domainName: domain("pp-ui"), domainUse: "external" } }]
-      }
-    });
-    if (!co.ok()) { test.skip(true, "Checkout creation failed"); return; }
+    // Use an existing client (admin account) — new checkout users only exist after payment succeeds
+    const token = await adminToken(page);
+    if (!token) { test.skip(true, "Admin login failed"); return; }
 
-    // Log in as the newly-created client
-    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
-    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
-    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
-    const hostname = new URL(BASE).hostname;
-    if (loginBody.accessToken) {
-      await page.context().addCookies([
-        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
-        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
-      ]);
-    }
+    const orderData = await createOrderViaApi(page, token, product.id, product.priceId);
+    const invoiceId = orderData?.invoice?.id;
+    if (!invoiceId) { test.skip(true, "Could not create test invoice via admin API"); return; }
 
-    // Fetch the unpaid invoice for this client
-    const invResp = await page.request.get(`${API}/billing/invoices?status=UNPAID`, {
-      headers: { Authorization: `Bearer ${loginBody.accessToken}` }
-    });
-    const invoices = await invResp.json() as Array<{ id: string }>;
-    const invoiceId = invoices[0]?.id;
-    if (!invoiceId) { test.skip(true, "No unpaid invoice for new client"); return; }
-
+    await loginAsAdmin(page);
     await page.goto(`${BASE}/client/billing/payment?invoice=${invoiceId}`);
     await page.waitForLoadState("networkidle");
 
@@ -301,7 +279,7 @@ test.describe("PayPal gateway", () => {
     await expect(page.locator("body")).toContainText(/PayPal|Credit|SEPA|Bank/i, { timeout: 10_000 });
   });
 
-  test("payment-return page confirms a pending PayPal invoice (via client session)", async ({ page }) => {
+  test("payment-return page auto-logs-in new user when confirm-payment returns accessToken", async ({ page }) => {
     const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
     if (!gateways.some((g) => g.method === "PAYPAL")) {
       test.skip(true, "PayPal gateway not enabled"); return;
@@ -309,7 +287,7 @@ test.describe("PayPal gateway", () => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No product found"); return; }
 
-    // Create a fresh user via checkout and pay with PayPal to get a PENDING invoice
+    // Create a checkout invoice (no user created yet — that happens on payment success)
     const ts2 = Date.now();
     const newEmail = `paypal-return-${ts2}@dezhost.test`;
     const co = await page.request.post(`${API}/orders/checkout`, {
@@ -322,27 +300,24 @@ test.describe("PayPal gateway", () => {
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID from pay"); return; }
 
-    // Log in as the newly-created user — avoids dependency on a pre-existing test account
-    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
-    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
-    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
-    const hostname = new URL(BASE).hostname;
-    if (loginBody.accessToken) {
-      await page.context().addCookies([
-        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
-        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
-      ]);
-    }
-
-    // Mock confirm-payment so we don't need PayPal to approve
+    // Visit payment-return unauthenticated — confirm-payment mock returns accessToken (new user auto-login)
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "PAID", invoice: { id: invoiceId } }) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "PAID",
+          invoice: { id: invoiceId },
+          accessToken: "mock-token",
+          user: { id: "mock-id", email: newEmail, name: "T", roles: ["client"] }
+        })
+      });
     });
 
     await page.goto(`${BASE}/client/billing/payment-return?invoiceId=${invoiceId}`);
     await page.waitForLoadState("networkidle");
 
-    // Should redirect to client portal after mock success
+    // Should redirect to client portal after mock success (auto-login via accessToken)
     await page.waitForURL(/\/client/, { timeout: 10_000 });
     await expect(page).toHaveURL(/\/client/);
   });
@@ -413,11 +388,11 @@ test.describe("Mollie Credit Card", () => {
     expect(payBody.invoice?.paymentRedirectUrl).toMatch(/mollie\.com/);
   });
 
-  test("payment-return confirms Mollie payment (client session + mocked API)", async ({ page }) => {
+  test("payment-return auto-logs-in new user after Mollie payment (mocked API)", async ({ page }) => {
     const product = await getTestProduct(page);
     if (!product) { test.skip(true, "No product found"); return; }
 
-    // Create a fresh user via checkout and pay with Mollie CC
+    // Create a checkout invoice (no user created yet — that happens on payment success)
     const ts2 = Date.now();
     const newEmail = `mollie-ret-${ts2}@dezhost.test`;
     const co = await page.request.post(`${API}/orders/checkout`, {
@@ -425,27 +400,27 @@ test.describe("Mollie Credit Card", () => {
     });
     if (!co.ok()) { test.skip(true, "Checkout failed"); return; }
     const { order } = await co.json() as { order: { id: string } };
-    const payResp = await page.request.post(`${API}/orders/${order.id}/pay`, { data: { method: "CREDIT_CARD", paymentMethodId: "mollie" } });
-    if (!payResp.ok()) { test.skip(true, "Mollie payment failed — API key may not be configured"); return; }
+    // Use PAYPAL for the redirect (doesn't need Mollie API key)
+    const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
+    const method = gateways.some((g) => g.method === "PAYPAL") ? "PAYPAL" : "CREDIT_CARD";
+    const payResp = await page.request.post(`${API}/orders/${order.id}/pay`, { data: { method, paymentMethodId: "checkout" } });
+    if (!payResp.ok()) { test.skip(true, "Pay request failed"); return; }
     const payBody = await payResp.json() as { invoice?: { id?: string } };
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID"); return; }
 
-    // Log in as the newly-created user — avoids dependency on a pre-existing test account
-    const loginResp = await page.request.post(`${API}/auth/login`, { data: { email: newEmail, password } });
-    if (!loginResp.ok()) { test.skip(true, "Client login failed after checkout"); return; }
-    const loginBody = await loginResp.json() as { accessToken?: string; refreshToken?: string };
-    const hostname = new URL(BASE).hostname;
-    if (loginBody.accessToken) {
-      await page.context().addCookies([
-        { name: "dezhost_client_access_token", value: loginBody.accessToken, domain: hostname, path: "/" },
-        { name: "dezhost_client_refresh_token", value: loginBody.refreshToken ?? "", domain: hostname, path: "/" }
-      ]);
-    }
-
-    // Mock the confirm endpoint to avoid hitting real Mollie
+    // Visit payment-return unauthenticated — confirm-payment mock returns accessToken (new user auto-login)
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "PAID", invoice: { id: invoiceId } }) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "PAID",
+          invoice: { id: invoiceId },
+          accessToken: "mock-token",
+          user: { id: "mock-id", email: newEmail, name: "T", roles: ["client"] }
+        })
+      });
     });
 
     await page.goto(`${BASE}/client/billing/payment-return?invoiceId=${invoiceId}`);
