@@ -31,7 +31,7 @@ export class BillingService {
     this.onCheckoutInvoicePaidHook = fn;
   }
 
-  async createInvoice(dto: CreateInvoiceDto) {
+  async createInvoice(dto: CreateInvoiceDto & { suppressNewInvoiceEmail?: boolean }) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
     const [vatRate, sellerSnapshot, footerLines] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines()]);
     const draft = this.engine.createDraft({
@@ -85,10 +85,12 @@ export class BillingService {
       subject: "invoice",
       subjectId: invoice.id
     }).catch(() => undefined);
-    void this.dispatchInvoiceEmail("new_invoice", invoice, {
-      customerSnapshot: dto.customerSnapshot,
-      userId: dto.userId
-    }).catch(() => undefined);
+    if (!dto.suppressNewInvoiceEmail) {
+      void this.dispatchInvoiceEmail("new_invoice", invoice, {
+        customerSnapshot: dto.customerSnapshot,
+        userId: dto.userId
+      }).catch(() => undefined);
+    }
     return invoice;
   }
 

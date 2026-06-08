@@ -194,8 +194,9 @@ export class OrdersService implements OnModuleInit {
         totalCents: preview.totalCents
       },
       status: "UNPAID",
+      suppressNewInvoiceEmail: true,
       userId: user.id
-    });
+    } as Parameters<typeof this.billing.createInvoice>[0]);
     // Order creation is deferred to payment confirmation time.
     // The invoice ID doubles as the checkout session ID until payment succeeds.
     return { invoice, order: { id: invoice.id } };

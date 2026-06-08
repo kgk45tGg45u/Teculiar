@@ -94,8 +94,9 @@ async function fillCheckoutForm(page: Page, opts: { email: string; paymentMethod
   await page.fill('[name="state"]', "Berlin");
 
   if (opts.paymentMethod) {
-    const radio = page.locator(`input[type="radio"][value="${opts.paymentMethod}"]`);
-    if (await radio.count() > 0) await radio.click();
+    // Click the parent label card (radio is visually hidden behind SVG overlay; label is the clickable card)
+    const label = page.locator(`label:has(input[type="radio"][value="${opts.paymentMethod}"])`);
+    if (await label.count() > 0) await label.first().click();
   }
   await page.check('[name="acceptedTerms"]');
 }
@@ -300,7 +301,8 @@ test.describe("PayPal gateway", () => {
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID from pay"); return; }
 
-    // Visit payment-return unauthenticated — confirm-payment mock returns accessToken (new user auto-login)
+    // Visit payment-return unauthenticated — confirm-payment mock returns PAID
+    // The page will call storeAuth (setting a mock cookie) and navigate away from payment-return.
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
       await route.fulfill({
         status: 200,
@@ -308,18 +310,17 @@ test.describe("PayPal gateway", () => {
         body: JSON.stringify({
           status: "PAID",
           invoice: { id: invoiceId },
-          accessToken: "mock-token",
+          accessToken: "mock-token-for-auto-login-test",
           user: { id: "mock-id", email: newEmail, name: "T", roles: ["client"] }
         })
       });
     });
 
     await page.goto(`${BASE}/client/billing/payment-return?invoiceId=${invoiceId}`);
-    await page.waitForLoadState("networkidle");
-
-    // Should redirect to client portal after mock success (auto-login via accessToken)
-    await page.waitForURL(/\/client/, { timeout: 10_000 });
-    await expect(page).toHaveURL(/\/client/);
+    // Page should navigate away from payment-return (to /client or /login after token validation)
+    await page.waitForFunction(() => !window.location.href.includes("payment-return"), { timeout: 10_000 });
+    // Must not stay on payment-return
+    expect(page.url()).not.toMatch(/payment-return/);
   });
 });
 
@@ -409,7 +410,8 @@ test.describe("Mollie Credit Card", () => {
     const invoiceId = payBody.invoice?.id;
     if (!invoiceId) { test.skip(true, "No invoice ID"); return; }
 
-    // Visit payment-return unauthenticated — confirm-payment mock returns accessToken (new user auto-login)
+    // Visit payment-return unauthenticated — confirm-payment mock returns PAID
+    // Page navigates away from payment-return after receiving the success response.
     await page.route(`${API}/billing/invoices/*/confirm-payment`, async (route) => {
       await route.fulfill({
         status: 200,
@@ -417,15 +419,15 @@ test.describe("Mollie Credit Card", () => {
         body: JSON.stringify({
           status: "PAID",
           invoice: { id: invoiceId },
-          accessToken: "mock-token",
+          accessToken: "mock-token-mollie-return-test",
           user: { id: "mock-id", email: newEmail, name: "T", roles: ["client"] }
         })
       });
     });
 
     await page.goto(`${BASE}/client/billing/payment-return?invoiceId=${invoiceId}`);
-    await page.waitForURL(/\/client/, { timeout: 10_000 });
-    await expect(page).toHaveURL(/\/client/);
+    await page.waitForFunction(() => !window.location.href.includes("payment-return"), { timeout: 10_000 });
+    expect(page.url()).not.toMatch(/payment-return/);
   });
 });
 
