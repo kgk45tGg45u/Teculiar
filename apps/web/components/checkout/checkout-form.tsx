@@ -358,6 +358,9 @@ export function CheckoutForm({
       const message = error instanceof Error ? error.message : copy.orderFailed;
       setState({ status: "error", message });
       notify.error(message);
+      if (error instanceof Error && error.message.toLowerCase().includes("already registered")) {
+        setLoginOpen(true);
+      }
     }
   }
 
@@ -740,11 +743,12 @@ export function CheckoutForm({
                 <label className={paymentMethod === gateway.method ? styles.paymentSelected : styles.paymentCard} key={gateway.method}>
                   <input
                     checked={paymentMethod === gateway.method}
+                    name="paymentMethod"
                     onChange={() => setPaymentMethod(gateway.method)}
                     type="radio"
                     value={gateway.method}
                   />
-                  <span className={styles.paymentImage}>{paymentMark(gateway.method)}</span>
+                  <span className={styles.paymentLogo}>{paymentLogo(gateway.method, gateway.title)}</span>
                   <strong className={styles.paymentLabel}>{gateway.title}</strong>
                 </label>
               ))}
@@ -1451,11 +1455,64 @@ const defaultPaymentGateways: ApiPaymentGateway[] = [
   { method: "SEPA", title: "SEPA Lastschrift" }
 ];
 
-function paymentMark(method: string) {
-  if (method === "SANDBOX") return "TEST";
-  if (method === "PAYPAL") return "PayPal";
-  if (method === "SEPA") return "SEPA";
-  return "VISA · MC";
+function paymentLogo(method: string, title: string) {
+  if (method === "PAYPAL") {
+    return (
+      <svg viewBox="0 0 88 28" width="88" height="28">
+        <text x="2" y="22" fontSize="22" fontWeight="900" fontFamily="Arial Black,Arial,sans-serif" fill="#003087">Pay</text>
+        <text x="47" y="22" fontSize="22" fontWeight="900" fontFamily="Arial Black,Arial,sans-serif" fill="#009cde">Pal</text>
+      </svg>
+    );
+  }
+  if (method === "CREDIT_CARD") {
+    return (
+      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+        <svg width="44" height="28" viewBox="0 0 44 28">
+          <rect width="44" height="28" rx="4" fill="#1a1f71"/>
+          <text x="22" y="20" textAnchor="middle" fill="white" fontSize="14" fontWeight="900" fontStyle="italic" fontFamily="Arial,sans-serif" letterSpacing="1">VISA</text>
+        </svg>
+        <svg width="44" height="28" viewBox="0 0 44 28">
+          <rect width="44" height="28" rx="4" fill="#f5f5f5" stroke="#ddd" strokeWidth="0.5"/>
+          <circle cx="17" cy="14" r="9.5" fill="#EB001B"/>
+          <circle cx="27" cy="14" r="9.5" fill="#F79E1B"/>
+        </svg>
+      </div>
+    );
+  }
+  if (method === "SEPA") {
+    return (
+      <svg viewBox="0 0 80 28" width="80" height="28">
+        <rect width="80" height="28" rx="4" fill="#003087"/>
+        <text x="40" y="19" textAnchor="middle" fontSize="13" fontWeight="800" fontFamily="Arial,sans-serif" fill="white" letterSpacing="2">SEPA €</text>
+      </svg>
+    );
+  }
+  if (method === "BANK_TRANSFER") {
+    return (
+      <svg viewBox="0 0 42 36" width="42" height="36">
+        <g fill="#1a1f71">
+          <polygon points="21,1 41,12 1,12"/>
+          <rect x="1" y="12" width="40" height="2.5"/>
+          <rect x="4" y="15" width="7" height="13"/>
+          <rect x="13" y="15" width="7" height="13"/>
+          <rect x="22" y="15" width="7" height="13"/>
+          <rect x="31" y="15" width="7" height="13"/>
+          <rect x="1" y="28" width="40" height="5"/>
+        </g>
+      </svg>
+    );
+  }
+  if (method === "SANDBOX") {
+    return (
+      <svg viewBox="0 0 60 28" width="60" height="28">
+        <rect width="60" height="28" rx="6" fill="#6366f1"/>
+        <text x="30" y="19" textAnchor="middle" fontSize="11" fontWeight="700" fontFamily="Arial,sans-serif" fill="white" letterSpacing="1">TEST</text>
+      </svg>
+    );
+  }
+  return (
+    <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "var(--ink)", letterSpacing: "0.04em", padding: "4px 8px" }}>{title}</span>
+  );
 }
 
 function productHighlights(product: ApiProduct) {

@@ -37,18 +37,10 @@ export function middleware(request: NextRequest) {
     return nextWithPath(request);
   }
 
-  if (pathname.startsWith("/client")) {
-    if (!hasClientToken) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-      return NextResponse.redirect(url);
-    }
-    return nextWithPath(request);
-  }
-
   // Payment return pages must be accessible without a session so new customers
   // can complete the auto-login flow after paying with PayPal / Mollie.
+  // This MUST come before the /client block, otherwise the /client guard redirects
+  // unauthenticated visitors to /login before this exception is ever evaluated.
   if (
     pathname === "/login" ||
     pathname === "/admin/login" ||
@@ -57,6 +49,16 @@ export function middleware(request: NextRequest) {
     pathname === "/client/billing/payment-method-return"
   ) {
     return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/client")) {
+    if (!hasClientToken) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(url);
+    }
+    return nextWithPath(request);
   }
 
   const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
