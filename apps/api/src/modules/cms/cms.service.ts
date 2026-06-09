@@ -163,10 +163,15 @@ export class CmsService {
   // --- AI Blog ---
 
   async triggerAiBlogPost(adminId: string) {
-    // Uses cronSettings to get unmasked deepseekApiKey
     const settings = await this.billing.cronSettings();
-    const result = await this.aiBlog.generateArticle(settings, adminId);
-    return { id: result?.id, ok: true, title: result?.title };
+    try {
+      const result = await this.aiBlog.generateArticle(settings, adminId);
+      return { id: result?.id, ok: true, title: result?.title };
+    } catch (err) {
+      // Surface the real error message so the admin sees "API key not configured"
+      // instead of the generic 500 "Internal server error".
+      throw new BadRequestException(err instanceof Error ? err.message : "Generation failed");
+    }
   }
 
   async generateAiBlogPost(settings: AiBlogSettings, authorId: string) {
