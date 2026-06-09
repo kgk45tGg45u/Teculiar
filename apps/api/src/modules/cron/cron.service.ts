@@ -18,6 +18,18 @@ export type CronSettings = {
   invoiceReminderDaysBeforeDue?: number;
   mailboxCheckMinutes?: number;
   ticketAutoCloseHours?: number;
+  deepseekApiKey?: string;
+  aiBlogEnabled?: boolean;
+  aiBlogArticlesPerDay?: number;
+  aiBlogIntervalHours?: number;
+  aiBlogWordCount?: number;
+  aiBlogLanguage?: string;
+  aiBlogTopicsPool?: string;
+  aiBlogTitlePrompt?: string;
+  aiBlogContentPrompt?: string;
+  aiBlogExcerptPrompt?: string;
+  aiBlogTagsPrompt?: string;
+  aiBlogKeywordsPrompt?: string;
 };
 
 type CronRunItem = {
@@ -93,6 +105,13 @@ export class CronService {
       );
 
       await this.runDaily("sitemap", now, ran, skipped, () => this.generateSitemap());
+
+      if (settings.aiBlogEnabled && settings.deepseekApiKey) {
+        const intervalMs = hours(settings.aiBlogIntervalHours, 8);
+        await this.maybeRunTimed("aiBlogPost", intervalMs, now, ran, skipped, () =>
+          this.cms.generateAiBlogPost(settings, "system")
+        );
+      }
 
       await this.billing.recordAction({
         action: "cron.completed",

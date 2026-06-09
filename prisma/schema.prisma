@@ -903,8 +903,50 @@ model Content {
   updatedAt      DateTime      @updatedAt
   author         User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
   translations   Translation[]
+  blogCategories ContentCategory[]
+  blogTags       ContentTag[]
 
   @@unique([type, locale, slug])
+}
+
+model BlogCategory {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String
+  locale    String            @default("de")
+  createdAt DateTime          @default(now())
+  contents  ContentCategory[]
+
+  @@unique([slug, locale])
+}
+
+model BlogTag {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String
+  locale    String       @default("de")
+  createdAt DateTime     @default(now())
+  contents  ContentTag[]
+
+  @@unique([slug, locale])
+}
+
+model ContentCategory {
+  contentId  String
+  categoryId String
+  content    Content      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  category   BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, categoryId])
+}
+
+model ContentTag {
+  contentId String
+  tagId     String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag       BlogTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, tagId])
 }
 
 model Announcement {

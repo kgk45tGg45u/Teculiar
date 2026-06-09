@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { BillingService } from "../billing/billing.service";
+import { AiBlogService, type AiBlogSettings } from "./ai-blog.service";
 import { AutoTranslateDto } from "./dto/auto-translate.dto";
 import { CreateAnnouncementDto } from "./dto/create-announcement.dto";
 import { CreateContentDto } from "./dto/create-content.dto";
@@ -13,7 +15,9 @@ import { TranslationService } from "./translation.service";
 export class CmsService {
   constructor(
     private readonly cms: CmsRepository,
-    private readonly translations: TranslationService
+    private readonly translations: TranslationService,
+    private readonly aiBlog: AiBlogService,
+    private readonly billing: BillingService
   ) {}
 
   findPage(locale: string, slug: string, countryCode?: string) {
@@ -118,6 +122,71 @@ export class CmsService {
     const fileName = `${Date.now()}-${randomUUID()}${extension}`;
     await writeFile(join(dir, fileName), file.buffer);
     return { imageUrl: `/uploads/blog/${fileName}` };
+  }
+
+  // --- Blog Categories ---
+
+  listBlogCategories(locale: string) {
+    return this.cms.listBlogCategories(locale);
+  }
+
+  createBlogCategory(name: string, locale: string) {
+    return this.cms.createBlogCategory(name, locale);
+  }
+
+  updateBlogCategory(id: string, name: string) {
+    return this.cms.updateBlogCategory(id, name);
+  }
+
+  deleteBlogCategory(id: string) {
+    return this.cms.deleteBlogCategory(id);
+  }
+
+  // --- Blog Tags ---
+
+  listBlogTags(locale: string) {
+    return this.cms.listBlogTags(locale);
+  }
+
+  createBlogTag(name: string, locale: string) {
+    return this.cms.createBlogTag(name, locale);
+  }
+
+  updateBlogTag(id: string, name: string) {
+    return this.cms.updateBlogTag(id, name);
+  }
+
+  deleteBlogTag(id: string) {
+    return this.cms.deleteBlogTag(id);
+  }
+
+  // --- AI Blog ---
+
+  async triggerAiBlogPost(adminId: string) {
+    // Uses cronSettings to get unmasked deepseekApiKey
+    const settings = await this.billing.cronSettings();
+    const result = await this.aiBlog.generateArticle(settings, adminId);
+    return { id: result?.id, ok: true, title: result?.title };
+  }
+
+  async generateAiBlogPost(settings: AiBlogSettings, authorId: string) {
+    const today = await this.cms.countAiPostsToday();
+    const limit = settings.aiBlogArticlesPerDay ?? 3;
+    if (today >= limit) {
+      return { skipped: true, reason: `Daily limit of ${limit} reached (${today} already published today)` };
+    }
+
+    let resolvedAuthorId = authorId;
+    if (authorId === "system") {
+      const adminId = await this.cms.findFirstAdminId();
+      if (!adminId) {
+        return { skipped: true, reason: "No admin user found to author the AI post." };
+      }
+      resolvedAuthorId = adminId;
+    }
+
+    const result = await this.aiBlog.generateArticle(settings, resolvedAuthorId);
+    return { id: result?.id, ok: true };
   }
 }
 

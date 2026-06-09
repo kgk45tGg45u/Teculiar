@@ -442,17 +442,166 @@
   color: var(--muted);
 }
 
-.blogList,
 .aiBox {
   display: grid;
   gap: 12px;
 }
 
-.blogList article,
 .aiBox {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
+  background: var(--surface);
+}
+
+/* ── Blog post table ── */
+.blogTable {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.blogTableHead {
+  display: grid;
+  grid-template-columns: 1fr 52px 74px auto 130px;
+  gap: 0;
+  padding: 6px 12px;
+  background: var(--surface-2, color-mix(in srgb, var(--border) 30%, transparent));
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.blogTableRow {
+  display: grid;
+  grid-template-columns: 1fr 52px 74px auto 130px;
+  gap: 0;
+  padding: 8px 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.blogTableRow:last-child {
+  border-bottom: none;
+}
+
+.blogTableRow:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 4%, transparent);
+}
+
+.blogTableCell {
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.postTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+.postTitle:hover {
+  text-decoration: underline;
+}
+
+.postMeta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusPublished {
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+  color: #16a34a;
+}
+
+.statusDraft {
+  background: color-mix(in srgb, #94a3b8 15%, transparent);
+  color: #64748b;
+}
+
+.aiBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, #8b5cf6 12%, transparent);
+  color: #7c3aed;
+  margin-left: 4px;
+}
+
+.rowActions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.rowBtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+
+.rowBtn:hover {
+  background: var(--surface-2, #f0f0f0);
+  color: var(--text);
+}
+
+.rowBtnDanger {
+  composes: rowBtn;
+  color: #dc2626;
+  border-color: color-mix(in srgb, #dc2626 30%, transparent);
+}
+
+.rowBtnDanger:hover {
+  background: color-mix(in srgb, #dc2626 8%, transparent);
+}
+
+/* ── Blog post list (legacy — keep for safety) ── */
+.blogList {
+  display: grid;
+  gap: 8px;
+}
+
+.blogList article {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
   background: var(--surface);
 }
 
@@ -531,22 +680,64 @@
   padding-top: 4px;
 }
 
-.blogList article {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.blogList article div {
-  display: grid;
-  gap: 4px;
-}
-
-.blogList span,
 .aiBox p {
   color: var(--muted);
   font-weight: 700;
+}
+
+/* Tag/category chip styles */
+.chipBlue {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in srgb, #3b82f6 15%, transparent);
+  color: #2563eb;
+  border: 1px solid color-mix(in srgb, #3b82f6 30%, transparent);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.chipBlueActive {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #3b82f6;
+  color: #fff;
+  border: 1px solid #2563eb;
+  cursor: pointer;
+}
+
+.chipOrange {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: color-mix(in srgb, #f97316 15%, transparent);
+  color: #ea580c;
+  border: 1px solid color-mix(in srgb, #f97316 30%, transparent);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.chipOrangeActive {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f97316;
+  color: #fff;
+  border: 1px solid #ea580c;
+  cursor: pointer;
 }
 
 .aiBox h3,

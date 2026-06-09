@@ -1006,6 +1006,7 @@ export function SettingsForm() {
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
     adminTimezone: "UTC",
+    deepseekApiKey: "",
     faviconUrl: "",
     founderPhotoUrl: "",
     invoiceBankDetails: "",
@@ -1034,6 +1035,7 @@ export function SettingsForm() {
       .then((r) => r.json())
       .then((p) => setS({
         adminTimezone: p.adminTimezone ?? "UTC",
+        deepseekApiKey: p.deepseekApiKey ?? "",
         faviconUrl: p.faviconUrl ?? "",
         founderPhotoUrl: p.founderPhotoUrl ?? "",
         invoiceBankDetails: p.invoiceBankDetails ?? "",
@@ -1063,6 +1065,7 @@ export function SettingsForm() {
     const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
         adminTimezone: String(formData.get("adminTimezone") ?? "UTC"),
+        deepseekApiKey: String(formData.get("deepseekApiKey") ?? ""),
         invoiceBankDetails: String(formData.get("invoiceBankDetails") ?? ""),
         invoiceCompanyAddress: String(formData.get("invoiceCompanyAddress") ?? ""),
         invoiceCompanyCity: String(formData.get("invoiceCompanyCity") ?? ""),
@@ -1093,6 +1096,20 @@ export function SettingsForm() {
   return (
     <form action={submit} className={styles.form}>
       <h3>General</h3>
+      <label>
+        Deepseek API Key
+        <input
+          value={s.deepseekApiKey ?? ""}
+          name="deepseekApiKey"
+          placeholder="sk-..."
+          type="password"
+          autoComplete="off"
+          onChange={(e) => setS({ ...s, deepseekApiKey: e.target.value })}
+        />
+      </label>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
+        Used for AI blog content generation. Get your key at <strong>platform.deepseek.com</strong>.
+      </p>
       <label>
         Admin timezone
         <select value={s.adminTimezone} name="adminTimezone" onChange={(e) => setS({ ...s, adminTimezone: e.target.value })}>
@@ -1495,7 +1512,7 @@ export function BlogManager() {
   );
 }
 
-function RichTextEditor({ initialValue }: { initialValue: string }) {
+export function RichTextEditor({ initialValue }: { initialValue: string }) {
   const [value, setValue] = useState(initialValue);
   const editor = useEditor({
     content: initialValue || "",

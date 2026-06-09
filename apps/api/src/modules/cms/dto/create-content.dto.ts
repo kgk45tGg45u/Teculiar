@@ -1,4 +1,4 @@
-import { IsIn, IsObject, IsOptional, IsString } from "class-validator";
+import { IsArray, IsIn, IsObject, IsOptional, IsString } from "class-validator";
 
 export class CreateContentDto {
   @IsIn(["PAGE", "POST", "LEGAL"])
@@ -27,4 +27,14 @@ export class CreateContentDto {
   @IsOptional()
   @IsString()
   seoDescription?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
 }

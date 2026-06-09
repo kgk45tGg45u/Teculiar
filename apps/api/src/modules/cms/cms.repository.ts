@@ -9,6 +9,11 @@ type BlogFilters = {
   tag?: string;
 };
 
+const POST_RELATIONS = {
+  blogCategories: { include: { category: true } },
+  blogTags: { include: { tag: true } }
+};
+
 @Injectable()
 export class CmsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -16,7 +21,7 @@ export class CmsRepository {
   findBySlug(locale: string, slug: string) {
     return this.prisma.content.findFirst({
       where: { slug, locale: locale as Locale, publishedAt: { not: null } },
-      include: { translations: true }
+      include: { translations: true, ...POST_RELATIONS }
     });
   }
 
@@ -28,7 +33,8 @@ export class CmsRepository {
         publishedAt: { lte: new Date() },
         slug,
         type: "POST"
-      }
+      },
+      include: POST_RELATIONS
     });
     return post ? normalizeBlogPost(post) : null;
   }
@@ -41,6 +47,7 @@ export class CmsRepository {
         locale: localeFrom(locale),
         publishedAt: { lte: new Date() }
       },
+      include: POST_RELATIONS,
       orderBy: { publishedAt: "desc" }
     });
 
@@ -60,6 +67,7 @@ export class CmsRepository {
         NOT: { slug: { startsWith: "announcement-" } },
         type: "POST"
       },
+      include: POST_RELATIONS,
       orderBy: { updatedAt: "desc" }
     });
     return rows.map(normalizeBlogPost);
@@ -72,17 +80,37 @@ export class CmsRepository {
     });
   }
 
-  createContent(dto: CreateContentDto, authorId: string) {
-    return this.prisma.content.create({
+  async createContent(dto: CreateContentDto, authorId: string) {
+    const isPublished = (dto.content as { published?: boolean }).published || dto.type === "LEGAL";
+    const post = await this.prisma.content.create({
       data: {
-        ...dto,
         type: dto.type as ContentType,
+        slug: dto.slug,
         locale: localeFrom(dto.locale),
+        title: dto.title,
+        excerpt: dto.excerpt,
         content: dto.content as Prisma.InputJsonValue,
+        seoTitle: dto.seoTitle,
+        seoDescription: dto.seoDescription,
         authorId,
-        publishedAt: (dto.content as { published?: boolean }).published || dto.type === "LEGAL" ? new Date() : null
+        publishedAt: isPublished ? new Date() : null
       }
     });
+
+    if (dto.categoryIds?.length) {
+      await this.prisma.contentCategory.createMany({
+        data: dto.categoryIds.map((categoryId) => ({ contentId: post.id, categoryId })),
+        skipDuplicates: true
+      });
+    }
+    if (dto.tagIds?.length) {
+      await this.prisma.contentTag.createMany({
+        data: dto.tagIds.map((tagId) => ({ contentId: post.id, tagId })),
+        skipDuplicates: true
+      });
+    }
+
+    return this.prisma.content.findUnique({ where: { id: post.id }, include: POST_RELATIONS });
   }
 
   createAnnouncement(dto: CreateAnnouncementDto, authorId: string) {
@@ -161,16 +189,41 @@ export class CmsRepository {
     const content = dto.content as { published?: boolean } | undefined;
     const changesPublishedState = content && Object.prototype.hasOwnProperty.call(content, "published");
 
-    return this.prisma.content.update({
+    await this.prisma.content.update({
       where: { id },
       data: {
-        ...dto,
         type: dto.type ? (dto.type as ContentType) : undefined,
+        slug: dto.slug,
         locale: dto.locale ? localeFrom(dto.locale) : undefined,
+        title: dto.title,
+        excerpt: dto.excerpt,
         content: dto.content ? (dto.content as Prisma.InputJsonValue) : undefined,
+        seoTitle: dto.seoTitle,
+        seoDescription: dto.seoDescription,
         publishedAt: changesPublishedState ? (content?.published ? current?.publishedAt ?? new Date() : null) : undefined
       }
     });
+
+    if (dto.categoryIds !== undefined) {
+      await this.prisma.contentCategory.deleteMany({ where: { contentId: id } });
+      if (dto.categoryIds.length) {
+        await this.prisma.contentCategory.createMany({
+          data: dto.categoryIds.map((categoryId) => ({ contentId: id, categoryId })),
+          skipDuplicates: true
+        });
+      }
+    }
+    if (dto.tagIds !== undefined) {
+      await this.prisma.contentTag.deleteMany({ where: { contentId: id } });
+      if (dto.tagIds.length) {
+        await this.prisma.contentTag.createMany({
+          data: dto.tagIds.map((tagId) => ({ contentId: id, tagId })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    return this.prisma.content.findUnique({ where: { id }, include: POST_RELATIONS });
   }
 
   deleteContent(id: string) {
@@ -211,22 +264,129 @@ export class CmsRepository {
       }
     });
   }
+
+  // --- BlogCategory CRUD ---
+
+  listBlogCategories(locale: string) {
+    return this.prisma.blogCategory.findMany({ where: { locale }, orderBy: { name: "asc" } });
+  }
+
+  createBlogCategory(name: string, locale: string) {
+    const slug = slugify(name);
+    return this.prisma.blogCategory.create({ data: { name, slug, locale } });
+  }
+
+  updateBlogCategory(id: string, name: string) {
+    const slug = slugify(name);
+    return this.prisma.blogCategory.update({ where: { id }, data: { name, slug } });
+  }
+
+  deleteBlogCategory(id: string) {
+    return this.prisma.blogCategory.delete({ where: { id } });
+  }
+
+  // --- BlogTag CRUD ---
+
+  listBlogTags(locale: string) {
+    return this.prisma.blogTag.findMany({ where: { locale }, orderBy: { name: "asc" } });
+  }
+
+  createBlogTag(name: string, locale: string) {
+    const slug = slugify(name);
+    return this.prisma.blogTag.create({ data: { name, slug, locale } });
+  }
+
+  updateBlogTag(id: string, name: string) {
+    const slug = slugify(name);
+    return this.prisma.blogTag.update({ where: { id }, data: { name, slug } });
+  }
+
+  deleteBlogTag(id: string) {
+    return this.prisma.blogTag.delete({ where: { id } });
+  }
+
+  async findOrCreateTag(name: string, locale: string) {
+    const slug = slugify(name);
+    return this.prisma.blogTag.upsert({
+      where: { slug_locale: { slug, locale } },
+      create: { name, slug, locale },
+      update: {}
+    });
+  }
+
+  async findOrCreateCategory(name: string, locale: string) {
+    const slug = slugify(name);
+    return this.prisma.blogCategory.upsert({
+      where: { slug_locale: { slug, locale } },
+      create: { name, slug, locale },
+      update: {}
+    });
+  }
+
+  findFirstAdminId() {
+    return this.prisma.userRole.findFirst({
+      where: { role: { slug: { in: ["admin", "super_admin"] } } },
+      select: { userId: true },
+      orderBy: { user: { createdAt: "asc" } }
+    }).then((row) => row?.userId ?? null);
+  }
+
+  countAiPostsToday() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return this.prisma.content.count({
+      where: {
+        type: "POST",
+        createdAt: { gte: start, lte: end },
+        content: { path: ["postType"], equals: "ai_generated" }
+      }
+    });
+  }
 }
 
 function localeFrom(value?: string) {
   return value === "en" ? Locale.en : Locale.de;
 }
 
-function normalizeBlogPost<T extends { content: Prisma.JsonValue }>(post: T) {
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+type PostWithRelations = Prisma.ContentGetPayload<{
+  include: {
+    blogCategories: { include: { category: true } };
+    blogTags: { include: { tag: true } };
+  };
+}>;
+
+function normalizeBlogPost(post: PostWithRelations) {
   const content = isRecord(post.content) ? post.content : {};
-  const tags = stringArray(content.tags);
-  const fallbackTags = tags.length ? tags : stringArray(content.keywords);
+
+  const dbCategories = post.blogCategories?.map((bc) => bc.category.name) ?? [];
+  const dbTags = post.blogTags?.map((bt) => bt.tag.name) ?? [];
+
+  const categories = dbCategories.length ? dbCategories : (stringValue(content.category) ? [stringValue(content.category)!] : []);
+  const tags = dbTags.length ? dbTags : stringArray(content.tags).length ? stringArray(content.tags) : stringArray(content.keywords);
+
+  const categoryIds = post.blogCategories?.map((bc) => bc.categoryId) ?? [];
+  const tagIds = post.blogTags?.map((bt) => bt.tagId) ?? [];
+
   const featureImage = stringValue(content.featureImage) ?? stringArray(content.images)[0] ?? null;
   return {
     ...post,
-    category: stringValue(content.category),
+    category: categories[0] ?? null,
+    categories,
+    categoryIds,
     featureImage,
-    tags: fallbackTags
+    tagIds,
+    tags
   };
 }
 

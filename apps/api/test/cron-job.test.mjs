@@ -55,7 +55,9 @@ test("cron runs due timed actions only and always runs idempotent due-date check
     importMailboxTickets: async () => calls.push(["mailboxes"])
   };
 
-  const result = await new CronService(billing, orders, products, tickets).run(now);
+  // cms is 2nd arg (added for AI blog); settings have no aiBlogEnabled so cms is never called
+  const cms = {};
+  const result = await new CronService(billing, cms, orders, products, tickets).run(now);
 
   assert.deepEqual(
     calls.filter((call) => !["mark", "audit"].includes(call[0])).map((call) => call[0]),
@@ -70,13 +72,11 @@ test("cron runs due timed actions only and always runs idempotent due-date check
 test("cron secret is not JWT auth but must match configured secret", async () => {
   const { CronService } = await import("../dist/modules/cron/cron.service.js");
   const service = new CronService(
-    {
-      cronSettings: async () => ({ cronSecret: "top-secret" }),
-      recordAction: async () => undefined
-    },
-    {},
-    {},
-    {}
+    { cronSettings: async () => ({ cronSecret: "top-secret" }), recordAction: async () => undefined },
+    {}, // cms
+    {}, // orders
+    {}, // products
+    {}  // tickets
   );
   service.run = async () => ({ ok: true, ran: [], skipped: [] });
 

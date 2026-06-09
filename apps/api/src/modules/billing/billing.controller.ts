@@ -317,6 +317,18 @@ export class BillingDevController {
       usdExchangeRate?: number;
       usdBufferCents?: number;
       vatPercent?: number;
+      deepseekApiKey?: string;
+      aiBlogEnabled?: boolean;
+      aiBlogArticlesPerDay?: number;
+      aiBlogIntervalHours?: number;
+      aiBlogWordCount?: number;
+      aiBlogLanguage?: string;
+      aiBlogTopicsPool?: string;
+      aiBlogTitlePrompt?: string;
+      aiBlogContentPrompt?: string;
+      aiBlogExcerptPrompt?: string;
+      aiBlogTagsPrompt?: string;
+      aiBlogKeywordsPrompt?: string;
     }
   ) {
     return this.billing.updateSettings(body);

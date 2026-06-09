@@ -1448,14 +1448,38 @@ export class BillingService {
       this.billing.settingString("adminTimezone", "UTC")
     ]);
 
-    const [founderPhotoUrl, siteUrl] = await Promise.all([
+    const [founderPhotoUrl, siteUrl, deepseekApiKey, aiBlogEnabled, aiBlogArticlesPerDay, aiBlogIntervalHours, aiBlogWordCount, aiBlogLanguage, aiBlogTopicsPool, aiBlogTitlePrompt, aiBlogContentPrompt, aiBlogExcerptPrompt, aiBlogTagsPrompt, aiBlogKeywordsPrompt] = await Promise.all([
       this.billing.settingString("founderPhotoUrl"),
-      this.billing.settingString("siteUrl")
+      this.billing.settingString("siteUrl"),
+      this.billing.settingString("deepseekApiKey"),
+      this.billing.settingString("aiBlogEnabled", "false"),
+      this.billing.settingNumber("aiBlogArticlesPerDay", 3),
+      this.billing.settingNumber("aiBlogIntervalHours", 8),
+      this.billing.settingNumber("aiBlogWordCount", 800),
+      this.billing.settingString("aiBlogLanguage", "de"),
+      this.billing.settingString("aiBlogTopicsPool"),
+      this.billing.settingString("aiBlogTitlePrompt"),
+      this.billing.settingString("aiBlogContentPrompt"),
+      this.billing.settingString("aiBlogExcerptPrompt"),
+      this.billing.settingString("aiBlogTagsPrompt"),
+      this.billing.settingString("aiBlogKeywordsPrompt")
     ]);
 
     return {
       adminTimezone,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
+      deepseekApiKey: maskSecrets && deepseekApiKey ? "********" : deepseekApiKey,
+      aiBlogEnabled: aiBlogEnabled === "true",
+      aiBlogArticlesPerDay,
+      aiBlogIntervalHours,
+      aiBlogWordCount,
+      aiBlogLanguage,
+      aiBlogTopicsPool,
+      aiBlogTitlePrompt,
+      aiBlogContentPrompt,
+      aiBlogExcerptPrompt,
+      aiBlogTagsPrompt,
+      aiBlogKeywordsPrompt,
       domainExpirationUpdateHours,
       domainPriceUpdateHours,
       domainStatusUpdateMinutes,
@@ -1666,6 +1690,18 @@ export class BillingService {
     usdExchangeRate?: number;
     usdBufferCents?: number;
     vatPercent?: number;
+    deepseekApiKey?: string;
+    aiBlogEnabled?: boolean;
+    aiBlogArticlesPerDay?: number;
+    aiBlogIntervalHours?: number;
+    aiBlogWordCount?: number;
+    aiBlogLanguage?: string;
+    aiBlogTopicsPool?: string;
+    aiBlogTitlePrompt?: string;
+    aiBlogContentPrompt?: string;
+    aiBlogExcerptPrompt?: string;
+    aiBlogTagsPrompt?: string;
+    aiBlogKeywordsPrompt?: string;
   }) {
     return Promise.all([
       input.cronSecret === undefined || input.cronSecret === "********"
@@ -1767,7 +1803,29 @@ export class BillingService {
         : this.billing.upsertSettingNumber("usdBufferCents", Math.max(0, Math.round(input.usdBufferCents))),
       input.adminTimezone === undefined
         ? undefined
-        : this.billing.upsertSettingString("adminTimezone", input.adminTimezone)
+        : this.billing.upsertSettingString("adminTimezone", input.adminTimezone),
+      input.deepseekApiKey === undefined || input.deepseekApiKey === "********"
+        ? undefined
+        : this.billing.upsertSettingString("deepseekApiKey", input.deepseekApiKey),
+      input.aiBlogEnabled === undefined
+        ? undefined
+        : this.billing.upsertSettingString("aiBlogEnabled", input.aiBlogEnabled ? "true" : "false"),
+      input.aiBlogArticlesPerDay === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("aiBlogArticlesPerDay", Math.max(1, Math.min(24, input.aiBlogArticlesPerDay))),
+      input.aiBlogIntervalHours === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("aiBlogIntervalHours", Math.max(1, input.aiBlogIntervalHours)),
+      input.aiBlogWordCount === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("aiBlogWordCount", Math.max(200, input.aiBlogWordCount)),
+      input.aiBlogLanguage === undefined ? undefined : this.billing.upsertSettingString("aiBlogLanguage", input.aiBlogLanguage),
+      input.aiBlogTopicsPool === undefined ? undefined : this.billing.upsertSettingString("aiBlogTopicsPool", input.aiBlogTopicsPool),
+      input.aiBlogTitlePrompt === undefined ? undefined : this.billing.upsertSettingString("aiBlogTitlePrompt", input.aiBlogTitlePrompt),
+      input.aiBlogContentPrompt === undefined ? undefined : this.billing.upsertSettingString("aiBlogContentPrompt", input.aiBlogContentPrompt),
+      input.aiBlogExcerptPrompt === undefined ? undefined : this.billing.upsertSettingString("aiBlogExcerptPrompt", input.aiBlogExcerptPrompt),
+      input.aiBlogTagsPrompt === undefined ? undefined : this.billing.upsertSettingString("aiBlogTagsPrompt", input.aiBlogTagsPrompt),
+      input.aiBlogKeywordsPrompt === undefined ? undefined : this.billing.upsertSettingString("aiBlogKeywordsPrompt", input.aiBlogKeywordsPrompt)
     ]);
   }
 

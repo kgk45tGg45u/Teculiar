@@ -62,7 +62,9 @@ const baseNav: NavEntry[] = [
     children: [
       { href: "/admin/blog", label: "Posts" },
       { href: "/admin/blog/new", label: "New Post" },
-      { href: "/admin/blog/categories", label: "Categories & Tags" }
+      { href: "/admin/blog/categories", label: "Categories & Tags" },
+      { href: "/admin/blog/ai-content", label: "AI Content" },
+      { href: "/admin/blog/ai-settings", label: "AI Job Settings" }
     ]
   },
   { href: "/admin/announcements", label: "Announcements" },

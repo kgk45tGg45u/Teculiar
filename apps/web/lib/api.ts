@@ -333,6 +333,8 @@ export type ApiAnnouncement = {
 
 export type ApiBlogPost = {
   category?: string | null;
+  categories?: string[];
+  categoryIds?: string[];
   content?: {
     aiBrief?: Record<string, unknown>;
     body?: string;
@@ -340,7 +342,7 @@ export type ApiBlogPost = {
     featureImage?: string;
     images?: string[];
     keywords?: string[];
-    postType?: "manual" | "ai" | string;
+    postType?: "manual" | "ai_generated" | string;
     published?: boolean;
     tags?: string[];
   };
@@ -349,10 +351,27 @@ export type ApiBlogPost = {
   id: string;
   locale: string;
   publishedAt?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   slug: string;
+  tagIds?: string[];
   tags?: string[];
   title: string;
   updatedAt?: string;
+};
+
+export type ApiBlogCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+};
+
+export type ApiBlogTag = {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
 };
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";

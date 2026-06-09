@@ -28,16 +28,21 @@ import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "../ui/status-pill";
-import { AddClientForm, AdminsPanel, AnnouncementForm, BlogManager, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
 import { AdminSidebar } from "./admin-sidebar";
+import { BlogPostList, BlogPostForm, BlogCategoryTagManager, AiContentManager, AiJobSettingsForm } from "./blog-admin";
 import styles from "./admin-dashboard.module.css";
 
 type AdminView =
   | "home"
   | "blog"
+  | "blog-new"
+  | "blog-categories"
+  | "blog-ai-content"
+  | "blog-ai-settings"
   | "clients"
   | "clients-new"
   | "orders"
@@ -149,7 +154,11 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "logs" ? <LogsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
         {view === "tickets" ? <TicketsPanel locale={locale} tickets={tickets} /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
-        {view === "blog" ? <BlogPanel /> : null}
+        {view === "blog" ? <BlogListPanel /> : null}
+        {view === "blog-new" ? <BlogNewPanel /> : null}
+        {view === "blog-categories" ? <BlogCategoriesPanel /> : null}
+        {view === "blog-ai-content" ? <BlogAiContentPanel /> : null}
+        {view === "blog-ai-settings" ? <BlogAiSettingsPanel /> : null}
         {view === "products" ? <ProductsPanel /> : null}
         {view === "products-categories" ? <ProductCategoriesPanel /> : null}
         {view === "modules" ? <ModulesRedirect /> : null}
@@ -275,17 +284,76 @@ function EmailsPanel({ section, settings, timezone }: { section: EmailAdminSecti
   );
 }
 
-function BlogPanel() {
+function BlogListPanel() {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">CMS</span>
-          <h2>Blog Articles</h2>
+          <h2>Blog Posts</h2>
         </div>
         <Button href="/admin/blog/new" variant="secondary">New Post</Button>
       </div>
-      <BlogManager />
+      <BlogPostList />
+    </section>
+  );
+}
+
+function BlogNewPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">CMS</span>
+          <h2>New Blog Post</h2>
+        </div>
+        <Button href="/admin/blog" variant="secondary">All Posts</Button>
+      </div>
+      <BlogPostForm />
+    </section>
+  );
+}
+
+function BlogCategoriesPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">CMS</span>
+          <h2>Categories & Tags</h2>
+        </div>
+      </div>
+      <BlogCategoryTagManager />
+    </section>
+  );
+}
+
+function BlogAiContentPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">AI</span>
+          <h2>AI Content</h2>
+        </div>
+        <Button href="/admin/blog/ai-settings" variant="secondary">Job Settings</Button>
+      </div>
+      <AiContentManager />
+    </section>
+  );
+}
+
+function BlogAiSettingsPanel() {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">AI</span>
+          <h2>AI Job Settings</h2>
+        </div>
+        <Button href="/admin/blog/ai-content" variant="secondary">AI Content</Button>
+      </div>
+      <AiJobSettingsForm />
     </section>
   );
 }
@@ -710,6 +778,10 @@ function adminTitle(view: AdminView, locale: Locale) {
   const titles: Record<AdminView, string> = {
     announcements: copy.announcements,
     blog: copy.blog,
+    "blog-new": "New Blog Post",
+    "blog-categories": "Categories & Tags",
+    "blog-ai-content": "AI Content",
+    "blog-ai-settings": "AI Job Settings",
     clients: copy.clients,
     "clients-new": "Add Client",
     "domain-prices": copy.domainPrices,

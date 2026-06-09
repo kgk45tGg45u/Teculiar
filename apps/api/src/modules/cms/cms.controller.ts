@@ -100,6 +100,13 @@ export class CmsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "super_admin")
+  @Post("admin/dev/ai-blog/generate")
+  generateAiBlogPost(@Req() request: Request & { user: { sub: string } }) {
+    return this.cms.triggerAiBlogPost(request.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "editor")
   @Post("pages")
   createContent(@Req() request: Request & { user: { sub: string } }, @Body() dto: CreateContentDto) {
@@ -139,5 +146,61 @@ export class CmsController {
   @Patch("translations/:id/manual-override")
   manualOverride(@Param("id") id: string, @Body() body: { title: string; content: Record<string, unknown> }) {
     return this.cms.manualOverride(id, body);
+  }
+
+  // --- Blog Categories ---
+
+  @Get("blog-categories")
+  listBlogCategories(@Query("locale") locale = "de") {
+    return this.cms.listBlogCategories(locale);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Post("admin/dev/blog-categories")
+  createBlogCategory(@Body() body: { name: string; locale?: string }) {
+    return this.cms.createBlogCategory(body.name, body.locale || "de");
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Patch("admin/dev/blog-categories/:id")
+  updateBlogCategory(@Param("id") id: string, @Body() body: { name: string }) {
+    return this.cms.updateBlogCategory(id, body.name);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Delete("admin/dev/blog-categories/:id")
+  deleteBlogCategory(@Param("id") id: string) {
+    return this.cms.deleteBlogCategory(id);
+  }
+
+  // --- Blog Tags ---
+
+  @Get("blog-tags")
+  listBlogTags(@Query("locale") locale = "de") {
+    return this.cms.listBlogTags(locale);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Post("admin/dev/blog-tags")
+  createBlogTag(@Body() body: { name: string; locale?: string }) {
+    return this.cms.createBlogTag(body.name, body.locale || "de");
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Patch("admin/dev/blog-tags/:id")
+  updateBlogTag(@Param("id") id: string, @Body() body: { name: string }) {
+    return this.cms.updateBlogTag(id, body.name);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "editor")
+  @Delete("admin/dev/blog-tags/:id")
+  deleteBlogTag(@Param("id") id: string) {
+    return this.cms.deleteBlogTag(id);
   }
 }
