@@ -1,4 +1,5 @@
 import { ArrowRight, Globe, Mail, Search, Settings } from "lucide-react";
+import { apiGet } from "../../../lib/api";
 import { DomainSearch } from "../../../components/marketing/domain-search";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
@@ -78,28 +79,40 @@ export default async function DomainsPage({ params }: { params: Promise<{ locale
         }
       ];
 
+  const themeSettings = await apiGet<{ themeBlueDomainsHeroImageUrl?: string }>("/storefront/settings");
+  const heroImageUrl = themeSettings?.themeBlueDomainsHeroImageUrl ?? null;
+
   return (
     <>
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Globe aria-hidden size={15} />
-            {isDe ? "Domains registrieren" : "Register domains"}
-          </span>
-          <h1>
-            {isDe
-              ? "Deine Adresse im Internet."
-              : "Your address on the internet."}
-          </h1>
-          <p>
-            {isDe
-              ? "Domains einfach erklärt, schnell registriert und direkt mit deinem Hosting verbunden. Wir helfen dir, den richtigen Namen zu finden."
-              : "Domains simply explained, quickly registered and directly connected to your hosting. We help you find the right name."}
-          </p>
-          <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
-            {isDe ? "Domain anfragen" : "Request domain"}
-          </Button>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Globe aria-hidden size={15} />
+                {isDe ? "Domains registrieren" : "Register domains"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Deine Adresse im Internet."
+                  : "Your address on the internet."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Domains einfach erklärt, schnell registriert und direkt mit deinem Hosting verbunden. Wir helfen dir, den richtigen Namen zu finden."
+                  : "Domains simply explained, quickly registered and directly connected to your hosting. We help you find the right name."}
+              </p>
+              <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
+                {isDe ? "Domain anfragen" : "Request domain"}
+              </Button>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

@@ -8,8 +8,9 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
-  const settings = await apiGet<{ founderPhotoUrl?: string }>("/storefront/settings");
+  const settings = await apiGet<{ founderPhotoUrl?: string; themeBlueAboutHeroImageUrl?: string }>("/storefront/settings");
   const founderPhotoUrl = settings?.founderPhotoUrl || null;
+  const heroImageUrl = settings?.themeBlueAboutHeroImageUrl ?? null;
 
   const values = isDe
     ? [
@@ -84,20 +85,29 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Globe aria-hidden size={15} />
-            {isDe ? "Über uns" : "About us"}
-          </span>
-          <h1>
-            {isDe
-              ? "Wir erklären alles. Wirklich alles."
-              : "We explain everything. Really everything."}
-          </h1>
-          <p>
-            {isDe
-              ? "Dezhost ist ein unabhängiger Hosting-Anbieter aus Deutschland. Wir unterstützen Vereine, NGOs, politische Gruppen und kleine Unternehmen dabei, digital sichtbar zu werden – ohne technischen Stress und ohne Konzerngefühl."
-              : "Dezhost is an independent hosting provider from Germany. We help associations, NGOs, political groups and small businesses become digitally visible – without technical stress and without the corporate feel."}
-          </p>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Globe aria-hidden size={15} />
+                {isDe ? "Über uns" : "About us"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Wir erklären alles. Wirklich alles."
+                  : "We explain everything. Really everything."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Dezhost ist ein unabhängiger Hosting-Anbieter aus Deutschland. Wir unterstützen Vereine, NGOs, politische Gruppen und kleine Unternehmen dabei, digital sichtbar zu werden – ohne technischen Stress und ohne Konzerngefühl."
+                  : "Dezhost is an independent hosting provider from Germany. We help associations, NGOs, political groups and small businesses become digitally visible – without technical stress and without the corporate feel."}
+              </p>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

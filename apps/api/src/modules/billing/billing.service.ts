@@ -1291,7 +1291,14 @@ export class BillingService {
   }
 
   async publicSettings() {
-    const [vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, siteName, metaDescription, blogMetaDescription, ogTitleSuffix, ogImageStatic, ogImageDashboard, ogImageBlog] = await Promise.all([
+    const [
+      vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
+      siteName, metaDescription, blogMetaDescription, ogTitleSuffix, ogImageStatic, ogImageDashboard, ogImageBlog,
+      themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
+      themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
+      themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
+      themeBlueeBlogHeroImageUrl, themeBlueKnowledgebaseHeroImageUrl
+    ] = await Promise.all([
       this.vatPercent(),
       this.billing.settingString("siteLogoUrl"),
       this.billing.settingString("faviconUrl"),
@@ -1306,10 +1313,27 @@ export class BillingService {
       this.billing.settingString("seo.ogTitleSuffix"),
       this.billing.settingString("seo.ogImageStatic"),
       this.billing.settingString("seo.ogImageDashboard"),
-      this.billing.settingString("seo.ogImageBlog")
+      this.billing.settingString("seo.ogImageBlog"),
+      this.billing.settingString("theme.blue.homeHeroImageUrl"),
+      this.billing.settingString("theme.blue.webhostingHeroImageUrl"),
+      this.billing.settingString("theme.blue.domainsHeroImageUrl"),
+      this.billing.settingString("theme.blue.itSolutionsHeroImageUrl"),
+      this.billing.settingString("theme.blue.contactHeroImageUrl"),
+      this.billing.settingString("theme.blue.aboutHeroImageUrl"),
+      this.billing.settingString("theme.blue.virtualServersHeroImageUrl"),
+      this.billing.settingString("theme.blue.webdesignHeroImageUrl"),
+      this.billing.settingString("theme.blue.blogHeroImageUrl"),
+      this.billing.settingString("theme.blue.knowledgebaseHeroImageUrl")
     ]);
 
-    return { blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard, ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent };
+    return {
+      blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard,
+      ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent,
+      themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
+      themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
+      themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
+      themeBlueeBlogHeroImageUrl, themeBlueKnowledgebaseHeroImageUrl
+    };
   }
 
   settings() {
@@ -1839,6 +1863,61 @@ export class BillingService {
     const faviconUrl = `/uploads/${filename}`;
     await this.billing.upsertSettingString("faviconUrl", faviconUrl);
     return { faviconUrl };
+  }
+
+  async getThemeSettings() {
+    const [
+      homeHeroImageUrl, webhostingHeroImageUrl, domainsHeroImageUrl, itSolutionsHeroImageUrl,
+      contactHeroImageUrl, aboutHeroImageUrl, virtualServersHeroImageUrl, webdesignHeroImageUrl,
+      blogHeroImageUrl, knowledgebaseHeroImageUrl
+    ] = await Promise.all([
+      this.billing.settingString("theme.blue.homeHeroImageUrl"),
+      this.billing.settingString("theme.blue.webhostingHeroImageUrl"),
+      this.billing.settingString("theme.blue.domainsHeroImageUrl"),
+      this.billing.settingString("theme.blue.itSolutionsHeroImageUrl"),
+      this.billing.settingString("theme.blue.contactHeroImageUrl"),
+      this.billing.settingString("theme.blue.aboutHeroImageUrl"),
+      this.billing.settingString("theme.blue.virtualServersHeroImageUrl"),
+      this.billing.settingString("theme.blue.webdesignHeroImageUrl"),
+      this.billing.settingString("theme.blue.blogHeroImageUrl"),
+      this.billing.settingString("theme.blue.knowledgebaseHeroImageUrl")
+    ]);
+    return {
+      blue: {
+        homeHeroImageUrl, webhostingHeroImageUrl, domainsHeroImageUrl, itSolutionsHeroImageUrl,
+        contactHeroImageUrl, aboutHeroImageUrl, virtualServersHeroImageUrl, webdesignHeroImageUrl,
+        blogHeroImageUrl, knowledgebaseHeroImageUrl
+      }
+    };
+  }
+
+  async uploadThemeHeroImage(
+    theme: string,
+    field: string,
+    file: { buffer: Buffer; mimetype: string; originalname?: string; size: number } | undefined
+  ) {
+    if (!file) throw new BadRequestException("Image is required.");
+    if (file.size > 5_000_000) throw new BadRequestException("Image must be smaller than 5 MB.");
+    const allowedMimetypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"];
+    if (!allowedMimetypes.includes(file.mimetype)) throw new BadRequestException("Image must be PNG, JPG, WebP, SVG, or GIF.");
+    const allowedThemes = ["blue"];
+    const allowedFields = [
+      "homeHeroImageUrl", "webhostingHeroImageUrl", "domainsHeroImageUrl", "itSolutionsHeroImageUrl",
+      "contactHeroImageUrl", "aboutHeroImageUrl", "virtualServersHeroImageUrl", "webdesignHeroImageUrl",
+      "blogHeroImageUrl", "knowledgebaseHeroImageUrl"
+    ];
+    if (!allowedThemes.includes(theme) || !allowedFields.includes(field)) throw new BadRequestException("Invalid theme or field.");
+    const ext = file.mimetype === "image/jpeg" ? "jpg"
+      : file.mimetype === "image/webp" ? "webp"
+      : file.mimetype === "image/svg+xml" ? "svg"
+      : file.mimetype === "image/gif" ? "gif"
+      : "png";
+    const dir = await webUploadsDir();
+    const filename = `theme-${theme}-${field}-${Date.now()}.${ext}`;
+    await writeFile(join(dir, filename), file.buffer);
+    const imageUrl = `/uploads/${filename}`;
+    await this.billing.upsertSettingString(`theme.${theme}.${field}`, imageUrl);
+    return { field, imageUrl, theme };
   }
 
   async getModules() {

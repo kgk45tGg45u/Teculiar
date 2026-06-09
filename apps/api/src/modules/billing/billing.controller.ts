@@ -396,4 +396,21 @@ export class BillingDevController {
   retryModuleAction(@Param("id") id: string, @Body() body: { actorId?: string }) {
     return this.billing.retryModuleAction(id, body);
   }
+
+  @Roles("admin", "super_admin")
+  @Get("theme/settings")
+  getThemeSettings() {
+    return this.billing.getThemeSettings();
+  }
+
+  @Roles("admin", "super_admin")
+  @Post("assets/theme-image/:theme/:field")
+  @UseInterceptors(FileInterceptor("image"))
+  uploadThemeHeroImage(
+    @Param("theme") theme: string,
+    @Param("field") field: string,
+    @UploadedFile() file?: { buffer: Buffer; mimetype: string; originalname?: string; size: number }
+  ) {
+    return this.billing.uploadThemeHeroImage(theme, field, file);
+  }
 }

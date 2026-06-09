@@ -93,41 +93,54 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
         }
       ];
 
-  const apiProducts = await apiGet<ApiProduct[]>("/storefront/products?category=webhosting");
+  const [apiProducts, themeSettings] = await Promise.all([
+    apiGet<ApiProduct[]>("/storefront/products?category=webhosting"),
+    apiGet<{ themeBlueWebhostingHeroImageUrl?: string }>("/storefront/settings")
+  ]);
   const hostingProducts = apiProducts?.length ? apiProducts : [];
+  const heroImageUrl = themeSettings?.themeBlueWebhostingHeroImageUrl ?? null;
 
   return (
     <>
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Server aria-hidden size={15} />
-            {isDe ? "Webhosting Deutschland" : "Web hosting Germany"}
-          </span>
-          <h1>
-            {isDe
-              ? "Webhosting, das du wirklich verstehst."
-              : "Web hosting you actually understand."}
-          </h1>
-          <p>
-            {isDe
-              ? "Schnell, sicher und persönlich betreut. Für Vereine, NGOs, WordPress-Projekte und kleine Unternehmen – ohne technischen Stress."
-              : "Fast, secure and personally supported. For associations, NGOs, WordPress projects and small businesses – without technical stress."}
-          </p>
-          <div className={styles.heroActions}>
-            <Button href="#webhosting-packages" icon={ArrowRight}>
-              {isDe ? "Pakete ansehen" : "View packages"}
-            </Button>
-            <Button href={`/${locale}/kontakt`} variant="secondary">
-              {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
-            </Button>
-          </div>
-          <div className={styles.trustBar}>
-            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Tägliche Backups" : "Daily backups"}</span>
-            <span><CheckCircle aria-hidden size={15} /> {isDe ? "SSL inklusive" : "SSL included"}</span>
-            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Server in Deutschland" : "Servers in Germany"}</span>
-            <span><CheckCircle aria-hidden size={15} /> {isDe ? "Persönlicher Support" : "Personal support"}</span>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Server aria-hidden size={15} />
+                {isDe ? "Webhosting Deutschland" : "Web hosting Germany"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Webhosting, das du wirklich verstehst."
+                  : "Web hosting you actually understand."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Schnell, sicher und persönlich betreut. Für Vereine, NGOs, WordPress-Projekte und kleine Unternehmen – ohne technischen Stress."
+                  : "Fast, secure and personally supported. For associations, NGOs, WordPress projects and small businesses – without technical stress."}
+              </p>
+              <div className={styles.heroActions}>
+                <Button href="#webhosting-packages" icon={ArrowRight}>
+                  {isDe ? "Pakete ansehen" : "View packages"}
+                </Button>
+                <Button href={`/${locale}/kontakt`} variant="secondary">
+                  {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+                </Button>
+              </div>
+              <div className={styles.trustBar}>
+                <span><CheckCircle aria-hidden size={15} /> {isDe ? "Tägliche Backups" : "Daily backups"}</span>
+                <span><CheckCircle aria-hidden size={15} /> {isDe ? "SSL inklusive" : "SSL included"}</span>
+                <span><CheckCircle aria-hidden size={15} /> {isDe ? "Server in Deutschland" : "Servers in Germany"}</span>
+                <span><CheckCircle aria-hidden size={15} /> {isDe ? "Persönlicher Support" : "Personal support"}</span>
+              </div>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -65,7 +65,13 @@ const baseNav: NavEntry[] = [
       { href: "/admin/blog/categories", label: "Categories & Tags" }
     ]
   },
-  { href: "/admin/announcements", label: "Announcements" }
+  { href: "/admin/announcements", label: "Announcements" },
+  {
+    label: "Theme",
+    children: [
+      { href: "/admin/theme/blue", label: "Blue" }
+    ]
+  }
 ];
 
 const settingsNav: NavEntry = {

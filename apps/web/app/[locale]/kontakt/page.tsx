@@ -1,4 +1,5 @@
 import { Mail, MessageCircle, Phone } from "lucide-react";
+import { apiGet } from "../../../lib/api";
 import { getLocale } from "../../../lib/i18n";
 import { ContactForm } from "./contact-form";
 import styles from "./kontakt.module.css";
@@ -7,24 +8,35 @@ export default async function ContactPage({ params }: { params: Promise<{ locale
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
+  const themeSettings = await apiGet<{ themeBlueContactHeroImageUrl?: string }>("/storefront/settings");
+  const heroImageUrl = themeSettings?.themeBlueContactHeroImageUrl ?? null;
 
   return (
     <>
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <MessageCircle aria-hidden size={15} />
-            {isDe ? "Kontakt" : "Contact"}
-          </span>
-          <h1>
-            {isDe ? "Schreib uns einfach." : "Just write to us."}
-          </h1>
-          <p>
-            {isDe
-              ? "Du musst kein Technikprofi sein. Erzähl uns einfach, was du brauchst – wir erklären alles Schritt für Schritt."
-              : "You don't need to be a tech expert. Just tell us what you need – we explain everything step by step."}
-          </p>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <MessageCircle aria-hidden size={15} />
+                {isDe ? "Kontakt" : "Contact"}
+              </span>
+              <h1>
+                {isDe ? "Schreib uns einfach." : "Just write to us."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Du musst kein Technikprofi sein. Erzähl uns einfach, was du brauchst – wir erklären alles Schritt für Schritt."
+                  : "You don't need to be a tech expert. Just tell us what you need – we explain everything step by step."}
+              </p>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

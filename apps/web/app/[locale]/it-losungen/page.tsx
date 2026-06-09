@@ -1,4 +1,5 @@
 import { ArrowRight, Bot, CheckCircle, Cloud, Database, Download, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
+import { apiGet } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./it-losungen.module.css";
@@ -7,6 +8,8 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
+  const themeSettings = await apiGet<{ themeBlueItSolutionsHeroImageUrl?: string }>("/storefront/settings");
+  const heroImageUrl = themeSettings?.themeBlueItSolutionsHeroImageUrl ?? null;
 
   const services = isDe
     ? [
@@ -253,28 +256,37 @@ export default async function ITSolutionsPage({ params }: { params: Promise<{ lo
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Wrench aria-hidden size={15} />
-            {isDe ? "IT-Lösungen & Managed Services" : "IT solutions & managed services"}
-          </span>
-          <h1>
-            {isDe
-              ? "Technische Hilfe, die du wirklich verstehst."
-              : "Technical help you actually understand."}
-          </h1>
-          <p>
-            {isDe
-              ? "Von der Nextcloud-Einrichtung bis zur kompletten Serverwartung. Wir erklären alles verständlich und arbeiten transparent."
-              : "From Nextcloud setup to complete server maintenance. We explain everything clearly and work transparently."}
-          </p>
-          <div className={styles.heroActions}>
-            <Button href={`/${locale}/anfrage`} icon={ArrowRight}>
-              {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
-            </Button>
-            <a className={styles.pdfBtn} href="/preisliste.pdf" download>
-              <Download aria-hidden size={16} />
-              {isDe ? "Preisliste als PDF" : "Download price list PDF"}
-            </a>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Wrench aria-hidden size={15} />
+                {isDe ? "IT-Lösungen & Managed Services" : "IT solutions & managed services"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Technische Hilfe, die du wirklich verstehst."
+                  : "Technical help you actually understand."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Von der Nextcloud-Einrichtung bis zur kompletten Serverwartung. Wir erklären alles verständlich und arbeiten transparent."
+                  : "From Nextcloud setup to complete server maintenance. We explain everything clearly and work transparently."}
+              </p>
+              <div className={styles.heroActions}>
+                <Button href={`/${locale}/anfrage`} icon={ArrowRight}>
+                  {isDe ? "Kostenlos beraten lassen" : "Get free consultation"}
+                </Button>
+                <a className={styles.pdfBtn} href="/preisliste.pdf" download>
+                  <Download aria-hidden size={16} />
+                  {isDe ? "Preisliste als PDF" : "Download price list PDF"}
+                </a>
+              </div>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
           </div>
         </div>
       </section>

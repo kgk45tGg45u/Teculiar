@@ -28,8 +28,12 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
-  const posts = (await apiGet<ApiBlogPost[]>(`/cms/posts?locale=${locale}`)) ?? [];
-  const tags = (await apiGet<string[]>(`/cms/post-tags?locale=${locale}`)) ?? [];
+  const [posts, tags, themeSettings] = await Promise.all([
+    apiGet<ApiBlogPost[]>(`/cms/posts?locale=${locale}`).then((r) => r ?? []),
+    apiGet<string[]>(`/cms/post-tags?locale=${locale}`).then((r) => r ?? []),
+    apiGet<{ themeBlueeBlogHeroImageUrl?: string }>("/storefront/settings")
+  ]);
+  const heroImageUrl = themeSettings?.themeBlueeBlogHeroImageUrl ?? null;
 
   const categories = isDe
     ? ["Alle", "Vereinsdigitalisierung", "Domains & E-Mail", "Datenschutz", "WordPress", "Nextcloud", "Linux & Hosting", "KI für Organisationen", "Tutorials", "Open Source"]
@@ -60,20 +64,29 @@ export default async function BlogPage({ params }: { params: Promise<{ locale: s
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <BookOpen aria-hidden size={15} />
-            Blog
-          </span>
-          <h1>
-            {isDe
-              ? "Wissen, das wirklich hilft."
-              : "Knowledge that actually helps."}
-          </h1>
-          <p>
-            {isDe
-              ? "Artikel über Webhosting, Domains, Datenschutz, WordPress und digitale Werkzeuge für Vereine und kleine Organisationen. Verständlich geschrieben, ohne Fachwissen."
-              : "Articles about web hosting, domains, privacy, WordPress and digital tools for associations and small organisations. Written clearly, without expertise required."}
-          </p>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <BookOpen aria-hidden size={15} />
+                Blog
+              </span>
+              <h1>
+                {isDe
+                  ? "Wissen, das wirklich hilft."
+                  : "Knowledge that actually helps."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Artikel über Webhosting, Domains, Datenschutz, WordPress und digitale Werkzeuge für Vereine und kleine Organisationen. Verständlich geschrieben, ohne Fachwissen."
+                  : "Articles about web hosting, domains, privacy, WordPress and digital tools for associations and small organisations. Written clearly, without expertise required."}
+              </p>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

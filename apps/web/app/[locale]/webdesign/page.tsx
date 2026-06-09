@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle, Globe, Layers, MessageCircle, Palette, Search, Smartphone, Users } from "lucide-react";
+import { apiGet } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./webdesign.module.css";
@@ -7,6 +8,8 @@ export default async function WebdesignPage({ params }: { params: Promise<{ loca
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
+  const themeSettings = await apiGet<{ themeBlueWebdesignHeroImageUrl?: string }>("/storefront/settings");
+  const heroImageUrl = themeSettings?.themeBlueWebdesignHeroImageUrl ?? null;
 
   const targetGroups = isDe
     ? [
@@ -77,27 +80,36 @@ export default async function WebdesignPage({ params }: { params: Promise<{ loca
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Palette aria-hidden size={15} />
-            {isDe ? "Webdesign & Websites" : "Web design & websites"}
-          </span>
-          <h1>
-            {isDe
-              ? "Deine Website. Ohne technischen Stress."
-              : "Your website. Without technical stress."}
-          </h1>
-          <p>
-            {isDe
-              ? "Wir gestalten moderne, zugängliche Websites für Vereine, NGOs, Startups und kleine Unternehmen. Persönlich betreut, fair berechnet, vollständig eingerichtet."
-              : "We design modern, accessible websites for associations, NGOs, startups and small businesses. Personally supported, fairly priced, fully set up."}
-          </p>
-          <div className={styles.heroActions}>
-            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
-              {isDe ? "Projekt besprechen" : "Discuss project"}
-            </Button>
-            <Button href={`/${locale}/it-losungen`} variant="secondary">
-              {isDe ? "Preise ansehen" : "View pricing"}
-            </Button>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Palette aria-hidden size={15} />
+                {isDe ? "Webdesign & Websites" : "Web design & websites"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Deine Website. Ohne technischen Stress."
+                  : "Your website. Without technical stress."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Wir gestalten moderne, zugängliche Websites für Vereine, NGOs, Startups und kleine Unternehmen. Persönlich betreut, fair berechnet, vollständig eingerichtet."
+                  : "We design modern, accessible websites for associations, NGOs, startups and small businesses. Personally supported, fairly priced, fully set up."}
+              </p>
+              <div className={styles.heroActions}>
+                <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
+                  {isDe ? "Projekt besprechen" : "Discuss project"}
+                </Button>
+                <Button href={`/${locale}/it-losungen`} variant="secondary">
+                  {isDe ? "Preise ansehen" : "View pricing"}
+                </Button>
+              </div>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -17,14 +17,27 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function KnowledgebasePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
-  const articles = (await apiGet<ApiKnowledgebaseArticle[]>("/knowledgebase")) ?? [];
+  const [articles, themeSettings] = await Promise.all([
+    apiGet<ApiKnowledgebaseArticle[]>("/knowledgebase").then((r) => r ?? []),
+    apiGet<{ themeBlueKnowledgebaseHeroImageUrl?: string }>("/storefront/settings")
+  ]);
+  const heroImageUrl = themeSettings?.themeBlueKnowledgebaseHeroImageUrl ?? null;
 
   return (
     <main>
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow"><BookOpen aria-hidden size={15} /> Knowledgebase</span>
-          <h1>{locale === "de" ? "Antworten, bevor ein Ticket noetig ist." : "Answers before a ticket is needed."}</h1>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow"><BookOpen aria-hidden size={15} /> Knowledgebase</span>
+              <h1>{locale === "de" ? "Antworten, bevor ein Ticket noetig ist." : "Answers before a ticket is needed."}</h1>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
       <section className="section tight">

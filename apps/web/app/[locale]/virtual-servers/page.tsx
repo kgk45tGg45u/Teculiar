@@ -25,7 +25,11 @@ export default async function VirtualServersPage({ params }: { params: Promise<{
   const locale = getLocale(rawLocale);
   const isDe = locale === "de";
 
-  const products = await apiGet<ApiProduct[]>("/storefront/products?category=virtual-servers");
+  const [products, themeSettings] = await Promise.all([
+    apiGet<ApiProduct[]>("/storefront/products?category=virtual-servers"),
+    apiGet<{ themeBlueVirtualServersHeroImageUrl?: string }>("/storefront/settings")
+  ]);
+  const heroImageUrl = themeSettings?.themeBlueVirtualServersHeroImageUrl ?? null;
 
   const features = isDe
     ? [
@@ -50,27 +54,36 @@ export default async function VirtualServersPage({ params }: { params: Promise<{
       {/* Hero */}
       <section className={styles.hero}>
         <div className="container">
-          <span className="eyebrow">
-            <Cpu aria-hidden size={15} />
-            {isDe ? "Cloud-Server" : "Cloud servers"}
-          </span>
-          <h1>
-            {isDe
-              ? "Dein eigener Cloud-Server."
-              : "Your own cloud server."}
-          </h1>
-          <p>
-            {isDe
-              ? "Volle Kontrolle, deutsche Rechenzentren, faire Preise. Ideal für Entwickler, Vereine und Organisationen mit individuellen Anforderungen."
-              : "Full control, German data centres, fair prices. Ideal for developers, associations and organisations with individual requirements."}
-          </p>
-          <div className={styles.heroActions}>
-            <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
-              {isDe ? "Beratung anfragen" : "Request consultation"}
-            </Button>
-            <Button href={`/${locale}/kontakt`} variant="secondary">
-              {isDe ? "Fragen? Schreib uns" : "Questions? Contact us"}
-            </Button>
+          <div className={heroImageUrl ? styles.heroInner : undefined}>
+            <div className={heroImageUrl ? styles.heroContent : undefined}>
+              <span className="eyebrow">
+                <Cpu aria-hidden size={15} />
+                {isDe ? "Cloud-Server" : "Cloud servers"}
+              </span>
+              <h1>
+                {isDe
+                  ? "Dein eigener Cloud-Server."
+                  : "Your own cloud server."}
+              </h1>
+              <p>
+                {isDe
+                  ? "Volle Kontrolle, deutsche Rechenzentren, faire Preise. Ideal für Entwickler, Vereine und Organisationen mit individuellen Anforderungen."
+                  : "Full control, German data centres, fair prices. Ideal for developers, associations and organisations with individual requirements."}
+              </p>
+              <div className={styles.heroActions}>
+                <Button href={`/${locale}/kontakt`} icon={ArrowRight}>
+                  {isDe ? "Beratung anfragen" : "Request consultation"}
+                </Button>
+                <Button href={`/${locale}/kontakt`} variant="secondary">
+                  {isDe ? "Fragen? Schreib uns" : "Questions? Contact us"}
+                </Button>
+              </div>
+            </div>
+            {heroImageUrl && (
+              <div className={styles.heroImage} aria-hidden>
+                <img alt="" src={heroImageUrl} />
+              </div>
+            )}
           </div>
         </div>
       </section>
