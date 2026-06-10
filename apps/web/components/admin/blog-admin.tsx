@@ -23,6 +23,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 export function BlogPostList() {
   const [posts, setPosts] = useState<ApiBlogPost[]>([]);
   const [busy, setBusy] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   async function refresh() {
     const data = await fetchJson<ApiBlogPost[]>("/cms/admin/dev/posts").catch(() => []);
@@ -30,6 +31,13 @@ export function BlogPostList() {
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener("click", close, true);
+    return () => document.removeEventListener("click", close, true);
+  }, [openMenu]);
 
   async function unpublish(post: ApiBlogPost) {
     setBusy(true);
@@ -70,12 +78,10 @@ export function BlogPostList() {
         <div className={styles.blogTableCell}>Title</div>
         <div className={styles.blogTableCell} style={{ textAlign: "center" }}>Lang</div>
         <div className={styles.blogTableCell} style={{ textAlign: "center" }}>Status</div>
-        <div className={styles.blogTableCell}>Tags</div>
         <div className={styles.blogTableCell} style={{ textAlign: "right" }}>Actions</div>
       </div>
       {posts.map((post) => {
         const cats = post.categories ?? (post.category ? [post.category] : []);
-        const tags = post.tags ?? [];
         return (
           <div key={post.id} className={styles.blogTableRow}>
             {/* Title */}
@@ -89,12 +95,8 @@ export function BlogPostList() {
                 {post.title}
                 {isAi(post) && <span className={styles.aiBadge}><Bot size={9} aria-hidden /> AI</span>}
               </a>
-              {(cats.length > 0 || tags.length > 0) && (
-                <div className={styles.postMeta}>
-                  {cats.slice(0, 2).join(", ")}
-                  {cats.length > 0 && tags.length > 0 && " · "}
-                  {tags.slice(0, 3).join(", ")}
-                </div>
+              {cats.length > 0 && (
+                <div className={styles.postMeta}>{cats.slice(0, 2).join(", ")}</div>
               )}
             </div>
             {/* Locale */}
@@ -109,25 +111,27 @@ export function BlogPostList() {
                 {post.publishedAt ? "Live" : "Draft"}
               </span>
             </div>
-            {/* Chips */}
-            <div className={styles.blogTableCell}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                {cats.slice(0, 2).map((cat) => <span key={cat} className={styles.chipBlue}>{cat}</span>)}
-                {tags.slice(0, 3).map((tag) => <span key={tag} className={styles.chipOrange}>{tag}</span>)}
-              </div>
-            </div>
             {/* Actions */}
-            <div className={styles.blogTableCell}>
-              <div className={styles.rowActions}>
-                <a href={`/admin/blog/new?edit=${post.id}`} className={styles.rowBtn}>Edit</a>
-                {post.publishedAt && (
-                  <button type="button" className={styles.rowBtn} disabled={busy} onClick={() => void unpublish(post)}>
-                    Unpublish
-                  </button>
-                )}
-                <button type="button" className={styles.rowBtnDanger} disabled={busy} onClick={() => void remove(post)}>
-                  Delete
+            <div className={styles.blogTableCell} style={{ textAlign: "right" }}>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <button
+                  type="button"
+                  className={styles.rowBtn}
+                  onClick={() => setOpenMenu(openMenu === post.id ? null : post.id)}
+                  aria-label="Actions"
+                >
+                  ···
                 </button>
+                {openMenu === post.id && (
+                  <div className={styles.actionsMenu}>
+                    <a href={`/admin/blog/new?edit=${post.id}`} className={styles.actionsMenuItem}>Edit</a>
+                    <a href={`/${post.locale}/blog/${post.slug}`} target="_blank" rel="noreferrer" className={styles.actionsMenuItem}>View</a>
+                    {post.publishedAt && (
+                      <button type="button" className={styles.actionsMenuItem} disabled={busy} onClick={() => { setOpenMenu(null); void unpublish(post); }}>Unpublish</button>
+                    )}
+                    <button type="button" className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`} disabled={busy} onClick={() => { setOpenMenu(null); void remove(post); }}>Delete</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -748,6 +752,7 @@ export function AiContentManager() {
             <select name="aiBlogLanguage" value={s.aiBlogLanguage} onChange={(e) => setS((p) => ({ ...p, aiBlogLanguage: e.target.value }))}>
               <option value="de">German (+ English translation)</option>
               <option value="en">English (+ German translation)</option>
+              <option value="random">Random (DE or EN per article)</option>
             </select>
           </label>
           <label>

@@ -51,7 +51,8 @@ export class AiBlogService {
     }
     const topic = topics[Math.floor(Math.random() * topics.length)];
 
-    const language = settings.aiBlogLanguage || "de";
+    const rawLang = settings.aiBlogLanguage || "de";
+    const language = rawLang === "random" ? (Math.random() < 0.5 ? "de" : "en") : rawLang;
     const wordCount = settings.aiBlogWordCount || 800;
 
     // Fetch existing titles to avoid duplicates
@@ -152,7 +153,7 @@ export class AiBlogService {
 
     // Step 3: Translate
     const targetLocale = language === "de" ? "en" : "de";
-    await this.translateAndSave(apiKey, created.id, article, targetLocale, lang);
+    await this.translateAndSave(apiKey, created.id, article, targetLocale, lang, authorId);
 
     return created;
   }
@@ -162,7 +163,8 @@ export class AiBlogService {
     sourceContentId: string,
     article: ArticleJson,
     targetLocale: string,
-    sourceLang: string
+    sourceLang: string,
+    authorId: string
   ) {
     const targetLang = targetLocale === "de" ? "German" : "English";
     this.logger.log(`AI blog: translating post ${sourceContentId} to ${targetLang}`);
@@ -176,6 +178,7 @@ export class AiBlogService {
         role: "user",
         content: JSON.stringify({
           title: article.title,
+          slug: article.slug,
           excerpt: article.excerpt,
           body: article.body,
           tags: article.tags,
@@ -195,20 +198,37 @@ export class AiBlogService {
       return;
     }
 
-    await this.cms.createTranslation({
-      content: {
-        body: translated.body,
-        tags: translated.tags,
-        postType: "ai_generated",
-        published: true
+    // Resolve tags and pick category for the target locale
+    const targetTagIds = await this.resolveTagIds(translated.tags, targetLocale);
+    const targetCategories = await this.cms.listBlogCategories(targetLocale);
+    const targetCategory = targetCategories.length
+      ? targetCategories[Math.floor(Math.random() * targetCategories.length)]
+      : undefined;
+
+    const translatedSlug = translated.slug?.trim() || (article.slug || slugify(translated.title));
+
+    await this.cms.createContent(
+      {
+        categoryIds: targetCategory ? [targetCategory.id] : [],
+        content: {
+          body: translated.body,
+          featureImage: "",
+          images: [],
+          postType: "ai_generated",
+          published: true,
+          tags: translated.tags
+        },
+        excerpt: translated.excerpt || "",
+        locale: targetLocale,
+        seoDescription: translated.seoDescription || "",
+        seoTitle: translated.seoTitle || translated.title,
+        slug: translatedSlug,
+        tagIds: targetTagIds,
+        title: translated.title,
+        type: "POST"
       },
-      seoDescription: translated.seoDescription,
-      seoTitle: translated.seoTitle || translated.title,
-      sourceContentId,
-      status: "AI_DRAFT",
-      targetLocale,
-      title: translated.title
-    });
+      authorId
+    );
 
     this.logger.log(`AI blog: translation saved for post ${sourceContentId}`);
   }
@@ -263,6 +283,39 @@ export class AiBlogService {
   }
 }
 
+function buildSitePages(locale: string): string {
+  const base = `/${locale}`;
+  const pages = locale === "de"
+    ? [
+        ["Web Hosting Pakete", `${base}/webhosting`],
+        ["VPS Server", `${base}/vps`],
+        ["Virtual Server", `${base}/virtual-servers`],
+        ["Managed Hosting", `${base}/hosting`],
+        ["Domain Registrierung", `${base}/domains`],
+        ["Domain Preisliste", `${base}/domains/pricing`],
+        ["Preisübersicht", `${base}/pricing`],
+        ["Webdesign Service", `${base}/webdesign`],
+        ["IT Lösungen", `${base}/it-losungen`],
+        ["Blog", `${base}/blog`],
+        ["Kontakt", `${base}/kontakt`],
+        ["Über uns", `${base}/uber-uns`],
+      ]
+    : [
+        ["Web Hosting Packages", `${base}/webhosting`],
+        ["VPS Servers", `${base}/vps`],
+        ["Virtual Servers", `${base}/virtual-servers`],
+        ["Managed Hosting", `${base}/hosting`],
+        ["Domain Registration", `${base}/domains`],
+        ["Domain Pricing", `${base}/domains/pricing`],
+        ["Pricing", `${base}/pricing`],
+        ["Web Design", `${base}/webdesign`],
+        ["Blog", `${base}/blog`],
+        ["Contact", `${base}/contact`],
+        ["About Us", `${base}/about`],
+      ];
+  return pages.map(([title, url]) => `- [${title}](${url})`).join("\n");
+}
+
 function buildSystemPrompt(settings: AiBlogSettings, language: string, wordCount: number) {
   const lang = language === "de" ? "German" : "English";
   return [
@@ -283,7 +336,8 @@ function buildSystemPrompt(settings: AiBlogSettings, language: string, wordCount
       : "Provide 3-5 relevant lowercase tags.",
     settings.aiBlogKeywordsPrompt
       ? `Keywords/SEO guidance: ${settings.aiBlogKeywordsPrompt}`
-      : "Optimize for search engines with natural keyword usage."
+      : "Optimize for search engines with natural keyword usage.",
+    `IMPORTANT: When linking to pages on this website, ONLY use these exact URLs (never invent URLs):\n${buildSitePages(language)}`
   ].join("\n");
 }
 
