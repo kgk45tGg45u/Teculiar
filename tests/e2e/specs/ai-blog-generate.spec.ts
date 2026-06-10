@@ -56,7 +56,8 @@ test.describe("AI Blog Generate endpoint", () => {
     expect(token, "Admin token must be present — login may have failed").toBeTruthy();
 
     const response = await page.request.post(`${API_BASE}/cms/admin/dev/ai-blog/generate`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 90_000  // Deepseek generation takes 20-60s
     });
 
     // Before the locale migration this returned 500 because the BlogCategory/BlogTag
