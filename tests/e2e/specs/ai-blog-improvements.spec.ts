@@ -81,7 +81,7 @@ test.describe("Blog post list UI", () => {
     await menuBtn.click();
 
     // Dropdown should now be visible with the expected items
-    await expect(page.locator('[class*="actionsMenu"]')).toBeVisible();
+    await expect(page.locator('div[class*="actionsMenu"]')).toBeVisible();
     await expect(page.locator('[class*="actionsMenuItem"]').filter({ hasText: /edit/i }).first()).toBeVisible();
     await expect(page.locator('[class*="actionsMenuItem"]').filter({ hasText: /view/i }).first()).toBeVisible();
     await expect(page.locator('[class*="actionsMenuItem"]').filter({ hasText: /delete/i }).first()).toBeVisible();
@@ -92,10 +92,10 @@ test.describe("Blog post list UI", () => {
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
     await firstRow.locator('button[aria-label="Actions"], button').filter({ hasText: /^···$|^⋯$/ }).first().click();
-    await expect(page.locator('[class*="actionsMenu"]')).toBeVisible();
+    await expect(page.locator('div[class*="actionsMenu"]')).toBeVisible();
 
     await page.locator("h1, h2, [class*='pageTitle']").first().click();
-    await expect(page.locator('[class*="actionsMenu"]')).not.toBeVisible({ timeout: 3_000 });
+    await expect(page.locator('div[class*="actionsMenu"]')).not.toBeVisible({ timeout: 3_000 });
   });
 });
 
