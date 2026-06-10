@@ -241,7 +241,7 @@ export class ProductsService {
         await this.products.updateDomainRecordStatus(domainRecord.id, domainStatus.status, domainStatus.externalId);
       }
     }
-    const refreshableStatus = ["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status);
+    const refreshableStatus = ["PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status);
     const productType = serviceProductType(service);
     if (productType !== "SHARED_HOSTING" && !refreshableStatus) {
       return service;
@@ -268,7 +268,7 @@ export class ProductsService {
     if (!domainName) {
       return service;
     }
-    if (["ORDERED", "PENDING", "PROVISIONING"].includes(service.status)) {
+    if (["PENDING", "PROVISIONING"].includes(service.status)) {
       const runningCreate = await this.products.findRunningModuleLogForService?.(service.id, "create");
       if (runningCreate) {
         return service;

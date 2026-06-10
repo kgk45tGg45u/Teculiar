@@ -4,6 +4,7 @@ import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ADMIN_AUTH_COOKIE, clearAuth } from "../../lib/api";
+import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 
 type NavLeaf = { href: string; label: string };
@@ -156,23 +157,38 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
     });
   }
 
+  function logout() {
+    clearAuth("admin");
+    window.location.assign("/admin/login");
+  }
+
   return (
     <aside className={styles.sidebar}>
-      <button
-        aria-expanded={mobileOpen}
-        aria-label="Toggle navigation"
-        className={styles.mobileToggle}
-        onClick={() => setMobileOpen((prev) => !prev)}
-        type="button"
-      >
-        <Menu aria-hidden size={16} />
-        <span>Menu</span>
-        <ChevronRight
-          aria-hidden
-          className={`${styles.chevron}${mobileOpen ? ` ${styles.chevronOpen}` : ""}`}
-          size={14}
-        />
-      </button>
+      {/* Mobile-only top bar: Menu toggle on the left, a compact Log out link on the right. */}
+      <div className={styles.mobileBar}>
+        <button
+          aria-expanded={mobileOpen}
+          aria-label="Toggle navigation"
+          className={styles.mobileToggle}
+          onClick={() => setMobileOpen((prev) => !prev)}
+          type="button"
+        >
+          <Menu aria-hidden size={16} />
+          <span>Menu</span>
+          <ChevronRight
+            aria-hidden
+            className={`${styles.chevron}${mobileOpen ? ` ${styles.chevronOpen}` : ""}`}
+            size={14}
+          />
+        </button>
+        <button className={styles.mobileLogout} onClick={logout} type="button">
+          <LogOut aria-hidden size={13} />
+          <span>Log out</span>
+        </button>
+      </div>
+
+      {/* Mobile-only breadcrumb row, sticky under the menu/logout bar (desktop uses the layout bar). */}
+      <AdminBreadcrumbs variant="sidebar" />
 
       <strong className={styles.brandName}>Teculiar</strong>
 
@@ -239,14 +255,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
         })}
       </nav>
 
-      <button
-        className={styles.logoutBtn}
-        type="button"
-        onClick={() => {
-          clearAuth("admin");
-          window.location.assign("/admin/login");
-        }}
-      >
+      <button className={styles.logoutBtn} onClick={logout} type="button">
         <LogOut aria-hidden size={14} />
         Log out
       </button>

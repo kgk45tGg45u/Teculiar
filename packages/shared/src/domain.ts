@@ -18,10 +18,7 @@ export const billingCycles = [
 export type BillingCycle = (typeof billingCycles)[number];
 
 export const invoiceStatuses = [
-  "DRAFT",
-  "UNSENT",
   "PENDING",
-  "UNPAID",
   "PAID",
   "OVERDUE",
   "FAILED",
@@ -32,8 +29,7 @@ export const invoiceStatuses = [
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
 
 export const orderStatuses = [
-  "PENDING_PAYMENT",
-  "PAID",
+  "PENDING",
   "PROVISIONING",
   "COMPLETE",
   "FAILED",
@@ -61,11 +57,9 @@ export type ProductType = (typeof productTypes)[number];
 
 export const serviceStatuses = [
   "PENDING",
-  "ORDERED",
   "PROVISIONING",
   "ACTIVE",
   "SUSPENDED",
-  "PENDING_CANCEL",
   "CANCELLED",
   "TERMINATED",
   "FAILED",

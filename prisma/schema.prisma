@@ -61,11 +61,9 @@ enum BillingCycle {
 
 enum ServiceStatus {
   PENDING
-  ORDERED
   PROVISIONING
   ACTIVE
   SUSPENDED
-  PENDING_CANCEL
   CANCELLED
   TERMINATED
   FAILED
@@ -73,10 +71,7 @@ enum ServiceStatus {
 }
 
 enum InvoiceStatus {
-  DRAFT
-  UNSENT
   PENDING
-  UNPAID
   PAID
   OVERDUE
   FAILED
@@ -101,8 +96,7 @@ enum TransactionStatus {
 }
 
 enum OrderStatus {
-  PENDING_PAYMENT
-  PAID
+  PENDING
   PROVISIONING
   COMPLETE
   FAILED
@@ -412,7 +406,7 @@ model Order {
   orderNumber      String        @unique @default(cuid())
   userId           String
   invoiceId        String?       @unique
-  status           OrderStatus   @default(PENDING_PAYMENT)
+  status           OrderStatus   @default(PENDING)
   subtotalCents    Int
   setupFeeCents    Int           @default(0)
   taxAmountCents   Int           @default(0)
@@ -507,7 +501,7 @@ model Service {
   domainRecordId String?
   productId      String?
   productPriceId String
-  status         ServiceStatus   @default(ORDERED)
+  status         ServiceStatus   @default(PENDING)
   billingCycle   BillingCycle?
   recurringAmountCents Int       @default(0)
   setupFeeCents  Int             @default(0)
@@ -562,7 +556,7 @@ model Invoice {
   userId          String
   teamId          String?
   subscriptionId  String?
-  status          InvoiceStatus @default(DRAFT)
+  status          InvoiceStatus @default(PENDING)
   issuedAt        DateTime      @default(now())
   dueAt           DateTime
   paidAt          DateTime?

@@ -278,7 +278,7 @@ export class BillingRepository {
   markInvoiceUnpaid(id: string) {
     return this.prisma.invoice.update({
       where: { id },
-      data: { paidAt: null, status: "UNPAID" }
+      data: { paidAt: null, status: "PENDING" }
     });
   }
 
@@ -391,7 +391,7 @@ export class BillingRepository {
 
   balancePayableInvoices() {
     return this.prisma.invoice.findMany({
-      where: { status: { in: ["UNPAID", "OVERDUE"] }, totalCents: { gt: 0 } },
+      where: { status: { in: ["PENDING", "OVERDUE"] }, totalCents: { gt: 0 } },
       include: { user: { select: { balanceCents: true } } },
       orderBy: { issuedAt: "asc" }
     });
@@ -399,7 +399,7 @@ export class BillingRepository {
 
   automaticPayableInvoices(now = new Date()) {
     return this.prisma.invoice.findMany({
-      where: { dueAt: { lte: now }, status: { in: ["UNPAID", "OVERDUE"] }, totalCents: { gt: 0 } },
+      where: { dueAt: { lte: now }, status: { in: ["PENDING", "OVERDUE"] }, totalCents: { gt: 0 } },
       include: {
         transactions: true,
         user: {
@@ -425,7 +425,7 @@ export class BillingRepository {
 
   overdueUnpaidInvoices(now = new Date()) {
     return this.prisma.invoice.findMany({
-      where: { dueAt: { lt: now }, status: { in: ["UNPAID", "OVERDUE"] } },
+      where: { dueAt: { lt: now }, status: { in: ["PENDING", "OVERDUE"] } },
       include: { items: true }
     });
   }
@@ -437,7 +437,7 @@ export class BillingRepository {
     const until = new Date(target);
     until.setDate(until.getDate() + 1);
     return this.prisma.invoice.findMany({
-      where: { dueAt: { gte: target, lt: until }, status: { in: ["UNPAID", "OVERDUE"] } },
+      where: { dueAt: { gte: target, lt: until }, status: { in: ["PENDING", "OVERDUE"] } },
       include: { items: true, order: true, user: { select: publicUserSelect } },
       orderBy: { dueAt: "asc" }
     });

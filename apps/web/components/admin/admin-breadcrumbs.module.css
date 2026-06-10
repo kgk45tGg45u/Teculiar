@@ -1,0 +1,91 @@
+.breadcrumbs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 9px 18px;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.link {
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 5px;
+  padding: 2px 5px;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+
+.link:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.current {
+  color: var(--text);
+  font-weight: 600;
+  padding: 2px 5px;
+}
+
+.separator {
+  color: var(--muted);
+  opacity: 0.6;
+  user-select: none;
+}
+
+@media (max-width: 1024px) {
+  .breadcrumbs {
+    padding: 8px 16px;
+  }
+}
+
+/* Desktop: full-width light bar under the header. Hidden once the sidebar enters mobile mode. */
+@media (max-width: 1024px) {
+  .barVariant {
+    display: none;
+  }
+}
+
+/* Mobile: rendered inside the dark admin sidebar, under the menu/logout bar. */
+.sidebarVariant {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sidebarVariant {
+    display: block;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebarVariant .link {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .sidebarVariant .link:hover {
+    color: #fff;
+    background: rgba(216, 241, 255, 0.08);
+  }
+
+  .sidebarVariant .current {
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .sidebarVariant .separator {
+    color: rgba(255, 255, 255, 0.4);
+  }
+}

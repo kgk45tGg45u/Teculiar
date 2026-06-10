@@ -217,6 +217,38 @@ export class EmailService {
     return logs;
   }
 
+  // Records an inbound (IMAP-fetched) email so admins can see every received message with its
+  // title and the matched client. Stored in the same EmailLog table as outgoing mail.
+  logInboundEmail(input: {
+    to: string;
+    from?: string;
+    subject: string;
+    userId?: string;
+    department?: string;
+    status: string;
+    ticketId?: string;
+    body?: string;
+  }) {
+    return this.prisma.emailLog.create({
+      data: {
+        status: input.status,
+        subject: input.subject || "(no subject)",
+        template: "inbound",
+        to: input.to,
+        userId: input.userId ?? undefined,
+        sentAt: new Date(),
+        payload: {
+          direction: "inbound",
+          department: input.department,
+          from: input.from,
+          ticketId: input.ticketId,
+          to: input.to,
+          text: input.body?.slice(0, 4000)
+        } as Prisma.InputJsonValue
+      }
+    });
+  }
+
   async sendEventToUser(userId: string, eventKey: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, locale: true } });
     if (!user?.email) {

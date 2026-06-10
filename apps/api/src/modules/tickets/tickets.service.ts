@@ -4,7 +4,7 @@ import { EmailService } from "../email/email.service";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
 import { PublicInquiryDto } from "./dto/public-inquiry.dto";
-import { fetchUnreadImapMessages, type ImapMailboxConfig } from "./imap-mailbox";
+import { fetchUnreadImapMessages, type ImapMailboxConfig, type ImapMessage } from "./imap-mailbox";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
 import { TicketsRepository } from "./tickets.repository";
 
@@ -115,32 +115,109 @@ export class TicketsService {
   }
 
   async importMailboxTickets(settings: Record<string, unknown>) {
+    let fetched = 0;
     let imported = 0;
     let skipped = 0;
+    const mailboxes: Array<{
+      address: string;
+      enabled: boolean;
+      fetched?: number;
+      imported?: number;
+      skipped?: number;
+      error?: string;
+    }> = [];
+
     for (const mailbox of mailboxConfigs(settings)) {
-      const messages = await fetchUnreadImapMessages(mailbox).catch(() => []);
+      if (!mailbox.enabled) {
+        mailboxes.push({ address: mailbox.address, enabled: false });
+        continue;
+      }
+      if (!mailbox.host || !mailbox.username || !mailbox.password) {
+        mailboxes.push({ address: mailbox.address, enabled: true, error: "Missing IMAP host, username or password" });
+        continue;
+      }
+
+      let messages: ImapMessage[];
+      try {
+        // Surface connection/login failures instead of swallowing them, so they show up in cron logs.
+        messages = await fetchUnreadImapMessages(mailbox);
+      } catch (error) {
+        mailboxes.push({
+          address: mailbox.address,
+          enabled: true,
+          error: error instanceof Error ? error.message : "IMAP fetch failed"
+        });
+        continue;
+      }
+
+      let boxImported = 0;
+      let boxSkipped = 0;
       for (const message of messages) {
+        fetched += 1;
         const sender = message.from?.toLowerCase();
         if (!sender) {
           skipped += 1;
+          boxSkipped += 1;
+          await this.logInbound(mailbox, message, undefined, "SKIPPED_NO_SENDER");
           continue;
         }
-        const user = await this.tickets.findUserByEmail(sender);
-        if (!user) {
-          skipped += 1;
-          continue;
-        }
+
         const department = departmentFor(message.to, mailbox);
-        await this.createTicket(user.id, {
-          body: message.body || "(empty email)",
-          department,
-          priority: "NORMAL",
-          subject: message.subject || `Email from ${sender}`
-        });
-        imported += 1;
+        // Attach to an existing client, otherwise create a guest contact so no inbound mail is lost
+        // (e.g. a sales enquiry from a brand-new prospect).
+        const user = (await this.tickets.findUserByEmail(sender)) ?? (await this.tickets.findOrCreateGuestUser(sender, sender));
+        let ticketId: string | undefined;
+        try {
+          const ticket = await this.createTicket(user.id, {
+            body: message.body || "(empty email)",
+            department,
+            priority: "NORMAL",
+            subject: message.subject || `Email from ${sender}`
+          });
+          ticketId = ticket?.id;
+          imported += 1;
+          boxImported += 1;
+        } catch {
+          skipped += 1;
+          boxSkipped += 1;
+        }
+        await this.logInbound(mailbox, message, user.id, ticketId ? "RECEIVED" : "FAILED", ticketId);
       }
+
+      mailboxes.push({
+        address: mailbox.address,
+        enabled: true,
+        fetched: messages.length,
+        imported: boxImported,
+        skipped: boxSkipped
+      });
     }
-    return { imported, skipped };
+
+    return { fetched, imported, skipped, mailboxes };
+  }
+
+  private async logInbound(
+    mailbox: ImapMailboxConfig,
+    message: ImapMessage,
+    userId: string | undefined,
+    status: string,
+    ticketId?: string
+  ) {
+    if (!this.emails) {
+      return;
+    }
+    await this.emails
+      .logInboundEmail({
+        body: message.body,
+        department: mailbox.department,
+        from: message.from,
+        status,
+        subject: message.subject,
+        ticketId,
+        to: mailbox.address,
+        userId
+      })
+      .catch(() => undefined);
   }
 
   async closeTicket(ticketId: string, userId: string, staff = false) {

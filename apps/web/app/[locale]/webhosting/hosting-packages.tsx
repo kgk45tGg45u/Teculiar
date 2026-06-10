@@ -38,9 +38,8 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
               .slice(0, 5);
             const isFeatured = i === 1;
             return (
-              <Link
-                className={`${styles.packageCard} ${styles.packageLink} ${isFeatured ? styles.packageFeatured : ""}`}
-                href={`/${locale}/order/${product.id}`}
+              <div
+                className={`${styles.packageCard} ${isFeatured ? styles.packageFeatured : ""}`}
                 key={product.id}
               >
                 {isFeatured && (
@@ -71,11 +70,11 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
                     ))}
                   </ul>
                 )}
-                <span className={styles.packageCta}>
+                <Link className={styles.packageCta} href={`/${locale}/order/${product.id}`}>
                   {isDe ? "Jetzt bestellen" : "Order now"}
                   <ArrowRight aria-hidden size={18} />
-                </span>
-              </Link>
+                </Link>
+              </div>
             );
           })}
         </div>

@@ -486,7 +486,10 @@ export function currentLocale(): Locale {
   if (typeof window === "undefined") {
     return "de";
   }
-  const saved = window.localStorage.getItem(LOCALE_COOKIE) ?? readCookie(LOCALE_COOKIE);
+  // Prefer the cookie so the client matches the server (requestLocale) and the visible language
+  // toggle. localStorage is only a fallback — otherwise a stale localStorage value can override a
+  // newer cookie (e.g. set by visiting /de), showing a DE toggle but an EN dashboard.
+  const saved = readCookie(LOCALE_COOKIE) ?? window.localStorage.getItem(LOCALE_COOKIE);
   if (saved === "de" || saved === "en") {
     return saved;
   }

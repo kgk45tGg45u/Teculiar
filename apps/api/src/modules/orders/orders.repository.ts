@@ -55,15 +55,35 @@ export class OrdersRepository {
     });
   }
 
-  findActiveServiceForUserProduct(userId: string, productId: string) {
-    return this.prisma.service.findFirst({
-      where: { userId, productId, status: { notIn: ["CANCELLED", "TERMINATED"] } }
+  // A hosting account is "known" by the domain it is provisioned under. We block a second
+  // active hosting service for the same domain name anywhere in the system (any client).
+  // The domain is stored on Service.configuration.domainName (or mirrored on externalId once
+  // provisioned), so we filter to hosting services and match the normalized domain in memory.
+  async findActiveHostingServiceByDomain(domain: string) {
+    const normalized = domain.toLowerCase().trim();
+    if (!normalized) {
+      return null;
+    }
+    const services = await this.prisma.service.findMany({
+      where: {
+        status: { notIn: ["CANCELLED", "TERMINATED", "FAILED", "PROVISIONING_FAILED"] },
+        OR: [{ product: { type: "SHARED_HOSTING" } }, { product: null, moduleName: "virtualmin" }]
+      },
+      select: { id: true, userId: true, externalId: true, configuration: true }
     });
+    return (
+      services.find((service) => {
+        const configDomain = serviceConfigDomain(service.configuration);
+        const externalDomain = typeof service.externalId === "string" ? service.externalId.toLowerCase().trim() : undefined;
+        return configDomain === normalized || externalDomain === normalized;
+      }) ?? null
+    );
   }
 
+  // Only block names that actually occupy the registry. Expired/failed/cancelled domains are free again.
   findActiveDomainRecord(domain: string) {
     return this.prisma.domainRecord.findFirst({
-      where: { domain: domain.toLowerCase().trim(), status: { notIn: ["CANCELLED"] } }
+      where: { domain: domain.toLowerCase().trim(), status: { notIn: ["CANCELLED", "EXPIRED", "FAILED"] } }
     });
   }
 
@@ -272,13 +292,14 @@ export class OrdersRepository {
     });
   }
 
+  // Payment received → the order moves straight into provisioning (there is no separate PAID step).
   markOrderPaid(id: string, method?: string) {
     return this.prisma.order.update({
       where: { id },
       data: {
         paidAt: new Date(),
         paymentMethod: method ? (method as PaymentMethodType) : undefined,
-        status: "PAID"
+        status: "PROVISIONING"
       }
     });
   }
@@ -476,6 +497,10 @@ function serviceDomainName(configuration: Record<string, unknown>) {
     return undefined;
   }
   return configuration.domainName.trim().toLowerCase();
+}
+
+function serviceConfigDomain(configuration: unknown) {
+  return isRecord(configuration) ? serviceDomainName(configuration) : undefined;
 }
 
 function domainAction(configuration: Record<string, unknown>) {

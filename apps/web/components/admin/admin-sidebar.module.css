@@ -21,7 +21,15 @@
   display: none;
 }
 
+.mobileBar {
+  display: none;
+}
+
 .mobileToggle {
+  display: none;
+}
+
+.mobileLogout {
   display: none;
 }
 
@@ -210,15 +218,20 @@
     overflow: visible;
   }
 
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
   .mobileToggle {
     display: flex;
     align-items: center;
     gap: 8px;
-    width: 100%;
     min-height: 44px;
     padding: 0 16px;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: transparent;
     color: rgba(255, 255, 255, 0.78);
     cursor: pointer;
@@ -233,6 +246,32 @@
     background: rgba(216, 241, 255, 0.06);
   }
 
+  .mobileLogout {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.58);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .mobileLogout:hover {
+    color: var(--surface);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  /* The big bottom logout button is replaced by the compact one in the mobile bar. */
+  .logoutBtn {
+    display: none;
+  }
+
   .nav {
     display: none;
     padding: 8px 8px 12px;
@@ -245,5 +284,13 @@
 
   .submenuOpen {
     max-height: 400px;
+  }
+}
+
+/* Below 980px the header shrinks to 58px (see site-header.module.css). Pin the menu/logout
+   bar flush to the header bottom so no background sliver shows between them when scrolling. */
+@media (max-width: 980px) {
+  .sidebar {
+    top: 58px;
   }
 }

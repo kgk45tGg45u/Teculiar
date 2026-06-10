@@ -210,7 +210,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
           unitAmountCents: Math.round(Number(formData.get("amount") ?? 0) * 100),
           vatRate: Number(formData.get("vatRate") ?? 19)
         }],
-        status: "UNPAID",
+        status: "PENDING",
         userId: client.id
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -448,7 +448,7 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
         dueAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
         isBusinessCustomer: client.customerType === "BUSINESS",
         lines,
-        status: "UNPAID",
+        status: "PENDING",
         userId: client.id
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -539,7 +539,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
         dueAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
         isBusinessCustomer: client.customerType === "BUSINESS",
         lines,
-        status: "UNPAID",
+        status: "PENDING",
         userId: client.id
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -702,7 +702,6 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
 
   const statusOptions: Array<[string, string]> = [
     ["PENDING", "Pending"],
-    ["ORDERED", "Ordered"],
     ["PROVISIONING", "Provisioning"],
     ["ACTIVE", "Active"],
     ["SUSPENDED", "Suspended"],
@@ -2095,7 +2094,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
         dueAt: dueAtStr ? new Date(dueAtStr).toISOString() : new Date(Date.now() + 7 * 86400_000).toISOString(),
         isBusinessCustomer: client.customerType === "BUSINESS",
         lines: invoiceLines,
-        status: "UNPAID",
+        status: "PENDING",
         userId: client.id
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },

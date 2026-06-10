@@ -227,7 +227,7 @@ export class ProductsRepository {
         teamId: input.teamId,
         productId: input.productId,
         productPriceId: input.productPriceId,
-        status: "ORDERED",
+        status: "PENDING",
         configuration: input.configuration as Prisma.InputJsonValue
       },
       include: { product: { include: { category: true } }, productPrice: true }
@@ -338,10 +338,12 @@ export class ProductsRepository {
     });
   }
 
+  // A service scheduled for cancellation stays ACTIVE (still serving) until its cancelAt date;
+  // the scheduled cancellation is tracked by the cancelAt timestamp, not a dedicated status.
   scheduleCancellation(id: string, cancelAt: Date) {
     return this.prisma.service.update({
       where: { id },
-      data: { status: "PENDING_CANCEL", cancelAt }
+      data: { status: "ACTIVE", cancelAt }
     });
   }
 

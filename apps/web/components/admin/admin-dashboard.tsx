@@ -23,7 +23,7 @@ import {
 import { dictionary, type Locale } from "../../lib/i18n";
 import { requestLocale } from "../../lib/server-locale";
 import { LanguageToggle } from "../layout/language-toggle";
-import { invoiceStatusLabel, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
+import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
@@ -543,10 +543,12 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
               <td>{shortDateLabel(invoice.status === "PAID" ? invoice.paidAt : invoice.dueAt, locale)}</td>
               <td>{money(invoice.totalCents, invoice.currency, locale)}</td>
               <td>
-                <StatusPill
-                  label={invoiceStatusLabel(invoice.status, locale)}
-                  tone={invoice.status === "PAID" ? "good" : invoice.status === "REFUNDED" ? "neutral" : "warn"}
-                />
+                {invoiceStatusVisible(invoice.status) ? (
+                  <StatusPill
+                    label={invoiceStatusLabel(invoice.status, locale)}
+                    tone={invoice.status === "REFUNDED" ? "neutral" : "warn"}
+                  />
+                ) : "—"}
               </td>
             </tr>
           ))}
@@ -650,10 +652,14 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
             <tr><td>billingMaintenance</td><td>Every cron run</td><td>Generates upcoming invoices, marks overdue invoices, and runs subscription renewals.</td></tr>
             <tr><td>invoiceReminders</td><td>Once per day</td><td>Sends payment reminder emails to clients with invoices due within the configured days.</td></tr>
             <tr><td>ticketsClose</td><td>Every cron run</td><td>Auto-closes tickets that have been answered and have had no reply for the configured hours.</td></tr>
-            <tr><td>mailboxes</td><td>Every 5 min (configurable)</td><td>Polls support and sales IMAP mailboxes to convert incoming emails into tickets.</td></tr>
+            <tr><td>mailboxes</td><td>Every 5 min (configurable)</td><td>Polls the support &amp; sales IMAP mailboxes. Every fetched email is logged (with subject and matched client) and converted into a ticket; mail from an unknown sender creates a guest contact so nothing is lost. IMAP connection/login errors are recorded in the cron log.</td></tr>
             <tr><td>sitemap</td><td>Once per day</td><td>Generates <code>/sitemap.xml</code> with all static pages and published blog posts. Set <code>SITE_URL</code> in the server environment to your production domain (e.g. <code>https://dezhost.com</code>).</td></tr>
+            <tr><td>aiBlogPost</td><td>Every 8 h (configurable)</td><td>Generates an AI blog post when AI blogging is enabled and a Deepseek API key is set.</td></tr>
           </tbody>
         </table>
+        <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "10px 0 0", lineHeight: 1.6 }}>
+          Every trigger also writes a <code>cron.started</code> heartbeat and a <code>cron.completed</code> summary (with duration and per-job results) to the log below, so you can confirm the cron is actually reaching the server. A wrong or missing secret is recorded as <code>cron.unauthorized</code>.
+        </p>
 
         <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>How to Activate the Cron on Your Server</h3>
         <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }}>

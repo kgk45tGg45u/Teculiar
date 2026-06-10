@@ -23,7 +23,9 @@ test("new storefront checkout stores order under pending checkout user, not clie
       calls.push(["createOrder", input.userId]);
       return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
     },
-    createPendingEntitiesForOrder: async (order) => calls.push(["createPendingEntitiesForOrder", order.userId])
+    createPendingEntitiesForOrder: async (order) => calls.push(["createPendingEntitiesForOrder", order.userId]),
+    findActiveDomainRecord: async () => null,
+    findActiveHostingServiceByDomain: async () => null
   };
   const billing = {
     createInvoice: async (input) => {
@@ -61,7 +63,9 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
       calls.push(["createOrder", input.customerSnapshot.email]);
       return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
     },
-    createPendingEntitiesForOrder: async () => undefined
+    createPendingEntitiesForOrder: async () => undefined,
+    findActiveDomainRecord: async () => null,
+    findActiveHostingServiceByDomain: async () => null
   };
   const billing = {
     createInvoice: async (input) => {
@@ -99,7 +103,9 @@ test("logged-in storefront checkout can reuse the account email without password
       calls.push(["createOrder", input.userId]);
       return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
     },
-    createPendingEntitiesForOrder: async () => undefined
+    createPendingEntitiesForOrder: async () => undefined,
+    findActiveDomainRecord: async () => null,
+    findActiveHostingServiceByDomain: async () => null
   };
   const billing = {
     createInvoice: async (input) => {
@@ -141,7 +147,9 @@ test("logged-in storefront checkout does not require a password", async () => {
   const item = pricedHostingItem();
   const orders = {
     createOrder: async (input) => ({ id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId }),
-    createPendingEntitiesForOrder: async () => undefined
+    createPendingEntitiesForOrder: async () => undefined,
+    findActiveDomainRecord: async () => null,
+    findActiveHostingServiceByDomain: async () => null
   };
   const billing = {
     createInvoice: async () => ({ id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 }),
@@ -178,7 +186,9 @@ test("logged-in storefront checkout uses token account over autofilled email", a
       calls.push(["createOrder", input.userId, input.customerSnapshot.email, input.customerSnapshot.customerNumber]);
       return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
     },
-    createPendingEntitiesForOrder: async () => undefined
+    createPendingEntitiesForOrder: async () => undefined,
+    findActiveDomainRecord: async () => null,
+    findActiveHostingServiceByDomain: async () => null
   };
   const billing = {
     createInvoice: async (input) => {
@@ -259,7 +269,7 @@ test("billing finalization materializes paid checkout before lifecycle modules",
       id: "invoice-1",
       invoiceNumber: "N-100001",
       orderSnapshot: { pendingCheckout: { email: customer.email, passwordHash: "hash" } },
-      status: "UNPAID",
+      status: "PENDING",
       totalCents: 1200,
       transactions: []
     }),

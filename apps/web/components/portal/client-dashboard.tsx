@@ -19,7 +19,7 @@ import {
   type ApiService,
   type ApiTicket
 } from "../../lib/api";
-import { invoiceStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
+import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel } from "../../lib/status-labels";
 import { dictionary, type Locale } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
@@ -115,15 +115,12 @@ const portalDataCache: PortalDataCache = {};
 const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   ACTIVE: "good",
   PENDING: "warn",
-  ORDERED: "warn",
   PROVISIONING: "warn",
   SUSPENDED: "warn",
   FAILED: "neutral",
-  PENDING_CANCEL: "warn",
   TERMINATED: "neutral",
   CANCELLED: "neutral",
   PAID: "good",
-  UNPAID: "warn",
   OVERDUE: "warn",
   OPEN: "warn",
   NEW: "warn",
@@ -330,11 +327,13 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           <a aria-current={clientNavCurrent(view, "new-ticket")} className={styles.subNav} href="/client/tickets/new">{copy.newTicket}</a>
           <a aria-current={clientNavCurrent(view, "profile")} href="/client/profile">{copy.profile}</a>
         </nav>
-        <div className={styles.balanceCard}>
-          <Wallet aria-hidden size={20} />
-          <strong>{money(profile?.balanceCents ?? 0)}</strong>
-          <span>{copy.accountBalance}</span>
-        </div>
+        {(profile?.balanceCents ?? 0) > 0 ? (
+          <div className={styles.balanceCard}>
+            <Wallet aria-hidden size={20} />
+            <strong>{money(profile?.balanceCents ?? 0)}</strong>
+            <span>{copy.accountBalance}</span>
+          </div>
+        ) : null}
       </aside>
 
       <main className={styles.main}>
@@ -972,7 +971,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
     <section className={styles.invoiceCards}>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingInvoices} />{copy.loadingInvoices}</span></section> : null}
       {!loading && invoices.map((invoice) => {
-        const payable = invoice.status === "UNPAID" || invoice.status === "OVERDUE";
+        const payable = invoice.status === "PENDING" || invoice.status === "OVERDUE";
         return (
           <article className={styles.invoiceCard} key={invoice.id}>
             <div className={styles.invoiceCardLead}>
@@ -984,7 +983,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
             <div className={styles.invoiceCardMeta}><span>{copy.dueAt}</span><strong>{dateLabel(invoice.dueAt)}</strong></div>
             <div className={styles.invoiceCardTotal}><span>{copy.total}</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
             <div className={styles.invoiceListAction}>
-              <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} />
+              {invoiceStatusVisible(invoice.status) ? <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} /> : null}
               {payable ? <a className={styles.invoicePayLink} href={`/client/billing/payment?invoice=${invoice.id}`}><CreditCard size={13} />Pay now</a> : null}
             </div>
           </article>
@@ -1005,7 +1004,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};
   const showVat = (invoice.taxAmountCents ?? 0) > 0;
-  const payable = invoice.status === "UNPAID" || invoice.status === "OVERDUE";
+  const payable = invoice.status === "PENDING" || invoice.status === "OVERDUE";
   // Paid invoices: always show the exact stored amount in the stored currency
   const fmt = (cents: number) => invoice.status === "PAID"
     ? frozenMoney(cents, invoice.currency, locale)
@@ -1051,7 +1050,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
 
         <div className={styles.invoiceTitleRow}>
           <div><span className="eyebrow">{copy.invoiceTitle}</span><h2>{copy.invoiceTitle} {invoiceDisplayNumber(invoice)}</h2></div>
-          <StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} />
+          {invoiceStatusVisible(invoice.status) ? <StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={statusTone[invoice.status] ?? "warn"} /> : null}
         </div>
 
         <div className={styles.invoiceMetaGrid}>

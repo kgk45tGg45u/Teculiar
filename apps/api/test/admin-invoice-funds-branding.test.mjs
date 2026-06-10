@@ -20,7 +20,7 @@ test("add funds uses profile snapshot and sandbox token for sandbox gateway", as
   }, {}, {});
   service.createInvoice = async (input) => {
     calls.push(["invoice", input]);
-    return { id: "invoice-1", status: "UNPAID" };
+    return { id: "invoice-1", status: "PENDING" };
   };
   service.payInvoice = async (id, dto, options) => {
     calls.push(["pay", id, dto, options]);

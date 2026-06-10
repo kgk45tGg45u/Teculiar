@@ -53,7 +53,7 @@ export class BillingService {
     const invoice = await this.billing.createInvoice({
       userId: dto.userId,
       teamId: dto.teamId,
-      status: dto.status ?? "DRAFT",
+      status: dto.status ?? "PENDING",
       issuedAt: dto.issuedAt ? new Date(dto.issuedAt) : new Date(),
       dueAt: new Date(dto.dueAt),
       subtotalCents: draft.subtotalCents,
@@ -218,9 +218,6 @@ export class BillingService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
-    if (invoice.status === "DRAFT") {
-      return this.billing.updateInvoiceStatus(id, "UNPAID");
-    }
     return this.billing.updateInvoiceStatus(id, "PENDING");
   }
 
@@ -229,7 +226,7 @@ export class BillingService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
-    if (!["UNPAID", "OVERDUE", "FAILED"].includes(invoice.status)) {
+    if (!["PENDING", "OVERDUE", "FAILED"].includes(invoice.status)) {
       throw new BadRequestException("Invoice is not payable");
     }
 
@@ -388,7 +385,7 @@ export class BillingService {
         vatRate: 0
       }],
       orderSnapshot: { accountCreditCents: input.amountCents },
-      status: "UNPAID",
+      status: "PENDING",
       userId
     });
     const paid = await this.payInvoice(invoice.id, payment, { processLifecycle: false });
@@ -488,7 +485,7 @@ export class BillingService {
     const invoice = await this.billing.findInvoice(invoiceId);
     if (!invoice) throw new NotFoundException("Invoice not found");
     if (invoice.userId !== userId) throw new NotFoundException("Invoice not found");
-    if (!["UNPAID", "OVERDUE", "FAILED"].includes(invoice.status)) {
+    if (!["PENDING", "OVERDUE", "FAILED"].includes(invoice.status)) {
       throw new BadRequestException("Invoice is not awaiting payment");
     }
 
@@ -1000,7 +997,7 @@ export class BillingService {
     const invoice = await this.createInvoice({
       userId: subscription.userId,
       dueAt: subscription.nextInvoiceAt.toISOString(),
-      status: "UNSENT",
+      status: "PENDING",
       buyerCountryCode: subscription.user.countryCode,
       buyerVatId: subscription.user.vatId ?? undefined,
       isBusinessCustomer: subscription.user.customerType === "BUSINESS",
@@ -2258,7 +2255,7 @@ function serviceAction(item: LifecycleItem, service: Record<string, any>) {
   if (service.status === "SUSPENDED") {
     return "unsuspend";
   }
-  if (["ORDERED", "PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status)) {
+  if (["PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status)) {
     return "create";
   }
   return explicit === "create" ? "create" : "none";

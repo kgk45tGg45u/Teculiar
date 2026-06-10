@@ -58,14 +58,20 @@ export class CronService {
   async runAuthorized(secret?: string, now = new Date()) {
     const settings = await this.billing.cronSettings();
     const expected = (process.env.CRON_SECRET || settings.cronSecret || "").trim();
-    if (!expected) {
-      throw new UnauthorizedException("Cron secret missing");
-    }
-    if (!secret) {
-      throw new UnauthorizedException("Cron secret missing");
-    }
-    if (!secretEquals(secret.trim(), expected)) {
-      throw new UnauthorizedException("Cron secret invalid");
+    const reason = !expected
+      ? "Cron secret not configured on the server"
+      : !secret
+        ? "Cron secret missing from request"
+        : !secretEquals(secret.trim(), expected)
+          ? "Cron secret invalid"
+          : undefined;
+    if (reason) {
+      // Log rejected attempts too, so the admin can tell the server is hitting the endpoint
+      // but with a wrong/missing token (a common reason cron "silently does nothing").
+      await this.billing
+        .recordAction({ action: "cron.unauthorized", metadata: { at: now.toISOString(), reason }, subject: "cron" })
+        .catch(() => undefined);
+      throw new UnauthorizedException(reason);
     }
 
     return this.run(now, settings);
@@ -79,8 +85,14 @@ export class CronService {
     const ran: CronRunItem[] = [];
     const skipped: CronSkipItem[] = [];
     const settings = preloadedSettings ?? await this.billing.cronSettings();
+    const startedAtMs = Date.now();
 
     try {
+      // A heartbeat row written on every trigger — proves the server reached the cron, even when
+      // every individual job is still within its interval and gets skipped.
+      await this.billing
+        .recordAction({ action: "cron.started", metadata: { at: now.toISOString() }, subject: "cron" })
+        .catch(() => undefined);
       await this.maybeRunTimed("domainPrices", hours(settings.domainPriceUpdateHours, 24), now, ran, skipped, () =>
         this.orders.syncDomainPrices()
       );
@@ -115,7 +127,14 @@ export class CronService {
 
       await this.billing.recordAction({
         action: "cron.completed",
-        metadata: { ran: ran.map((item) => ({ name: item.name, status: item.status })), skipped: skipped.map((item) => item.name) },
+        metadata: {
+          durationMs: Date.now() - startedAtMs,
+          ranCount: ran.length,
+          failedCount: ran.filter((item) => item.status === "failed").length,
+          skippedCount: skipped.length,
+          ran: ran.map((item) => ({ name: item.name, result: item.result, status: item.status })),
+          skipped: skipped.map((item) => ({ name: item.name, nextAt: item.nextAt }))
+        },
         subject: "cron"
       });
       return { ok: ran.every((item) => item.status === "ran"), ran, skipped };
@@ -215,13 +234,14 @@ export class CronService {
   }
 
   private async runAction(name: string, ran: CronRunItem[], action: () => Promise<unknown>) {
-    const startedAt = new Date().toISOString();
+    const startedAtMs = Date.now();
+    const startedAt = new Date(startedAtMs).toISOString();
     try {
       const result = await action();
       ran.push({ name, result, status: "ran" });
       await this.billing.recordAction({
         action: `cron.${name}`,
-        metadata: { result: result ?? null, startedAt, status: "ran" },
+        metadata: { result: result ?? null, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "ran" },
         subject: "cron"
       }).catch(() => undefined);
     } catch (error) {
@@ -229,7 +249,7 @@ export class CronService {
       ran.push({ name, result: message, status: "failed" });
       await this.billing.recordAction({
         action: `cron.${name}`,
-        metadata: { error: message, startedAt, status: "failed" },
+        metadata: { error: message, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "failed" },
         subject: "cron"
       }).catch(() => undefined);
     }

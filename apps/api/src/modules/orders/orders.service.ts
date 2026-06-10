@@ -138,21 +138,9 @@ export class OrdersService implements OnModuleInit {
       assertDomainRegistrantContact(dto.customer);
     }
 
-    if (existing) {
-      for (const item of preview.items) {
-        if (item.type === "DOMAIN" && item.domainName) {
-          const existingDomain = await this.orders.findActiveDomainRecord(item.domainName);
-          if (existingDomain) {
-            throw new BadRequestException(`Domain ${item.domainName} already exists in the system. An invoice can be created manually instead.`);
-          }
-        } else if (item.type !== "DOMAIN" && item.productId) {
-          const existingService = await this.orders.findActiveServiceForUserProduct(existing.id, item.productId);
-          if (existingService) {
-            throw new BadRequestException(`You already have an active service for "${item.description}". An invoice can be created manually instead.`);
-          }
-        }
-      }
-    }
+    // Domain/hosting names must be unique across the whole system, regardless of who is ordering
+    // (new or existing client), so run this check even when there is no matching account yet.
+    await this.assertOrderItemsAvailable(preview.items, "An invoice can be created manually instead.");
 
     const pendingPasswordHash = existing ? undefined : await hash(dto.customer.password, 12);
     const user =
@@ -193,7 +181,7 @@ export class OrdersService implements OnModuleInit {
         taxAmountCents: preview.taxAmountCents,
         totalCents: preview.totalCents
       },
-      status: "UNPAID",
+      status: "PENDING",
       suppressNewInvoiceEmail: true,
       userId: user.id
     } as Parameters<typeof this.billing.createInvoice>[0]);
@@ -209,19 +197,7 @@ export class OrdersService implements OnModuleInit {
     }
     const items = await this.priceItems(dto.items);
 
-    for (const item of items) {
-      if (item.type === "DOMAIN" && item.domainName) {
-        const existingDomain = await this.orders.findActiveDomainRecord(item.domainName);
-        if (existingDomain) {
-          throw new BadRequestException(`Domain ${item.domainName} already exists in the system. Create an invoice manually instead.`);
-        }
-      } else if (item.type !== "DOMAIN" && item.productId) {
-        const existingService = await this.orders.findActiveServiceForUserProduct(user.id, item.productId);
-        if (existingService) {
-          throw new BadRequestException(`Client already has an active service for "${item.description}". Create an invoice manually instead.`);
-        }
-      }
-    }
+    await this.assertOrderItemsAvailable(items, "Create an invoice manually instead.");
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
@@ -252,7 +228,7 @@ export class OrdersService implements OnModuleInit {
         taxAmountCents,
         totalCents: taxableCents + taxAmountCents
       },
-      status: "UNPAID",
+      status: "PENDING",
       userId: user.id
     });
     const order = await this.orders.createOrder({
@@ -469,6 +445,33 @@ export class OrdersService implements OnModuleInit {
     void this.dispatchOrderEmail(order, invoice as Record<string, any>, cs).catch(() => undefined);
 
     return { existed: false, order };
+  }
+
+  // Enforce that a domain name can only be active once per type across the whole system:
+  // - a domain registration name may not already exist as an active domain record, and
+  // - a hosting account's domain may not already back another active hosting service.
+  // A client may still hold one domain registration AND one hosting service for the same name
+  // (the normal "register the domain, then host it" flow), and may hold many hosting services
+  // for different domain names.
+  private async assertOrderItemsAvailable(items: PricedOrderItem[], remedy: string) {
+    for (const item of items) {
+      if (item.type === "DOMAIN" && item.domainName) {
+        const existingDomain = await this.orders.findActiveDomainRecord(item.domainName);
+        if (existingDomain) {
+          throw new BadRequestException(`Domain ${item.domainName} is already active in the system. ${remedy}`);
+        }
+        continue;
+      }
+      if (item.type === "SHARED_HOSTING") {
+        const hostingDomain = orderItemHostingDomain(item);
+        if (hostingDomain) {
+          const existingHosting = await this.orders.findActiveHostingServiceByDomain(hostingDomain);
+          if (existingHosting) {
+            throw new BadRequestException(`A hosting service for ${hostingDomain} is already active in the system. ${remedy}`);
+          }
+        }
+      }
+    }
   }
 
   private async priceItems(items: OrderItemDto[]): Promise<PricedOrderItem[]> {
@@ -842,13 +845,31 @@ function bundledDomainName(configuration: unknown) {
   return configuration.domainName.trim().toLowerCase();
 }
 
+// The domain a hosting account is provisioned under: explicit item.domainName, otherwise
+// configuration.domainName (bundled or standalone hosting both store it there).
+function orderItemHostingDomain(item: { domainName?: string | null; configuration: unknown }) {
+  if (typeof item.domainName === "string" && item.domainName.trim()) {
+    return item.domainName.trim().toLowerCase();
+  }
+  if (isRecord(item.configuration) && typeof item.configuration.domainName === "string" && item.configuration.domainName.trim()) {
+    return item.configuration.domainName.trim().toLowerCase();
+  }
+  return undefined;
+}
+
 function orderStatusFromAdmin(status: string) {
   const normalized = status.trim().toLowerCase();
   if (["completed", "complete"].includes(normalized)) {
     return "COMPLETE";
   }
-  if (["in_progress", "in-progress", "progress", "provisioning", "paid", "pending", "pending_payment"].includes(normalized)) {
+  if (["pending", "pending_payment"].includes(normalized)) {
+    return "PENDING";
+  }
+  if (["in_progress", "in-progress", "progress", "provisioning", "paid"].includes(normalized)) {
     return "PROVISIONING";
+  }
+  if (["failed", "fail"].includes(normalized)) {
+    return "FAILED";
   }
   if (["canceled", "cancelled", "cancel"].includes(normalized)) {
     return "CANCELLED";

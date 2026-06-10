@@ -15,19 +15,20 @@ An `Order` represents a customer's intent to purchase one or more products or do
 ### Order Lifecycle
 
 ```
-PENDING_PAYMENT → PAID → PROVISIONING → COMPLETE
-                                      ↘ FAILED
-          ↘ CANCELLED
+PENDING → PROVISIONING → COMPLETE
+                       ↘ FAILED
+     ↘ CANCELLED
 ```
 
 | Status | Meaning |
 |--------|---------|
-| `PENDING_PAYMENT` | Order created, awaiting invoice payment |
-| `PAID` | Invoice paid; provisioning has started |
-| `PROVISIONING` | At least one item is being provisioned asynchronously |
+| `PENDING` | Order created, awaiting invoice payment |
+| `PROVISIONING` | Invoice paid; one or more items are being provisioned asynchronously |
 | `COMPLETE` | All items provisioned successfully |
 | `FAILED` | One or more items failed to provision |
 | `CANCELLED` | Order was cancelled before fulfillment |
+
+> Note: payment moves an order straight into `PROVISIONING` — there is no separate `PAID` order status.
 
 ### Order Items
 
@@ -41,8 +42,12 @@ Each `OrderItem` corresponds to a single product or domain in the cart. Items tr
 
 **An order cannot be placed if the same product or domain already exists on the system:**
 
-- **Domain uniqueness**: If a domain name already has an active `DomainRecord` (status not `CANCELLED`), no new order may include that domain. This applies across all customers — domain names are globally unique.
-- **Service uniqueness per customer**: If a customer already has an active (non-cancelled, non-terminated) `Service` for a given product, they cannot place a new order for the same product.
+Uniqueness is enforced **per type, by domain name, across the whole system** (any customer):
+
+- **Domain uniqueness**: If a domain name already has an active `DomainRecord` (status not `CANCELLED`, `EXPIRED`, or `FAILED`), no new order may register that domain.
+- **Hosting uniqueness**: If a domain name already backs an active hosting `Service` (its `configuration.domainName`, status not `CANCELLED`/`TERMINATED`/`FAILED`/`PROVISIONING_FAILED`), no new order may create another hosting account for that domain.
+
+A customer may still hold **one domain registration and one hosting service for the same name** (the normal "register the domain, then host it" flow), and may hold many hosting services for *different* domain names.
 
 This rule applies to both storefront checkout and admin-created orders.
 
@@ -62,11 +67,13 @@ An `Invoice` is a billing document that requests payment from a customer. It con
 ### Invoice Lifecycle
 
 ```
-UNPAID → PAID
-       ↘ OVERDUE (via cron after due date)
-       ↘ CANCELLED
-       ↘ REFUNDED (after refund request)
+PENDING → PAID
+        ↘ OVERDUE (via cron after due date)
+        ↘ CANCELLED
+        ↘ REFUNDED (after refund request)
 ```
+
+Invoices only ever surface two statuses to customers: **Pending** (awaiting payment, temporary "N-" invoice number) and **Overdue**. Once paid, the invoice gets a final sequential invoice number and shows **no status badge** (paid is the normal, terminal state). `FAILED`, `CANCELLED`, and `REFUNDED` exist for the rare cases they occur. The older `DRAFT`, `UNSENT`, and `UNPAID` statuses were consolidated into `PENDING`.
 
 ### Invoice vs. Order: Key Differences
 
@@ -94,8 +101,8 @@ Standalone invoices do **not** create services or domains when paid — they are
 1. Customer fills out the cart and submits checkout
 2. `POST /orders/checkout` is called
 3. The system checks for duplicate services/domains (throws 400 if found)
-4. An `Invoice` (status: `UNPAID`) is created with the order snapshot
-5. An `Order` (status: `PENDING_PAYMENT`) is linked to the invoice
+4. An `Invoice` (status: `PENDING`) is created with the order snapshot
+5. An `Order` (status: `PENDING`) is linked to the invoice
 6. Pending service/domain placeholder records are created
 7. The customer is redirected to the payment page
 8. On payment, `onInvoicePaid()` activates the order:
