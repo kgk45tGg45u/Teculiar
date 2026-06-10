@@ -84,7 +84,7 @@ export class AiBlogService {
 
     // Step 2: Write the full article (JSON mode for reliable parsing)
     const systemPrompt = buildSystemPrompt(settings, language, wordCount);
-    const articleRaw = await this.callDeepseek(apiKey, [
+    const articlePromptMessages: DeepseekMessage[] = [
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -101,11 +101,16 @@ export class AiBlogService {
           `- seoDescription: meta description (150-160 chars)`
         ].join("\n")
       }
-    ], "json_object");
+    ];
 
-    const article = parseArticleJson(articleRaw);
+    let article: ArticleJson | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const articleRaw = await this.callDeepseek(apiKey, articlePromptMessages, "json_object");
+      article = parseArticleJson(articleRaw);
+      if (article) break;
+      this.logger.warn(`AI blog: invalid JSON on attempt ${attempt} for angle="${angle}". Raw: ${articleRaw.slice(0, 200)}`);
+    }
     if (!article) {
-      this.logger.error(`AI blog: invalid JSON for angle="${angle}". Raw: ${articleRaw.slice(0, 200)}`);
       throw new Error(`Deepseek returned invalid JSON for article about: ${angle}`);
     }
 

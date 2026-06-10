@@ -64,8 +64,8 @@ test.describe("Blog post list UI", () => {
     const firstRow = page.locator('[class*="blogTableRow"]').first();
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    // The row should have a ··· button
-    const menuBtn = firstRow.getByRole("button", { name: /···|⋯|\.\.\./i });
+    // The row should have a ··· / Actions button
+    const menuBtn = firstRow.locator('button[aria-label="Actions"], button').filter({ hasText: /^···$|^⋯$/ }).first();
     await expect(menuBtn).toBeVisible();
 
     // There should NOT be separate Edit / Unpublish / Delete buttons visible initially
@@ -77,7 +77,7 @@ test.describe("Blog post list UI", () => {
     const firstRow = page.locator('[class*="blogTableRow"]').first();
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    const menuBtn = firstRow.getByRole("button", { name: /···|⋯|\.\.\./i });
+    const menuBtn = firstRow.locator('button[aria-label="Actions"], button').filter({ hasText: /^···$|^⋯$/ }).first();
     await menuBtn.click();
 
     // Dropdown should now be visible with the expected items
@@ -91,7 +91,7 @@ test.describe("Blog post list UI", () => {
     const firstRow = page.locator('[class*="blogTableRow"]').first();
     await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
-    await firstRow.getByRole("button", { name: /···|⋯|\.\.\./i }).click();
+    await firstRow.locator('button[aria-label="Actions"], button').filter({ hasText: /^···$|^⋯$/ }).first().click();
     await expect(page.locator('[class*="actionsMenu"]')).toBeVisible();
 
     await page.locator("h1, h2, [class*='pageTitle']").first().click();
