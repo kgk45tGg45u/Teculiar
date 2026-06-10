@@ -15,6 +15,7 @@
 
 .prose {
   max-width: 760px;
+  overflow-wrap: break-word;
 }
 
 .prose h2 {
@@ -52,6 +53,7 @@
   color: var(--dezhost);
   text-decoration: underline;
   text-underline-offset: 3px;
+  overflow-wrap: anywhere;
 }
 
 .prose a:hover {
