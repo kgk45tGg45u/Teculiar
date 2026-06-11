@@ -624,7 +624,9 @@ function LogsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiAction
 }
 
 function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiActionLog[]; timezone: string }) {
-  const cronLogs = logs.filter((log) => log.source === "cron");
+  // Cron rows are stored as audit logs with subject "cron" (source stays "audit"). Filtering on
+  // source === "cron" matched nothing, which is why this table always looked empty.
+  const cronLogs = logs.filter((log) => log.subject === "cron");
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -653,7 +655,7 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
             <tr><td>invoiceReminders</td><td>Once per day</td><td>Sends payment reminder emails to clients with invoices due within the configured days.</td></tr>
             <tr><td>ticketsClose</td><td>Every cron run</td><td>Auto-closes tickets that have been answered and have had no reply for the configured hours.</td></tr>
             <tr><td>mailboxes</td><td>Every 5 min (configurable)</td><td>Polls the support &amp; sales IMAP mailboxes. Every fetched email is logged (with subject and matched client) and converted into a ticket; mail from an unknown sender creates a guest contact so nothing is lost. IMAP connection/login errors are recorded in the cron log.</td></tr>
-            <tr><td>sitemap</td><td>Once per day</td><td>Generates <code>/sitemap.xml</code> with all static pages and published blog posts. Set <code>SITE_URL</code> in the server environment to your production domain (e.g. <code>https://dezhost.com</code>).</td></tr>
+            <tr><td>sitemap</td><td>Once per day</td><td>Reports the live sitemap shape (URL counts) to the log. <code>/sitemap.xml</code> is served live by the website using the <strong>Site URL</strong> from Settings and the current published posts — no file is written, so it is always up to date.</td></tr>
             <tr><td>aiBlogPost</td><td>Every 8 h (configurable)</td><td>Generates an AI blog post when AI blogging is enabled and a Deepseek API key is set.</td></tr>
           </tbody>
         </table>
@@ -663,12 +665,12 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
 
         <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>How to Activate the Cron on Your Server</h3>
         <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }}>
-          The cron is triggered via a GET request to <code>/cron/run?secret=YOUR_SECRET</code>. Set up a system cron job on your server to call this endpoint every minute:
+          The cron is triggered by a POST (or GET) request to <code>/api/v1/cron?token=YOUR_SECRET</code>. Set up a system cron job on your server to call this endpoint on your preferred interval (e.g. hourly):
         </p>
-        <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`* * * * * curl -s "https://dezhost.com/api/cron/run?secret=YOUR_SECRET" > /dev/null`}</pre>
-        <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0 }}>
-          Replace <code>YOUR_SECRET</code> with the Cron Secret set below and <code>dezhost.com/api</code> with your API base URL.
-          You can also trigger it manually using the "Run Cron Now" button below.
+        <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`0 * * * * curl -s -X POST "https://www.dezhost.com/api/v1/cron?token=YOUR_SECRET" > /dev/null`}</pre>
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0, lineHeight: 1.6 }}>
+          Replace <code>YOUR_SECRET</code> with the Cron Secret set below (the optional <code>CRON_SECRET</code> server env var is also accepted) and use your own domain.
+          <strong> Use the www host.</strong> A request to the bare domain (<code>dezhost.com</code>) is redirected to <code>www.dezhost.com</code>; a plain <code>curl</code> does not follow the redirect, so the request is dropped and the cron silently does nothing. You can also trigger it manually using the "Run Cron Now" button below.
         </p>
       </div>
 
@@ -677,16 +679,19 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
         <div style={{ padding: "0 16px 16px" }}>
           <h3 style={{ margin: "12px 0 8px", fontSize: "0.9rem" }}>Recent Cron Activity</h3>
           <table className="table">
-            <thead><tr><th>Time ({timezone})</th><th>Action</th><th>Status</th><th>Message</th></tr></thead>
+            <thead><tr><th>Time ({timezone})</th><th>Job</th><th>Status</th><th>Details</th></tr></thead>
             <tbody>
-              {cronLogs.slice(0, 20).map((log) => (
-                <tr key={log.id}>
-                  <td>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
-                  <td>{log.action}</td>
-                  <td>{log.status}</td>
-                  <td>{log.message ?? "-"}</td>
-                </tr>
-              ))}
+              {cronLogs.slice(0, 30).map((log) => {
+                const status = cronLogStatus(log);
+                return (
+                  <tr key={log.id}>
+                    <td style={{ whiteSpace: "nowrap" }}>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
+                    <td>{log.action.replace(/^cron\./, "")}</td>
+                    <td><StatusPill label={status.label} tone={status.tone} /></td>
+                    <td style={{ fontSize: "0.84rem" }}>{cronJobSummary(log.action, log.metadata)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -853,4 +858,113 @@ function shortDateLabel(value?: string | null, locale: Locale = "de", timezone?:
 
 function dateTimeLabel(value?: string | null, locale: Locale = "de", timezone?: string) {
   return formatDate(value, locale, { dateStyle: "short", timeStyle: "short", ...(timezone ? { timeZone: timezone } : {}) });
+}
+
+// ── Cron log rendering ───────────────────────────────────────────────────────
+// Cron audit rows carry their detail in `metadata`. These helpers turn that into a status pill
+// and a one-line, human-readable summary per job (counts, invoice numbers, status changes, …).
+function cnum(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+function crec(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+}
+function carr(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : [];
+}
+function cronInvoiceList(v: unknown, max = 4): string {
+  const items = carr(v).map((x) => `#${crec(x).invoiceNumber ?? crec(x).id ?? "?"}`);
+  if (!items.length) return "";
+  return items.length > max ? `${items.slice(0, max).join(", ")} +${items.length - max}` : items.join(", ");
+}
+function cronDuration(ms: unknown): string {
+  const n = cnum(ms);
+  return n < 1000 ? `${n} ms` : `${(n / 1000).toFixed(1)} s`;
+}
+function cronGenericSummary(r: Record<string, unknown>): string {
+  const keys = Object.keys(r);
+  if (!keys.length) return "OK";
+  const nums = keys.filter((k) => typeof r[k] === "number");
+  if (nums.length) return nums.map((k) => `${k}: ${cnum(r[k])}`).join(", ");
+  const s = JSON.stringify(r);
+  return s.length > 120 ? `${s.slice(0, 117)}…` : s;
+}
+
+function cronLogStatus(log: ApiActionLog): { label: string; tone: "good" | "warn" | "neutral" | "danger" } {
+  const m = crec(log.metadata);
+  if (log.action === "cron.unauthorized") return { label: "rejected", tone: "danger" };
+  if (log.action === "cron.started") return { label: "started", tone: "neutral" };
+  if (log.action === "cron.completed") {
+    const failed = cnum(m.failedCount);
+    return failed ? { label: `${failed} failed`, tone: "danger" } : { label: "completed", tone: "good" };
+  }
+  if (m.status === "failed" || m.error) return { label: "failed", tone: "danger" };
+  if (crec(m.result).skipped) return { label: "skipped", tone: "warn" };
+  return { label: "ran", tone: "good" };
+}
+
+function cronJobSummary(action: string, metadata?: Record<string, unknown> | null): string {
+  const m = crec(metadata);
+  if (action === "cron.unauthorized") return String(m.reason ?? "Invalid or missing cron secret");
+  if (action === "cron.started") return "Cron triggered — checking which jobs are due";
+  if (action === "cron.completed") {
+    return `${cnum(m.ranCount)} ran · ${cnum(m.failedCount)} failed · ${cnum(m.skippedCount)} skipped · ${cronDuration(m.durationMs)}`;
+  }
+  if (m.error) return `Failed: ${String(m.error)}`;
+  const r = crec(m.result);
+  if (r.skipped) return `Skipped: ${String(r.reason ?? "not due")}`;
+
+  switch (action) {
+    case "cron.billingMaintenance": {
+      const ap = crec(r.automaticPayments);
+      const parts = [
+        `${cnum(r.generatedInvoices)} invoice(s) generated`,
+        `${cnum(r.overdueInvoices)} overdue`,
+        `${cnum(r.suspendedServices)} suspended`,
+        `${cnum(ap.paid)} auto-paid${cronInvoiceList(ap.paidInvoices) ? ` (${cronInvoiceList(ap.paidInvoices)})` : ""}`
+      ];
+      if (cnum(ap.failed)) parts.push(`${cnum(ap.failed)} payment(s) failed`);
+      return parts.join(" · ");
+    }
+    case "cron.invoiceReminders": {
+      const n = cnum(r.invoiceReminders);
+      return n ? `Sent ${n} reminder(s): ${cronInvoiceList(r.reminderList)}` : "No reminders due";
+    }
+    case "cron.ticketsClose": {
+      const n = cnum(r.count);
+      return n ? `Closed ${n} answered ticket(s)` : "No tickets to close";
+    }
+    case "cron.mailboxes": {
+      const imported = cnum(r.imported);
+      const byDept = crec(r.byDepartment);
+      const dept = Object.keys(byDept).length
+        ? ` — ${Object.entries(byDept).map(([d, c]) => `${d}: ${cnum(c)}`).join(", ")}`
+        : "";
+      const errs = carr(r.mailboxes)
+        .filter((mb) => crec(mb).error)
+        .map((mb) => `${crec(mb).address}: ${crec(mb).error}`);
+      const base = imported ? `Imported ${imported} email(s)${dept}` : "No new emails";
+      return errs.length ? `${base} · errors: ${errs.join("; ")}` : base;
+    }
+    case "cron.hostingStatuses": {
+      const changes = carr(r.changed);
+      if (!changes.length) return `${cnum(r.checked)} checked, no status changes`;
+      return `${changes.length} change(s): ${changes.map((c) => `${crec(c).domain} ${crec(c).from}→${crec(c).to}`).join(", ")}`;
+    }
+    case "cron.domainStatuses":
+    case "cron.domainExpirations":
+      return `${cnum(r.refreshed)}/${cnum(r.checked)} domain(s) refreshed`;
+    case "cron.sitemap":
+      return `${cnum(r.urls)} URLs (de ${cnum(r.de)}, en ${cnum(r.en)})${cnum(r.posts) ? `, ${cnum(r.posts)} blog post(s)` : ""} · live route`;
+    case "cron.aiBlogPost": {
+      const created = cnum(r.created);
+      if (created) {
+        const titles = carr(r.titles).map((t) => `“${String(t)}”`);
+        return `Created ${created} article(s)${titles.length ? `: ${titles.join(", ")}` : ""}`;
+      }
+      return r.reason ? `Skipped: ${String(r.reason)}` : "No article created";
+    }
+    default:
+      return cronGenericSummary(r);
+  }
 }

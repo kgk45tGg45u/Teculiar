@@ -166,11 +166,22 @@ export class ProductsService {
   async refreshAllHostingStatuses() {
     const services = await this.products.listServicesByProductType("SHARED_HOSTING");
     let refreshed = 0;
+    const changed: Array<{ domain: string; from: string; id: string; to: string }> = [];
     for (const service of services) {
-      await this.refreshService(service.id).catch(() => undefined);
+      const before = service.status;
+      const updated = await this.refreshService(service.id).catch(() => undefined);
       refreshed += 1;
+      const after = updated?.status ?? before;
+      if (updated && after !== before) {
+        changed.push({
+          domain: refreshDomainName(service.externalId, service.configuration) ?? service.externalId ?? service.id,
+          from: before,
+          id: service.id,
+          to: after
+        });
+      }
     }
-    return { checked: services.length, refreshed };
+    return { changed, checked: services.length, refreshed };
   }
 
   async listServicesFresh(userId?: string) {

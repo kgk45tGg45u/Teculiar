@@ -1,7 +1,5 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { mkdir, writeFile } from "node:fs/promises";
 import { timingSafeEqual } from "node:crypto";
-import { join, resolve } from "node:path";
 import { BillingService } from "../billing/billing.service";
 import { CmsService } from "../cms/cms.service";
 import { OrdersService } from "../orders/orders.service";
@@ -57,12 +55,20 @@ export class CronService {
 
   async runAuthorized(secret?: string, now = new Date()) {
     const settings = await this.billing.cronSettings();
-    const expected = (process.env.CRON_SECRET || settings.cronSecret || "").trim();
-    const reason = !expected
+    // Accept EITHER the server env secret OR the admin-configured secret. The env var used to win
+    // outright, which silently ignored the token set in Admin → Cron Settings (a common "my token
+    // doesn't work" footgun). Now either one authorizes the request.
+    const envSecret = (process.env.CRON_SECRET || "").trim();
+    const adminSecret = (settings.cronSecret || "").trim();
+    const provided = secret?.trim();
+    const matches =
+      !!provided &&
+      ((envSecret !== "" && secretEquals(provided, envSecret)) || (adminSecret !== "" && secretEquals(provided, adminSecret)));
+    const reason = !envSecret && !adminSecret
       ? "Cron secret not configured on the server"
-      : !secret
+      : !provided
         ? "Cron secret missing from request"
-        : !secretEquals(secret.trim(), expected)
+        : !matches
           ? "Cron secret invalid"
           : undefined;
     if (reason) {
@@ -116,13 +122,18 @@ export class CronService {
         this.tickets.importMailboxTickets(settings as Record<string, unknown>)
       );
 
-      await this.runDaily("sitemap", now, ran, skipped, () => this.generateSitemap());
+      await this.runDaily("sitemap", now, ran, skipped, () => this.sitemapStatus());
 
       if (settings.aiBlogEnabled && settings.deepseekApiKey) {
         const intervalMs = hours(settings.aiBlogIntervalHours, 8);
         await this.maybeRunTimed("aiBlogPost", intervalMs, now, ran, skipped, () =>
           this.cms.generateAiBlogPost(settings, "system")
         );
+      } else {
+        // Record WHY nothing was generated instead of skipping silently — the previous behaviour
+        // made "AI blogging produces no posts" impossible to diagnose from the admin log.
+        const reason = !settings.aiBlogEnabled ? "AI blogging is disabled in settings" : "Deepseek API key is not configured";
+        await this.runAction("aiBlogPost", ran, async () => ({ reason, skipped: true }));
       }
 
       await this.billing.recordAction({
@@ -143,63 +154,19 @@ export class CronService {
     }
   }
 
-  private async generateSitemap() {
-    const storedSiteUrl = await this.billing.siteUrl().catch(() => null);
-    const siteUrl = (storedSiteUrl || process.env.SITE_URL || "https://dezhost.com").replace(/\/$/, "");
-    const locales = ["de", "en"];
-    const staticPaths = [
-      "",
-      "/domains",
-      "/domains/pricing",
-      "/hosting",
-      "/webhosting",
-      "/virtual-servers",
-      "/vps",
-      "/webdesign",
-      "/it-losungen",
-      "/blog",
-      "/uber-uns",
-      "/kontakt",
-      "/knowledgebase",
-      "/legal/agb",
-      "/legal/datenschutz",
-      "/legal/impressum"
-    ];
-
-    const now = new Date().toISOString().slice(0, 10);
-    const urls: string[] = [];
-
-    for (const locale of locales) {
-      for (const path of staticPaths) {
-        urls.push(`  <url><loc>${siteUrl}/${locale}${path}</loc><lastmod>${now}</lastmod><changefreq>weekly</changefreq><priority>${path === "" ? "1.0" : "0.8"}</priority></url>`);
-      }
-    }
-
+  // The sitemap is served live by the web app's dynamic route (apps/web/app/sitemap.xml/route.ts),
+  // which always reflects the admin-configured site URL (www) and the current published posts.
+  // The cron no longer writes a file (the old approach wrote to the API container's filesystem,
+  // which the web app never served). This step just reports the current sitemap shape for the log.
+  private async sitemapStatus() {
     const [dePosts, enPosts] = await Promise.all([
       this.cms.listPosts("de", {}).catch(() => []),
       this.cms.listPosts("en", {}).catch(() => [])
     ]);
-
-    for (const post of dePosts) {
-      urls.push(`  <url><loc>${siteUrl}/de/blog/${post.slug}</loc><lastmod>${post.publishedAt ? new Date(post.publishedAt as unknown as string).toISOString().slice(0, 10) : now}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
-    }
-    for (const post of enPosts) {
-      urls.push(`  <url><loc>${siteUrl}/en/blog/${post.slug}</loc><lastmod>${post.publishedAt ? new Date(post.publishedAt as unknown as string).toISOString().slice(0, 10) : now}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
-    }
-
-    const xml = [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-      ...urls,
-      "</urlset>"
-    ].join("\n");
-
-    const dir = process.cwd().endsWith("apps/api")
-      ? resolve(process.cwd(), "../web/public")
-      : resolve(process.cwd(), "apps/web/public");
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "sitemap.xml"), xml, "utf8");
-    return { urls: urls.length };
+    const staticPerLocale = SITEMAP_STATIC_PATHS.length;
+    const de = staticPerLocale + dePosts.length;
+    const en = staticPerLocale + enPosts.length;
+    return { urls: de + en, de, en, posts: dePosts.length + enPosts.length, source: "dynamic-route" };
   }
 
   private async maybeRunTimed(
@@ -255,6 +222,13 @@ export class CronService {
     }
   }
 }
+
+// Mirrors the static paths in apps/web/app/sitemap.xml/route.ts — used only to count URLs for the log.
+const SITEMAP_STATIC_PATHS = [
+  "", "/domains", "/domains/pricing", "/hosting", "/webhosting", "/virtual-servers", "/vps",
+  "/webdesign", "/it-losungen", "/blog", "/uber-uns", "/kontakt", "/knowledgebase",
+  "/legal/agb", "/legal/datenschutz", "/legal/impressum"
+];
 
 function hours(value: unknown, fallback: number) {
   return positiveNumber(value, fallback) * 60 * 60 * 1000;

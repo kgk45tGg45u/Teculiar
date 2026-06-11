@@ -9,6 +9,8 @@ coverage
 .DS_Store
 generated
 prisma/migrations/dev
+# Sitemap is served live by apps/web/app/sitemap.xml/route.ts — never commit a static one.
+apps/web/public/sitemap.xml
 .npm-cache
 .agents
 .vercel

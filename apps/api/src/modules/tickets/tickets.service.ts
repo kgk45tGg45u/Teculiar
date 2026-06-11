@@ -118,8 +118,10 @@ export class TicketsService {
     let fetched = 0;
     let imported = 0;
     let skipped = 0;
+    const byDepartment: Record<string, number> = {};
     const mailboxes: Array<{
       address: string;
+      department?: string;
       enabled: boolean;
       fetched?: number;
       imported?: number;
@@ -129,11 +131,11 @@ export class TicketsService {
 
     for (const mailbox of mailboxConfigs(settings)) {
       if (!mailbox.enabled) {
-        mailboxes.push({ address: mailbox.address, enabled: false });
+        mailboxes.push({ address: mailbox.address, department: mailbox.department, enabled: false });
         continue;
       }
       if (!mailbox.host || !mailbox.username || !mailbox.password) {
-        mailboxes.push({ address: mailbox.address, enabled: true, error: "Missing IMAP host, username or password" });
+        mailboxes.push({ address: mailbox.address, department: mailbox.department, enabled: true, error: "Missing IMAP host, username or password" });
         continue;
       }
 
@@ -177,6 +179,7 @@ export class TicketsService {
           ticketId = ticket?.id;
           imported += 1;
           boxImported += 1;
+          byDepartment[department] = (byDepartment[department] ?? 0) + 1;
         } catch {
           skipped += 1;
           boxSkipped += 1;
@@ -186,6 +189,7 @@ export class TicketsService {
 
       mailboxes.push({
         address: mailbox.address,
+        department: mailbox.department,
         enabled: true,
         fetched: messages.length,
         imported: boxImported,
@@ -193,7 +197,7 @@ export class TicketsService {
       });
     }
 
-    return { fetched, imported, skipped, mailboxes };
+    return { byDepartment, fetched, imported, mailboxes, skipped };
   }
 
   private async logInbound(

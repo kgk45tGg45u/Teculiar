@@ -7,7 +7,7 @@
 
 
 ## Testing — always test on production
-After making a change, verify it on the live site **https://www.dezhost.com** using Playwright Chromium.
+After making a change, verify it on the live site **https://www.dezhost.com** using Playwright Chromium. When you come to tests that are old, read and update them to reflect the new code.
 
 Set `E2E_BASE_URL=https://www.dezhost.com` and `E2E_API_URL=https://www.dezhost.com/api/v1`.
 Credentials are stored in `.env` (see `E2E_*` vars):

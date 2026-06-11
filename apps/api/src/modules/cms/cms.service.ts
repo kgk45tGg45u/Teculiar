@@ -175,23 +175,42 @@ export class CmsService {
   }
 
   async generateAiBlogPost(settings: AiBlogSettings, authorId: string) {
-    const today = await this.cms.countAiPostsToday();
-    const limit = settings.aiBlogArticlesPerDay ?? 3;
-    if (today >= limit) {
-      return { skipped: true, reason: `Daily limit of ${limit} reached (${today} already published today)` };
+    // "Articles per day" is the number of articles, not raw rows. Each article creates a source
+    // post plus its translation (both tagged ai_generated), so today's article count is roughly
+    // half the row count returned by countAiPostsToday().
+    const target = Math.max(1, Math.floor(Number(settings.aiBlogArticlesPerDay) || 3));
+    const countArticlesToday = async () => Math.ceil((await this.cms.countAiPostsToday()) / 2);
+
+    let articlesToday = await countArticlesToday();
+    if (articlesToday >= target) {
+      return { created: 0, reason: `Daily target of ${target} article(s) already reached (${articlesToday} today)`, skipped: true };
     }
 
     let resolvedAuthorId = authorId;
     if (authorId === "system") {
       const adminId = await this.cms.findFirstAdminId();
       if (!adminId) {
-        return { skipped: true, reason: "No admin user found to author the AI post." };
+        return { created: 0, reason: "No admin user found to author the AI post.", skipped: true };
       }
       resolvedAuthorId = adminId;
     }
 
-    const result = await this.aiBlog.generateArticle(settings, resolvedAuthorId);
-    return { id: result?.id, ok: true };
+    // Catch up toward the daily target in one run. generateArticle throws on the first failure
+    // (e.g. Deepseek error) so the cron logs the reason instead of silently doing nothing.
+    const titles: string[] = [];
+    while (articlesToday < target) {
+      const result = await this.aiBlog.generateArticle(settings, resolvedAuthorId);
+      if (result?.title) {
+        titles.push(result.title);
+      }
+      const next = await countArticlesToday();
+      if (next <= articlesToday) {
+        break; // safety: stop if the count didn't advance, so we never loop forever
+      }
+      articlesToday = next;
+    }
+
+    return { created: titles.length, ok: true, titles };
   }
 }
 

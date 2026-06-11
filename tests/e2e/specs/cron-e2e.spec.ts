@@ -4,8 +4,9 @@
  * Tests that the cron runner executes successfully from the admin UI and
  * that each expected job is either run or skipped (not crashed).
  *
- * Run against production:
- *   E2E_BASE_URL=https://dezhost.com \
+ * Run against production (use the www host — the bare domain 301/302-redirects):
+ *   E2E_BASE_URL=https://www.dezhost.com \
+ *   E2E_API_URL=https://www.dezhost.com/api/v1 \
  *   E2E_ADMIN_EMAIL=admin@dezhost.com \
  *   E2E_ADMIN_PASSWORD=yourpassword \
  *   npx playwright test tests/e2e/specs/cron-e2e.spec.ts
@@ -199,5 +200,77 @@ test.describe("Cron job quality", () => {
     expect(ranNames.has("ticketsClose")).toBe(true);
     // At least some timed jobs should now be skipped
     expect(second.skipped.length, "Some timed jobs should be skipped on the second run").toBeGreaterThan(0);
+  });
+});
+
+// ── Detailed job results (feed the admin "Recent Cron Activity" view) ─────────
+
+test.describe("Cron job result detail", () => {
+  test("sitemap result reports the live dynamic-route shape", async ({ page }) => {
+    await adminLogin(page);
+    const result = await runCronViaApi(page);
+    const sitemap = result.ran.find((j) => j.name === "sitemap");
+    if (sitemap && sitemap.status === "ran") {
+      const res = sitemap.result as { urls?: number; de?: number; en?: number; source?: string };
+      expect(typeof res.urls, "sitemap result should include url count").toBe("number");
+      expect(typeof res.de, "sitemap result should include de count").toBe("number");
+      expect(typeof res.en, "sitemap result should include en count").toBe("number");
+      expect(res.source, "sitemap is served by the live route, not a file").toBe("dynamic-route");
+    }
+  });
+
+  test("mailboxes result includes a per-department breakdown when it ran", async ({ page }) => {
+    await adminLogin(page);
+    const result = await runCronViaApi(page);
+    const mailboxes = result.ran.find((j) => j.name === "mailboxes");
+    if (mailboxes && mailboxes.status === "ran") {
+      const res = mailboxes.result as { byDepartment?: Record<string, number> };
+      expect(res.byDepartment, "mailboxes result should include byDepartment").toBeDefined();
+      expect(typeof res.byDepartment).toBe("object");
+    }
+  });
+
+  test("hostingStatuses result includes a changed array when it ran", async ({ page }) => {
+    await adminLogin(page);
+    const result = await runCronViaApi(page);
+    const hosting = result.ran.find((j) => j.name === "hostingStatuses");
+    if (hosting && hosting.status === "ran") {
+      const res = hosting.result as { changed?: unknown[]; checked?: number };
+      expect(Array.isArray(res.changed), "hostingStatuses result should include a changed array").toBe(true);
+      expect(typeof res.checked).toBe("number");
+    }
+  });
+
+  test("aiBlogPost always reports an outcome (created count or skip reason)", async ({ page }) => {
+    await adminLogin(page);
+    const result = await runCronViaApi(page);
+    const ran = result.ran.find((j) => j.name === "aiBlogPost");
+    const skipped = result.skipped.find((j) => j.name === "aiBlogPost");
+    expect(ran ?? skipped, "aiBlogPost should appear in ran or skipped").toBeDefined();
+    if (ran && ran.status === "ran") {
+      const res = ran.result as { created?: number; skipped?: boolean; reason?: string };
+      const hasOutcome = typeof res.created === "number" || res.skipped === true;
+      expect(hasOutcome, "aiBlogPost result should report a created count or a skip reason").toBe(true);
+    }
+  });
+});
+
+// ── Live sitemap (served by apps/web/app/sitemap.xml/route.ts) ─────────────────
+
+test.describe("Sitemap", () => {
+  test("/sitemap.xml is served live and every URL uses the request host", async ({ page }) => {
+    const res = await page.request.get(`${BASE}/sitemap.xml`);
+    expect(res.status(), "sitemap should be served").toBe(200);
+    const body = await res.text();
+    expect(body, "sitemap should be a urlset").toContain("<urlset");
+    expect(body, "sitemap should include German locale URLs").toMatch(/\/de\//);
+    expect(body, "sitemap should include English locale URLs").toMatch(/\/en\//);
+
+    const host = new URL(BASE).host;
+    const locs = [...body.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
+    expect(locs.length, "sitemap should contain URLs").toBeGreaterThan(0);
+    for (const loc of locs) {
+      expect(new URL(loc).host, `sitemap <loc> host should match ${host} (admin Site URL must be the www host)`).toBe(host);
+    }
   });
 });
