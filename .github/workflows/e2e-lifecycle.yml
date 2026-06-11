@@ -1,0 +1,85 @@
+name: E2E — Customer Lifecycle
+
+# Runs the comprehensive Playwright lifecycle suite against the LIVE site.
+# It creates real (immediately torn-down) Virtualmin hosting accounts and toggles
+# the sandbox gateway, so it is intentionally NOT run on every push:
+#   • workflow_dispatch — run on demand (optionally filter by grep / disable teardown)
+#   • schedule          — nightly health check (02:30 UTC)
+on:
+  workflow_dispatch:
+    inputs:
+      grep:
+        description: "Only run tests matching this title (Playwright --grep)"
+        required: false
+        default: ""
+      teardown_hosting:
+        description: "Delete created Virtualmin accounts after tests"
+        type: boolean
+        required: false
+        default: true
+  schedule:
+    - cron: "30 2 * * *"
+
+concurrency:
+  # Never run two lifecycle suites at once — they share the production test client.
+  group: e2e-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  lifecycle:
+    name: Lifecycle E2E (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL || 'https://www.dezhost.com' }}
+      E2E_API_URL: ${{ vars.E2E_API_URL || 'https://www.dezhost.com/api/v1' }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_CLIENT_EMAIL: ${{ secrets.E2E_CLIENT_EMAIL }}
+      E2E_CLIENT_PASSWORD: ${{ secrets.E2E_CLIENT_PASSWORD }}
+      VIRTUALMIN_ADMIN_ENDPOINT: ${{ secrets.VIRTUALMIN_ADMIN_ENDPOINT }}
+      VIRTUALMIN_ADMIN_USERNAME: ${{ secrets.VIRTUALMIN_ADMIN_USERNAME }}
+      VIRTUALMIN_ADMIN_PASSWORD: ${{ secrets.VIRTUALMIN_ADMIN_PASSWORD }}
+      VIRTUALMIN_ADMIN_ALLOW_SELF_SIGNED: "1"
+      E2E_TEARDOWN_HOSTING: ${{ github.event.inputs.teardown_hosting == 'false' && '0' || '1' }}
+      E2E_ENABLE_SANDBOX: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check E2E framework
+        run: npm run e2e:lifecycle:typecheck
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run lifecycle E2E
+        run: npx playwright test --config=playwright.lifecycle.config.ts --project=chromium ${{ github.event.inputs.grep && format('--grep "{0}"', github.event.inputs.grep) || '' }}
+
+      - name: Upload HTML report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-html-report
+          path: tests/e2e/results/lifecycle-html
+          retention-days: 14
+
+      - name: Upload traces & artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-artifacts
+          path: |
+            tests/e2e/results/lifecycle-artifacts
+            tests/e2e/results/lifecycle-report.md
+            tests/e2e/results/created-virtualmin-domains.json
+          retention-days: 14

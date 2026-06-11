@@ -1,0 +1,1246 @@
+{
+  "config": {
+    "configFile": "/Users/balsamico/code/New Dezhost/playwright.lifecycle.config.ts",
+    "rootDir": "/Users/balsamico/code/New Dezhost/tests/e2e/specs/lifecycle",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "/Users/balsamico/code/New Dezhost/tests/e2e/global-setup.ts",
+    "globalTeardown": "/Users/balsamico/code/New Dezhost/tests/e2e/global-teardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/balsamico/code/New Dezhost/tests/e2e/results/lifecycle-artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/balsamico/code/New Dezhost/tests/e2e/specs/lifecycle",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 360000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "open": "never",
+          "outputFolder": "tests/e2e/results/lifecycle-html"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/e2e/results/lifecycle-results.json"
+        }
+      ],
+      [
+        "/Users/balsamico/code/New Dezhost/tests/e2e/reporters/markdown-reporter.cjs",
+        {
+          "outputFile": "tests/e2e/results/lifecycle-report.md"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 2,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "02-vps-orders.spec.ts",
+      "file": "02-vps-orders.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 1 — VPS orders",
+          "file": "02-vps-orders.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "VPS only, new customer → invoice PAID, VPS service present",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1435,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:31.483Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dbc9af073130e98e5ca8-7fe459ffa29faf15b813",
+              "file": "02-vps-orders.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "VPS only, existing customer → service appears in dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 2111,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:31.233Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dbc9af073130e98e5ca8-c55111f12cf399960b1a",
+              "file": "02-vps-orders.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "VPS + register domain, existing customer → both items ordered",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2109,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:32.971Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dbc9af073130e98e5ca8-fb6459d68ca47e7138b1",
+              "file": "02-vps-orders.spec.ts",
+              "line": 38,
+              "column": 9
+            },
+            {
+              "title": "VPS + transfer domain, existing customer → both items ordered",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1634,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:33.451Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dbc9af073130e98e5ca8-140329521c4471dbefab",
+              "file": "02-vps-orders.spec.ts",
+              "line": 38,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "03-existing-customer.spec.ts",
+      "file": "03-existing-customer.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 2 — Existing customer orders",
+          "file": "03-existing-customer.spec.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [
+            {
+              "title": "existing client buys VPS → service appears in dashboard list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1888,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:35.103Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9031e77602c9e56e0020-cfa858452e83baed26ef",
+              "file": "03-existing-customer.spec.ts",
+              "line": 38,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "04-domain-only.spec.ts",
+      "file": "04-domain-only.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 3 — Domain-only orders",
+          "file": "04-domain-only.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "register domain (new customer): order + invoice PAID, domain visible with a valid status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1868,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:35.107Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1c3115749da0ab74ef13-88d0593633bb265c7abb",
+              "file": "04-domain-only.spec.ts",
+              "line": 16,
+              "column": 7
+            },
+            {
+              "title": "transfer domain (existing customer): order + invoice PAID, domain record present",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 2234,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:36.995Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1c3115749da0ab74ef13-b97c87ea64b8d928328f",
+              "file": "04-domain-only.spec.ts",
+              "line": 30,
+              "column": 7
+            },
+            {
+              "title": "duplicate domain registration is rejected system-wide",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 221,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:37.019Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1c3115749da0ab74ef13-5b9ab3403524a6f9fc6e",
+              "file": "04-domain-only.spec.ts",
+              "line": 40,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "05-service-provisioning.spec.ts",
+      "file": "05-service-provisioning.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 4 — Service provisioning",
+          "file": "05-service-provisioning.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "VPS does not auto-activate (Hetzner module is a stub) — stays PROVISIONING",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 240401,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:37.258Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "vps-service",
+                          "contentType": "application/json",
+                          "body": "ewogICJpZCI6ICJjbXE5cjhsd2EwMjMzbjQwMWFlN2Y0Zzd4IiwKICAidXNlcklkIjogImNtcTg3ZWJubjAwMGRyMDAxNnE2ZWppeW8iLAogICJ0ZWFtSWQiOiBudWxsLAogICJvcmRlcklkIjogImNtcTlyOGx3MzAyMnpuNDAxemExZWpoaHMiLAogICJvcmRlckl0ZW1JZCI6ICJjbXE5cjhsdzMwMjMxbjQwMTU1eXNzM3RzIiwKICAiaW5pdGlhbEludm9pY2VJZCI6ICJjbXE5cjhsc3MwMjJwbjQwMWV4MXVlYnp4IiwKICAiZG9tYWluUmVjb3JkSWQiOiBudWxsLAogICJwcm9kdWN0SWQiOiAicHJvZF92cHNfc3RhcnRlciIsCiAgInByb2R1Y3RQcmljZUlkIjogInByaWNlX3Zwc19zdGFydGVyX21vbnRobHkiLAogICJzdGF0dXMiOiAiUEVORElORyIsCiAgImJpbGxpbmdDeWNsZSI6ICJNT05USExZIiwKICAicmVjdXJyaW5nQW1vdW50Q2VudHMiOiA3OTksCiAgInNldHVwRmVlQ2VudHMiOiAwLAogICJjb25maWd1cmF0aW9uIjoge30sCiAgImN1c3RvbUZpZWxkcyI6IHt9LAogICJwcm9kdWN0U25hcHNob3QiOiB7CiAgICAibmFtZSI6ICJDbG91ZCBWUFMgU3RhcnRlciIsCiAgICAidHlwZSI6ICJWUFMiLAogICAgInNsdWciOiAiY2xvdWQtdnBzLXN0YXJ0ZXIiLAogICAgInByb3Zpc2lvbmluZ01vZHVsZSI6IG51bGwKICB9LAogICJleHRlcm5hbElkIjogbnVsbCwKICAibW9kdWxlTmFtZSI6IG51bGwsCiAgIm1vZHVsZVN0YXR1cyI6ICJwZW5kaW5nIiwKICAibW9kdWxlUmVmZXJlbmNlIjogbnVsbCwKICAiYXV0b1JlbmV3IjogdHJ1ZSwKICAic3RhcnRlZEF0IjogbnVsbCwKICAicmVuZXdzQXQiOiAiMjAyNi0wNy0xMVQxNzoxMTozNy42OTBaIiwKICAibmV4dER1ZUF0IjogIjIwMjYtMDctMTFUMTc6MTE6MzcuNjkwWiIsCiAgInN1c3BlbmRlZEF0IjogbnVsbCwKICAiY2FuY2VsQXQiOiBudWxsLAogICJjYW5jZWxsZWRBdCI6IG51bGwsCiAgInRlcm1pbmF0ZWRBdCI6IG51bGwsCiAgImNyZWF0ZWRBdCI6ICIyMDI2LTA2LTExVDE3OjExOjM3LjY5MVoiLAogICJ1cGRhdGVkQXQiOiAiMjAyNi0wNi0xMVQxNzoxMTozNy42OTFaIiwKICAiZG9tYWluUmVjb3JkcyI6IFtdLAogICJwcm9kdWN0IjogewogICAgImlkIjogInByb2RfdnBzX3N0YXJ0ZXIiLAogICAgImNhdGVnb3J5SWQiOiAiY2F0X3ZpcnR1YWxfc2VydmVycyIsCiAgICAibmFtZSI6ICJDbG91ZCBWUFMgU3RhcnRlciIsCiAgICAic2x1ZyI6ICJjbG91ZC12cHMtc3RhcnRlciIsCiAgICAidHlwZSI6ICJWUFMiLAogICAgImRlc2NyaXB0aW9uIjogIjIgdkNQVSDCtyA0IEdCIFJBTSDCtyA0MCBHQiBOVk1lIFNTRCDCtyAyMCBUQiBUcmFmZmljIMK3IFJvb3QtWnVnYW5nIMK3IEREb1MtU2NodXR6IMK3IEdlcm1hbiBkYXRhIGNlbnRyZXMuIiwKICAgICJhY3RpdmUiOiB0cnVlLAogICAgImhvbWVwYWdlVmlzaWJsZSI6IHRydWUsCiAgICAicHJvdmlzaW9uaW5nTW9kdWxlIjogbnVsbCwKICAgICJzb3J0T3JkZXIiOiAxLAogICAgImNyZWF0ZWRBdCI6ICIyMDI2LTA2LTA2VDIxOjQzOjQ3LjAwMFoiLAogICAgInVwZGF0ZWRBdCI6ICIyMDI2LTA2LTA2VDIxOjQzOjQ3LjAwMFoiLAogICAgImNhdGVnb3J5IjogewogICAgICAiaWQiOiAiY2F0X3ZpcnR1YWxfc2VydmVycyIsCiAgICAgICJuYW1lIjogIlZpcnR1YWwgU2VydmVycyIsCiAgICAgICJzbHVnIjogInZpcnR1YWwtc2VydmVycyIsCiAgICAgICJkZXNjcmlwdGlvbiI6ICJDbG91ZCBWUFMgcHJvZHVjdHMiLAogICAgICAicHJvdmlzaW9uaW5nTW9kdWxlIjogbnVsbCwKICAgICAgImFjdGl2ZSI6IHRydWUsCiAgICAgICJzb3J0T3JkZXIiOiAxMCwKICAgICAgImNyZWF0ZWRBdCI6ICIyMDI2LTA2LTA2VDIxOjQzOjQ3LjAwMFoiLAogICAgICAidXBkYXRlZEF0IjogIjIwMjYtMDYtMDZUMjE6NDM6NDcuMDAwWiIKICAgIH0KICB9LAogICJwcm9kdWN0UHJpY2UiOiB7CiAgICAiaWQiOiAicHJpY2VfdnBzX3N0YXJ0ZXJfbW9udGhseSIsCiAgICAicHJvZHVjdElkIjogInByb2RfdnBzX3N0YXJ0ZXIiLAogICAgImJpbGxpbmdDeWNsZSI6ICJNT05USExZIiwKICAgICJhbW91bnRDZW50cyI6IDc5OSwKICAgICJzZXR1cEZlZUNlbnRzIjogMCwKICAgICJjdXJyZW5jeSI6ICJFVVIiLAogICAgImFjdGl2ZSI6IHRydWUKICB9LAogICJzZXJ2aWNlQWRkT25zIjogW10KfQ=="
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "61cc0a2e6af064ef8a42-91ab3c783021b9c34999",
+              "file": "05-service-provisioning.spec.ts",
+              "line": 50,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "07-wallet-and-automation.spec.ts",
+      "file": "07-wallet-and-automation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 6 — Wallet / Add Funds",
+          "file": "07-wallet-and-automation.spec.ts",
+          "line": 18,
+          "column": 6,
+          "specs": [
+            {
+              "title": "adding funds credits the wallet and creates a PAID deposit invoice (ledger entry)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 604,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:39.295Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "615925586cfd732274c8-4a8a783d303e6cf33af0",
+              "file": "07-wallet-and-automation.spec.ts",
+              "line": 19,
+              "column": 7
+            },
+            {
+              "title": "wallet balance is reflected by the profile endpoint after a deposit",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 147,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:39.912Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "615925586cfd732274c8-6d22c6a2637a1fe59810",
+              "file": "07-wallet-and-automation.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "multiple deposits accumulate in the wallet",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 236,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:40.070Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "615925586cfd732274c8-89681e533735cc637f17",
+              "file": "07-wallet-and-automation.spec.ts",
+              "line": 51,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Category 7 — Invoice Automation (cron pays from wallet)",
+          "file": "07-wallet-and-automation.spec.ts",
+          "line": 59,
+          "column": 6,
+          "specs": [
+            {
+              "title": "cron auto-pays a due invoice from wallet balance: invoice PAID, balance reduced, transaction recorded",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1045,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:40.317Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "cron-result",
+                          "contentType": "application/json",
+                          "body": "ewogICJvayI6IHRydWUsCiAgInJhbiI6IFsKICAgIHsKICAgICAgIm5hbWUiOiAiYmlsbGluZ01haW50ZW5hbmNlIiwKICAgICAgInJlc3VsdCI6IHsKICAgICAgICAiYXV0b21hdGljUGF5bWVudHMiOiB7CiAgICAgICAgICAiZmFpbGVkIjogMCwKICAgICAgICAgICJmYWlsZWRJbnZvaWNlcyI6IFtdLAogICAgICAgICAgInBhaWQiOiAxLAogICAgICAgICAgInBhaWRJbnZvaWNlcyI6IFsKICAgICAgICAgICAgewogICAgICAgICAgICAgICJpZCI6ICJjbXE5cjhva2UwMjZsbjQwMWxoMWd4NnZ2IiwKICAgICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDIwMCIsCiAgICAgICAgICAgICAgIm1ldGhvZCI6ICJBQ0NPVU5UX0JBTEFOQ0UiLAogICAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMzAwCiAgICAgICAgICAgIH0KICAgICAgICAgIF0sCiAgICAgICAgICAicGVuZGluZyI6IDAsCiAgICAgICAgICAicGVuZGluZ0ludm9pY2VzIjogW10KICAgICAgICB9LAogICAgICAgICJnZW5lcmF0ZWRJbnZvaWNlcyI6IDAsCiAgICAgICAgImdlbmVyYXRlZEludm9pY2VMaXN0IjogW10sCiAgICAgICAgImludm9pY2VEYXlzQWhlYWQiOiA3LAogICAgICAgICJvdmVyZHVlSW52b2ljZXMiOiAxMywKICAgICAgICAib3ZlcmR1ZUludm9pY2VMaXN0IjogWwogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wejVpeXJwMDV5OG8zMDE2azNwZXhobCIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDAxIiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMTIwLAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wejZpdWx0MDAwM3A3MDE1cGY0NXEzNCIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDAyIiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMTIwLAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wejZqZjJ2MDAwanA3MDFpbnQ4NTNnMSIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDAzIiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMTIwLAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFkdWN0MDAwM3F1MDFtaXIxYW9rYSIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA0IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMTIwLAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFlZ3hzMDAwanF1MDFmbDV3cnFwNyIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA1IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMTIwLAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFpbjVxMDAwenF1MDEwaWdxdHZqdiIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA2IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgICAgICAgIH0sCiAgICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICJjbXB6cWo3M2IwMDFkcXUwMXAwamUybTVqIiwKICAgICAgICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDciLAogICAgICAgICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxazA4bDAwMXJxdTAxazU2MnQxdzAiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwOCIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFrNzBqMDAyNXF1MDFrcTV0cnUwciIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA5IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgICAgICAgIH0sCiAgICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICJjbXB6cW5ycmUwMDJycXUwMXVvOGEyaXF5IiwKICAgICAgICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMTAiLAogICAgICAgICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxb3l2YTAwMzVxdTAxamgwNzdnc3ciLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAxMSIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21xMnltd2w4MDAyd3F1MDFkbmNsamZicCIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDE0IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMDAwLAogICAgICAgICAgICAidXNlcklkIjogImNtcTJ5aGh5MTAwMXlxdTAxNWw2a3RoNHYiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21xMnluYWV5MDAzN3F1MDFzb3hveGZ2NSIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDE1IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiAyMDAwLAogICAgICAgICAgICAidXNlcklkIjogImNtcTJ5aGh5MTAwMXlxdTAxNWw2a3RoNHYiCiAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICAic3VzcGVuZGVkU2VydmljZXMiOiAwLAogICAgICAgICJzdXNwZW5kZWRTZXJ2aWNlTGlzdCI6IFtdLAogICAgICAgICJ0aWNrZXRDbG9zZUhvdXJzIjogMjQKICAgICAgfSwKICAgICAgInN0YXR1cyI6ICJyYW4iCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJ0aWNrZXRzQ2xvc2UiLAogICAgICAicmVzdWx0IjogewogICAgICAgICJjb3VudCI6IDAKICAgICAgfSwKICAgICAgInN0YXR1cyI6ICJyYW4iCiAgICB9CiAgXSwKICAic2tpcHBlZCI6IFsKICAgIHsKICAgICAgIm5hbWUiOiAiZG9tYWluUHJpY2VzIiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTEyVDA0OjE4OjU1LjUwMVoiCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJkb21haW5FeHBpcmF0aW9ucyIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMlQwNDozMDowMi4xODZaIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAiZG9tYWluU3RhdHVzZXMiLAogICAgICAibmV4dEF0IjogIjIwMjYtMDYtMTFUMTc6MjU6MTguMzE0WiIKICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogImludm9pY2VSZW1pbmRlcnMiLAogICAgICAibmV4dEF0IjogIjIwMjYtMDYtMTJUMDA6MDA6MDAuMDAwWiIKICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogImhvc3RpbmdTdGF0dXNlcyIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMVQxNzoyNToxOC4zMTRaIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAibWFpbGJveGVzIiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTExVDE3OjE1OjE4LjMxNFoiCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJzaXRlbWFwIiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTEyVDAwOjAwOjAwLjAwMFoiCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJhaUJsb2dQb3N0IiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTExVDIwOjMwOjAxLjQ3NloiCiAgICB9CiAgXQp9"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "615925586cfd732274c8-8848aa1fdb7383351738",
+              "file": "07-wallet-and-automation.spec.ts",
+              "line": 60,
+              "column": 7
+            },
+            {
+              "title": "cron reports the automatic payment attempt in billingMaintenance result",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 322,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:41.387Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "automatic-payments",
+                          "contentType": "application/json",
+                          "body": "ewogICJhdXRvbWF0aWNQYXltZW50cyI6IHsKICAgICJmYWlsZWQiOiAwLAogICAgImZhaWxlZEludm9pY2VzIjogW10sCiAgICAicGFpZCI6IDEsCiAgICAicGFpZEludm9pY2VzIjogWwogICAgICB7CiAgICAgICAgImlkIjogImNtcTlyOG93dTAyN2VuNDAxYjkxeHp3NnEiLAogICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMjAyIiwKICAgICAgICAibWV0aG9kIjogIkFDQ09VTlRfQkFMQU5DRSIsCiAgICAgICAgInRvdGFsQ2VudHMiOiAyMDAKICAgICAgfQogICAgXSwKICAgICJwZW5kaW5nIjogMCwKICAgICJwZW5kaW5nSW52b2ljZXMiOiBbXQogIH0sCiAgImdlbmVyYXRlZEludm9pY2VzIjogMCwKICAiZ2VuZXJhdGVkSW52b2ljZUxpc3QiOiBbXSwKICAiaW52b2ljZURheXNBaGVhZCI6IDcsCiAgIm92ZXJkdWVJbnZvaWNlcyI6IDEzLAogICJvdmVyZHVlSW52b2ljZUxpc3QiOiBbCiAgICB7CiAgICAgICJpZCI6ICJjbXB6NWl5cnAwNXk4bzMwMTZrM3BleGhsIiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDEiLAogICAgICAidG90YWxDZW50cyI6IDIxMjAsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6Nml1bHQwMDAzcDcwMTVwZjQ1cTM0IiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDIiLAogICAgICAidG90YWxDZW50cyI6IDIxMjAsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6NmpmMnYwMDBqcDcwMWludDg1M2cxIiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDMiLAogICAgICAidG90YWxDZW50cyI6IDIxMjAsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6cWR1Y3QwMDAzcXUwMW1pcjFhb2thIiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDQiLAogICAgICAidG90YWxDZW50cyI6IDIxMjAsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6cWVneHMwMDBqcXUwMWZsNXdycXA3IiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDUiLAogICAgICAidG90YWxDZW50cyI6IDIxMjAsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6cWluNXEwMDB6cXUwMTBpZ3F0dmp2IiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDYiLAogICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgfSwKICAgIHsKICAgICAgImlkIjogImNtcHpxajczYjAwMWRxdTAxcDBqZTJtNWoiLAogICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwNyIsCiAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICB9LAogICAgewogICAgICAiaWQiOiAiY21wenFrMDhsMDAxcnF1MDFrNTYydDF3MCIsCiAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA4IiwKICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXB6cWs3MGowMDI1cXUwMWtxNXRydTByIiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDkiLAogICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgfSwKICAgIHsKICAgICAgImlkIjogImNtcHpxbnJyZTAwMnJxdTAxdW84YTJpcXkiLAogICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAxMCIsCiAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICB9LAogICAgewogICAgICAiaWQiOiAiY21wenFveXZhMDAzNXF1MDFqaDA3N2dzdyIsCiAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDExIiwKICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXEyeW13bDgwMDJ3cXUwMWRuY2xqZmJwIiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMTQiLAogICAgICAidG90YWxDZW50cyI6IDIwMDAsCiAgICAgICJ1c2VySWQiOiAiY21xMnloaHkxMDAxeXF1MDE1bDZrdGg0diIKICAgIH0sCiAgICB7CiAgICAgICJpZCI6ICJjbXEyeW5hZXkwMDM3cXUwMXNveG94ZnY1IiwKICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMTUiLAogICAgICAidG90YWxDZW50cyI6IDIwMDAsCiAgICAgICJ1c2VySWQiOiAiY21xMnloaHkxMDAxeXF1MDE1bDZrdGg0diIKICAgIH0KICBdLAogICJzdXNwZW5kZWRTZXJ2aWNlcyI6IDAsCiAgInN1c3BlbmRlZFNlcnZpY2VMaXN0IjogW10sCiAgInRpY2tldENsb3NlSG91cnMiOiAyNAp9"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "615925586cfd732274c8-b50120a54324617f4039",
+              "file": "07-wallet-and-automation.spec.ts",
+              "line": 91,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "08-cron-validation.spec.ts",
+      "file": "08-cron-validation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Category 8 — Cron validation",
+          "file": "08-cron-validation.spec.ts",
+          "line": 21,
+          "column": 6,
+          "specs": [
+            {
+              "title": "cron executes successfully and returns valid ran/skipped arrays",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 74,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:41.741Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "cron-result",
+                          "contentType": "application/json",
+                          "body": "ewogICJvayI6IHRydWUsCiAgInJhbiI6IFsKICAgIHsKICAgICAgIm5hbWUiOiAiYmlsbGluZ01haW50ZW5hbmNlIiwKICAgICAgInJlc3VsdCI6IHsKICAgICAgICAiYXV0b21hdGljUGF5bWVudHMiOiB7CiAgICAgICAgICAiZmFpbGVkIjogMCwKICAgICAgICAgICJmYWlsZWRJbnZvaWNlcyI6IFtdLAogICAgICAgICAgInBhaWQiOiAwLAogICAgICAgICAgInBhaWRJbnZvaWNlcyI6IFtdLAogICAgICAgICAgInBlbmRpbmciOiAwLAogICAgICAgICAgInBlbmRpbmdJbnZvaWNlcyI6IFtdCiAgICAgICAgfSwKICAgICAgICAiZ2VuZXJhdGVkSW52b2ljZXMiOiAwLAogICAgICAgICJnZW5lcmF0ZWRJbnZvaWNlTGlzdCI6IFtdLAogICAgICAgICJpbnZvaWNlRGF5c0FoZWFkIjogNywKICAgICAgICAib3ZlcmR1ZUludm9pY2VzIjogMTMsCiAgICAgICAgIm92ZXJkdWVJbnZvaWNlTGlzdCI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHo1aXlycDA1eThvMzAxNmszcGV4aGwiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwMSIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjEyMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHo2aXVsdDAwMDNwNzAxNXBmNDVxMzQiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwMiIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjEyMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHo2amYydjAwMGpwNzAxaW50ODUzZzEiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwMyIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjEyMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxZHVjdDAwMDNxdTAxbWlyMWFva2EiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwNCIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjEyMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxZWd4czAwMGpxdTAxZmw1d3JxcDciLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwNSIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjEyMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxaW41cTAwMHpxdTAxMGlncXR2anYiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwNiIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFqNzNiMDAxZHF1MDFwMGplMm01aiIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDA3IiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgICAgICAgIH0sCiAgICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICJjbXB6cWswOGwwMDFycXUwMWs1NjJ0MXcwIiwKICAgICAgICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMDgiLAogICAgICAgICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcHpxazcwajAwMjVxdTAxa3E1dHJ1MHIiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAwOSIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogNTk0LAogICAgICAgICAgICAidXNlcklkIjogImNtcHo1aXlyZTA1eTVvMzAxa2twaTE4cHMiCiAgICAgICAgICB9LAogICAgICAgICAgewogICAgICAgICAgICAiaWQiOiAiY21wenFucnJlMDAycnF1MDF1bzhhMmlxeSIsCiAgICAgICAgICAgICJpbnZvaWNlTnVtYmVyIjogIk4tMTAwMDEwIiwKICAgICAgICAgICAgInRvdGFsQ2VudHMiOiA1OTQsCiAgICAgICAgICAgICJ1c2VySWQiOiAiY21wejVpeXJlMDV5NW8zMDFra3BpMThwcyIKICAgICAgICAgIH0sCiAgICAgICAgICB7CiAgICAgICAgICAgICJpZCI6ICJjbXB6cW95dmEwMDM1cXUwMWpoMDc3Z3N3IiwKICAgICAgICAgICAgImludm9pY2VOdW1iZXIiOiAiTi0xMDAwMTEiLAogICAgICAgICAgICAidG90YWxDZW50cyI6IDU5NCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXB6NWl5cmUwNXk1bzMwMWtrcGkxOHBzIgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcTJ5bXdsODAwMndxdTAxZG5jbGpmYnAiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAxNCIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjAwMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXEyeWhoeTEwMDF5cXUwMTVsNmt0aDR2IgogICAgICAgICAgfSwKICAgICAgICAgIHsKICAgICAgICAgICAgImlkIjogImNtcTJ5bmFleTAwMzdxdTAxc294b3hmdjUiLAogICAgICAgICAgICAiaW52b2ljZU51bWJlciI6ICJOLTEwMDAxNSIsCiAgICAgICAgICAgICJ0b3RhbENlbnRzIjogMjAwMCwKICAgICAgICAgICAgInVzZXJJZCI6ICJjbXEyeWhoeTEwMDF5cXUwMTVsNmt0aDR2IgogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgInN1c3BlbmRlZFNlcnZpY2VzIjogMCwKICAgICAgICAic3VzcGVuZGVkU2VydmljZUxpc3QiOiBbXSwKICAgICAgICAidGlja2V0Q2xvc2VIb3VycyI6IDI0CiAgICAgIH0sCiAgICAgICJzdGF0dXMiOiAicmFuIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAidGlja2V0c0Nsb3NlIiwKICAgICAgInJlc3VsdCI6IHsKICAgICAgICAiY291bnQiOiAwCiAgICAgIH0sCiAgICAgICJzdGF0dXMiOiAicmFuIgogICAgfQogIF0sCiAgInNraXBwZWQiOiBbCiAgICB7CiAgICAgICJuYW1lIjogImRvbWFpblByaWNlcyIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMlQwNDoxODo1NS41MDFaIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAiZG9tYWluRXhwaXJhdGlvbnMiLAogICAgICAibmV4dEF0IjogIjIwMjYtMDYtMTJUMDQ6MzA6MDIuMTg2WiIKICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogImRvbWFpblN0YXR1c2VzIiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTExVDE3OjI1OjE4LjMxNFoiCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJpbnZvaWNlUmVtaW5kZXJzIiwKICAgICAgIm5leHRBdCI6ICIyMDI2LTA2LTEyVDAwOjAwOjAwLjAwMFoiCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJob3N0aW5nU3RhdHVzZXMiLAogICAgICAibmV4dEF0IjogIjIwMjYtMDYtMTFUMTc6MjU6MTguMzE0WiIKICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogIm1haWxib3hlcyIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMVQxNzoxNToxOC4zMTRaIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAic2l0ZW1hcCIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMlQwMDowMDowMC4wMDBaIgogICAgfSwKICAgIHsKICAgICAgIm5hbWUiOiAiYWlCbG9nUG9zdCIsCiAgICAgICJuZXh0QXQiOiAiMjAyNi0wNi0xMVQyMDozMDowMS40NzZaIgogICAgfQogIF0KfQ=="
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-333cc485e687f0277393",
+              "file": "08-cron-validation.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "every expected job appears in ran or skipped",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 74,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:41.835Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-315d44df369dacc3a0df",
+              "file": "08-cron-validation.spec.ts",
+              "line": 31,
+              "column": 7
+            },
+            {
+              "title": "no cron job reports a failed status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 80,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:41.924Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-dfadebb7948759f326f0",
+              "file": "08-cron-validation.spec.ts",
+              "line": 39,
+              "column": 7
+            },
+            {
+              "title": "billingMaintenance and ticketsClose always run (not throttled)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 134,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:42.021Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-18d459d51945f4b81d62",
+              "file": "08-cron-validation.spec.ts",
+              "line": 45,
+              "column": 7
+            },
+            {
+              "title": "billingMaintenance result exposes the automation summary keys",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 95,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:42.169Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-f804bc8ac8e019cd757a",
+              "file": "08-cron-validation.spec.ts",
+              "line": 50,
+              "column": 7
+            },
+            {
+              "title": "public cron endpoint rejects a missing/invalid secret",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 121,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:42.276Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7a1760da2e4a8113fbe5-5611dee4784033d7ef13",
+              "file": "08-cron-validation.spec.ts",
+              "line": 60,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "09-checkout-ui.spec.ts",
+      "file": "09-checkout-ui.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "UI checkout — storefront rendering",
+          "file": "09-checkout-ui.spec.ts",
+          "line": 54,
+          "column": 6,
+          "specs": [
+            {
+              "title": "hosting order page renders the checkout form and real payment gateways",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 3245,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:42.413Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "cfcadc974dcd7bcbf20d-4cea2b5b23a646f959b9",
+              "file": "09-checkout-ui.spec.ts",
+              "line": 55,
+              "column": 7
+            },
+            {
+              "title": "order pages load without server errors for hosting, VPS and domain products",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 4670,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:46.261Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "cfcadc974dcd7bcbf20d-c4f3cb2943387af9071e",
+              "file": "09-checkout-ui.spec.ts",
+              "line": 63,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "10-payment-gateways.spec.ts",
+      "file": "10-payment-gateways.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Payment gateways — discovery",
+          "file": "10-payment-gateways.spec.ts",
+          "line": 37,
+          "column": 6,
+          "specs": [
+            {
+              "title": "storefront exposes the configured live gateways",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 110,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:50.956Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-a99f66bfa78d60f93379",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 38,
+              "column": 7
+            },
+            {
+              "title": "admin gateway settings list every method with an enabled flag",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 69,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:51.077Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-db11fa229c1f77eeca62",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 43,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment gateways — per gateway",
+          "file": "10-payment-gateways.spec.ts",
+          "line": 51,
+          "column": 6,
+          "specs": [
+            {
+              "title": "SANDBOX → invoice PAID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 578,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:51.158Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-29a5dfd0214a1706af6a",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 52,
+              "column": 7
+            },
+            {
+              "title": "CREDIT_CARD (Mollie) → invoice PENDING with a hosted-checkout redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 808,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:51.747Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-3415f0a94bee2f61a033",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 59,
+              "column": 7
+            },
+            {
+              "title": "PAYPAL → invoice PENDING with a PayPal approval redirect",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1761,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:52.568Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-c959bf48d2a2af057ece",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 67,
+              "column": 7
+            },
+            {
+              "title": "SEPA (Mollie direct debit) → payment initiated with a transaction",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 1005,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:54.345Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-3cd44d47feb5bb81c6fc",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 75,
+              "column": 7
+            },
+            {
+              "title": "BANK_TRANSFER → invoice stays PENDING with a manual transaction",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 360000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 595,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-11T17:11:55.362Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d803d5a65e377e0399e0-7a24418daed663f3258d",
+              "file": "10-payment-gateways.spec.ts",
+              "line": 84,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-06-11T17:11:29.380Z",
+    "duration": 248481.74000000002,
+    "expected": 29,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
