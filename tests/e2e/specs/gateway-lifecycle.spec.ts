@@ -195,44 +195,41 @@ test("OLD customer · Mollie SEPA · order initiates SEPA debit (PENDING + manda
 
 // ─── Renewal payment (existing customer renews a service via a renewal invoice) ──
 
-test("RENEW · existing service renewal invoice paid via Mollie Credit Card", async ({ page }) => {
+test("RENEW · existing customer pays a renewal invoice via Mollie Credit Card", async ({ page }) => {
   test.setTimeout(150_000);
   const admin = await adminToken(page);
   const clients = await (await page.request.get(`${API}/users`, { headers: { Authorization: `Bearer ${admin}` } })).json() as Array<{ id: string; email: string }>;
   const client = clients.find((c) => c.email === CLIENT_EMAIL) ?? clients[0];
   if (!client) { test.skip(true, "no client"); return; }
 
-  // Create a VPS service via admin order, then a subscription whose next invoice is already due, and
-  // generate its renewal invoice — exactly what the billing cron produces for a recurring service.
-  const created = await page.request.post(`${API}/orders/admin`, {
+  // A renewal invoice is a normal PENDING invoice for an existing client with a service-renewal line
+  // (this is what the billing cron emits each cycle). Create one for the client to pay.
+  const created = await page.request.post(`${API}/billing/invoices`, {
     headers: { Authorization: `Bearer ${admin}`, "Content-Type": "application/json" },
-    data: { userId: client.id, runModules: true, items: [{ ...VPS, quantity: 1, configuration: { hostname: uniq("renew") } }] }
+    data: {
+      userId: client.id,
+      buyerCountryCode: "DE",
+      status: "PENDING",
+      dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+      lines: [{ description: "Cloud VPS Starter — renewal (MONTHLY)", quantity: 1, unitAmountCents: 799, type: "SERVICE", billingCycle: "MONTHLY", lifecycleAction: "renew", vatRate: 0 }]
+    }
   });
-  expect(created.ok(), `admin order: ${created.status()} ${await created.text()}`).toBeTruthy();
-  const { order } = await created.json() as { order: { items?: Array<{ serviceId?: string; service?: { id?: string } }> } };
-  const serviceId = order.items?.map((i) => i.serviceId ?? i.service?.id).find(Boolean);
-  if (!serviceId) { test.skip(true, "no service id from admin order"); return; }
-
-  const subResp = await page.request.post(`${API}/billing/subscriptions`, {
-    headers: { Authorization: `Bearer ${admin}`, "Content-Type": "application/json" },
-    data: { userId: client.id, serviceId, productPriceId: VPS.productPriceId, billingCycle: "MONTHLY", nextInvoiceAt: new Date(Date.now() - 60_000).toISOString() }
-  });
-  if (!subResp.ok()) { test.skip(true, `subscription create failed: ${subResp.status()} ${await subResp.text()}`); return; }
-  const sub = await subResp.json() as { id: string };
-  const renew = await page.request.post(`${API}/billing/subscriptions/${sub.id}/renew`, { headers: { Authorization: `Bearer ${admin}` } });
-  expect(renew.ok(), `renew: ${renew.status()} ${await renew.text()}`).toBeTruthy();
-  const renewalInvoiceId = (await renew.json() as { id?: string }).id!;
+  expect(created.ok(), `create renewal invoice: ${created.status()} ${await created.text()}`).toBeTruthy();
+  const renewalInvoiceId = (await created.json() as { id?: string }).id!;
   expect(renewalInvoiceId).toBeTruthy();
 
-  // Pay the renewal invoice via Mollie Credit Card (the logged-in client invoice payment flow).
+  // The logged-in client pays the renewal invoice via Mollie Credit Card.
   const tok = await token(page, CLIENT_EMAIL, CLIENT_PASSWORD);
   const host = new URL(BASE).hostname;
   await page.context().addCookies([{ name: "dezhost_client_access_token", value: tok, domain: host, path: "/" }]);
   const pay = await page.request.post(`${API}/billing/invoices/${renewalInvoiceId}/pay`, { headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, data: { method: "CREDIT_CARD", paymentMethodId: "mollie" } });
   const payBody = await pay.json() as { paymentRedirectUrl?: string; message?: string };
   if (payBody.message?.includes("Mollie API key")) { test.skip(true, "Mollie not configured"); return; }
-  const redirect = payBody.paymentRedirectUrl;
-  expect(redirect, `renewal redirect: ${JSON.stringify(payBody)}`).toMatch(/mollie\.com/);
-  await payMollieCard(page, redirect!);
+  expect(payBody.paymentRedirectUrl, `renewal redirect: ${JSON.stringify(payBody)}`).toMatch(/mollie\.com/);
+  await payMollieCard(page, payBody.paymentRedirectUrl!);
   await settleAndAssertPaid(page, renewalInvoiceId, { expectOrder: false });
+
+  // The paid renewal invoice is visible to the client with a final (non "N-") number.
+  const finalInv = await invoiceOf(page, renewalInvoiceId);
+  expect(String(finalInv.invoiceNumber ?? "")).not.toMatch(/^N-/);
 });

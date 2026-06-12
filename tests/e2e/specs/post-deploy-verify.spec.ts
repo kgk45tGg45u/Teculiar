@@ -11,8 +11,6 @@ const BASE = (process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/
 const API = (process.env.E2E_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
-const PP_BUYER_EMAIL = process.env.PP_BUYER_EMAIL ?? "sb-w2nw247466170@personal.example.com";
-const PP_BUYER_PASSWORD = process.env.PP_BUYER_PASSWORD ?? "F&Gr189i";
 
 const VPS_PRODUCT = "prod_vps_starter";
 const VPS_PRICE = "price_vps_starter_monthly";
@@ -103,51 +101,5 @@ test("admin Logs page has System/Cron tabs, pagination and retention control", a
   }
 });
 
-// T4 — Real PayPal sandbox redirect → approve → confirm → order materializes (best-effort).
-test("PayPal sandbox: guest pays, returns, order materializes", async ({ page }) => {
-  test.setTimeout(180_000);
-  const gateways = await (await page.request.get(`${API}/storefront/payment-gateways`)).json() as Array<{ method: string }>;
-  if (!gateways.some((x) => x.method === "PAYPAL")) { test.skip(true, "PayPal not enabled"); return; }
-
-  const g = guest("verify-pp");
-  const co = await page.request.post(`${API}/orders/checkout`, { data: g.body });
-  expect(co.ok()).toBeTruthy();
-  const { order } = await co.json() as { order: { id: string } };
-  const pay = await page.request.post(`${API}/orders/${order.id}/pay`, { data: { method: "PAYPAL", paymentMethodId: "checkout" } });
-  const payBody = await pay.json() as { invoice?: { paymentRedirectUrl?: string } };
-  const url = payBody.invoice?.paymentRedirectUrl;
-  if (!url || !/paypal\.com/.test(url)) { test.skip(true, `no paypal redirect: ${JSON.stringify(payBody)}`); return; }
-
-  await page.goto(url, { waitUntil: "domcontentloaded" });
-  try {
-    const email = page.locator('#email, input[name="login_email"]');
-    await email.first().waitFor({ timeout: 40_000 });
-    await email.first().fill(PP_BUYER_EMAIL);
-    const next = page.locator('#btnNext, button:has-text("Next")');
-    if (await next.count()) await next.first().click().catch(() => undefined);
-    const pw = page.locator('#password, input[name="login_password"]');
-    await pw.first().waitFor({ timeout: 25_000 });
-    await pw.first().fill(PP_BUYER_PASSWORD);
-    await page.locator('#btnLogin, button:has-text("Log In"), button[name="btnLogin"]').first().click().catch(() => undefined);
-
-    // The review page is a slow SPA. Poll for the pay/agree button for up to 60s.
-    const payBtn = page.locator('#payment-submit-btn, [data-testid="submit-button-initial"], button:has-text("Complete Purchase"), button:has-text("Pay Now"), button:has-text("Continue"), button:has-text("Agree")');
-    await expect(async () => { expect(await payBtn.count()).toBeGreaterThan(0); }).toPass({ timeout: 70_000 });
-    await payBtn.first().click().catch(() => undefined);
-  } catch (e) {
-    console.log("PayPal UI step failed:", e instanceof Error ? e.message : String(e), "url:", page.url());
-  }
-
-  await page.waitForURL(/payment-return/, { timeout: 60_000 }).catch(() => undefined);
-  await page.waitForTimeout(6_000);
-
-  const tok = await adminToken(page);
-  const inv = await (await page.request.get(`${API}/billing/invoices/${order.id}`, { headers: { Authorization: `Bearer ${tok}` } })).json() as Record<string, unknown>;
-  console.log("PayPal final invoice status:", inv.status, "order:", JSON.stringify((inv as { order?: { id?: string } }).order ?? null));
-  // If the sandbox UI completed, the invoice is PAID and the order exists.
-  if (inv.status === "PAID") {
-    expect((inv as { order?: { id?: string } }).order?.id, "order materialized after PayPal").toBeTruthy();
-  } else {
-    test.info().annotations.push({ type: "note", description: `PayPal sandbox UI did not complete; invoice=${String(inv.status)}` });
-  }
-});
+// Full real-gateway order→pay→dashboard flows (PayPal, Mollie CC, Mollie SEPA) for new AND old
+// customers live in gateway-lifecycle.spec.ts.
