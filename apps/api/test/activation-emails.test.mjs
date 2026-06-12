@@ -106,10 +106,12 @@ test("notifyDomainActivated sends domain email with name servers, status and a d
   assert.equal(second.sent, false);
 });
 
-test("notifyPendingActivations emails only the un-notified active accounts", async () => {
+test("notifyPendingActivations emails only the un-notified active accounts (after baseline)", async () => {
   const dispatched = [];
   const audits = new Set(["service.activation_email:svc-old"]);
   const billing = {
+    settingString: async () => "2026-01-01T00:00:00.000Z", // baseline already taken → normal sweep
+    upsertSettingString: async () => {},
     activeHostingServiceIds: async () => ["svc-old", "svc-new"],
     activeDomainRecordIds: async () => ["dom-new"],
     notifiedSubjectIds: async (action) => new Set([...audits].filter((row) => row.startsWith(`${action}:`)).map((row) => row.split(":")[1])),
@@ -126,4 +128,28 @@ test("notifyPendingActivations emails only the un-notified active accounts", asy
   assert.equal(result.services, 1, "only the un-notified hosting service is emailed");
   assert.equal(result.domains, 1, "the newly active domain is emailed");
   assert.deepEqual(dispatched.map((entry) => entry[0]).sort(), ["domain_information", "hosting_account_information"]);
+});
+
+test("notifyPendingActivations baselines existing active accounts without emailing on first run", async () => {
+  const dispatched = [];
+  const baselined = [];
+  let baselineSetting = "";
+  const billing = {
+    settingString: async () => baselineSetting,
+    upsertSettingString: async (key, value) => { baselineSetting = value; },
+    activeHostingServiceIds: async () => ["svc-existing-1", "svc-existing-2"],
+    activeDomainRecordIds: async () => ["dom-existing-1"],
+    notifiedSubjectIds: async () => new Set(),
+    recordActivationBaseline: async (action, subject, ids) => baselined.push([action, ids.length]),
+    serviceForEmail: async () => { throw new Error("must not load services on baseline run"); },
+    createAuditLog: async () => { throw new Error("must not email on baseline run"); }
+  };
+  const emails = { dispatch: async () => { throw new Error("must not dispatch on baseline run"); } };
+  const service = new BillingService(billing, {}, {}, undefined, emails);
+
+  const result = await service.notifyPendingActivations();
+  assert.equal(dispatched.length, 0, "no emails sent on the baseline run");
+  assert.deepEqual(result.baseline, { domains: 1, services: 2 });
+  assert.deepEqual(baselined.sort(), [["domain.activation_email", 1], ["service.activation_email", 2]]);
+  assert.ok(baselineSetting, "baseline timestamp persisted so it runs only once");
 });

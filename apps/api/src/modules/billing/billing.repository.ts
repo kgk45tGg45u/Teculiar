@@ -629,6 +629,18 @@ export class BillingRepository {
     });
   }
 
+  // One-time baseline: mark the accounts that were already active before activation emails existed as
+  // "already notified" WITHOUT sending anything, so deploying this feature never retro-blasts the
+  // existing customer base. Only activations after the baseline get an email.
+  recordActivationBaseline(action: string, subject: string, subjectIds: string[]) {
+    if (subjectIds.length === 0) {
+      return Promise.resolve({ count: 0 });
+    }
+    return this.prisma.auditLog.createMany({
+      data: subjectIds.map((subjectId) => ({ action, subject, subjectId, metadata: { baseline: true } as Prisma.InputJsonValue }))
+    });
+  }
+
   settingNumber(key: string, fallback: number) {
     return this.prisma.systemSetting.findUnique({ where: { key } }).then((setting) => {
       const value = setting?.value;

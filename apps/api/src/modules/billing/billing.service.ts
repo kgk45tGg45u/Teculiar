@@ -2248,6 +2248,14 @@ export class BillingService {
   // (the common case the customer hit — provisioning lagged the payment and the status cron flipped it
   // active later). The audit-log guard above keeps this from re-sending for already-notified accounts.
   async notifyPendingActivations() {
+    // First run after this feature deploys: baseline every currently-active account as already
+    // notified (no email) so we never retro-blast existing customers. Only future activations email.
+    const baselineKey = "activationEmailBaselineAt";
+    if (!(await this.billing.settingString(baselineKey))) {
+      const seeded = await this.seedActivationBaseline();
+      await this.billing.upsertSettingString(baselineKey, new Date().toISOString());
+      return { baseline: seeded, domains: 0, services: 0 };
+    }
     let services = 0;
     let domains = 0;
     const [serviceIds, notifiedServices] = await Promise.all([
@@ -2277,6 +2285,24 @@ export class BillingService {
       }
     }
     return { domains, services };
+  }
+
+  // Mark every currently-active service/domain as already-notified, without sending any email. Runs
+  // once (guarded by the activationEmailBaselineAt setting) the first time the activation sweep runs.
+  private async seedActivationBaseline() {
+    const [serviceIds, notifiedServices] = await Promise.all([
+      this.billing.activeHostingServiceIds(),
+      this.billing.notifiedSubjectIds("service.activation_email")
+    ]);
+    const newServiceIds = serviceIds.filter((id) => !notifiedServices.has(id));
+    await this.billing.recordActivationBaseline("service.activation_email", "service", newServiceIds);
+    const [domainIds, notifiedDomains] = await Promise.all([
+      this.billing.activeDomainRecordIds(),
+      this.billing.notifiedSubjectIds("domain.activation_email")
+    ]);
+    const newDomainIds = domainIds.filter((id) => !notifiedDomains.has(id));
+    await this.billing.recordActivationBaseline("domain.activation_email", "domain", newDomainIds);
+    return { domains: newDomainIds.length, services: newServiceIds.length };
   }
 
   // For a Virtualmin hosting service, fill in the panel-assigned username and control-panel address
