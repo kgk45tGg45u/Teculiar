@@ -2014,17 +2014,32 @@ export class BillingService {
       "blogHeroImageUrl", "knowledgebaseHeroImageUrl"
     ];
     if (!allowedThemes.includes(theme) || !allowedFields.includes(field)) throw new BadRequestException("Invalid theme or field.");
-    const ext = file.mimetype === "image/jpeg" ? "jpg"
-      : file.mimetype === "image/webp" ? "webp"
-      : file.mimetype === "image/svg+xml" ? "svg"
-      : file.mimetype === "image/gif" ? "gif"
-      : "png";
-    const dir = await webUploadsDir();
-    const filename = `theme-${theme}-${field}-${Date.now()}.${ext}`;
-    await writeFile(join(dir, filename), file.buffer);
-    const imageUrl = `/uploads/${filename}`;
-    await this.billing.upsertSettingString(`theme.${theme}.${field}`, imageUrl);
+    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+    const safeFilename = (file.originalname ?? `image.${file.mimetype.split("/")[1]}`)
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const imageUrl = `/api/v1/storefront/theme-image/${theme}/${field}/${safeFilename}`;
+    await Promise.all([
+      this.billing.upsertSettingString(`theme.${theme}.${field}`, imageUrl),
+      this.billing.upsertSettingString(`theme.${theme}.${field}.data`, dataUri),
+    ]);
     return { field, imageUrl, theme };
+  }
+
+  async serveThemeHeroImage(theme: string, field: string) {
+    const allowedThemes = ["blue"];
+    const allowedFields = [
+      "homeHeroImageUrl", "webhostingHeroImageUrl", "domainsHeroImageUrl", "itSolutionsHeroImageUrl",
+      "contactHeroImageUrl", "aboutHeroImageUrl", "virtualServersHeroImageUrl", "webdesignHeroImageUrl",
+      "blogHeroImageUrl", "knowledgebaseHeroImageUrl"
+    ];
+    if (!allowedThemes.includes(theme) || !allowedFields.includes(field)) throw new NotFoundException("Image not found.");
+    const dataUri = await this.billing.settingString(`theme.${theme}.${field}.data`);
+    if (!dataUri || !dataUri.startsWith("data:")) throw new NotFoundException("Image not found.");
+    const commaIdx = dataUri.indexOf(",");
+    const meta = dataUri.slice(5, commaIdx);
+    const mimeType = meta.replace(";base64", "");
+    const buffer = Buffer.from(dataUri.slice(commaIdx + 1), "base64");
+    return { mimeType, buffer };
   }
 
   async getModules() {

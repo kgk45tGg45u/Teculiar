@@ -247,6 +247,15 @@ export class BillingStorefrontController {
   paymentGateways() {
     return this.billing.storefrontPaymentGateways();
   }
+
+  @Get("theme-image/:theme/:field")
+  @Get("theme-image/:theme/:field/:filename")
+  async themeImage(@Param("theme") theme: string, @Param("field") field: string, @Res() res: Response) {
+    const { mimeType, buffer } = await this.billing.serveThemeHeroImage(theme, field);
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.end(buffer);
+  }
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
