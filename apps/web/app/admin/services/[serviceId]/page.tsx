@@ -1,4 +1,4 @@
-import { cycleLabel, money, type ApiService, type AuthUser } from "../../../../lib/api";
+import { cycleLabel, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
 import { serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
@@ -50,7 +50,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
             <tr><th>Product</th><td>{service.product.name}</td></tr>
             <tr><th>Type</th><td>{serviceType(service.product.type)}</td></tr>
             <tr><th>Domain</th><td>{domain ?? "—"}</td></tr>
-            <tr><th>Billing</th><td>{cycleLabel(service.productPrice.billingCycle, locale)} / {money(service.productPrice.amountCents, service.productPrice.currency, locale)}</td></tr>
+            <tr><th>Billing</th><td>{cycleLabel(service.productPrice.billingCycle, locale)} / {money(serviceUnitPriceCents(service), service.productPrice.currency, locale)}</td></tr>
             <tr><th>Next due</th><td>{dateLabel(service.renewsAt)}</td></tr>
             <tr><th>Provider ref</th><td>{service.externalId ?? "—"}</td></tr>
           </tbody></table>

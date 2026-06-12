@@ -7,6 +7,7 @@ import {
   dateLabel as formatDate,
   invoiceDisplayNumber,
   money,
+  serviceUnitPriceCents,
   type ApiClient,
   type ApiEmailAdminSettings,
   type ApiEmailLog,
@@ -465,7 +466,7 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
           {services.map((service) => (
             <tr key={service.id}>
               <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
-              <td>{money(service.productPrice.amountCents, service.productPrice.currency, locale)} / {cycleLabel(service.productPrice.billingCycle, locale)}</td>
+              <td>{money(serviceUnitPriceCents(service), service.productPrice.currency, locale)} / {cycleLabel(service.productPrice.billingCycle, locale)}</td>
               <td>{shortDateLabel(service.renewsAt, locale)}</td>
               <td>
                 <StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} />

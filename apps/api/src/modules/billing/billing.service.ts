@@ -1019,6 +1019,13 @@ export class BillingService {
       throw new NotFoundException("Subscription not found");
     }
 
+    // Renewals bill the captured order price (Service.recurringAmountCents), not the product list price.
+    // Domain products carry a 0 list price (every TLD/term is priced live from resell.biz at checkout),
+    // so renewing off productPrice would generate €0 domain invoices. Fall back to the list price only
+    // for legacy services created before the order price was captured.
+    const serviceRecurringCents = Number((subscription.service as { recurringAmountCents?: number } | null)?.recurringAmountCents ?? 0);
+    const renewalUnitAmountCents = serviceRecurringCents > 0 ? serviceRecurringCents : subscription.productPrice.amountCents;
+
     const invoice = await this.createInvoice({
       userId: subscription.userId,
       dueAt: subscription.nextInvoiceAt.toISOString(),
@@ -1034,7 +1041,7 @@ export class BillingService {
           lifecycleAction: "renew",
           quantity: 1,
           type: "SERVICE_RENEWAL",
-          unitAmountCents: subscription.productPrice.amountCents,
+          unitAmountCents: renewalUnitAmountCents,
           serviceId: subscription.serviceId,
           servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
           servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()

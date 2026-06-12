@@ -112,14 +112,30 @@ export type ApiDomainPrice = {
 
 export type ApiService = {
   configuration?: Record<string, unknown>;
-  domainRecords?: Array<{ id?: string; domain: string; status: string; externalId?: string | null }>;
+  domainRecords?: Array<{ id?: string; domain: string; status: string; externalId?: string | null; firstPaymentAmountCents?: number; recurringAmountCents?: number }>;
   externalId?: string | null;
   id: string;
   status: string;
   renewsAt?: string | null;
+  recurringAmountCents?: number;
   product: { name: string; type: string };
   productPrice: { amountCents: number; billingCycle: string; currency: string };
 };
+
+// The price shown for a service/domain is the captured *order* price (`recurringAmountCents`), not the
+// generic product list price. Domain products carry a 0 list price because every TLD/term is priced
+// live from resell.biz at checkout, so reading `productPrice.amountCents` always shows €0 for domains.
+// Fall back to the list price only for legacy records created before the order price was captured.
+export function serviceUnitPriceCents(service: { productPrice: { amountCents: number }; recurringAmountCents?: number }): number {
+  return service.recurringAmountCents && service.recurringAmountCents > 0 ? service.recurringAmountCents : service.productPrice.amountCents;
+}
+
+export function domainUnitPriceCents(
+  record: { recurringAmountCents?: number } | undefined,
+  service: { productPrice: { amountCents: number }; recurringAmountCents?: number }
+): number {
+  return record?.recurringAmountCents && record.recurringAmountCents > 0 ? record.recurringAmountCents : serviceUnitPriceCents(service);
+}
 
 export type ApiInvoice = {
   customerSnapshot?: {
