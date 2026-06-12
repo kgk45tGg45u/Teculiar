@@ -4,6 +4,7 @@
 - Keep files small so reading and editing stays cheap.
 - Prefer focused tests that cover different code paths.
 - Document temporary endpoints and integration notes clearly.
+- Don't write credits to yourself inside the code.
 
 
 ## Testing — always test on production
@@ -19,10 +20,15 @@ Credentials are stored in `.env` (see `E2E_*` vars):
 
 Run production tests like:
 ```
+set -a && source .env && set +a
 E2E_BASE_URL=https://www.dezhost.com \
 E2E_API_URL=https://www.dezhost.com/api/v1 \
-npx playwright test <spec> --project=chromium
+npx playwright test <spec> --project=chromium --workers=1
 ```
+
+`set -a` / `set +a` exports every variable sourced from `.env` so Playwright child processes
+inherit the `E2E_*` credentials.  Without it, `source .env` only sets shell-local vars and
+Playwright never sees `E2E_ADMIN_EMAIL`, `E2E_CLIENT_EMAIL`, etc.
 
 ## Documentation
 - Keep tests and documentation up-to-date after every change.
