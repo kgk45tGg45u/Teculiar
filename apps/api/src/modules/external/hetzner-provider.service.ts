@@ -5,9 +5,11 @@ import type { HostingProvider, ProvisioningRequest } from "./provider.types";
 @Injectable()
 export class HetznerProviderService implements HostingProvider {
   async provision(request: ProvisioningRequest) {
+    // Stub: returns ACTIVE immediately so the provisioning email fires on payment.
+    // A real Hetzner integration would return PROVISIONING and poll for server readiness.
     return {
       externalId: `server_${randomUUID()}`,
-      status: "PROVISIONING" as const,
+      status: "ACTIVE" as const,
       metadata: {
         region: "de",
         requestedOptions: request.options

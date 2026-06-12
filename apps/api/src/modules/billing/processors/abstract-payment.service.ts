@@ -642,6 +642,30 @@ async function capturePayPalOrder(config: Record<string, unknown>, providerRefer
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    // PayPal returns 422 ORDER_ALREADY_CAPTURED when the order was captured by a concurrent
+    // request (e.g., the webhook beat the browser's payment-return confirm call).  Treat this as
+    // SUCCEEDED by fetching the completed order rather than propagating an error to the caller.
+    if (String(isRecord(payload) ? payload.name : "").toUpperCase() === "ORDER_ALREADY_CAPTURED") {
+      const orderResp = await fetch(`${paypalBaseUrl(config)}/v2/checkout/orders/${providerReference}`, {
+        headers: { Authorization: `Bearer ${token.accessToken}` }
+      }).catch(() => null);
+      if (orderResp?.ok) {
+        const orderPayload = await orderResp.json().catch(() => ({})) as Record<string, unknown>;
+        if (String(orderPayload.status ?? "").toUpperCase() === "COMPLETED") {
+          const ppSrc = isRecord(orderPayload.payment_source) && isRecord((orderPayload.payment_source as Record<string, unknown>).paypal)
+            ? (orderPayload.payment_source as Record<string, unknown>).paypal as Record<string, unknown>
+            : undefined;
+          const vaultAttr = isRecord(ppSrc?.attributes) && isRecord((ppSrc!.attributes as Record<string, unknown>).vault)
+            ? (ppSrc!.attributes as Record<string, unknown>).vault as Record<string, unknown>
+            : undefined;
+          return {
+            providerReference,
+            raw: { ...orderPayload, paypalVaultId: vaultAttr?.id, paypalCustomerId: isRecord(vaultAttr?.customer) ? (vaultAttr!.customer as Record<string, unknown>).id : undefined },
+            status: "SUCCEEDED"
+          };
+        }
+      }
+    }
     throw new BadRequestException(gatewayMessage(payload, "PayPal capture failed."));
   }
   const completed = String(payload.status).toUpperCase() === "COMPLETED";

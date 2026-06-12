@@ -414,6 +414,13 @@ export class BillingService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
+    // Short-circuit: if the webhook (or a concurrent confirm call) already paid this invoice,
+    // skip the gateway capture entirely and return the already-paid state.  This prevents
+    // ORDER_ALREADY_CAPTURED errors from PayPal when both the webhook and the payment-return
+    // page race to confirm the same transaction.
+    if (invoice.status === "PAID") {
+      return { invoice, status: "PAID" };
+    }
     const transaction = [...(invoice.transactions ?? [])].reverse().find((item) => item.status === "PENDING") ?? invoice.transactions?.at(-1);
     if (!transaction) {
       throw new BadRequestException("Invoice has no payment transaction to confirm.");

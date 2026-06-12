@@ -100,8 +100,22 @@ async function payPayPal(page: Page, redirectUrl: string) {
 
 // After a redirect gateway returns to /client/billing/payment-return, the page calls confirm-payment.
 async function settleAndAssertPaid(page: Page, invoiceId: string, opts: { expectOrder?: boolean } = {}) {
+  // Wait for redirect to payment-return or straight to /client (if confirm is near-instant).
   await page.waitForURL(/payment-return|\/client/, { timeout: 60_000 }).catch(() => undefined);
-  await page.waitForTimeout(6000);
+
+  // If the browser landed on the payment-return page, wait for the confirm flow to finish.
+  // It retries once after 3 s, so give it up to 12 s before checking for errors.
+  if (/payment-return/.test(page.url())) {
+    await page.waitForURL(/\/client/, { timeout: 12_000 }).catch(() => undefined);
+    // If still on payment-return, the confirm failed — report what the page says.
+    if (/payment-return/.test(page.url())) {
+      const pageText = await page.locator("body").innerText().catch(() => "");
+      expect(pageText, "payment-return page showed an error").not.toMatch(/could not confirm|confirmation failed|contact support/i);
+    }
+  }
+
+  // Allow a few extra seconds for the invoice to settle (webhook path).
+  await page.waitForTimeout(3000);
   const inv = await invoiceOf(page, invoiceId);
   expect(inv.status, `invoice ${invoiceId} not PAID: ${JSON.stringify(inv.status)}`).toBe("PAID");
   if (opts.expectOrder !== false) {

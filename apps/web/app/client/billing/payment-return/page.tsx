@@ -12,6 +12,57 @@ type ConfirmResult = {
   user?: AuthPayload["user"];
 };
 
+async function doConfirm(invoiceId: string): Promise<ConfirmResult | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/confirm-payment`, {
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    return await response.json() as ConfirmResult;
+  } catch {
+    return null;
+  }
+}
+
+function applyResult(result: ConfirmResult, invoiceId: string): { redirect?: string; message?: string; showNewOrderLink?: boolean } {
+  if (result.accessToken && result.user) {
+    try {
+      storeAuth({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken ?? "",
+        tokenType: "Bearer",
+        user: result.user
+      });
+    } catch {
+      // Storage quota or security error — token already in cookie from the server.
+    }
+  }
+
+  const id = result.invoice?.id ?? invoiceId;
+
+  if (result.status === "PAID") {
+    return { redirect: `/client?invoice=${encodeURIComponent(id)}` };
+  }
+  if (result.status === "PENDING") {
+    return { message: "Your payment is being processed. You will be notified by email once confirmed." };
+  }
+  if (result.status === "FAILED") {
+    if (result.accessToken) {
+      return { redirect: `/client?invoice=${encodeURIComponent(id)}&paymentFailed=1` };
+    }
+    return { message: "Payment was not completed. You can place a new order and choose a different payment method.", showNewOrderLink: true };
+  }
+
+  // For any other status (including error responses from the API), redirect if we have auth.
+  if (result.accessToken || authHeaders("client").Authorization) {
+    return { redirect: `/client?invoice=${encodeURIComponent(id)}` };
+  }
+  return {
+    message: result.status ? `Payment status: ${result.status}` : "Payment confirmation failed.",
+    showNewOrderLink: true
+  };
+}
+
 export default function PaymentReturnPage() {
   const [message, setMessage] = useState("Confirming your payment…");
   const [showNewOrderLink, setShowNewOrderLink] = useState(false);
@@ -25,54 +76,32 @@ export default function PaymentReturnPage() {
       return;
     }
 
-    void fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/confirm-payment`, {
-      headers: { "Content-Type": "application/json", ...authHeaders("client") },
-      method: "POST"
-    })
-      .then((response) => response.json() as Promise<ConfirmResult>)
-      .then((result) => {
-        // Auto-login: if the backend issued a token (new guest customer), store it
-        if (result.accessToken && result.user) {
-          storeAuth({
-            accessToken: result.accessToken,
-            refreshToken: result.refreshToken ?? "",
-            tokenType: "Bearer",
-            user: result.user
-          });
-        }
+    void (async () => {
+      let result = await doConfirm(invoiceId);
 
-        const id = result.invoice?.id ?? invoiceId;
+      // If the first attempt returned null (fetch error) or a non-terminal status, retry once
+      // after a short pause.  This recovers from a race where the PayPal webhook has not yet
+      // processed the payment by the time the browser's payment-return page fires.
+      if (!result || !["PAID", "PENDING", "FAILED"].includes(result.status ?? "")) {
+        await new Promise((res) => setTimeout(res, 3000));
+        const retry = await doConfirm(invoiceId);
+        if (retry) result = retry;
+      }
 
-        if (result.status === "PAID") {
-          window.location.assign(`/client?invoice=${encodeURIComponent(id)}`);
-          return;
-        }
+      if (!result) {
+        setMessage("Could not confirm your payment. Please refresh the page or contact support.");
+        setShowNewOrderLink(true);
+        return;
+      }
 
-        if (result.status === "PENDING") {
-          setMessage("Your payment is being processed. You will be notified by email once confirmed.");
-          return;
-        }
-
-        if (result.status === "FAILED") {
-          if (result.accessToken) {
-            window.location.assign(`/client?invoice=${encodeURIComponent(id)}&paymentFailed=1`);
-          } else {
-            // Unauthenticated new customer — payment canceled or failed before completion
-            setMessage("Payment was not completed. You can place a new order and choose a different payment method.");
-            setShowNewOrderLink(true);
-          }
-          return;
-        }
-
-        // Any other status — attempt to redirect if logged in
-        if (result.accessToken || authHeaders("client").Authorization) {
-          window.location.assign(`/client?invoice=${encodeURIComponent(id)}`);
-        } else {
-          setMessage(result.status ? `Payment status: ${result.status}` : "Payment confirmation failed.");
-          setShowNewOrderLink(true);
-        }
-      })
-      .catch(() => setMessage("Could not confirm your payment. Please contact support."));
+      const action = applyResult(result, invoiceId);
+      if (action.redirect) {
+        window.location.assign(action.redirect);
+      } else {
+        setMessage(action.message ?? "");
+        setShowNewOrderLink(action.showNewOrderLink ?? false);
+      }
+    })();
   }, []);
 
   return (
