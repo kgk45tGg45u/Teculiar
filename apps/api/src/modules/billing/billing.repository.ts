@@ -763,9 +763,9 @@ export class BillingRepository {
     return this.prisma.paymentMethod.findFirst({ where: { userId, providerToken } });
   }
 
-  findUserPaymentMethodByProvider(userId: string, provider: string) {
+  findUserPaymentMethodByProvider(userId: string, provider: string, type?: string) {
     return this.prisma.paymentMethod.findFirst({
-      where: { userId, provider, providerCustomerId: { not: null } },
+      where: { userId, provider, providerCustomerId: { not: null }, ...(type ? { type: type as PaymentMethodType } : {}) },
       orderBy: { createdAt: "desc" }
     });
   }

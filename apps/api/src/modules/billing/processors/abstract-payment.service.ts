@@ -265,7 +265,9 @@ export class AbstractPaymentService {
       //      (The sequenceType=first redirect flow requires the Mollie Recurring add-on; direct mandate
       //      creation is supported by all Mollie accounts that have SEPA DD activated.)
       if (request.userId) {
-        const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie");
+        // Reuse only a SEPA mandate — a Credit Card mandate (same provider "mollie") cannot be charged
+        // as a SEPA direct debit, which previously made SEPA checkout fail for clients who had a card on file.
+        const existing = await this.billing.findUserPaymentMethodByProvider(request.userId, "mollie", "SEPA");
         if (existing?.providerCustomerId && existing?.mandateId && existing?.status === "VALID") {
           return createMollieRecurringPayment(config, {
             amountCents: request.amountCents,
