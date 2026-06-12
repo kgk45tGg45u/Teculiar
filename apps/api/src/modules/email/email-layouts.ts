@@ -22,20 +22,29 @@ export const EMAIL_LAYOUT_BLOCK_LIBRARY: Array<{ description: string; label: str
 
 const DEFAULT_EMAIL_LAYOUTS: Record<string, EmailLayoutBlock[]> = {
   domain_information: [
-    text("domain-intro", "Hello {{customer_name}},<br /><br />your domain is now active."),
+    text("domain-intro", "Hello {{customer_name}},<br /><br />your domain {{domain}} has been registered and is now active."),
     keyValueTable("domain-summary", "Domain", [
       ["Domain", "{{domain}}"],
-      ["Status", "Active"]
+      ["Status", "{{domain_status}}"],
+      ["Name servers", "{{nameservers}}"]
     ]),
+    button("domain-button", "Manage domain", "{{domain_link}}"),
     notice("domain-note", "Keep your domain contact data current to avoid registry compliance issues.")
   ],
   hosting_account_information: [
-    text("hosting-intro", "Hello {{customer_name}},<br /><br />your hosting account is active."),
+    text("hosting-intro", "Hello {{customer_name}},<br /><br />your hosting account is active. Use the control panel details below to sign in."),
     keyValueTable("hosting-summary", "Hosting account", [
       ["Service", "{{service}}"],
       ["Domain", "{{domain}}"],
       ["Status", "Active"]
-    ])
+    ]),
+    keyValueTable("hosting-access", "Control panel access", [
+      ["Address", "{{control_panel_url}}"],
+      ["Username", "{{control_panel_username}}"],
+      ["Password", "{{control_panel_password}}"]
+    ]),
+    button("hosting-button", "Open hosting service", "{{service_link}}"),
+    notice("hosting-note", "For your security, sign in and change this password after your first login.", "warning")
   ],
   hosting_account_suspended: [
     text("hosting-suspended-intro", "Hello {{customer_name}},<br /><br />your hosting service has been suspended."),

@@ -25,11 +25,15 @@ export class VirtualminProviderService implements HostingProvider {
     }
 
     const domainName = domainFromOptions(request.options);
+    // Capture the generated password so it can be surfaced in the hosting activation email. Virtualmin
+    // never returns the password again, so this is the only moment it is available — persisted by the
+    // billing lifecycle into the service configuration.
+    const password = generateVirtualminPassword();
     const action = createDomainAction({
       contactEmail: stringOption(request.options, "contactEmail"),
       description: stringOption(request.options, "description") ?? domainName,
       domainName,
-      password: generateVirtualminPassword(),
+      password,
       plan: stringOption(request.options, "virtualminPlan"),
       template: stringOption(request.options, "virtualminTemplate")
     });
@@ -55,9 +59,32 @@ export class VirtualminProviderService implements HostingProvider {
         panel: "virtualmin",
         program: result.program,
         requestedOptions: request.options,
-        result: result.message ?? result.text.slice(0, 500)
+        result: result.message ?? result.text.slice(0, 500),
+        // The username is assigned by Virtualmin and read back from the panel when the account is
+        // confirmed active (see accountSummary); only the password and panel address are known here.
+        credentials: { controlPanelUrl: controlPanelOrigin(credentials.endpoint), password }
       }
     };
+  }
+
+  // Read-only lookup of the panel-assigned owner username and control-panel address for a live
+  // hosting account. Used to complete the hosting activation email when the account becomes active
+  // (the create call does not return the username Virtualmin derived from the domain). Never throws.
+  async accountSummary(serviceExternalId: string) {
+    const credentials = credentialsFromEnv();
+    if (!credentials) {
+      return { controlPanelUrl: "", username: "" };
+    }
+    const domainName = assertSafeDomain(serviceExternalId);
+    const controlPanelUrl = controlPanelOrigin(credentials.endpoint);
+    try {
+      const result = await callVirtualmin(credentials, "list-domains", { domain: domainName, multiline: true });
+      const entry = result.entries.find((item) => item.name === domainName) ?? result.entries[0];
+      const username = entry ? pickField(entry.fields, ["Username", "username"]) ?? "" : "";
+      return { controlPanelUrl, username };
+    } catch {
+      return { controlPanelUrl, username: "" };
+    }
   }
 
   async listHostingTemplates() {
@@ -270,6 +297,14 @@ function templateOption(entry: VirtualminEntry) {
 function generateVirtualminPassword() {
   const suffix = randomUUID().replace(/-/g, "").slice(0, 8);
   return `Dz${suffix}!9Aa`;
+}
+
+function controlPanelOrigin(endpoint: string) {
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    return endpoint;
+  }
 }
 
 function emptyControlPanel(domain: string, warning: string) {

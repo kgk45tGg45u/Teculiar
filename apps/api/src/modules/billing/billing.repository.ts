@@ -576,6 +576,59 @@ export class BillingRepository {
     });
   }
 
+  // ── Service / domain activation emails ──────────────────────────────────────
+  // The activation email must fire whenever a service/domain reaches ACTIVE, whichever path got it
+  // there: immediate provisioning, the status-reconciliation cron, or a client-triggered refresh.
+  // Each path records a `service.activation_email` / `domain.activation_email` audit log so the email
+  // is sent exactly once; the cron sweep below re-checks the audit log to catch any activation that
+  // happened outside the immediate provisioning path.
+
+  serviceForEmail(id: string) {
+    return this.prisma.service.findUnique({
+      where: { id },
+      include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
+    });
+  }
+
+  domainForEmail(id: string) {
+    return this.prisma.domainRecord.findUnique({
+      where: { id },
+      include: { user: { select: publicUserSelect }, service: { include: { product: true } } }
+    });
+  }
+
+  activeHostingServiceIds() {
+    return this.prisma.service
+      .findMany({ where: { product: { type: "SHARED_HOSTING" }, status: "ACTIVE" }, select: { id: true } })
+      .then((rows) => rows.map((row) => row.id));
+  }
+
+  activeDomainRecordIds() {
+    return this.prisma.domainRecord
+      .findMany({ where: { status: "ACTIVE" }, select: { id: true } })
+      .then((rows) => rows.map((row) => row.id));
+  }
+
+  async notifiedSubjectIds(action: string) {
+    const rows = await this.prisma.auditLog.findMany({ where: { action }, select: { subjectId: true } });
+    return new Set(rows.map((row) => row.subjectId).filter((value): value is string => Boolean(value)));
+  }
+
+  hasAuditLog(action: string, subjectId: string) {
+    return this.prisma.auditLog.findFirst({ where: { action, subjectId }, select: { id: true } }).then(Boolean);
+  }
+
+  async mergeServiceConfiguration(id: string, patch: Record<string, unknown>) {
+    const service = await this.prisma.service.findUnique({ where: { id }, select: { configuration: true } });
+    const current = service && typeof service.configuration === "object" && service.configuration !== null && !Array.isArray(service.configuration)
+      ? service.configuration as Record<string, unknown>
+      : {};
+    return this.prisma.service.update({
+      where: { id },
+      data: { configuration: { ...current, ...patch } as Prisma.InputJsonValue }
+    });
+  }
+
   settingNumber(key: string, fallback: number) {
     return this.prisma.systemSetting.findUnique({ where: { key } }).then((setting) => {
       const value = setting?.value;

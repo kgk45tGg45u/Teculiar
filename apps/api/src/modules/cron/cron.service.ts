@@ -119,6 +119,10 @@ export class CronService {
       await this.maybeRunTimed("hostingStatuses", minutes(settings.hostingStatusUpdateMinutes, 15), now, ran, skipped, () =>
         this.products.refreshAllHostingStatuses()
       );
+      // Send the hosting/domain activation emails for anything that reached ACTIVE since the last run
+      // (the status steps above are what flip a delayed-provisioning account active). Idempotent, so
+      // it is safe to run on every trigger.
+      await this.runAction("activationEmails", ran, () => this.billing.notifyPendingActivations());
       await this.maybeRunTimed("mailboxes", minutes(settings.mailboxCheckMinutes, 5), now, ran, skipped, () =>
         this.tickets.importMailboxTickets(settings as Record<string, unknown>)
       );

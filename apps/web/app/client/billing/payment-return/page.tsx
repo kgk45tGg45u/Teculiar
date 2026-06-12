@@ -79,11 +79,13 @@ export default function PaymentReturnPage() {
     void (async () => {
       let result = await doConfirm(invoiceId);
 
-      // If the first attempt returned null (fetch error) or a non-terminal status, retry once
-      // after a short pause.  This recovers from a race where the PayPal webhook has not yet
-      // processed the payment by the time the browser's payment-return page fires.
+      // The first confirm is normally conclusive: the backend captures PayPal / fetches the Mollie
+      // status synchronously and returns PAID (or PENDING for SEPA) in a single round-trip, so the
+      // user lands on the dashboard immediately. The retry below is only a safety net for the rare
+      // race where the gateway webhook has not finished by the time the browser returns (null result
+      // or an unexpected non-terminal status). Keep the pause short so recovery still feels instant.
       if (!result || !["PAID", "PENDING", "FAILED"].includes(result.status ?? "")) {
-        await new Promise((res) => setTimeout(res, 3000));
+        await new Promise((res) => setTimeout(res, 1200));
         const retry = await doConfirm(invoiceId);
         if (retry) result = retry;
       }

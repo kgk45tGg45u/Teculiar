@@ -786,6 +786,15 @@ export class BillingService {
       }
 
       await this.billing.succeedModuleLog(log.id, result as Record<string, unknown>);
+      // Persist any provisioning-time credentials (e.g. the Virtualmin password, which the panel
+      // never returns again) so the hosting activation email can include them — even when the email
+      // is sent later by the status cron rather than now.
+      if (action === "create") {
+        const creds = asRecord(asRecord((result as Record<string, unknown>).metadata).credentials);
+        if (stringFrom(creds.password) || stringFrom(creds.controlPanelUrl) || stringFrom(creds.username)) {
+          await this.billing.mergeServiceConfiguration(service.id, { hosting: creds }).catch(() => undefined);
+        }
+      }
       const active = result.status === "ACTIVE" || ["renew", "unsuspend"].includes(action);
       await this.billing.setServiceLifecycleStatus(service.id, active ? "ACTIVE" : "PROVISIONING", {
         externalId: result.externalId,
@@ -805,13 +814,7 @@ export class BillingService {
         subjectId: service.id
       });
       if (active && action === "create") {
-        void this.dispatchServiceEmail("hosting_account_information", {
-          ...service,
-          externalId: result.externalId,
-          renewsAt: nextServiceDueDate(service, invoice.paidAt ?? invoice.dueAt ?? new Date()),
-          status: "ACTIVE",
-          user: invoice.user
-        }).catch(() => undefined);
+        void this.notifyServiceActivated(service.id).catch(() => undefined);
       }
       return { ok: true, pending: !active };
     } catch (error) {
@@ -938,13 +941,7 @@ export class BillingService {
         subjectId: domain.id
       });
       if (active) {
-        void this.dispatchDomainEmail("domain_information", {
-          ...domain,
-          externalId: result.externalId,
-          service: item.service,
-          status: "ACTIVE",
-          user: invoice.user
-        }).catch(() => undefined);
+        void this.notifyDomainActivated(domain.id).catch(() => undefined);
       }
       return { ok: true, pending: !active };
     } catch (error) {
@@ -2165,12 +2162,17 @@ export class BillingService {
     const user = asRecord(service.user);
     const product = asRecord(service.product);
     const domain = service.domainRecords?.[0]?.domain ?? asRecord(service.configuration).domainName;
+    const hosting = asRecord(asRecord(service.configuration).hosting);
     return this.emails.dispatch(eventKey, {
       context: {
+        control_panel_password: stringFrom(hosting.password) ?? "",
+        control_panel_url: stringFrom(hosting.controlPanelUrl) ?? "",
+        control_panel_username: stringFrom(hosting.username) ?? "",
         customer_email: stringFrom(user.email),
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain),
-        service: stringFrom(product.name) ?? service.id
+        service: stringFrom(product.name) ?? service.id,
+        service_link: `${publicWebUrl()}/client/services/${service.id}`
       },
       teamId: service.teamId,
       user: {
@@ -2194,6 +2196,9 @@ export class BillingService {
         customer_email: stringFrom(user.email),
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain.domain),
+        domain_link: `${publicWebUrl()}/client/domains`,
+        domain_status: domainStatusLabel(domain.status),
+        nameservers: domainNameserverList(domain.nameservers),
         service: stringFrom(product.name)
       },
       user: {
@@ -2203,6 +2208,108 @@ export class BillingService {
         name: stringFrom(user.name) ?? stringFrom(user.email)
       }
     });
+  }
+
+  // Send the hosting activation email exactly once, whichever path marked the service ACTIVE
+  // (immediate provisioning, the status-reconciliation cron, or a client-triggered refresh). For a
+  // Virtualmin account the panel-assigned username and control-panel address are fetched and stored
+  // here if provisioning could not capture them. Idempotency is enforced with a `service.activation_email`
+  // audit log.
+  async notifyServiceActivated(serviceId: string) {
+    if (await this.billing.hasAuditLog("service.activation_email", serviceId)) {
+      return { reason: "already_notified", sent: false };
+    }
+    const service = await this.billing.serviceForEmail(serviceId);
+    if (!service || service.status !== "ACTIVE") {
+      return { reason: "not_active", sent: false };
+    }
+    await this.ensureHostingCredentials(service);
+    await this.dispatchServiceEmail("hosting_account_information", service).catch(() => undefined);
+    await this.billing.createAuditLog({ action: "service.activation_email", subject: "service", subjectId: serviceId });
+    return { sent: true };
+  }
+
+  // Send the domain activation email exactly once when a domain reaches ACTIVE (registered on the
+  // registrar). Idempotency is enforced with a `domain.activation_email` audit log.
+  async notifyDomainActivated(domainId: string) {
+    if (await this.billing.hasAuditLog("domain.activation_email", domainId)) {
+      return { reason: "already_notified", sent: false };
+    }
+    const domain = await this.billing.domainForEmail(domainId);
+    if (!domain || domain.status !== "ACTIVE") {
+      return { reason: "not_active", sent: false };
+    }
+    await this.dispatchDomainEmail("domain_information", domain).catch(() => undefined);
+    await this.billing.createAuditLog({ action: "domain.activation_email", subject: "domain", subjectId: domainId });
+    return { sent: true };
+  }
+
+  // Cron sweep: e-mail any service/domain that reached ACTIVE outside the immediate provisioning path
+  // (the common case the customer hit — provisioning lagged the payment and the status cron flipped it
+  // active later). The audit-log guard above keeps this from re-sending for already-notified accounts.
+  async notifyPendingActivations() {
+    let services = 0;
+    let domains = 0;
+    const [serviceIds, notifiedServices] = await Promise.all([
+      this.billing.activeHostingServiceIds(),
+      this.billing.notifiedSubjectIds("service.activation_email")
+    ]);
+    for (const id of serviceIds) {
+      if (notifiedServices.has(id)) {
+        continue;
+      }
+      const result = await this.notifyServiceActivated(id).catch(() => ({ sent: false }));
+      if (result.sent) {
+        services += 1;
+      }
+    }
+    const [domainIds, notifiedDomains] = await Promise.all([
+      this.billing.activeDomainRecordIds(),
+      this.billing.notifiedSubjectIds("domain.activation_email")
+    ]);
+    for (const id of domainIds) {
+      if (notifiedDomains.has(id)) {
+        continue;
+      }
+      const result = await this.notifyDomainActivated(id).catch(() => ({ sent: false }));
+      if (result.sent) {
+        domains += 1;
+      }
+    }
+    return { domains, services };
+  }
+
+  // For a Virtualmin hosting service, fill in the panel-assigned username and control-panel address
+  // (read-only) when provisioning could not capture them, and persist them on the service so later
+  // emails and the client area can reuse them. Mutates the in-memory `service` so the very next
+  // dispatch sees the values. Never throws.
+  private async ensureHostingCredentials(service: Record<string, any>) {
+    if (!this.external || effectiveServiceModule(service) !== "virtualmin") {
+      return;
+    }
+    const config = asRecord(service.configuration);
+    const hosting = asRecord(config.hosting);
+    if (stringFrom(hosting.username) && stringFrom(hosting.controlPanelUrl)) {
+      return;
+    }
+    const externalId = stringFrom(service.externalId);
+    const domainName = externalId && !externalId.startsWith("virtualmin_")
+      ? externalId
+      : stringFrom(config.domainName) ?? stringFrom(service.domainRecords?.[0]?.domain);
+    if (!domainName) {
+      return;
+    }
+    const summary = await this.external.virtualmin.accountSummary(domainName).catch(() => undefined);
+    if (!summary) {
+      return;
+    }
+    const merged = {
+      controlPanelUrl: stringFrom(hosting.controlPanelUrl) ?? summary.controlPanelUrl,
+      password: stringFrom(hosting.password) ?? "",
+      username: stringFrom(hosting.username) ?? summary.username
+    };
+    service.configuration = { ...config, hosting: merged };
+    await this.billing.mergeServiceConfiguration(service.id, { hosting: merged }).catch(() => undefined);
   }
 
   private async invoiceFooterLines() {
@@ -2457,6 +2564,30 @@ function domainNameServers(value: unknown) {
     return undefined;
   }
   return value.nameServers.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+// Human label for a domain status enum (ACTIVE → "Active") used in the activation email.
+function domainStatusLabel(status: unknown) {
+  const value = String(status ?? "").trim();
+  if (!value) {
+    return "Active";
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+// Comma-separated name servers for the activation email, falling back to the registrar defaults when
+// the domain was registered with the standard Dezhost name servers (stored as null).
+function domainNameserverList(nameservers: unknown) {
+  const list = Array.isArray(nameservers)
+    ? nameservers.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
+  if (list.length) {
+    return list.join(", ");
+  }
+  const fallback = [process.env.RESELLBIZ_DEFAULT_NS1, process.env.RESELLBIZ_DEFAULT_NS2].filter(
+    (value): value is string => Boolean(value && value.trim())
+  );
+  return fallback.length ? fallback.join(", ") : "ns1.domain.com, ns2.domain.com";
 }
 
 function domainTld(domainName: string) {
