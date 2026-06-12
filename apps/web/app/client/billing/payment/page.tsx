@@ -39,8 +39,14 @@ export default function InvoicePaymentPage() {
   const [message, setMessage] = useState("");
   const [sepaIban, setSepaIban] = useState("");
   const [balanceCents, setBalanceCents] = useState(0);
+  const [useBalance, setUseBalance] = useState(false);
+  const useBalanceRef = useRef(false);
   const paypalRef = useRef<HTMLDivElement>(null);
   const sdkLoadedRef = useRef(false);
+
+  // Keep a ref in sync so the PayPal SDK button (rendered once, outside React state) reads the
+  // latest opt-in choice at click time.
+  useEffect(() => { useBalanceRef.current = useBalance; }, [useBalance]);
 
   const invoiceId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invoice") ?? "" : "";
 
@@ -72,7 +78,7 @@ export default function InvoicePaymentPage() {
     const clientId = paypalGw?.config?.clientId;
     if (!clientId) return;
 
-    const doRender = () => renderPayPalButtons(invoiceId, setStatus, setMessage);
+    const doRender = () => renderPayPalButtons(invoiceId, setStatus, setMessage, () => useBalanceRef.current);
 
     if (sdkLoadedRef.current || window.paypal) { doRender(); return; }
     const existing = document.getElementById("paypal-sdk");
@@ -91,7 +97,7 @@ export default function InvoicePaymentPage() {
   // Re-render PayPal buttons when switching back to PayPal
   useEffect(() => {
     if (selected === "PAYPAL" && window.paypal && paypalRef.current) {
-      renderPayPalButtons(invoiceId, setStatus, setMessage);
+      renderPayPalButtons(invoiceId, setStatus, setMessage, () => useBalanceRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
@@ -99,7 +105,7 @@ export default function InvoicePaymentPage() {
   async function payWithMollie(method: "CREDIT_CARD" | "SEPA" | "SANDBOX", iban?: string) {
     setStatus("processing");
     setMessage("Processing payment…");
-    const body: Record<string, string> = { method, paymentMethodId: "mollie" };
+    const body: Record<string, string | boolean> = { method, paymentMethodId: "mollie", useAccountBalance: useBalance };
     if (method === "SEPA" && iban) body.iban = iban.replace(/\s/g, "");
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
       body: JSON.stringify(body),
@@ -143,12 +149,33 @@ export default function InvoicePaymentPage() {
 
   const displayNumber = invoice ? invoiceDisplayNumber(invoice) : "";
   const totalCents = invoice?.totalCents ?? 0;
-  const appliedBalanceCents = Math.min(balanceCents, totalCents);
+  const hasBalance = balanceCents > 0;
+  // Balance is only applied when the client opts in (the checkbox), and never for funds deposits.
+  const appliedBalanceCents = useBalance ? Math.min(balanceCents, totalCents) : 0;
   const netAmountCents = totalCents - appliedBalanceCents;
+  const balanceCoversAll = useBalance && netAmountCents === 0 && appliedBalanceCents > 0;
   const amount = invoice ? money(totalCents, invoice.currency ?? "EUR") : "";
   const netAmount = invoice ? money(netAmountCents, invoice.currency ?? "EUR") : "";
   const bankWire = gateways.find((g) => g.method === "BANK_TRANSFER");
   const isProcessing = status === "processing";
+
+  async function payFullyFromBalance() {
+    setStatus("processing");
+    setMessage("Paying with account balance…");
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
+      body: JSON.stringify({ method: "CREDIT_CARD", paymentMethodId: "balance", useAccountBalance: true }),
+      headers: { "Content-Type": "application/json", ...authHeaders("client") },
+      method: "POST"
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok && (payload?.status === "PAID" || payload?.invoice?.status === "PAID")) {
+      setStatus("paid");
+      window.location.assign(`/client/invoices/${invoiceId}`);
+      return;
+    }
+    setStatus("error");
+    setMessage(payload?.message ?? "Could not pay with account balance. Please try again.");
+  }
 
   return (
     <main className={styles.page}>
@@ -162,17 +189,41 @@ export default function InvoicePaymentPage() {
           <div className={styles.invoiceSummary}>
             <div className={styles.invoiceRow}><span>Invoice</span><strong>{displayNumber}</strong></div>
             <div className={styles.invoiceRow}><span>Invoice total</span><strong>{amount}</strong></div>
+            {hasBalance && (
+              <label className={styles.invoiceRow} style={{ cursor: "pointer", gap: "8px" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <input
+                    type="checkbox"
+                    checked={useBalance}
+                    disabled={isProcessing}
+                    onChange={(e) => { setUseBalance(e.target.checked); setStatus("ready"); setMessage(""); }}
+                  />
+                  <Wallet size={13} aria-hidden />
+                  Use my account balance ({money(balanceCents, invoice.currency ?? "EUR")})
+                </span>
+              </label>
+            )}
             {appliedBalanceCents > 0 && (
               <div className={styles.invoiceRow} style={{ color: "#16a34a" }}>
-                <span><Wallet size={13} aria-hidden style={{ display: "inline", marginRight: "4px" }} />Account balance</span>
+                <span><Wallet size={13} aria-hidden style={{ display: "inline", marginRight: "4px" }} />Account balance applied</span>
                 <strong>-{money(appliedBalanceCents, invoice.currency ?? "EUR")}</strong>
               </div>
             )}
-            <div className={styles.invoiceRow}><span>Amount due</span><strong className={styles.amount}>{appliedBalanceCents > 0 ? netAmount : amount}</strong></div>
+            <div className={styles.invoiceRow}><span>Amount due</span><strong className={styles.amount}>{netAmount}</strong></div>
           </div>
         )}
 
-        {gateways.length === 0 ? (
+        {balanceCoversAll ? (
+          <div className={styles.methodPanel}>
+            {status === "error" && message && (
+              <div className={styles.errorBanner}><AlertCircle size={16} /><span>{message}</span></div>
+            )}
+            <p className={styles.hint}>Your account balance covers this invoice in full. No card or PayPal payment is needed.</p>
+            <button className={styles.payBtn} disabled={isProcessing} type="button" onClick={payFullyFromBalance}>
+              <Wallet size={17} /> {isProcessing ? "Processing…" : "Pay with account balance"}
+            </button>
+          </div>
+        ) : gateways.length === 0 ? (
           <p className={styles.noGateway}>No payment methods are currently available. Please contact support.</p>
         ) : (
           <>
@@ -268,7 +319,7 @@ export default function InvoicePaymentPage() {
   );
 }
 
-function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, setMessage: (m: string) => void) {
+function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, setMessage: (m: string) => void, getUseBalance: () => boolean = () => false) {
   if (!window.paypal) return;
   const container = document.getElementById("paypal-button-container");
   if (!container) return;
@@ -279,7 +330,7 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
       setStatus("processing");
       setMessage("Starting PayPal checkout…");
       const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
-        body: JSON.stringify({ method: "PAYPAL", paymentMethodId: "paypal" }),
+        body: JSON.stringify({ method: "PAYPAL", paymentMethodId: "paypal", useAccountBalance: getUseBalance() }),
         headers: { "Content-Type": "application/json", ...authHeaders("client") },
         method: "POST"
       });
@@ -307,7 +358,7 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
         setMessage(payload?.message ?? `Payment status: ${payload?.status ?? "pending"}`);
       }
     },
-    onCancel: () => { setStatus("ready"); setMessage(""); renderPayPalButtons(invoiceId, setStatus, setMessage); },
+    onCancel: () => { setStatus("ready"); setMessage(""); renderPayPalButtons(invoiceId, setStatus, setMessage, getUseBalance); },
     onError: (err: unknown) => { setStatus("error"); setMessage(err instanceof Error ? err.message : "PayPal encountered an error."); }
   }).render("#paypal-button-container");
 }

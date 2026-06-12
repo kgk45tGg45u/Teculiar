@@ -300,7 +300,14 @@ export class ProductsService {
       return updated;
     }
     if (service.status === "ACTIVE") {
-      return this.products.updateServiceStatus(service.id, this.mapProvisioningStatus(status.status), status.externalId);
+      // A live service is only downgraded when the panel DEFINITIVELY reports the account is gone
+      // (status "FAILED" = "does not exist"). An inconclusive result — "QUEUED" (panel unreachable)
+      // or "PROVISIONING" (reachable but not listed yet) — must NOT flip a working service to
+      // inactive, otherwise a transient Virtualmin outage would mass-downgrade every account.
+      if (status.status === "FAILED") {
+        return this.products.updateServiceStatus(service.id, "SUSPENDED", status.externalId);
+      }
+      return service;
     }
     if (status.status === "FAILED") {
       return this.products.updateServiceStatus(service.id, "FAILED", status.externalId);

@@ -340,7 +340,9 @@ export class CmsRepository {
       where: {
         type: "POST",
         createdAt: { gte: start, lte: end },
-        content: { path: ["postType"], equals: "ai_generated" }
+        // MySQL JSON filters require a string path ("$.postType"); the array form
+        // (["postType"]) is PostgreSQL-only and throws "Expected String, provided (String)".
+        content: { path: "$.postType", equals: "ai_generated" }
       }
     });
   }

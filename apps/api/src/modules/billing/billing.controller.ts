@@ -15,8 +15,7 @@ import { PayInvoiceDto } from "./dto/pay-invoice.dto";
 @Controller("billing")
 export class BillingController {
   constructor(
-    private readonly billing: BillingService,
-    private readonly jwt: JwtService
+    private readonly billing: BillingService
   ) {}
 
   @Get("invoices")
@@ -78,43 +77,6 @@ export class BillingController {
     @Req() request: Request & { user: { sub: string } }
   ) {
     return this.billing.claimBankTransferPaid(id, request.user.sub);
-  }
-
-  // Public endpoint — OptionalJwtAuthGuard so logged-in clients can also call it.
-  // New customers returning from a payment gateway don't have a session yet.
-  // On success the response includes an accessToken so the frontend can call
-  // storeAuth() and land the user directly in the client area without a login step.
-  @UseGuards(OptionalJwtAuthGuard)
-  @Post("invoices/:id/confirm-payment")
-  async confirmInvoicePayment(
-    @Param("id") id: string,
-    @Req() request: Request & { user?: { sub?: string } }
-  ) {
-    const result = await this.billing.confirmInvoicePayment(id);
-
-    // Auto-login: issue a JWT when payment succeeded and the caller has no existing session.
-    // Re-fetch the invoice to get the post-materialization userId (the pending-checkout user
-    // gets replaced with the real user during finalizePaidInvoice → materializePaidCheckoutUser).
-    if (result.status === "PAID" && !request.user?.sub) {
-      const freshInvoice = await this.billing.getInvoice(id);
-      const userId = (freshInvoice as Record<string, unknown> | null)?.userId;
-      if (typeof userId === "string") {
-        const user = await this.billing.getUserForAutoLogin(userId);
-        if (user) {
-          const expiresIn = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
-          const accessToken = await this.jwt.signAsync(
-            { sub: user.id, email: user.email, roles: user.roles },
-            { expiresIn, secret: process.env.JWT_ACCESS_SECRET }
-          );
-          const refreshToken = await this.jwt.signAsync(
-            { sub: user.id },
-            { expiresIn: (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"], secret: process.env.JWT_REFRESH_SECRET }
-          );
-          return { ...result, accessToken, refreshToken, tokenType: "Bearer", user };
-        }
-      }
-    }
-    return result;
   }
 
   @Post("add-funds")
@@ -206,6 +168,62 @@ export class BillingController {
 
 }
 
+// Public confirm-payment endpoint.
+//
+// This lives in its own controller WITHOUT the class-level `@UseGuards(JwtAuthGuard, RolesGuard)`
+// that BillingController applies. In NestJS, controller-level guards are NOT replaced by a
+// method-level guard — they BOTH run. So a method-level OptionalJwtAuthGuard on BillingController
+// could never make the route public: the strict class-level JwtAuthGuard rejected guests with
+// 401 "Missing access token" before the optional guard ran. That broke every guest checkout that
+// returned from Mollie/PayPal (the payment-return page calls this with no session yet), so the
+// invoice never finalized and no order materialized.
+//
+// Here OptionalJwtAuthGuard is the ONLY guard: guests pass through (request.user undefined) and
+// logged-in clients still get request.user populated from their token.
+@Controller("billing")
+@UseGuards(OptionalJwtAuthGuard)
+export class BillingConfirmController {
+  constructor(
+    private readonly billing: BillingService,
+    private readonly jwt: JwtService
+  ) {}
+
+  // New customers returning from a payment gateway don't have a session yet.
+  // On success the response includes an accessToken so the frontend can call
+  // storeAuth() and land the user directly in the client area without a login step.
+  @Post("invoices/:id/confirm-payment")
+  async confirmInvoicePayment(
+    @Param("id") id: string,
+    @Req() request: Request & { user?: { sub?: string } }
+  ) {
+    const result = await this.billing.confirmInvoicePayment(id);
+
+    // Auto-login: issue a JWT when payment succeeded and the caller has no existing session.
+    // Re-fetch the invoice to get the post-materialization userId (the pending-checkout user
+    // gets replaced with the real user during finalizePaidInvoice → materializePaidCheckoutUser).
+    if (result.status === "PAID" && !request.user?.sub) {
+      const freshInvoice = await this.billing.getInvoice(id);
+      const userId = (freshInvoice as Record<string, unknown> | null)?.userId;
+      if (typeof userId === "string") {
+        const user = await this.billing.getUserForAutoLogin(userId);
+        if (user) {
+          const expiresIn = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
+          const accessToken = await this.jwt.signAsync(
+            { sub: user.id, email: user.email, roles: user.roles },
+            { expiresIn, secret: process.env.JWT_ACCESS_SECRET }
+          );
+          const refreshToken = await this.jwt.signAsync(
+            { sub: user.id },
+            { expiresIn: (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"], secret: process.env.JWT_REFRESH_SECRET }
+          );
+          return { ...result, accessToken, refreshToken, tokenType: "Bearer", user };
+        }
+      }
+    }
+    return result;
+  }
+}
+
 @Controller("billing/webhooks")
 export class BillingWebhookController {
   constructor(private readonly billing: BillingService) {}
@@ -258,7 +276,21 @@ export class BillingDevController {
   }
 
   @Get("logs")
-  listLogs(@Query("limit") limit?: string) {
+  listLogs(
+    @Query("limit") limit?: string,
+    @Query("kind") kind?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string
+  ) {
+    // Paginated mode (used by the admin Logs page tabs) is enabled by passing ?kind=system|cron.
+    // Without it the legacy flat list (capped by ?limit) is returned for backward compatibility.
+    if (kind === "system" || kind === "cron") {
+      return this.billing.listLogsPaged({
+        kind,
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined
+      });
+    }
     return this.billing.listLogs(limit ? Number(limit) : undefined);
   }
 
@@ -329,6 +361,7 @@ export class BillingDevController {
       aiBlogExcerptPrompt?: string;
       aiBlogTagsPrompt?: string;
       aiBlogKeywordsPrompt?: string;
+      logRetentionDays?: number;
     }
   ) {
     return this.billing.updateSettings(body);

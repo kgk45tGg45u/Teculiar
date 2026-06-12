@@ -102,6 +102,10 @@ export class BillingService {
     return this.billing.listLogs(limit);
   }
 
+  listLogsPaged(input: { kind: "system" | "cron"; page?: number; pageSize?: number }) {
+    return this.billing.listLogsPaged(input);
+  }
+
   recordAction(input: { action: string; actorId?: string; metadata?: Record<string, unknown>; subject: string; subjectId?: string }) {
     const repository = this.billing as BillingRepository & {
       createAuditLog?: (data: typeof input) => Promise<unknown>;
@@ -259,10 +263,12 @@ export class BillingService {
       return this.billing.updateInvoiceStatus(id, "PENDING");
     }
 
-    // Apply account balance for non-funds-deposit invoices
+    // Apply account balance only when the client opts in (manual payment) and the invoice is not a
+    // funds-deposit invoice. A funds deposit tops up the balance, so it can never be paid FROM it.
     const invoiceSnapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
     const isFundsDeposit = typeof invoiceSnapshot.accountCreditCents === "number" && invoiceSnapshot.accountCreditCents > 0;
-    const userBalanceCents = !isFundsDeposit ? (invoice.user?.balanceCents ?? 0) : 0;
+    const useAccountBalance = dto.useAccountBalance === true;
+    const userBalanceCents = !isFundsDeposit && useAccountBalance ? (invoice.user?.balanceCents ?? 0) : 0;
     const appliedBalanceCents = Math.min(userBalanceCents, invoice.totalCents);
     const externalAmountCents = invoice.totalCents - appliedBalanceCents;
 
@@ -635,6 +641,14 @@ export class BillingService {
     const invoice = await this.billing.findInvoice(invoiceId);
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
+    }
+    // Idempotency guard: the gateway webhook AND the payment-return page both confirm the same
+    // payment, and the cron can race with either. A PAID invoice has already run all of its side
+    // effects (the "payment successful" email, the account-balance credit for funds deposits, and
+    // order provisioning), so re-finalizing would send a duplicate confirmation email and
+    // double-credit funds deposits. Return the already-paid invoice without repeating any of that.
+    if (invoice.status === "PAID") {
+      return invoice;
     }
     const snapshot = isRecord(invoice.orderSnapshot) ? invoice.orderSnapshot : {};
     const accountCreditCents = typeof snapshot.accountCreditCents === "number" ? snapshot.accountCreditCents : 0;
@@ -1038,9 +1052,10 @@ export class BillingService {
   }
 
   async runAdminMaintenance(now = new Date()) {
-    const [invoiceDaysAhead, ticketCloseHours] = await Promise.all([
+    const [invoiceDaysAhead, ticketCloseHours, logRetentionDays] = await Promise.all([
       this.billing.settingNumber("invoiceDaysAhead", 7),
-      this.billing.settingNumber("ticketAutoCloseHours", 24)
+      this.billing.settingNumber("ticketAutoCloseHours", 24),
+      this.billing.settingNumber("logRetentionDays", 0)
     ]);
     const dueSubscriptions = await this.billing.dueSubscriptions(invoiceDaysAhead, now);
     const generatedInvoiceList: { id: string; invoiceNumber: string; subscriptionId: string; totalCents: number }[] = [];
@@ -1074,11 +1089,22 @@ export class BillingService {
       void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
     }
 
+    // Log retention: when the admin has set a positive "keep logs for N days", delete audit and
+    // module logs older than that so the tables don't grow without bound. 0 (the default) disables
+    // pruning and keeps everything.
+    let prunedLogs: { auditLogs: number; moduleLogs: number } | undefined;
+    if (logRetentionDays > 0) {
+      const cutoff = new Date(now.getTime() - logRetentionDays * 24 * 60 * 60 * 1000);
+      prunedLogs = await this.billing.pruneLogsOlderThan(cutoff);
+    }
+
     return {
       automaticPayments,
       generatedInvoices: generatedInvoiceList.length,
       generatedInvoiceList,
       invoiceDaysAhead,
+      logRetentionDays,
+      prunedLogs,
       overdueInvoices: overdueInvoices.length,
       overdueInvoiceList: overdueInvoices.map((inv) => ({
         id: inv.id,
@@ -1445,7 +1471,7 @@ export class BillingService {
       this.billing.settingString("adminTimezone", "UTC")
     ]);
 
-    const [founderPhotoUrl, siteUrl, deepseekApiKey, aiBlogEnabled, aiBlogArticlesPerDay, aiBlogIntervalHours, aiBlogWordCount, aiBlogLanguage, aiBlogTopicsPool, aiBlogTitlePrompt, aiBlogContentPrompt, aiBlogExcerptPrompt, aiBlogTagsPrompt, aiBlogKeywordsPrompt] = await Promise.all([
+    const [founderPhotoUrl, siteUrl, deepseekApiKey, aiBlogEnabled, aiBlogArticlesPerDay, aiBlogIntervalHours, aiBlogWordCount, aiBlogLanguage, aiBlogTopicsPool, aiBlogTitlePrompt, aiBlogContentPrompt, aiBlogExcerptPrompt, aiBlogTagsPrompt, aiBlogKeywordsPrompt, logRetentionDays] = await Promise.all([
       this.billing.settingString("founderPhotoUrl"),
       this.billing.settingString("siteUrl"),
       this.billing.settingString("deepseekApiKey"),
@@ -1459,11 +1485,13 @@ export class BillingService {
       this.billing.settingString("aiBlogContentPrompt"),
       this.billing.settingString("aiBlogExcerptPrompt"),
       this.billing.settingString("aiBlogTagsPrompt"),
-      this.billing.settingString("aiBlogKeywordsPrompt")
+      this.billing.settingString("aiBlogKeywordsPrompt"),
+      this.billing.settingNumber("logRetentionDays", 0)
     ]);
 
     return {
       adminTimezone,
+      logRetentionDays,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
       deepseekApiKey: maskSecrets && deepseekApiKey ? "********" : deepseekApiKey,
       aiBlogEnabled: aiBlogEnabled === "true",
@@ -1699,8 +1727,12 @@ export class BillingService {
     aiBlogExcerptPrompt?: string;
     aiBlogTagsPrompt?: string;
     aiBlogKeywordsPrompt?: string;
+    logRetentionDays?: number;
   }) {
     return Promise.all([
+      input.logRetentionDays === undefined
+        ? undefined
+        : this.billing.upsertSettingNumber("logRetentionDays", Math.max(0, Math.trunc(input.logRetentionDays))),
       input.cronSecret === undefined || input.cronSecret === "********"
         ? undefined
         : this.billing.upsertSettingString("cronSecret", input.cronSecret),

@@ -96,24 +96,45 @@ export class VirtualminProviderService implements HostingProvider {
     }
 
     const domainName = assertSafeDomain(serviceExternalId);
-    const result = await callVirtualmin(credentials, "list-domains", { domain: domainName, multiline: true }).catch((error: unknown) => ({
-      entries: [],
-      json: undefined,
-      message: error instanceof Error ? error.message : "Virtualmin status check failed",
-      ok: false,
-      program: "list-domains",
-      text: ""
-    }));
-    const found = result.entries.some((entry) => entry.name === domainName || entry.name.endsWith(` ${domainName}`)) || result.text.includes(domainName);
+    let result;
+    try {
+      result = await callVirtualmin(credentials, "list-domains", { domain: domainName, multiline: true });
+    } catch (error) {
+      // The panel is unreachable (network error / HTTP error / timeout). This is INCONCLUSIVE — we
+      // must not let a transient outage flip every live service to inactive. "QUEUED" is treated as
+      // "unknown" by refreshService, which leaves ACTIVE services untouched.
+      return {
+        externalId: domainName,
+        status: "QUEUED" as const,
+        metadata: { panel: "virtualmin", reason: "unreachable", result: error instanceof Error ? error.message : "Virtualmin status check failed" }
+      };
+    }
 
+    // Only trust the parsed domain list — NOT result.text.includes(domainName). The previous code
+    // matched the domain name inside Virtualmin's own error string ("Virtual server X does not
+    // exist"), so a missing account was reported ACTIVE. That made the admin "active services"
+    // count a lie (e.g. 110 ACTIVE while the panel held a handful of real virtual servers).
+    const present = result.entries.some((entry) => entry.name === domainName || entry.name.endsWith(`.${domainName}`));
+    if (present) {
+      return { externalId: domainName, status: "ACTIVE" as const, metadata: { panel: "virtualmin", program: result.program } };
+    }
+
+    // A definitive "does not exist" reply means the account is genuinely gone from the panel.
+    const json = (typeof result.json === "object" && result.json !== null ? result.json : {}) as Record<string, unknown>;
+    const errorText = String(json.full_error ?? json.error ?? result.text ?? "");
+    if (/does not exist/i.test(errorText)) {
+      return {
+        externalId: domainName,
+        status: "FAILED" as const,
+        metadata: { panel: "virtualmin", reason: "not_found_on_panel", result: errorText.slice(0, 500) }
+      };
+    }
+
+    // Reachable, no error, but the domain is not listed yet → still provisioning.
     return {
       externalId: domainName,
-      status: found ? ("ACTIVE" as const) : result.ok ? ("PROVISIONING" as const) : ("QUEUED" as const),
-      metadata: {
-        panel: "virtualmin",
-        program: result.program,
-        result: result.message ?? result.text.slice(0, 500)
-      }
+      status: "PROVISIONING" as const,
+      metadata: { panel: "virtualmin", program: result.program, result: result.message ?? result.text.slice(0, 500) }
     };
   }
 

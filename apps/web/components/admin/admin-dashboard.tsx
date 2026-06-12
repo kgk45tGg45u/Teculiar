@@ -7,7 +7,6 @@ import {
   dateLabel as formatDate,
   invoiceDisplayNumber,
   money,
-  type ApiActionLog,
   type ApiClient,
   type ApiEmailAdminSettings,
   type ApiEmailLog,
@@ -33,6 +32,7 @@ import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { KnowledgebasePanel } from "./admin-support";
 import { AdminSidebar } from "./admin-sidebar";
+import { LogsExplorer } from "./logs-explorer";
 import { BlogPostList, BlogPostForm, BlogCategoryTagManager, AiContentManager, AiJobSettingsForm } from "./blog-admin";
 import styles from "./admin-dashboard.module.css";
 
@@ -85,19 +85,17 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
   const needsProducts = view === "clients" || view === "orders-new";
   const needsServices = view === "services";
   const needsInvoices = view === "invoices";
-  const needsLogs = view === "logs" || view === "settings-cron";
   const needsDomainPrices = view === "domain-prices" || view === "modules";
   const needsTickets = view === "tickets";
   const needsKnowledgebase = view === "knowledgebase";
   const needsEmail = view === "emails";
 
-  const [orders, clients, products, services, invoices, logs, domainPrices, tickets, knowledgebase, emailSettings] = await Promise.all([
+  const [orders, clients, products, services, invoices, domainPrices, tickets, knowledgebase, emailSettings] = await Promise.all([
     needsOrders ? apiGetAuth<ApiOrder[]>("/orders/admin").then((r) => r ?? []) : Promise.resolve([]),
     needsClients ? apiGetAuth<ApiClient[]>("/users").then((r) => r ?? []) : Promise.resolve([]),
     needsProducts ? apiGetAuth<ApiProduct[]>("/products").then((r) => r ?? []) : Promise.resolve([]),
     needsServices ? apiGetAuth<ApiService[]>("/admin/dev/services").then((r) => r ?? []) : Promise.resolve([]),
     needsInvoices ? apiGetAuth<ApiInvoice[]>("/admin/dev/billing/invoices").then((r) => r ?? []) : Promise.resolve([]),
-    needsLogs ? apiGetAuth<ApiActionLog[]>("/admin/dev/logs").then((r) => r ?? []) : Promise.resolve([]),
     needsDomainPrices ? apiGetAuth<ApiDomainPrice[]>("/orders/admin/domain-prices").then((r) => r ?? []) : Promise.resolve([]),
     needsTickets ? apiGetAuth<ApiTicket[]>("/admin/dev/tickets").then((r) => r ?? []) : Promise.resolve([]),
     needsKnowledgebase ? apiGetAuth<ApiKnowledgebaseArticle[]>("/admin/dev/knowledgebase").then((r) => r ?? []) : Promise.resolve([]),
@@ -151,7 +149,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "clients-new" ? <ClientsNewPanel /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
-        {view === "logs" ? <LogsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
+        {view === "logs" ? <LogsExplorer locale={locale} timezone={adminTimezone} /> : null}
         {view === "tickets" ? <TicketsPanel locale={locale} tickets={tickets} /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogListPanel /> : null}
@@ -166,7 +164,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} timezone={adminTimezone} /> : null}
         {view === "announcements" ? <AnnouncementsPanel /> : null}
         {view === "settings" ? <SettingsPanel /> : null}
-        {view === "settings-cron" ? <CronSettingsPanel locale={locale} logs={logs} timezone={adminTimezone} /> : null}
+        {view === "settings-cron" ? <CronSettingsPanel /> : null}
         {view === "settings-seo" ? <SeoSettingsPanel /> : null}
         {view === "admins" ? <AdminsPanel /> : null}
       </main>
@@ -595,38 +593,7 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
   );
 }
 
-function LogsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiActionLog[]; timezone: string }) {
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <span className="eyebrow">System</span>
-          <h2>Action Logs</h2>
-        </div>
-        <StatusPill label={`${logs.length} events`} tone={logs.length ? "good" : "neutral"} />
-      </div>
-      <table className="table">
-        <thead><tr><th>Time ({timezone})</th><th>Source</th><th>Action</th><th>Subject</th><th>Actor</th><th>Status</th><th>Message</th></tr></thead>
-        <tbody>{logs.length ? logs.map((log) => (
-          <tr key={`${log.source}-${log.id}`}>
-            <td>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
-            <td>{log.source}</td>
-            <td>{log.action}</td>
-            <td>{log.subject}{log.subjectId ? `:${log.subjectId.slice(-6)}` : ""}</td>
-            <td>{log.actor?.email ?? "-"}</td>
-            <td>{log.status}</td>
-            <td>{log.message ?? "-"}</td>
-          </tr>
-        )) : <tr><td colSpan={7}>No logs yet.</td></tr>}</tbody>
-      </table>
-    </section>
-  );
-}
-
-function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: ApiActionLog[]; timezone: string }) {
-  // Cron rows are stored as audit logs with subject "cron" (source stays "audit"). Filtering on
-  // source === "cron" matched nothing, which is why this table always looked empty.
-  const cronLogs = logs.filter((log) => log.subject === "cron");
+function CronSettingsPanel() {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -634,7 +601,10 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
           <span className="eyebrow">Automation</span>
           <h2>Cron Settings</h2>
         </div>
-        <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+        <div className={styles.headerActions} style={{ gap: 8 }}>
+          <Button href="/admin/logs" variant="secondary">View cron logs →</Button>
+          <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+        </div>
       </div>
 
       <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--border)" }}>
@@ -660,7 +630,7 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
           </tbody>
         </table>
         <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "10px 0 0", lineHeight: 1.6 }}>
-          Every trigger also writes a <code>cron.started</code> heartbeat and a <code>cron.completed</code> summary (with duration and per-job results) to the log below, so you can confirm the cron is actually reaching the server. A wrong or missing secret is recorded as <code>cron.unauthorized</code>.
+          Every trigger also writes a <code>cron.started</code> heartbeat and a <code>cron.completed</code> summary (with duration and per-job results), so you can confirm the cron is actually reaching the server. A wrong or missing secret is recorded as <code>cron.unauthorized</code>. See all of these under <a href="/admin/logs">Settings → Logs</a> in the <strong>Cron logs</strong> tab.
         </p>
 
         <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>How to Activate the Cron on Your Server</h3>
@@ -675,27 +645,6 @@ function CronSettingsPanel({ locale, logs, timezone }: { locale: Locale; logs: A
       </div>
 
       <CronSettingsForm />
-      {cronLogs.length > 0 && (
-        <div style={{ padding: "0 16px 16px" }}>
-          <h3 style={{ margin: "12px 0 8px", fontSize: "0.9rem" }}>Recent Cron Activity</h3>
-          <table className="table">
-            <thead><tr><th>Time ({timezone})</th><th>Job</th><th>Status</th><th>Details</th></tr></thead>
-            <tbody>
-              {cronLogs.slice(0, 30).map((log) => {
-                const status = cronLogStatus(log);
-                return (
-                  <tr key={log.id}>
-                    <td style={{ whiteSpace: "nowrap" }}>{dateTimeLabel(log.createdAt, locale, timezone)}</td>
-                    <td>{log.action.replace(/^cron\./, "")}</td>
-                    <td><StatusPill label={status.label} tone={status.tone} /></td>
-                    <td style={{ fontSize: "0.84rem" }}>{cronJobSummary(log.action, log.metadata)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
     </section>
   );
 }
@@ -860,111 +809,5 @@ function dateTimeLabel(value?: string | null, locale: Locale = "de", timezone?: 
   return formatDate(value, locale, { dateStyle: "short", timeStyle: "short", ...(timezone ? { timeZone: timezone } : {}) });
 }
 
-// ── Cron log rendering ───────────────────────────────────────────────────────
-// Cron audit rows carry their detail in `metadata`. These helpers turn that into a status pill
-// and a one-line, human-readable summary per job (counts, invoice numbers, status changes, …).
-function cnum(v: unknown): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
-}
-function crec(v: unknown): Record<string, unknown> {
-  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
-}
-function carr(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : [];
-}
-function cronInvoiceList(v: unknown, max = 4): string {
-  const items = carr(v).map((x) => `#${crec(x).invoiceNumber ?? crec(x).id ?? "?"}`);
-  if (!items.length) return "";
-  return items.length > max ? `${items.slice(0, max).join(", ")} +${items.length - max}` : items.join(", ");
-}
-function cronDuration(ms: unknown): string {
-  const n = cnum(ms);
-  return n < 1000 ? `${n} ms` : `${(n / 1000).toFixed(1)} s`;
-}
-function cronGenericSummary(r: Record<string, unknown>): string {
-  const keys = Object.keys(r);
-  if (!keys.length) return "OK";
-  const nums = keys.filter((k) => typeof r[k] === "number");
-  if (nums.length) return nums.map((k) => `${k}: ${cnum(r[k])}`).join(", ");
-  const s = JSON.stringify(r);
-  return s.length > 120 ? `${s.slice(0, 117)}…` : s;
-}
-
-function cronLogStatus(log: ApiActionLog): { label: string; tone: "good" | "warn" | "neutral" | "danger" } {
-  const m = crec(log.metadata);
-  if (log.action === "cron.unauthorized") return { label: "rejected", tone: "danger" };
-  if (log.action === "cron.started") return { label: "started", tone: "neutral" };
-  if (log.action === "cron.completed") {
-    const failed = cnum(m.failedCount);
-    return failed ? { label: `${failed} failed`, tone: "danger" } : { label: "completed", tone: "good" };
-  }
-  if (m.status === "failed" || m.error) return { label: "failed", tone: "danger" };
-  if (crec(m.result).skipped) return { label: "skipped", tone: "warn" };
-  return { label: "ran", tone: "good" };
-}
-
-function cronJobSummary(action: string, metadata?: Record<string, unknown> | null): string {
-  const m = crec(metadata);
-  if (action === "cron.unauthorized") return String(m.reason ?? "Invalid or missing cron secret");
-  if (action === "cron.started") return "Cron triggered — checking which jobs are due";
-  if (action === "cron.completed") {
-    return `${cnum(m.ranCount)} ran · ${cnum(m.failedCount)} failed · ${cnum(m.skippedCount)} skipped · ${cronDuration(m.durationMs)}`;
-  }
-  if (m.error) return `Failed: ${String(m.error)}`;
-  const r = crec(m.result);
-  if (r.skipped) return `Skipped: ${String(r.reason ?? "not due")}`;
-
-  switch (action) {
-    case "cron.billingMaintenance": {
-      const ap = crec(r.automaticPayments);
-      const parts = [
-        `${cnum(r.generatedInvoices)} invoice(s) generated`,
-        `${cnum(r.overdueInvoices)} overdue`,
-        `${cnum(r.suspendedServices)} suspended`,
-        `${cnum(ap.paid)} auto-paid${cronInvoiceList(ap.paidInvoices) ? ` (${cronInvoiceList(ap.paidInvoices)})` : ""}`
-      ];
-      if (cnum(ap.failed)) parts.push(`${cnum(ap.failed)} payment(s) failed`);
-      return parts.join(" · ");
-    }
-    case "cron.invoiceReminders": {
-      const n = cnum(r.invoiceReminders);
-      return n ? `Sent ${n} reminder(s): ${cronInvoiceList(r.reminderList)}` : "No reminders due";
-    }
-    case "cron.ticketsClose": {
-      const n = cnum(r.count);
-      return n ? `Closed ${n} answered ticket(s)` : "No tickets to close";
-    }
-    case "cron.mailboxes": {
-      const imported = cnum(r.imported);
-      const byDept = crec(r.byDepartment);
-      const dept = Object.keys(byDept).length
-        ? ` — ${Object.entries(byDept).map(([d, c]) => `${d}: ${cnum(c)}`).join(", ")}`
-        : "";
-      const errs = carr(r.mailboxes)
-        .filter((mb) => crec(mb).error)
-        .map((mb) => `${crec(mb).address}: ${crec(mb).error}`);
-      const base = imported ? `Imported ${imported} email(s)${dept}` : "No new emails";
-      return errs.length ? `${base} · errors: ${errs.join("; ")}` : base;
-    }
-    case "cron.hostingStatuses": {
-      const changes = carr(r.changed);
-      if (!changes.length) return `${cnum(r.checked)} checked, no status changes`;
-      return `${changes.length} change(s): ${changes.map((c) => `${crec(c).domain} ${crec(c).from}→${crec(c).to}`).join(", ")}`;
-    }
-    case "cron.domainStatuses":
-    case "cron.domainExpirations":
-      return `${cnum(r.refreshed)}/${cnum(r.checked)} domain(s) refreshed`;
-    case "cron.sitemap":
-      return `${cnum(r.urls)} URLs (de ${cnum(r.de)}, en ${cnum(r.en)})${cnum(r.posts) ? `, ${cnum(r.posts)} blog post(s)` : ""} · live route`;
-    case "cron.aiBlogPost": {
-      const created = cnum(r.created);
-      if (created) {
-        const titles = carr(r.titles).map((t) => `“${String(t)}”`);
-        return `Created ${created} article(s)${titles.length ? `: ${titles.join(", ")}` : ""}`;
-      }
-      return r.reason ? `Skipped: ${String(r.reason)}` : "No article created";
-    }
-    default:
-      return cronGenericSummary(r);
-  }
-}
+// Cron log rendering helpers (cronLogStatus / cronJobSummary) now live in lib/cron-log.ts so the
+// client-side Logs explorer can share them; the cron activity table moved to Settings → Logs.

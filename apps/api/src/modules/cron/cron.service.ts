@@ -44,6 +44,7 @@ type CronSkipItem = {
 @Injectable()
 export class CronService {
   private running = false;
+  private aiBlogRunning = false;
 
   constructor(
     private readonly billing: BillingService,
@@ -126,9 +127,7 @@ export class CronService {
 
       if (settings.aiBlogEnabled && settings.deepseekApiKey) {
         const intervalMs = hours(settings.aiBlogIntervalHours, 8);
-        await this.maybeRunTimed("aiBlogPost", intervalMs, now, ran, skipped, () =>
-          this.cms.generateAiBlogPost(settings, "system")
-        );
+        await this.maybeTriggerAiBlog(intervalMs, now, ran, skipped, settings);
       } else {
         // Record WHY nothing was generated instead of skipping silently — the previous behaviour
         // made "AI blogging produces no posts" impossible to diagnose from the admin log.
@@ -185,6 +184,61 @@ export class CronService {
 
     await this.runAction(name, ran, action);
     await this.billing.markCronRun(name, now);
+  }
+
+  // AI article generation is heavy: each article makes several Deepseek calls (angle + up to 3
+  // article attempts + a translation), which can take a minute or more. Running it INLINE blocked
+  // the main 15-minute cron and risked overrunning the next trigger (whose `this.running` guard
+  // then skips the whole run). So the main cron only TRIGGERS the AI job here — when the interval
+  // is due it marks the run, returns immediately, and the generation proceeds in the background,
+  // logging its own `cron.aiBlogPost` result/error when it finishes.
+  private async maybeTriggerAiBlog(
+    intervalMs: number,
+    now: Date,
+    ran: CronRunItem[],
+    skipped: CronSkipItem[],
+    settings: CronSettings
+  ) {
+    const lastRun = await this.billing.cronLastRun("aiBlogPost");
+    if (lastRun && now.getTime() - lastRun.getTime() < intervalMs) {
+      skipped.push({ name: "aiBlogPost", nextAt: new Date(lastRun.getTime() + intervalMs).toISOString() });
+      return;
+    }
+    if (this.aiBlogRunning) {
+      ran.push({ name: "aiBlogPost", result: { reason: "previous AI generation still running", triggered: false }, status: "ran" });
+      return;
+    }
+    // Mark the run now so the interval is respected even though generation finishes asynchronously.
+    await this.billing.markCronRun("aiBlogPost", now);
+    this.aiBlogRunning = true;
+    ran.push({ name: "aiBlogPost", result: { triggered: true }, status: "ran" });
+    void this.runAiBlogInBackground(settings);
+  }
+
+  private async runAiBlogInBackground(settings: CronSettings) {
+    const startedAtMs = Date.now();
+    const startedAt = new Date(startedAtMs).toISOString();
+    try {
+      const result = await this.cms.generateAiBlogPost(settings, "system");
+      await this.billing
+        .recordAction({
+          action: "cron.aiBlogPost",
+          metadata: { async: true, result: result ?? null, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "ran" },
+          subject: "cron"
+        })
+        .catch(() => undefined);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI blog generation failed";
+      await this.billing
+        .recordAction({
+          action: "cron.aiBlogPost",
+          metadata: { async: true, error: message, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "failed" },
+          subject: "cron"
+        })
+        .catch(() => undefined);
+    } finally {
+      this.aiBlogRunning = false;
+    }
   }
 
   private async runDaily(name: string, now: Date, ran: CronRunItem[], skipped: CronSkipItem[], action: () => Promise<unknown>) {

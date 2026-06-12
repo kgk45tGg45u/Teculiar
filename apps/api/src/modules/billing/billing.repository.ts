@@ -154,6 +154,77 @@ export class BillingRepository {
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, take);
   }
 
+  // Paginated logs for the admin Logs page.
+  //   kind "cron"   → cron audit rows only (subject = "cron")
+  //   kind "system" → everything else: non-cron audit rows + module (provisioning) logs, merged
+  // Returns the requested page plus the total count so the UI can render "page X of Y".
+  async listLogsPaged(input: { kind: "system" | "cron"; page?: number; pageSize?: number }) {
+    const pageSize = Math.min(Math.max(Math.trunc(input.pageSize ?? 25), 1), 100);
+    const page = Math.max(Math.trunc(input.page ?? 1), 1);
+    const skip = (page - 1) * pageSize;
+
+    const auditToItem = (log: { action: string; actor?: { email: string; id: string; name: string | null } | null; createdAt: Date; id: string; metadata: unknown; subject: string; subjectId: string | null }) => ({
+      action: log.action,
+      actor: log.actor ?? undefined,
+      createdAt: log.createdAt,
+      id: log.id,
+      message: undefined as string | undefined,
+      metadata: log.metadata,
+      source: "audit" as const,
+      status: "RECORDED",
+      subject: log.subject,
+      subjectId: log.subjectId
+    });
+
+    if (input.kind === "cron") {
+      const where = { subject: "cron" };
+      const [rows, total] = await Promise.all([
+        this.prisma.auditLog.findMany({ where, include: { actor: { select: { email: true, id: true, name: true } } }, orderBy: { createdAt: "desc" }, skip, take: pageSize }),
+        this.prisma.auditLog.count({ where })
+      ]);
+      return { items: rows.map(auditToItem), page, pageSize, total };
+    }
+
+    // System logs: non-cron audit rows + module logs. Over-fetch (skip + pageSize) from each table,
+    // merge by time, then slice the requested window — correct for typical admin browsing depth.
+    const auditWhere = { subject: { not: "cron" } };
+    const limit = skip + pageSize;
+    const [audits, modules, auditCount, moduleCount] = await Promise.all([
+      this.prisma.auditLog.findMany({ where: auditWhere, include: { actor: { select: { email: true, id: true, name: true } } }, orderBy: { createdAt: "desc" }, take: limit }),
+      this.prisma.moduleLog.findMany({ orderBy: { createdAt: "desc" }, take: limit }),
+      this.prisma.auditLog.count({ where: auditWhere }),
+      this.prisma.moduleLog.count()
+    ]);
+    const items = [
+      ...audits.map(auditToItem),
+      ...modules.map((log) => ({
+        action: log.action,
+        actor: undefined,
+        createdAt: log.createdAt,
+        id: log.id,
+        message: log.errorMessage ?? undefined,
+        metadata: { request: log.request, response: log.response },
+        source: "module" as const,
+        status: log.status,
+        subject: log.domainRecordId ? "domain" : log.serviceId ? "service" : "module",
+        subjectId: log.domainRecordId ?? log.serviceId ?? log.id
+      }))
+    ]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(skip, skip + pageSize);
+    return { items, page, pageSize, total: auditCount + moduleCount };
+  }
+
+  // Retention: delete audit + module logs older than the cutoff. Returns how many rows were removed
+  // so the cron can report it.
+  async pruneLogsOlderThan(cutoff: Date) {
+    const [audit, modules] = await Promise.all([
+      this.prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+      this.prisma.moduleLog.deleteMany({ where: { createdAt: { lt: cutoff } } })
+    ]);
+    return { auditLogs: audit.count, moduleLogs: modules.count };
+  }
+
   findInvoice(id: string) {
     return this.prisma.invoice.findUnique({
       where: { id },
