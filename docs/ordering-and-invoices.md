@@ -137,6 +137,12 @@ When an order item with a recurring billing cycle is activated, a `Subscription`
 
 Subscription renewal invoices are **standalone invoices** (not linked to a new order). If a renewal invoice is paid, the service's `renewsAt` date is extended accordingly.
 
+### Renewal pricing — the order price is the source of truth
+
+Renewals bill the **captured order price** (`Service.recurringAmountCents`), not the product's list price (`ProductPrice.amountCents`). This matters for domains: the generic `DOMAIN` product carries a `0` list price because every TLD/term is priced live from resell.biz at checkout, so the real price is captured per order onto the `Service` and `DomainRecord` (`recurringAmountCents` / `firstPaymentAmountCents`). `renewSubscription` falls back to the list price only for legacy services created before the order price was captured.
+
+The dashboards follow the same rule. Both the client and admin views show `recurringAmountCents` (via the `serviceUnitPriceCents` / `domainUnitPriceCents` helpers in `apps/web/lib/api.ts`), not `productPrice.amountCents` — otherwise every domain would display €0.
+
 ---
 
 ## Email Notifications

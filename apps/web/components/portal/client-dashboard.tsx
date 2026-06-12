@@ -9,10 +9,12 @@ import {
   currentLocale,
   cycleLabel,
   dateLabel as formatDate,
+  domainUnitPriceCents,
   formatCustomerNumber,
   frozenMoney,
   invoiceDisplayNumber,
   money,
+  serviceUnitPriceCents,
   type ApiAnnouncement,
   type ApiInvoice,
   type ApiKnowledgebaseArticle,
@@ -619,7 +621,7 @@ function ServicesTable({ loading, services }: { loading: boolean; services: ApiS
                 {!loading && services.map((service) => (
                   <tr key={service.id}>
                     <td><a href={`/client/services/${service.id}`}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
-                    <td>{money(service.productPrice.amountCents, service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
+                    <td>{money(serviceUnitPriceCents(service), service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
                       <StatusPill label={serviceStatusLabel(service.status, locale)} tone={statusTone[service.status] ?? "neutral"} />
@@ -712,7 +714,7 @@ function ServiceDetail({ loading, service }: { loading: boolean; service?: ApiSe
       <div className={styles.detailGrid}>
         <div>
           <span>Pricing</span>
-          <strong>{money(service.productPrice.amountCents, service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</strong>
+          <strong>{money(serviceUnitPriceCents(service), service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</strong>
         </div>
         <div>
           <span>Domain</span>
@@ -1938,7 +1940,7 @@ function domainRowsFromServices(services: ApiService[]): DomainRow[] {
       const record = service.domainRecords?.[0];
       const domain = record?.domain ?? stringConfig(service.configuration, "domainName") ?? service.product.name;
       rows.set(domain, {
-        amountCents: service.productPrice.amountCents,
+        amountCents: domainUnitPriceCents(record, service),
         billingCycle: service.productPrice.billingCycle,
         currency: service.productPrice.currency,
         domain,
@@ -1953,7 +1955,7 @@ function domainRowsFromServices(services: ApiService[]): DomainRow[] {
         continue;
       }
       rows.set(record.domain, {
-        amountCents: service.productPrice.amountCents,
+        amountCents: domainUnitPriceCents(record, service),
         billingCycle: service.productPrice.billingCycle,
         currency: service.productPrice.currency,
         domain: record.domain,
