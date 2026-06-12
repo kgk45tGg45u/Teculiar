@@ -965,7 +965,14 @@ export class BillingService {
     if (!this.external) {
       return { externalId: service.externalId ?? service.id, metadata: { reason: "External provider module is not configured." }, status: "QUEUED" as const };
     }
-    if (["renew", "unsuspend"].includes(action)) {
+    if (action === "unsuspend") {
+      // Paying an overdue invoice re-enables the account that billing maintenance disabled.
+      if (moduleName === "virtualmin" && service.externalId) {
+        await this.external.virtualmin.enable(service.externalId).catch(() => undefined);
+      }
+      return { externalId: service.externalId ?? service.id, metadata: { action }, status: "ACTIVE" as const };
+    }
+    if (action === "renew") {
       return { externalId: service.externalId ?? service.id, metadata: { action }, status: "ACTIVE" as const };
     }
     if (moduleName === "hetzner" || ["VPS", "DEDICATED_SERVER"].includes(service.product?.type)) {
@@ -1077,16 +1084,29 @@ export class BillingService {
 
     const automaticPayments = await this.payInvoicesAutomatically(now);
 
+    // Mark invoices OVERDUE as soon as they pass their due date (drives the "Overdue" badge).
     const overdueInvoices = await this.billing.overdueUnpaidInvoices(now);
-    const serviceIds = overdueInvoices.flatMap((invoice) =>
-      invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
-    );
-    const servicesToSuspend = await this.billing.activeHostingServicesForEmailByIds([...new Set(serviceIds)]);
-
     await Promise.all(overdueInvoices.map((invoice) => this.billing.markInvoiceOverdue(invoice.id)));
-    const suspended = await this.billing.suspendServices(servicesToSuspend.map((service) => service.id));
+
+    // Suspension happens only once a FULL day has elapsed since the due date and the invoice is still
+    // unpaid. It applies to every service type (hosting, VPS, …) with a past-due invoice. Virtualmin
+    // accounts are additionally DISABLED on the panel (never deleted/terminated — that is manual).
+    const suspendCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const invoicesPastGrace = await this.billing.overdueUnpaidInvoices(suspendCutoff);
+    const suspendServiceIds = [...new Set(invoicesPastGrace.flatMap((invoice) =>
+      invoice.items.map((item) => item.serviceId).filter((serviceId): serviceId is string => Boolean(serviceId))
+    ))];
+    const servicesToSuspend = await this.billing.activeServicesByIds(suspendServiceIds);
     for (const service of servicesToSuspend) {
-      void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
+      if (effectiveServiceModule(service) === "virtualmin" && service.externalId) {
+        await this.external?.virtualmin.disable(service.externalId).catch(() => undefined);
+      }
+    }
+    const suspended = await this.billing.suspendServices(suspendServiceIds);
+    for (const service of servicesToSuspend) {
+      if (service.product?.type === "SHARED_HOSTING") {
+        void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);
+      }
     }
 
     // Log retention: when the admin has set a positive "keep logs for N days", delete audit and

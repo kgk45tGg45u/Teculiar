@@ -523,9 +523,23 @@ export class BillingRepository {
       return Promise.resolve({ count: 0 });
     }
 
+    // Suspension for non-payment applies to every service type with a past-due invoice (hosting,
+    // VPS, …) — but NOT domain registrations, which have their own expiry/cancel lifecycle.
     return this.prisma.service.updateMany({
-      where: { id: { in: serviceIds }, product: { type: "SHARED_HOSTING" }, status: "ACTIVE" },
+      where: { id: { in: serviceIds }, product: { type: { not: "DOMAIN" } }, status: "ACTIVE" },
       data: { moduleStatus: "payment_issue", status: "SUSPENDED", suspendedAt: new Date() }
+    });
+  }
+
+  // ACTIVE, non-domain services for the given ids, with product + externalId so billing maintenance
+  // can decide which ones to disable on the Virtualmin panel before marking them suspended.
+  activeServicesByIds(ids: string[]) {
+    if (ids.length === 0) {
+      return [];
+    }
+    return this.prisma.service.findMany({
+      where: { id: { in: ids }, product: { type: { not: "DOMAIN" } }, status: "ACTIVE" },
+      include: { domainRecords: true, product: true, productPrice: true, user: { select: publicUserSelect } }
     });
   }
 

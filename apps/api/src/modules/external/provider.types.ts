@@ -62,11 +62,20 @@ export interface HostingProvider {
   status?(serviceExternalId: string): Promise<ProvisioningResult>;
 }
 
+// Domains can additionally be CANCELLED (the registrar/panel reports the domain no longer exists),
+// which hosting provisioning never returns — hence a distinct status type for domain lookups.
+export type DomainStatusResult = {
+  externalId: string;
+  expiresAt?: string;
+  status: "QUEUED" | "PROVISIONING" | "ACTIVE" | "FAILED" | "CANCELLED";
+  metadata?: Record<string, unknown>;
+};
+
 export interface DomainProvider {
   search(domain: string): Promise<{ domain: string; available: boolean; premium: boolean }>;
   ensureCustomerContact(request: DomainCustomerContactRequest): Promise<DomainCustomerContactResult>;
   register(request: DomainRegistrationRequest): Promise<ProvisioningResult>;
   renew(request: DomainRenewalRequest): Promise<ProvisioningResult>;
-  status?(domain: string): Promise<ProvisioningResult>;
+  status?(domain: string): Promise<DomainStatusResult>;
   transfer(request: DomainTransferRequest): Promise<ProvisioningResult>;
 }

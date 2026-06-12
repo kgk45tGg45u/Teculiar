@@ -85,6 +85,30 @@ export class VirtualminProviderService implements HostingProvider {
     };
   }
 
+  // Suspend (disable) a hosting account on the panel for non-payment. This does NOT delete the
+  // account — Virtualmin must never auto-terminate; the data stays and `enable` restores it.
+  async disable(serviceExternalId: string) {
+    return this.toggleDomain(serviceExternalId, "disable-domain");
+  }
+
+  // Unsuspend (re-enable) a previously disabled hosting account, e.g. after the overdue invoice is paid.
+  async enable(serviceExternalId: string) {
+    return this.toggleDomain(serviceExternalId, "enable-domain");
+  }
+
+  private async toggleDomain(serviceExternalId: string, program: "disable-domain" | "enable-domain") {
+    const credentials = credentialsFromEnv();
+    if (!credentials) {
+      return { accepted: false, reason: "Virtualmin admin credentials are not configured." };
+    }
+    const domain = assertSafeDomain(serviceExternalId);
+    const result = await callVirtualmin(credentials, program, { domain }).catch((error: unknown) => ({
+      ok: false,
+      message: error instanceof Error ? error.message : "Virtualmin request failed"
+    }));
+    return { accepted: Boolean((result as { ok?: boolean }).ok), message: (result as { message?: string }).message, program };
+  }
+
   async status(serviceExternalId: string) {
     const credentials = credentialsFromEnv();
     if (!credentials) {

@@ -112,7 +112,20 @@ export class ResellBizProviderService implements DomainProvider {
 
   async status(domain: string) {
     const client = resellBizClient();
-    const summary = await client.getDomainSummary(domain);
+    let summary;
+    try {
+      summary = await client.getDomainSummary(domain);
+    } catch (error) {
+      // Resell.biz returns {status:"ERROR","message":"Website doesn't exist for <domain>"} when the
+      // domain/order is no longer on the panel. That is a DEFINITIVE "gone" signal → CANCELLED.
+      // Any other error (HTTP/network/auth) is inconclusive and must be re-thrown so the cron skips
+      // the domain instead of wrongly cancelling everything during an outage.
+      const message = error instanceof Error ? error.message : String(error);
+      if (/does ?n'?t exist|does not exist|no order|not found|no such/i.test(message)) {
+        return { externalId: "", expiresAt: undefined as string | undefined, status: "CANCELLED" as const, metadata: { reason: "not_found_on_panel", message } };
+      }
+      throw error;
+    }
     const statusText = [summary.currentStatus, ...summary.domainStatus, ...summary.orderStatus].join(" ").toLowerCase();
 
     return {

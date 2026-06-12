@@ -182,8 +182,12 @@ export class CronService {
       return;
     }
 
-    await this.runAction(name, ran, action);
-    await this.billing.markCronRun(name, now);
+    // Only advance the interval clock on success. A failed run leaves `lastRun` untouched so the job
+    // retries on the next cron trigger instead of waiting a full interval after a failure.
+    const ok = await this.runAction(name, ran, action);
+    if (ok) {
+      await this.billing.markCronRun(name, now);
+    }
   }
 
   // AI article generation is heavy: each article makes several Deepseek calls (angle + up to 3
@@ -208,18 +212,24 @@ export class CronService {
       ran.push({ name: "aiBlogPost", result: { reason: "previous AI generation still running", triggered: false }, status: "ran" });
       return;
     }
-    // Mark the run now so the interval is respected even though generation finishes asynchronously.
-    await this.billing.markCronRun("aiBlogPost", now);
     this.aiBlogRunning = true;
     ran.push({ name: "aiBlogPost", result: { triggered: true }, status: "ran" });
-    void this.runAiBlogInBackground(settings);
+    // Write a visible "triggered" log immediately (the background run logs the result when it finishes),
+    // so the admin always sees AI activity in the cron log instead of nothing while it generates.
+    await this.billing
+      .recordAction({ action: "cron.aiBlogPost", metadata: { async: true, startedAt: now.toISOString(), status: "ran", triggered: true }, subject: "cron" })
+      .catch(() => undefined);
+    // The interval clock is advanced from the trigger time, but ONLY if generation succeeds (done in
+    // the background runner). A failed generation leaves lastRun untouched so the next cron retries it.
+    void this.runAiBlogInBackground(settings, now);
   }
 
-  private async runAiBlogInBackground(settings: CronSettings) {
+  private async runAiBlogInBackground(settings: CronSettings, runAt: Date) {
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     try {
       const result = await this.cms.generateAiBlogPost(settings, "system");
+      await this.billing.markCronRun("aiBlogPost", runAt);
       await this.billing
         .recordAction({
           action: "cron.aiBlogPost",
@@ -229,6 +239,7 @@ export class CronService {
         .catch(() => undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : "AI blog generation failed";
+      // Intentionally do NOT markCronRun — a failed generation must retry on the next cron trigger.
       await this.billing
         .recordAction({
           action: "cron.aiBlogPost",
@@ -250,11 +261,14 @@ export class CronService {
       return;
     }
 
-    await this.runAction(name, ran, action);
-    await this.billing.markCronRun(name, now);
+    // Only record the day as done when the job succeeds, so a failed daily job retries next trigger.
+    const ok = await this.runAction(name, ran, action);
+    if (ok) {
+      await this.billing.markCronRun(name, now);
+    }
   }
 
-  private async runAction(name: string, ran: CronRunItem[], action: () => Promise<unknown>) {
+  private async runAction(name: string, ran: CronRunItem[], action: () => Promise<unknown>): Promise<boolean> {
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     try {
@@ -265,6 +279,7 @@ export class CronService {
         metadata: { result: result ?? null, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "ran" },
         subject: "cron"
       }).catch(() => undefined);
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Action failed";
       ran.push({ name, result: message, status: "failed" });
@@ -273,6 +288,7 @@ export class CronService {
         metadata: { error: message, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "failed" },
         subject: "cron"
       }).catch(() => undefined);
+      return false;
     }
   }
 }

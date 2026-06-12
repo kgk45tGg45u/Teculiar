@@ -130,14 +130,25 @@ export class ProductsService {
       if (!this.external.resellBiz.status || ["CANCELLED"].includes(domain.status)) {
         continue;
       }
+      // A connection/auth error throws and is skipped (inconclusive). A definitive "not found on the
+      // resell.biz panel" resolves to CANCELLED so stale domains stop showing as active.
       const status = await this.external.resellBiz.status(domain.domain).catch(() => undefined);
       if (!status) {
         continue;
       }
       const expiresAt = dateFromProvider(status);
-      const nextStatus = status.status === "ACTIVE" ? "ACTIVE" : status.status === "FAILED" ? "FAILED" : domain.status;
+      const nextStatus = status.status === "ACTIVE"
+        ? "ACTIVE"
+        : status.status === "FAILED"
+          ? "FAILED"
+          : status.status === "CANCELLED"
+            ? "CANCELLED"
+            : domain.status;
+      if (nextStatus === domain.status) {
+        continue;
+      }
       await this.products.updateDomainRecordStatus(domain.id, nextStatus, status.externalId, expiresAt);
-      if (domain.service && serviceProductType(domain.service) === "DOMAIN" && (nextStatus === "ACTIVE" || nextStatus === "FAILED")) {
+      if (domain.service && serviceProductType(domain.service) === "DOMAIN" && ["ACTIVE", "FAILED", "CANCELLED"].includes(nextStatus)) {
         await this.products.updateServiceStatus(domain.service.id, nextStatus, status.externalId);
       }
       refreshed += 1;
@@ -300,12 +311,18 @@ export class ProductsService {
       return updated;
     }
     if (service.status === "ACTIVE") {
-      // A live service is only downgraded when the panel DEFINITIVELY reports the account is gone
+      // A live service is only changed when the panel DEFINITIVELY reports the account is gone
       // (status "FAILED" = "does not exist"). An inconclusive result — "QUEUED" (panel unreachable)
-      // or "PROVISIONING" (reachable but not listed yet) — must NOT flip a working service to
-      // inactive, otherwise a transient Virtualmin outage would mass-downgrade every account.
+      // or "PROVISIONING" (reachable but not listed yet) — must NOT flip a working service, otherwise
+      // a transient Virtualmin outage would mass-change every account.
+      //
+      // When a Virtualmin account no longer exists it is marked TERMINATED (the panel record is
+      // gone). We NEVER issue an automatic delete-domain — Virtualmin must not terminate accounts on
+      // its own; this only reflects a deletion the admin already made on the panel. Suspension (for
+      // non-payment) is handled separately in billing maintenance, not here.
       if (status.status === "FAILED") {
-        return this.products.updateServiceStatus(service.id, "SUSPENDED", status.externalId);
+        const terminated = moduleName === "virtualmin";
+        return this.products.updateServiceStatus(service.id, terminated ? "TERMINATED" : "SUSPENDED", status.externalId);
       }
       return service;
     }
