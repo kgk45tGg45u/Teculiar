@@ -5,11 +5,18 @@ import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminCreateTicketDto } from "./dto/admin-create-ticket.dto";
 import { CreateReplyDto } from "./dto/create-reply.dto";
 import { CreateTicketDto } from "./dto/create-ticket.dto";
 import { PublicInquiryDto } from "./dto/public-inquiry.dto";
 import { type UploadedTicketFile } from "./ticket-files";
 import { TicketsService } from "./tickets.service";
+
+type AuthedRequest = Request & { user: { sub: string; roles?: string[] } };
+
+function actorOf(request: AuthedRequest) {
+  return { id: request.user.sub, roles: request.user.roles };
+}
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("tickets")
@@ -18,74 +25,71 @@ export class TicketsController {
 
   @Get()
   listTickets(
-    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Req() request: AuthedRequest,
     @Query("status") status?: string,
-    @Query("department") department?: string
+    @Query("department") departmentId?: string
   ) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.tickets.listTickets({
-      status,
-      department,
-      userId: staff ? undefined : request.user.sub
-    });
+    return this.tickets.listTickets(actorOf(request), { status, departmentId });
   }
 
   @Post()
-  createTicket(@Req() request: Request & { user: { sub: string } }, @Body() dto: CreateTicketDto) {
+  createTicket(@Req() request: AuthedRequest, @Body() dto: CreateTicketDto) {
     return this.tickets.createTicket(request.user.sub, dto);
   }
 
   @Get("canned-replies")
-  cannedReplies(@Query("department") department?: string) {
-    return this.tickets.listCannedReplies(department);
+  cannedReplies(@Query("department") departmentId?: string) {
+    return this.tickets.listCannedReplies(departmentId);
+  }
+
+  @Get("departments")
+  departments() {
+    return this.tickets.listActiveDepartments();
   }
 
   @Get(":id")
-  getTicket(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.tickets.getTicket(id, request.user.sub, staff);
+  getTicket(@Param("id") id: string, @Req() request: AuthedRequest) {
+    return this.tickets.getTicket(id, actorOf(request));
   }
 
   @Post(":id/replies")
-  createReply(
-    @Param("id") id: string,
-    @Req() request: Request & { user: { sub: string; roles?: string[] } },
-    @Body() dto: CreateReplyDto
-  ) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.tickets.createReply(id, request.user.sub, dto, staff);
+  createReply(@Param("id") id: string, @Req() request: AuthedRequest, @Body() dto: CreateReplyDto) {
+    return this.tickets.createReply(id, actorOf(request), dto);
+  }
+
+  @Post(":id/invoice-message")
+  @Roles("admin", "super_admin", "staff", "support_agent", "sales_agent")
+  invoiceMessage(@Param("id") id: string, @Req() request: AuthedRequest, @Body("invoiceId") invoiceId: string) {
+    return this.tickets.createInvoiceMessage(id, actorOf(request), invoiceId);
   }
 
   @Post(":id/attachments")
   @UseInterceptors(FilesInterceptor("files", 5))
   uploadAttachments(
     @Param("id") id: string,
-    @Req() request: Request & { user: { sub: string; roles?: string[] } },
+    @Req() request: AuthedRequest,
     @UploadedFiles() files?: UploadedTicketFile[],
     @Body("replyId") replyId?: string
   ) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.tickets.attachFiles(id, request.user.sub, files, staff, replyId);
+    return this.tickets.attachFiles(id, actorOf(request), files, replyId);
   }
 
   @Post(":id/close")
-  closeTicket(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
-    const staff = request.user.roles?.some((role) => ["admin", "staff"].includes(role));
-    return this.tickets.closeTicket(id, request.user.sub, staff);
+  closeTicket(@Param("id") id: string, @Req() request: AuthedRequest) {
+    return this.tickets.closeTicket(id, actorOf(request));
   }
 
   @Patch(":id/assign")
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   assignTicket(@Param("id") id: string, @Body("staffId") staffId: string) {
     return this.tickets.assignTicket(id, staffId);
   }
 
   @Patch(":id/status")
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   updateStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.tickets.updateStatus(id, status);
   }
-
 }
 
 @UseGuards(ThrottlerGuard)
@@ -106,17 +110,13 @@ export class TicketsDevController {
   constructor(private readonly tickets: TicketsService) {}
 
   @Get()
-  listTickets(@Req() request: Request & { user?: { roles?: string[] } }) {
-    const roles = request.user?.roles ?? [];
-    const isFullAdmin = roles.some((r) => ["admin", "super_admin", "staff"].includes(r));
-    const departments = isFullAdmin
-      ? undefined
-      : roles.includes("sales_agent")
-        ? ["SALES"]
-        : roles.includes("support_agent")
-          ? ["SUPPORT", "ABUSE"]
-          : undefined;
-    return this.tickets.listTickets({ departments });
+  listTickets(@Req() request: AuthedRequest, @Query("status") status?: string, @Query("department") departmentId?: string) {
+    return this.tickets.listTickets(actorOf(request), { status, departmentId });
+  }
+
+  @Post()
+  createTicket(@Req() request: AuthedRequest, @Body() dto: AdminCreateTicketDto) {
+    return this.tickets.createTicketAsAdmin(actorOf(request), dto);
   }
 
   @Post("maintenance")

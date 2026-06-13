@@ -88,24 +88,24 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "ticket_opened",
-    subject: "Ticket Opened",
+    subject: "Ticket Opened — #{{ticket_id}}",
     trigger: "when a support ticket is opened",
     defaultRecipients: ["admin", "client"],
-    body: "<p>Ticket #{{ticket_id}} opened: {{ticket_subject}}</p><p>{{ticket_content}}</p>"
+    body: "<p>Hello {{customer_name}},</p><p>Your ticket <strong>#{{ticket_id}}</strong> has been opened with our <strong>{{department_name}}</strong> team: {{ticket_subject}}</p><p>{{ticket_content}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
   },
   {
     key: "ticket_answered",
-    subject: "Ticket Answered",
+    subject: "Ticket Answered — #{{ticket_id}}",
     trigger: "when a support ticket receives an answer",
     defaultRecipients: ["admin", "client"],
-    body: "<p>Ticket #{{ticket_id}} answered: {{ticket_subject}}</p><p>{{ticket_reply}}</p>"
+    body: "<p>Hello {{customer_name}},</p><p>{{staff_name}} from our <strong>{{department_name}}</strong> team replied to your ticket <strong>#{{ticket_id}}</strong>: {{ticket_subject}}</p><p>{{ticket_reply}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
   },
   {
     key: "ticket_closed",
-    subject: "Ticket Closed",
+    subject: "Ticket Closed — #{{ticket_id}}",
     trigger: "when a support ticket is closed",
     defaultRecipients: ["admin", "client"],
-    body: "<p>Ticket #{{ticket_id}} closed: {{ticket_subject}}</p><p>Status: {{ticket_status}}</p>"
+    body: "<p>Hello {{customer_name}},</p><p>Your ticket <strong>#{{ticket_id}}</strong> ({{ticket_subject}}) with our <strong>{{department_name}}</strong> team has been closed.</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
   }
 ] as const satisfies readonly EmailEventDefinition[];
 

@@ -81,6 +81,10 @@ export class UsersService {
     return this.users.updateAdminUserPassword(userId, passwordHash);
   }
 
+  setAdminAvatar(userId: string, avatarUrl: string) {
+    return this.users.setAdminAvatar(userId, avatarUrl);
+  }
+
   deleteAdminUser(userId: string) {
     return this.users.deleteAdminUser(userId);
   }

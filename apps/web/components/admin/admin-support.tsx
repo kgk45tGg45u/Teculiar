@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { BookOpen, Send } from "lucide-react";
-import { API_BASE_URL, authHeaders, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { BookOpen, FileText, Image as ImageIcon, Send } from "lucide-react";
+import { API_BASE_URL, authHeaders, currentLocale, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
+import { TICKET_STATUS_VALUES, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
+import { InvoiceModal } from "../tickets/invoice-modal";
+import { TicketConversation } from "../tickets/ticket-conversation";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import { notifyResponse } from "../ui/toast-provider";
@@ -83,20 +86,40 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
 }
 
 export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKnowledgebaseArticle[]; initialTicket: ApiTicket }) {
+  const locale = currentLocale();
   const [ticket, setTicket] = useState(initialTicket);
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function refresh() {
+    const refreshed = await fetch(`${API_BASE_URL}/tickets/${ticket.id}`, { headers: authHeaders("admin") })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+    if (refreshed) setTicket(refreshed);
+  }
 
   async function reply() {
+    if (!body.trim() && files.length === 0) return;
     const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/replies`, {
       body: JSON.stringify({ body }),
       headers: { "Content-Type": "application/json", ...authHeaders("admin") },
       method: "POST"
     });
+    const created = await response.clone().json().catch(() => undefined) as { id?: string } | undefined;
     if (response.ok) {
-      const refreshed = await fetch(`${API_BASE_URL}/tickets/${ticket.id}`, { headers: authHeaders("admin") }).then((res) => res.ok ? res.json() : null).catch(() => null);
-      if (refreshed) setTicket(refreshed);
+      if (files.length > 0) {
+        const form = new FormData();
+        files.forEach((file) => form.append("files", file));
+        if (created?.id) form.append("replyId", created.id);
+        await fetch(`${API_BASE_URL}/tickets/${ticket.id}/attachments`, { body: form, headers: authHeaders("admin"), method: "POST" }).catch(() => undefined);
+      }
+      await refresh();
       setBody("");
+      setFiles([]);
+      if (fileInput.current) fileInput.current.value = "";
     }
     setMessage(await notifyResponse(response, "Reply sent.", "Reply failed."));
   }
@@ -122,41 +145,83 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
+          <span className="eyebrow">#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} · {ticket.department?.name ?? ""}</span>
           <h2>{ticket.subject}</h2>
         </div>
-        <StatusPill label={ticket.status.toLowerCase()} tone={ticket.status === "CLOSED" ? "neutral" : "warn"} />
-      </div>
-      <div className={styles.form}>
-        <label>Status<select defaultValue={ticket.status} onChange={(event) => void statusChange(event.target.value)}><option value="NEW">New</option><option value="OPEN">Open</option><option value="ANSWERED">Answered</option><option value="CUSTOMER_REPLY">Customer Reply</option><option value="RESOLVED">Resolved</option><option value="CLOSED">Closed</option></select></label>
-        <div className={styles.blogList}>
-          {(ticket.replies ?? []).map((reply) => (
-            <article key={reply.id}>
-              <div><strong>{reply.user?.email ?? "Client"}</strong><span>{dateTimeLabel(reply.createdAt)}</span></div>
-              <p>{reply.body}</p>
-              <AttachmentLinks files={reply.attachments ?? []} />
-            </article>
-          ))}
-          <AttachmentLinks files={ticket.attachments ?? []} />
+        <div className={styles.ticketHeaderControls}>
+          <StatusPill label={ticketStatusLabel(ticket.status, locale)} tone={ticketStatusTone(ticket.status)} />
+          <select aria-label="Ticket status" defaultValue={ticket.status} onChange={(event) => void statusChange(event.target.value)}>
+            {TICKET_STATUS_VALUES.map((status) => <option key={status} value={status}>{ticketStatusLabel(status, locale)}</option>)}
+          </select>
         </div>
-        <label>Insert article<select defaultValue="" onChange={(event) => insertArticle(event.target.value)}><option value="">Insert article</option>{articles.map((article) => <option key={article.id} value={article.id}>{article.title}</option>)}</select></label>
-        <label>Reply<textarea value={body} onChange={(event) => setBody(event.target.value)} rows={8} /></label>
-        <Button icon={Send} type="button" onClick={() => void reply()}>Send Reply</Button>
-        {message ? <p>{message}</p> : null}
       </div>
+
+      <TicketConversation perspective="staff" ticket={ticket} />
+
+      {ticket.status !== "CLOSED" ? (
+        <div className={styles.ticketComposer}>
+          <div className={styles.ticketComposerTools}>
+            <select aria-label="Insert article" defaultValue="" onChange={(event) => { insertArticle(event.target.value); event.target.value = ""; }}>
+              <option value="">Insert article…</option>
+              {articles.map((article) => <option key={article.id} value={article.id}>{article.title}</option>)}
+            </select>
+            <button className={styles.ticketToolBtn} onClick={() => fileInput.current?.click()} type="button"><ImageIcon size={15} /> Attach file{files.length ? ` (${files.length})` : ""}</button>
+            <button className={styles.ticketToolBtn} onClick={() => setInvoiceOpen(true)} type="button"><FileText size={15} /> Insert new invoice</button>
+            <input accept="image/png,image/jpeg,image/webp,application/pdf" hidden multiple ref={fileInput} type="file" onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
+          </div>
+          {files.length ? <div className={styles.ticketFileChips}>{files.map((file) => <span className={styles.ticketFileChip} key={file.name}>{file.name}</span>)}</div> : null}
+          <div className={styles.ticketComposerRow}>
+            <textarea className={styles.ticketComposerInput} onChange={(event) => setBody(event.target.value)} placeholder="Type a message…" rows={2} value={body} />
+            <Button icon={Send} type="button" onClick={() => void reply()}>Send</Button>
+          </div>
+          <p className={styles.ticketFileHint}>You can attach images or PDF files (PNG, JPG, WebP, PDF · max 10 MB).</p>
+          {message ? <p>{message}</p> : null}
+        </div>
+      ) : (
+        <p className={styles.ticketClosedNote}>This ticket is closed.</p>
+      )}
+
+      {invoiceOpen ? <InvoiceModal onClose={() => setInvoiceOpen(false)} onCreated={() => void refresh()} ticket={ticket} /> : null}
     </section>
   );
 }
 
-function AttachmentLinks({ files }: { files: Array<{ fileName: string; id: string; storageKey: string }> }) {
-  if (files.length === 0) return null;
-  return <div className={styles.inlineForm}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank">{file.fileName}</a>)}</div>;
+// Client wrapper so the ticket thread renders inside the admin dashboard layout
+// (with the sidebar) — fetches the ticket + canned articles, then renders the thread.
+export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
+  const [ticket, setTicket] = useState<ApiTicket | null>(null);
+  const [articles, setArticles] = useState<ApiKnowledgebaseArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      fetch(`${API_BASE_URL}/tickets/${ticketId}`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`${API_BASE_URL}/admin/dev/knowledgebase`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : [])).catch(() => [])
+    ]).then(([loadedTicket, loadedArticles]) => {
+      if (!active) return;
+      setTicket(loadedTicket);
+      setArticles(Array.isArray(loadedArticles) ? loadedArticles : []);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [ticketId]);
+
+  if (loading) {
+    return <section className={styles.panel}><p className={styles.formMessage}>Loading ticket…</p></section>;
+  }
+  if (!ticket) {
+    return <section className={styles.panel}><p className={styles.formMessage}>Ticket not found. <a href="/admin/tickets">Back to tickets</a></p></section>;
+  }
+
+  return (
+    <>
+      <div className={styles.inlineForm}><a href="/admin/tickets">← Back to tickets</a></div>
+      <AdminTicketThread articles={articles} initialTicket={ticket} />
+    </>
+  );
 }
 
 function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function dateTimeLabel(value?: string | null) {
-  return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "-";
 }

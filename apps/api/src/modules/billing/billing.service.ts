@@ -511,9 +511,9 @@ export class BillingService {
 
     if (this.ticketsService) {
       const invoiceLabel = invoice.invoiceNumber ?? invoice.id;
-      await this.ticketsService.createTicket(userId, {
+      await this.ticketsService.createTicketForSlug(userId, {
         body: `Customer has indicated payment via bank wire transfer for invoice ${invoiceLabel}.\n\nPlease verify the payment in your bank account and activate the service manually once confirmed.`,
-        department: "SALES",
+        departmentSlug: "sales",
         priority: "NORMAL",
         subject: `Bank Transfer Claimed — Invoice ${invoiceLabel}`
       });

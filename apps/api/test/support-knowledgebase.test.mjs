@@ -3,14 +3,38 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
-test("ticket schema has WHMCS-style public ids, reply attachments, and answer statuses", async () => {
+test("ticket schema has WHMCS-style public ids, reply attachments, and the consolidated statuses", async () => {
   const schema = await readFile(new URL("../../../prisma/schema.prisma", import.meta.url), "utf8");
 
-  assert.match(schema, /enum TicketStatus\s*\{[\s\S]*ANSWERED[\s\S]*CUSTOMER_REPLY/);
+  // Statuses reduced to OPEN / ANSWERED / CUSTOMER_REPLY / CLOSED.
+  assert.match(schema, /enum TicketStatus\s*\{\s*OPEN\s*ANSWERED\s*CUSTOMER_REPLY\s*CLOSED\s*\}/);
+  assert.doesNotMatch(schema, /\bWAITING_ON_CLIENT\b/);
+  assert.doesNotMatch(schema, /\bWAITING_ON_STAFF\b/);
+  assert.doesNotMatch(schema, /enum TicketDepartment/);
+
+  // Dynamic departments replace the old enum.
+  assert.match(schema, /model Department\s*\{[\s\S]*slug\s+String\s+@unique/);
+  assert.match(schema, /model DepartmentMember\s*\{[\s\S]*@@unique\(\[departmentId, userId\]\)/);
+  assert.match(schema, /model Ticket\s*\{[\s\S]*departmentId\s+String/);
   assert.match(schema, /model Ticket\s*\{[\s\S]*publicId\s+String\s+@unique/);
+  assert.match(schema, /model TicketReply\s*\{[\s\S]*system\s+Boolean[\s\S]*invoiceId\s+String\?/);
   assert.match(schema, /model TicketReply\s*\{[\s\S]*attachments\s+TicketAttachment\[]/);
-  assert.match(schema, /model TicketAttachment\s*\{[\s\S]*replyId\s+String\?/);
+  assert.match(schema, /model User\s*\{[\s\S]*avatarUrl\s+String\?[\s\S]*isGuest\s+Boolean/);
   assert.match(schema, /model KnowledgebaseArticle\s*\{[\s\S]*slug\s+String\s+@unique[\s\S]*published\s+Boolean/);
+});
+
+test("departments module exposes CRUD, membership, and form routing", async () => {
+  const controller = await readFile(new URL("../src/modules/departments/departments.controller.ts", import.meta.url), "utf8");
+  const appModule = await readFile(new URL("../src/app.module.ts", import.meta.url), "utf8");
+
+  assert.match(appModule, /DepartmentsModule/);
+  assert.match(controller, /@Controller\("admin\/dev\/departments"\)/);
+  assert.match(controller, /@Post\(\)/);
+  assert.match(controller, /@Patch\(":id"\)/);
+  assert.match(controller, /@Delete\(":id"\)/);
+  assert.match(controller, /@Post\(":id\/members"\)/);
+  assert.match(controller, /@Delete\(":id\/members\/:userId"\)/);
+  assert.match(controller, /@Put\("routing"\)/);
 });
 
 test("knowledgebase public and admin APIs are wired", async () => {
@@ -38,12 +62,20 @@ test("ticket APIs create ids, scope access, upload files, and move statuses", as
   assert.match(controller, /FilesInterceptor\("files"/);
   assert.match(controller, /@Post\(":id\/attachments"\)/);
   assert.match(controller, /@Post\(":id\/close"\)/);
-  assert.match(controller, /getTicket\(id, request\.user\.sub, staff\)/);
+  assert.match(controller, /@Post\(":id\/invoice-message"\)/);
+  assert.match(controller, /getTicket\(id, actorOf\(request\)\)/);
   assert.match(service, /generateTicketPublicId/);
   assert.match(service, /staff \? "ANSWERED" : "CUSTOMER_REPLY"/);
-  assert.match(service, /assertTicketAccess/);
+  assert.match(service, /createTicketAsAdmin/);
+  assert.match(service, /assertAccess/);
   assert.match(repository, /OR: \[\{ id \}, \{ publicId: id \}\]/);
   assert.match(repository, /orderBy: \{ updatedAt: "desc" \}/);
+  // Auto-close cron stays consistent with the new flow: only ANSWERED tickets
+  // (staff replied, awaiting client) go stale and close; a client reply flips
+  // status to CUSTOMER_REPLY and bumps updatedAt, so it won't auto-close.
+  assert.match(repository, /findAnsweredOlderThan[\s\S]*status: "ANSWERED", updatedAt: \{ lte: cutoff \}/);
+  // …and the cron emails each client that their ticket was closed.
+  assert.match(service, /closeAnsweredTickets[\s\S]*findAnsweredOlderThan[\s\S]*dispatchTicketEmail\("ticket_closed"/);
 });
 
 test("client support UI shows KB, suggestions, uploads, ticket threads, and close action", async () => {

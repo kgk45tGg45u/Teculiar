@@ -16,13 +16,16 @@ import {
   money,
   serviceUnitPriceCents,
   type ApiAnnouncement,
+  type ApiDepartmentRef,
   type ApiInvoice,
   type ApiKnowledgebaseArticle,
   type ApiService,
   type ApiTicket
 } from "../../lib/api";
-import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel } from "../../lib/status-labels";
+import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
 import { dictionary, type Locale } from "../../lib/i18n";
+import { TicketConversation } from "../tickets/ticket-conversation";
+import convo from "../tickets/ticket-conversation.module.css";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
@@ -124,13 +127,6 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
   CANCELLED: "neutral",
   PAID: "good",
   OVERDUE: "warn",
-  OPEN: "warn",
-  NEW: "warn",
-  ANSWERED: "good",
-  CUSTOMER_REPLY: "warn",
-  WAITING_ON_CLIENT: "good",
-  WAITING_ON_STAFF: "warn",
-  RESOLVED: "neutral",
   CLOSED: "neutral"
 };
 
@@ -294,7 +290,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const serviceRows = services.filter((service) => service.product.type !== "DOMAIN");
   const domainRows = domainRowsFromServices(services);
   const openInvoices = invoices.filter((invoice) => invoice.status !== "PAID").length;
-  const openTickets = tickets.filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status)).length;
+  const openTickets = tickets.filter((ticket) => ticket.status !== "CLOSED").length;
   const serviceSummaryItems = serviceRows
     .filter((service) => service.status === "ACTIVE")
     .slice(0, 4)
@@ -303,7 +299,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     .slice(0, 4)
     .map((domain) => ({ href: "/client/domains", id: domain.id, label: domain.domain }));
   const ticketSummaryItems = tickets
-    .filter((ticket) => !["CLOSED", "RESOLVED"].includes(ticket.status))
+    .filter((ticket) => ticket.status !== "CLOSED")
     .slice(0, 4)
     .map((ticket) => ({ href: `/client/tickets/${ticket.id}`, id: ticket.id, label: ticket.subject }));
   const invoiceSummaryItems = invoices
@@ -1191,10 +1187,10 @@ function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTick
               <div>
                 <span>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
                 <strong>{ticket.subject}</strong>
-                <small>{ticket.department} · {ticket.service?.product?.name ?? "No related service"}</small>
+                <small>{ticket.department?.name ?? ""} · {ticket.service?.product?.name ?? "No related service"}</small>
               </div>
               <div>
-                <StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} />
+                <StatusPill label={ticketStatusLabel(ticket.status, currentLocale())} tone={ticketStatusTone(ticket.status)} />
                 <time>{dateLabel(ticket.updatedAt)}</time>
               </div>
             </a>
@@ -1209,8 +1205,16 @@ function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTick
 function NewTicket({ services }: { services: ApiService[] }) {
   const [message, setMessage] = useState("");
   const [suggestions, setSuggestions] = useState<ApiKnowledgebaseArticle[]>([]);
+  const [departments, setDepartments] = useState<ApiDepartmentRef[]>([]);
   const [text, setText] = useState({ body: "", subject: "" });
   const query = `${text.subject} ${text.body}`.trim();
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/tickets/departments`, { headers: authHeaders("client") })
+      .then(json)
+      .then((payload) => Array.isArray(payload) && setDepartments(payload))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (query.length < 4) {
@@ -1227,7 +1231,7 @@ function NewTicket({ services }: { services: ApiService[] }) {
     const response = await fetch(`${API_BASE_URL}/tickets`, {
       body: JSON.stringify({
         body: String(formData.get("body") ?? ""),
-        department: String(formData.get("department") ?? "SUPPORT"),
+        departmentId: String(formData.get("departmentId") ?? ""),
         priority: String(formData.get("priority") ?? "NORMAL"),
         serviceId: String(formData.get("serviceId") ?? "") || undefined,
         subject: String(formData.get("subject") ?? "")
@@ -1248,7 +1252,7 @@ function NewTicket({ services }: { services: ApiService[] }) {
     <form action={submit} className={styles.module}>
       <LifeBuoy aria-hidden />
       <h2>New Ticket</h2>
-      <label>Department<select className="input" name="department"><option value="SUPPORT">Support</option><option value="SALES">Sales</option><option value="ABUSE">Abuse</option></select></label>
+      <label>Department<select className="input" name="departmentId" required>{departments.map((department) => department ? <option key={department.id} value={department.id}>{department.name}</option> : null)}</select></label>
       <label>Related service<select className="input" name="serviceId"><option value="">No related service</option>{services.map((service) => <option key={service.id} value={service.id}>{serviceListTitle(service)}</option>)}</select></label>
       <label>Priority<select className="input" name="priority"><option value="NORMAL">Normal</option><option value="LOW">Low</option><option value="HIGH">High</option></select></label>
       <label>Subject<input className="input" name="subject" onChange={(event) => setText((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" required /></label>
@@ -1344,63 +1348,30 @@ function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; o
           <span className="eyebrow">#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
           <h2>{ticket.subject}</h2>
         </div>
-        <StatusPill label={ticketLabel(ticket.status)} tone={statusTone[ticket.status] ?? "neutral"} />
+        <StatusPill label={ticketStatusLabel(ticket.status, currentLocale())} tone={ticketStatusTone(ticket.status)} />
       </div>
       <div className={styles.ticketMeta}>
-        <span>{ticket.department}</span>
+        <span>{ticket.department?.name ?? ""}</span>
         <span>{ticket.service?.product?.name ?? "No related service"}</span>
         <span>{dateLabel(ticket.updatedAt)}</span>
       </div>
-      <div className={styles.thread}>
-        <TicketMessage
-          attachments={ticket.attachments ?? []}
-          body={ticket.subject}
-          meta={`${ticket.department} · ${dateTimeLabel(ticket.createdAt ?? ticket.updatedAt)}`}
-          title="Ticket opened"
-        />
-        {(ticket.replies ?? []).map((reply) => (
-          <TicketMessage
-            attachments={reply.attachments ?? []}
-            body={reply.body}
-            key={reply.id}
-            meta={dateTimeLabel(reply.createdAt)}
-            title={reply.user?.name ?? reply.user?.email ?? "Support"}
-          />
-        ))}
-      </div>
+      <TicketConversation invoiceHref={(id) => `/client/invoices/${id}`} perspective="client" ticket={ticket} />
       {ticket.status !== "CLOSED" ? (
-        <form action={reply} className={styles.inlineForm}>
-          <label>Reply<textarea className="input" name="body" required rows={4} /></label>
-          <label>Files<input accept="image/png,image/jpeg,image/webp,application/pdf" className="input" multiple name="files" type="file" /></label>
-          <Button icon={Send} type="submit">Send Reply</Button>
-          <Button type="button" variant="secondary" onClick={close}>Close Ticket</Button>
+        <form action={reply}>
+          <div className={convo.composer}>
+            <textarea className={convo.composerInput} name="body" placeholder="Type a message…" required rows={2} />
+            <Button icon={Send} type="submit">Send</Button>
+          </div>
+          <div className={styles.ticketComposerExtras}>
+            <label className={styles.ticketAttachLabel}><Paperclip aria-hidden size={15} /> Attach file<input accept="image/png,image/jpeg,image/webp,application/pdf" hidden multiple name="files" type="file" /></label>
+            <Button type="button" variant="secondary" onClick={close}>Close ticket</Button>
+          </div>
+          <p className={styles.ticketHint}>You can attach images or PDF files (PNG, JPG, WebP, PDF · max 10 MB).</p>
         </form>
       ) : null}
       {message ? <p>{message}</p> : null}
     </section>
   );
-}
-
-function TicketMessage({ attachments, body, meta, title }: { attachments: Array<{ fileName: string; id: string; storageKey: string }>; body: string; meta: string; title: string }) {
-  return (
-    <article className={styles.ticketMessage}>
-      <header>
-        <div>
-          <strong>{title}</strong>
-          <span>{meta}</span>
-        </div>
-      </header>
-      <p>{body}</p>
-      <AttachmentList files={attachments} />
-    </article>
-  );
-}
-
-function AttachmentList({ files }: { files: Array<{ fileName: string; id: string; storageKey: string }> }) {
-  if (files.length === 0) {
-    return null;
-  }
-  return <div className={styles.attachmentLinks}>{files.map((file) => <a href={file.storageKey} key={file.id} target="_blank"><Paperclip aria-hidden size={13} />{file.fileName}</a>)}</div>;
 }
 
 type AddFundsGateway = { config?: Record<string, string | undefined>; method: string; title: string };
@@ -1812,10 +1783,6 @@ function dateLabel(value?: string | null) {
   return formatDate(value, currentLocale());
 }
 
-function dateTimeLabel(value?: string | null) {
-  return formatDate(value, currentLocale(), { dateStyle: "medium", timeStyle: "short" });
-}
-
 function announcementDateLabel(value?: string | null) {
   return formatDate(value, currentLocale(), { dateStyle: "medium", timeStyle: "short" });
 }
@@ -1876,9 +1843,6 @@ function stringConfig(configuration: unknown, key: string) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function ticketLabel(status: string) {
-  return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
-}
 
 function previewText(value: string) {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);

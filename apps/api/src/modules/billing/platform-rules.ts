@@ -28,7 +28,7 @@ export function addBillingCycle(date: Date, cycle: string) {
 }
 
 export function shouldCloseAnsweredTicket(status: string, updatedAt: Date, now: Date, closeAfterHours: number) {
-  if (status !== "WAITING_ON_CLIENT") {
+  if (status !== "ANSWERED") {
     return false;
   }
 

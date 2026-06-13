@@ -7,8 +7,8 @@ export class CreateTicketDto {
   @IsString()
   body: string;
 
-  @IsIn(["SALES", "SUPPORT", "ABUSE"])
-  department: string;
+  @IsString()
+  departmentId: string;
 
   @IsOptional()
   @IsIn(["LOW", "NORMAL", "HIGH", "URGENT"])

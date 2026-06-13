@@ -60,6 +60,7 @@ export function ContactForm({ locale }: { locale: string }) {
       email,
       message,
       name,
+      source: "contact",
       subject: topic
     };
 

@@ -3,7 +3,8 @@ import tls from "node:tls";
 
 export type ImapMailboxConfig = {
   address: string;
-  department: "SALES" | "SUPPORT";
+  // Department slug this mailbox maps to (e.g. "sales", "support").
+  department: string;
   enabled?: boolean;
   host?: string;
   mailbox?: string;

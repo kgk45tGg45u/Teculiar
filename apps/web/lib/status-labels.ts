@@ -46,6 +46,30 @@ export function invoiceStatusVisible(status: string) {
   return status !== "PAID";
 }
 
+// Friendly, localized ticket status names (OPEN / ANSWERED / CUSTOMER_REPLY / CLOSED)
+// so clients and admins never see ALL_CAPS_WITH_UNDERSCORES.
+export const TICKET_STATUS_VALUES = ["OPEN", "ANSWERED", "CUSTOMER_REPLY", "CLOSED"] as const;
+
+export function ticketStatusLabel(status: string, locale: Locale = "en") {
+  const labels: Record<string, Record<Locale, string>> = {
+    OPEN: { de: "Offen", en: "Open" },
+    ANSWERED: { de: "Beantwortet", en: "Answered" },
+    CUSTOMER_REPLY: { de: "Kundenantwort", en: "Customer reply" },
+    CLOSED: { de: "Geschlossen", en: "Closed" }
+  };
+  return labels[status]?.[locale] ?? humanStatus(status, locale);
+}
+
+export function ticketStatusTone(status: string): "good" | "warn" | "neutral" {
+  if (status === "ANSWERED") {
+    return "good";
+  }
+  if (status === "CLOSED") {
+    return "neutral";
+  }
+  return "warn"; // OPEN, CUSTOMER_REPLY — needs attention
+}
+
 function humanStatus(status: string, locale: Locale) {
   const value = status.toLowerCase().replaceAll("_", " ");
   return locale === "de" ? value : value.replace(/^\w/, (char) => char.toUpperCase());

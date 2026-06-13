@@ -374,6 +374,11 @@ export class UsersRepository {
     return this.prisma.user.update({ where: { id: userId }, data: { passwordHash }, select: { id: true } });
   }
 
+  async setAdminAvatar(userId: string, avatarUrl: string) {
+    await this.prisma.user.update({ where: { id: userId }, data: { avatarUrl }, select: { id: true } });
+    return this.findAdminUser(userId);
+  }
+
   deleteAdminUser(userId: string) {
     return this.prisma.user.delete({ where: { id: userId } });
   }
@@ -432,7 +437,9 @@ const clientSelect = {
 const pendingCheckoutEmail = "pending-checkout@dezhost.local";
 
 const adminUserSelect = {
+  avatarUrl: true,
   createdAt: true,
+  departmentMemberships: { select: { department: { select: { id: true, name: true, slug: true, color: true } } } },
   email: true,
   id: true,
   name: true,
