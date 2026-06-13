@@ -21,6 +21,9 @@ export const EMAIL_PLACEHOLDERS = [
   { key: "ticket_content", description: "Original ticket message." },
   { key: "ticket_reply", description: "Latest public ticket reply." },
   { key: "ticket_status", description: "Ticket status." },
+  { key: "ticket_url", description: "Direct link to view the ticket." },
+  { key: "staff_name", description: "Name of the staff member who replied." },
+  { key: "department_name", description: "Support department handling the ticket." },
   { key: "current_date", description: "Current date." }
 ] as const;
 

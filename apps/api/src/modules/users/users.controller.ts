@@ -1,8 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { hash } from "bcryptjs";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { IMAGE_TYPES, storeUploadedFiles, type UploadedFile } from "../../common/uploads";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { UsersService } from "./users.service";
 
@@ -156,6 +158,16 @@ export class AdminManagementController {
     }
     const passwordHash = await hash(password, 12);
     return this.users.updateAdminUserPassword(id, passwordHash);
+  }
+
+  @Post(":id/avatar")
+  @UseInterceptors(FilesInterceptor("files", 1))
+  async uploadAvatar(@Param("id") id: string, @UploadedFiles() files?: UploadedFile[]) {
+    const [stored] = await storeUploadedFiles(files, { subdir: "avatars", maxFiles: 1, maxBytes: 4_000_000, allow: IMAGE_TYPES });
+    if (!stored) {
+      throw new BadRequestException("An image file is required.");
+    }
+    return this.users.setAdminAvatar(id, stored.storageKey);
   }
 
   @Delete(":id")

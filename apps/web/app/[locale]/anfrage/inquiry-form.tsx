@@ -31,6 +31,7 @@ export function InquiryForm({ locale }: { locale: string }) {
       message: data.get("message") as string,
       name: data.get("name") as string,
       phone: (data.get("phone") as string) || undefined,
+      source: "inquiry",
       subject: data.get("subject") as string
     };
 

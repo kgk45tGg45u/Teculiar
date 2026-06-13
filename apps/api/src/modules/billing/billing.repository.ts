@@ -439,7 +439,7 @@ export class BillingRepository {
     return this.prisma.$transaction([
       this.prisma.invoice.aggregate({ where: { status: "PAID" }, _sum: { totalCents: true } }),
       this.prisma.service.count({ where: { status: "ACTIVE" } }),
-      this.prisma.ticket.count({ where: { status: { in: ["NEW", "OPEN", "WAITING_ON_CLIENT", "WAITING_ON_STAFF"] } } }),
+      this.prisma.ticket.count({ where: { status: { in: ["OPEN", "CUSTOMER_REPLY"] } } }),
       this.prisma.invoice.count({ where: { status: { in: ["FAILED", "OVERDUE"] } } })
     ]);
   }

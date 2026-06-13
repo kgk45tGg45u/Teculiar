@@ -23,7 +23,7 @@ import {
 import { dictionary, type Locale } from "../../lib/i18n";
 import { requestLocale } from "../../lib/server-locale";
 import { LanguageToggle } from "../layout/language-toggle";
-import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel } from "../../lib/status-labels";
+import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
 import { Button } from "../ui/button";
 import { LogoutButton } from "../auth/logout-button";
@@ -31,7 +31,8 @@ import { StatusPill } from "../ui/status-pill";
 import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
-import { KnowledgebasePanel } from "./admin-support";
+import { AdminDepartmentsPanel, AdminNewTicketPanel } from "./admin-departments";
+import { AdminTicketDetail, KnowledgebasePanel } from "./admin-support";
 import { AdminSidebar } from "./admin-sidebar";
 import { LogsExplorer } from "./logs-explorer";
 import { BlogPostList, BlogPostForm, BlogCategoryTagManager, AiContentManager, AiJobSettingsForm } from "./blog-admin";
@@ -59,6 +60,8 @@ type AdminView =
   | "modules"
   | "services"
   | "tickets"
+  | "tickets-new"
+  | "tickets-departments"
   | "announcements"
   | "settings"
   | "settings-cron"
@@ -67,7 +70,7 @@ type AdminView =
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
-export async function AdminDashboard({ emailSection = "emails", preselectedClientId, view = "home" }: { emailSection?: EmailAdminSection; preselectedClientId?: string; view?: AdminView }) {
+export async function AdminDashboard({ emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
   const locale = await requestLocale();
   const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
@@ -151,7 +154,10 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
         {view === "logs" ? <LogsExplorer locale={locale} timezone={adminTimezone} /> : null}
-        {view === "tickets" ? <TicketsPanel locale={locale} tickets={tickets} /> : null}
+        {view === "tickets" && ticketId ? <AdminTicketDetail ticketId={ticketId} /> : null}
+        {view === "tickets" && !ticketId ? <TicketsPanel locale={locale} tickets={tickets} /> : null}
+        {view === "tickets-new" ? <AdminNewTicketPanel /> : null}
+        {view === "tickets-departments" ? <AdminDepartmentsPanel /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogListPanel /> : null}
         {view === "blog-new" ? <BlogNewPanel /> : null}
@@ -566,7 +572,10 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
           <span className="eyebrow">Support</span>
           <h2>Support Tickets</h2>
         </div>
-        <Button href="/admin/tickets/new" variant="secondary">New Ticket</Button>
+        <div className={styles.inlineForm}>
+          <Button href="/admin/tickets/departments" variant="secondary">Departments</Button>
+          <Button href="/admin/tickets/new" variant="secondary">New Ticket</Button>
+        </div>
       </div>
       <table className="table">
         <thead>
@@ -580,10 +589,10 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
         <tbody>
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
-              <td>{ticket.department}</td>
+              <td>{ticket.department?.name ?? ""}</td>
               <td><a href={`/admin/tickets/${ticket.id}`}>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} {ticket.subject}</a></td>
               <td>
-                <StatusPill label={ticketLabel(ticket.status)} tone={ticket.status === "CLOSED" ? "neutral" : "warn"} />
+                <StatusPill label={ticketStatusLabel(ticket.status, locale)} tone={ticketStatusTone(ticket.status)} />
               </td>
               <td>{shortDateLabel(ticket.updatedAt, locale)}</td>
             </tr>
@@ -762,7 +771,9 @@ function adminTitle(view: AdminView, locale: Locale) {
     "settings-seo": "SEO & Social Settings",
     admins: "Admins & Roles",
     "payment-gateways": copy.paymentGateways,
-    tickets: copy.tickets
+    tickets: copy.tickets,
+    "tickets-new": "New Ticket",
+    "tickets-departments": "Departments"
   };
   return titles[view];
 }
@@ -798,9 +809,6 @@ function stringValue(value: unknown) {
   return typeof value === "string" && value ? value : undefined;
 }
 
-function ticketLabel(status: string) {
-  return { ANSWERED: "answered", CUSTOMER_REPLY: "customer-reply", WAITING_ON_CLIENT: "answered", WAITING_ON_STAFF: "customer-reply" }[status] ?? status.toLowerCase();
-}
 
 function shortDateLabel(value?: string | null, locale: Locale = "de", timezone?: string) {
   return formatDate(value, locale, { day: "2-digit", month: "2-digit", year: "2-digit", ...(timezone ? { timeZone: timezone } : {}) });

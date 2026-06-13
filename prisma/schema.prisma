@@ -124,20 +124,10 @@ enum CouponType {
   PERCENTAGE
 }
 
-enum TicketDepartment {
-  SALES
-  SUPPORT
-  ABUSE
-}
-
 enum TicketStatus {
-  NEW
   OPEN
-  WAITING_ON_CLIENT
-  WAITING_ON_STAFF
   ANSWERED
   CUSTOMER_REPLY
-  RESOLVED
   CLOSED
 }
 
@@ -197,6 +187,8 @@ model User {
   vatId           String?
   balanceCents    Int              @default(0)
   segment         String           @default("standard")
+  avatarUrl       String?
+  isGuest         Boolean          @default(false)
   totpSecret      String?
   totpEnabled     Boolean          @default(false)
   createdAt       DateTime         @default(now())
@@ -215,6 +207,7 @@ model User {
   assignedTickets Ticket[]         @relation("TicketAssignee")
   ticketReplies   TicketReply[]
   internalNotes   TicketInternalNote[]
+  departmentMemberships DepartmentMember[]
   knowledgebaseArticles KnowledgebaseArticle[]
   contents        Content[]
   announcements   Announcement[]
@@ -582,6 +575,7 @@ model Invoice {
   order           Order?
   items           InvoiceItem[]
   transactions    Transaction[]
+  ticketMessages  TicketReply[]
 }
 
 model InvoiceItem {
@@ -794,14 +788,42 @@ model ServerInstance {
   service     Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
 
+model Department {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String
+  email         String?
+  color         String?
+  active        Boolean            @default(true)
+  isDefault     Boolean            @default(false)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  members       DepartmentMember[]
+  tickets       Ticket[]
+  cannedReplies CannedReply[]
+}
+
+model DepartmentMember {
+  id           String     @id @default(cuid())
+  departmentId String
+  userId       String
+  createdAt    DateTime   @default(now())
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, userId])
+  @@index([userId])
+}
+
 model Ticket {
   id            String             @id @default(cuid())
   publicId      String             @unique
   userId        String
   serviceId     String?
   assigneeId    String?
-  department    TicketDepartment
-  status        TicketStatus       @default(NEW)
+  departmentId  String
+  status        TicketStatus       @default(OPEN)
   priority      TicketPriority     @default(NORMAL)
   subject       String
   paid          Boolean            @default(false)
@@ -809,10 +831,13 @@ model Ticket {
   updatedAt     DateTime           @updatedAt
   user          User               @relation("TicketOwner", fields: [userId], references: [id], onDelete: Cascade)
   assignee      User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  department    Department         @relation(fields: [departmentId], references: [id])
   service       Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   replies       TicketReply[]
   internalNotes TicketInternalNote[]
   attachments   TicketAttachment[]
+
+  @@index([departmentId])
 }
 
 model TicketReply {
@@ -821,10 +846,15 @@ model TicketReply {
   userId    String
   body      String   @db.Text
   internal  Boolean  @default(false)
+  system    Boolean  @default(false)
+  invoiceId String?
   createdAt DateTime @default(now())
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   attachments TicketAttachment[]
+
+  @@index([invoiceId])
 }
 
 model TicketInternalNote {
@@ -854,12 +884,15 @@ model TicketAttachment {
 }
 
 model CannedReply {
-  id         String           @id @default(cuid())
-  department TicketDepartment
-  title      String
-  body       String           @db.Text
-  active     Boolean          @default(true)
-  createdAt  DateTime         @default(now())
+  id           String     @id @default(cuid())
+  departmentId String
+  title        String
+  body         String     @db.Text
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@index([departmentId])
 }
 
 model KnowledgebaseArticle {

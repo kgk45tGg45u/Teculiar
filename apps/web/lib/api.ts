@@ -215,27 +215,78 @@ export type ApiClient = {
   vatId?: string | null;
 };
 
+export type ApiTicketUser = {
+  id?: string;
+  email?: string;
+  name?: string;
+  avatarUrl?: string | null;
+  isGuest?: boolean;
+} | null;
+
+export type ApiTicketInvoice = {
+  id: string;
+  invoiceNumber?: string;
+  tempInvoiceNumber?: string | null;
+  finalInvoiceNumber?: string | null;
+  status: string;
+  totalCents: number;
+  currency: string;
+  dueAt?: string;
+} | null;
+
+export type ApiDepartmentRef = { id: string; slug: string; name: string; color?: string | null } | null;
+
+export type ApiTicketReply = {
+  attachments?: ApiTicketAttachment[];
+  body: string;
+  createdAt: string;
+  id: string;
+  internal?: boolean;
+  system?: boolean;
+  invoiceId?: string | null;
+  invoice?: ApiTicketInvoice;
+  user?: ApiTicketUser;
+  userId?: string;
+};
+
 export type ApiTicket = {
   id: string;
   publicId?: string;
+  userId?: string;
   createdAt?: string;
-  department: string;
+  department?: ApiDepartmentRef;
+  departmentId?: string;
   priority?: string;
   subject: string;
   status: string;
   updatedAt: string;
-  user?: { email?: string; name?: string } | null;
+  user?: ApiTicketUser;
+  assignee?: ApiTicketUser;
   service?: { id?: string; product?: { name: string } } | null;
-  replies?: Array<{
-    attachments?: ApiTicketAttachment[];
-    body: string;
-    createdAt: string;
-    id: string;
-    internal?: boolean;
-    user?: { email?: string; name?: string } | null;
-    userId?: string;
-  }>;
+  replies?: ApiTicketReply[];
   attachments?: ApiTicketAttachment[];
+};
+
+export type ApiDepartment = {
+  id: string;
+  slug: string;
+  name: string;
+  email?: string | null;
+  color?: string | null;
+  active: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+  members?: Array<{ id: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>;
+};
+
+export type ApiAdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  createdAt?: string;
+  userRoles?: Array<{ role: { slug: string; name: string } }>;
+  departmentMemberships?: Array<{ department: { id: string; name: string; slug: string; color?: string | null } }>;
 };
 
 export type ApiTicketAttachment = {
