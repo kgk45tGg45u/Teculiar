@@ -11,6 +11,7 @@ const STATIC_PATHS = [
   "/webhosting",
   "/virtual-servers",
   "/vps",
+  "/reseller",
   "/webdesign",
   "/it-losungen",
   "/blog",

@@ -65,7 +65,6 @@ test("invoice HTML is protected-route ready, formal, escaped, and snapshot based
   const document = renderInvoiceDocument(invoice);
 
   assert.match(document.html, /<!doctype html>/);
-  assert.match(document.html, /Kundenrechnung/);
   assert.match(document.html, /Rechnung 100001/);
   assert.match(document.html, /Snapshot Host GmbH/);
   assert.match(document.html, /Altstrasse 1/);
@@ -78,6 +77,23 @@ test("invoice HTML is protected-route ready, formal, escaped, and snapshot based
   assert.match(document.html, /Kleinunternehmerregelung/);
   assert.doesNotMatch(document.html, /<script>/);
   assert.match(document.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
+test("invoice uses the admin logo, a window-envelope address and a rounded black-and-white table", () => {
+  const plain = renderInvoiceDocument(invoice);
+  // Without a configured logo the masthead falls back to the seller company name.
+  assert.match(plain.html, /<div class="brand">Snapshot Host GmbH<\/div>/);
+
+  const branded = renderInvoiceDocument(invoice, { logoUrl: "/uploads/site-logo-1.svg" });
+  assert.match(branded.html, /<img class="brandLogo" src="\/uploads\/site-logo-1\.svg"/);
+
+  // Recipient address is pinned to the DIN 5008 Form B window position (Fensterumschlag).
+  assert.match(plain.html, /class="addressZone"/);
+  assert.match(plain.html, /\.addressZone \{ position: absolute; top: 45mm;/);
+  // Rounded, fill-free items table prints cleanly in black & white.
+  assert.match(plain.html, /<table class="items">/);
+  assert.match(plain.html, /border-radius: 11px/);
+  assert.doesNotMatch(plain.html, /background: #f3f6f9/);
 });
 
 test("invoice PDF renderer consumes invoice HTML and returns a PDF buffer", async () => {
@@ -98,8 +114,8 @@ test("billing controller exposes protected HTML before PDF download", async () =
   assert.match(controller, /@Get\("invoices\/:id\/html"\)/);
   assert.match(controller, /this\.billing\.invoiceHtml\(id, request\.user\)/);
   assert.match(service, /invoiceHtml\(id: string, user\?: \{ roles\?: string\[\]; sub: string \}\)/);
-  assert.match(service, /renderInvoiceDocument\(invoice\)\.html/);
-  assert.match(service, /renderInvoicePdfFromHtml\(html\)/);
+  assert.match(service, /renderInvoiceDocument\(invoice, \{ logoUrl: url \}\)\.html/);
+  assert.match(service, /renderInvoicePdfFromHtml\(html, image\)/);
 });
 
 test("users have stored customer numbers selected for profiles and invoices", async () => {

@@ -10,7 +10,6 @@ import {
   serviceUnitPriceCents,
   type ApiClient,
   type ApiEmailAdminSettings,
-  type ApiEmailLog,
   type ApiInvoice,
   type ApiKnowledgebaseArticle,
   type ApiDomainPrice,
@@ -70,7 +69,7 @@ type AdminView =
 
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
-export async function AdminDashboard({ emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
+export async function AdminDashboard({ blogEditId, emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { blogEditId?: string; emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
   const locale = await requestLocale();
   const copy = dictionary[locale].admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
@@ -160,7 +159,7 @@ export async function AdminDashboard({ emailSection = "emails", preselectedClien
         {view === "tickets-departments" ? <AdminDepartmentsPanel /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
         {view === "blog" ? <BlogListPanel /> : null}
-        {view === "blog-new" ? <BlogNewPanel /> : null}
+        {view === "blog-new" ? <BlogNewPanel editId={blogEditId} /> : null}
         {view === "blog-categories" ? <BlogCategoriesPanel /> : null}
         {view === "blog-ai-content" ? <BlogAiContentPanel /> : null}
         {view === "blog-ai-settings" ? <BlogAiSettingsPanel /> : null}
@@ -282,7 +281,6 @@ function EmailsPanel({ section, settings, timezone }: { section: EmailAdminSecti
           <span className="eyebrow">Messaging</span>
           <h2>{title}</h2>
         </div>
-        <StatusPill label={emailLogSummary(settings.logs)} tone={settings.logs.some((l) => l.status === "FAILED") ? "danger" : settings.logs.length ? "good" : "neutral"} />
       </div>
       <EmailSettingsForm initial={settings} section={section} timezone={timezone} />
     </section>
@@ -304,17 +302,17 @@ function BlogListPanel() {
   );
 }
 
-function BlogNewPanel() {
+function BlogNewPanel({ editId }: { editId?: string }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
           <span className="eyebrow">CMS</span>
-          <h2>New Blog Post</h2>
+          <h2>{editId ? "Edit Blog Post" : "New Blog Post"}</h2>
         </div>
         <Button href="/admin/blog" variant="secondary">All Posts</Button>
       </div>
-      <BlogPostForm />
+      <BlogPostForm editId={editId} />
     </section>
   );
 }
@@ -787,18 +785,6 @@ function emptyEmailSettings(): ApiEmailAdminSettings {
     templateHtml: "",
     testVariables: {}
   };
-}
-
-function emailLogSummary(logs: ApiEmailLog[]) {
-  if (!logs.length) return "0 email logs";
-  const sent = logs.filter((l) => l.status === "SENT" && l.payload?.smtpDelivery?.mode !== "local-outbox").length;
-  const failed = logs.filter((l) => l.status === "FAILED").length;
-  const queued = logs.filter((l) => l.status === "SENT" && l.payload?.smtpDelivery?.mode === "local-outbox").length;
-  const parts: string[] = [];
-  if (sent) parts.push(`${sent} sent`);
-  if (failed) parts.push(`${failed} failed`);
-  if (queued) parts.push(`${queued} queued (SMTP off)`);
-  return parts.length ? parts.join(", ") : `${logs.length} email logs`;
 }
 
 function serviceKindLabel(type: string) {

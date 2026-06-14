@@ -305,7 +305,6 @@ export function CheckoutForm({
       checkoutOrderId = checkoutResponse.order.id;
       notify.success(copy.orderCreated);
       setState({ status: "loading", message: copy.paymentRunning });
-      notify.info(copy.paymentRunning);
       let paymentResponse: { invoice?: { status?: string }; paymentRedirectUrl?: string };
       try {
         paymentResponse = await postJson<{ invoice?: { status?: string }; paymentRedirectUrl?: string }>(`/orders/${checkoutOrderId}/pay`, {

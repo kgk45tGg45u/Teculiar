@@ -351,7 +351,7 @@ export type ApiEmailLayoutBlock = {
   rows?: Array<{ cells?: string[]; label?: string; value?: string }>;
   title?: string;
   tone?: "danger" | "default" | "success" | "warning";
-  type: "button" | "divider" | "invoiceTable" | "keyValueTable" | "notice" | "text";
+  type: "button" | "divider" | "invoiceTable" | "keyValueTable" | "link" | "notice" | "text";
 };
 
 export type ApiEmailAdminSettings = {
@@ -367,7 +367,7 @@ export type ApiEmailAdminSettings = {
     trigger: string;
   }>;
   logs: ApiEmailLog[];
-  placeholders: Array<{ description: string; key: string }>;
+  placeholders: Array<{ description: string; group?: string; key: string }>;
   smtp: {
     adminEmails?: string[];
     enabled?: boolean;
@@ -619,6 +619,57 @@ export function authHeaders(scope: AuthScope = currentScope()): Record<string, s
 
 export function authToken(scope: AuthScope = currentScope()) {
   return browserToken(scope);
+}
+
+// The access token lives ~15 min. Long-lived admin pages (e.g. the departments panel) regularly
+// outlast it, so a write that fires after the token expired used to fail with "Invalid access
+// token". `authFetch` transparently refreshes the token once on a 401 and retries the request.
+export async function refreshAccessToken(scope: AuthScope = currentScope()): Promise<boolean> {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const names = authCookieNames(scope);
+  const refreshToken =
+    window.localStorage.getItem(names.refresh) ??
+    window.sessionStorage.getItem(names.refresh) ??
+    readCookie(names.refresh);
+  if (!refreshToken) {
+    return false;
+  }
+  // Remember whether the session was "remembered" (localStorage) so the refreshed tokens land in
+  // the same storage rather than silently downgrading to session-only.
+  const remember = window.localStorage.getItem(names.auth) !== null || window.localStorage.getItem(names.refresh) !== null;
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      body: JSON.stringify({ refreshToken }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const payload = (await response.json()) as AuthPayload;
+    if (!payload?.accessToken || !payload?.refreshToken || !payload?.user?.roles) {
+      return false;
+    }
+    storeAuth(payload, scope, remember);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function authFetch(input: string, init: RequestInit = {}, scope: AuthScope = currentScope()): Promise<Response> {
+  const build = (): RequestInit => ({
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), ...authHeaders(scope) }
+  });
+  const response = await fetch(input, build());
+  if (response.status !== 401) {
+    return response;
+  }
+  const refreshed = await refreshAccessToken(scope);
+  return refreshed ? fetch(input, build()) : response;
 }
 
 export function storeAuth(payload: AuthPayload, scope: AuthScope = "client", remember = true) {

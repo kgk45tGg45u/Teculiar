@@ -35,14 +35,14 @@ export const EMAIL_EVENTS = [
     subject: "Domain Information",
     trigger: "when a domain becomes marked as active",
     defaultRecipients: ["admin", "client"],
-    body: "<p>Hello {{customer_name}},</p><p>Your domain {{domain}} is now {{domain_status}}. Name servers: {{nameservers}}. Manage it here: <a href=\"{{domain_link}}\">{{domain_link}}</a></p>"
+    body: "<p>Hello {{customer_name}},</p><p>Your domain {{domain}} is now {{resellbiz_domain_status}}. Name servers: {{resellbiz_nameservers}}. Manage it here: <a href=\"{{domain_link}}\">{{domain_link}}</a></p>"
   },
   {
     key: "hosting_account_information",
     subject: "Hosting Account Information",
     trigger: "when a hosting account becomes marked as active",
     defaultRecipients: ["admin", "client"],
-    body: "<p>Hello {{customer_name}},</p><p>Your hosting service {{service}} is active. Domain: {{domain}}. Control panel: {{control_panel_url}} (username {{control_panel_username}}, password {{control_panel_password}}). Manage it here: <a href=\"{{service_link}}\">{{service_link}}</a></p>"
+    body: "<p>Hello {{customer_name}},</p><p>Your hosting service {{service}} is active. Domain: {{domain}}. Control panel: {{virtualmin_control_panel_url}} (username {{virtualmin_control_panel_username}}, password {{virtualmin_control_panel_password}}). Manage it here: <a href=\"{{service_link}}\">{{service_link}}</a></p>"
   },
   {
     key: "hosting_account_suspended",

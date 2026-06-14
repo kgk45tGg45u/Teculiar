@@ -5,7 +5,7 @@ import tls from "node:tls";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, type EmailRecipientType } from "./email-events";
 import { EMAIL_LAYOUT_BLOCK_LIBRARY, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailLayoutBlock } from "./email-layouts";
-import { EMAIL_PLACEHOLDERS } from "./email-placeholders";
+import { emailPlaceholdersForModules } from "./email-placeholders";
 
 type EmailUser = {
   email?: string | null;
@@ -52,14 +52,15 @@ export class EmailService {
   constructor(private readonly prisma: PrismaService) {}
 
   async adminSettings() {
-    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs] = await Promise.all([
+    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, activeModules] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.settingJson<Record<string, unknown>>("emailTestVariables", defaultTestVariables()),
       Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, "de"))),
-      this.listLogs(100)
+      this.listLogs(100),
+      this.activeModules()
     ]);
 
     return {
@@ -73,11 +74,34 @@ export class EmailService {
       })),
       blockLibrary: EMAIL_LAYOUT_BLOCK_LIBRARY,
       logs,
-      placeholders: EMAIL_PLACEHOLDERS,
+      // Only show shortcodes contributed by modules that are currently active.
+      placeholders: emailPlaceholdersForModules(activeModules),
       smtp: publicSmtp(smtp),
       templateHtml,
-      testVariables
+      // Merge defaults under any saved overrides so newly added placeholders still preview.
+      testVariables: { ...defaultTestVariables(), ...testVariables }
     };
+  }
+
+  // Which provisioning modules are active. Modules default to active when no setting row
+  // exists yet (matching the modules admin page defaults).
+  private async activeModules(): Promise<string[]> {
+    const rows = await this.prisma.systemSetting.findMany({
+      where: { key: { in: ["module.virtualmin.active", "module.resellbiz.active"] } }
+    });
+    const byKey = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+    const isActive = (key: string) => {
+      const value = byKey[key];
+      return value === undefined || (value !== 0 && value !== false && value !== "0");
+    };
+    const modules: string[] = [];
+    if (isActive("module.virtualmin.active")) {
+      modules.push("virtualmin");
+    }
+    if (isActive("module.resellbiz.active")) {
+      modules.push("resellbiz");
+    }
+    return modules;
   }
 
   async updateSettings(input: {
@@ -583,12 +607,21 @@ function defaultTestVariables() {
     invoice_total_amount: "29.00 EUR",
     order_number: "123456",
     password_reset_link: `${baseUrl}/reset-password?token=test`,
+    payment_gateway: "PayPal",
     service: "Starter Hosting",
     ticket_content: "My website does not load.",
     ticket_id: "ABC12345",
     ticket_reply: "We checked the service and answered your ticket.",
-    ticket_status: "OPEN",
-    ticket_subject: "Website down"
+    ticket_status: "Open",
+    ticket_subject: "Website down",
+    virtualmin_control_panel_password: "S3cre7-pass",
+    virtualmin_control_panel_url: "https://server.dezhost.com:10000",
+    virtualmin_control_panel_username: "client-user",
+    virtualmin_imap_port: "993",
+    virtualmin_mail_server: "server.dezhost.com",
+    virtualmin_smtp_port: "587",
+    resellbiz_domain_status: "Active",
+    resellbiz_nameservers: "ns1.dezhost.com, ns2.dezhost.com"
   };
 }
 

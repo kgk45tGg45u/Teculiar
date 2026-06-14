@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Plus, Send, Trash2, UploadCloud } from "lucide-react";
-import { API_BASE_URL, authHeaders, type ApiAdminUser, type ApiDepartment } from "../../lib/api";
+import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "../../lib/api";
 import { Button } from "../ui/button";
 import { notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
@@ -17,9 +17,9 @@ export function AdminDepartmentsPanel() {
 
   async function load() {
     const [deps, adminList, route] = await Promise.all([
-      fetch(`${API_BASE_URL}/admin/dev/departments`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
-      fetch(`${API_BASE_URL}/admin/dev/admins`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
-      fetch(`${API_BASE_URL}/admin/dev/departments/routing`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
+      authFetch(`${API_BASE_URL}/admin/dev/departments`, {}, "admin").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      authFetch(`${API_BASE_URL}/admin/dev/admins`, {}, "admin").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      authFetch(`${API_BASE_URL}/admin/dev/departments/routing`, {}, "admin").then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
     ]);
     const routeConfig = (route ?? {}) as { contactFormDepartmentId?: string | null; inquiryFormDepartmentId?: string | null };
     setDepartments(Array.isArray(deps) ? deps : []);
@@ -30,57 +30,57 @@ export function AdminDepartmentsPanel() {
   useEffect(() => { void load(); }, []);
 
   async function createDepartment(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments`, {
       body: JSON.stringify({
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? "") || undefined,
         color: String(formData.get("color") ?? "") || undefined,
         isDefault: formData.get("isDefault") === "on"
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
-    });
+    }, "admin");
     setMessage(await notifyResponse(response, "Department created.", "Could not create department."));
     if (response.ok) await load();
   }
 
   async function updateDepartment(id: string, patch: Record<string, unknown>) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments/${id}`, {
       body: JSON.stringify(patch),
-      headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
-    });
+    }, "admin");
     if (response.ok) await load();
     else setMessage(await notifyResponse(response, "", "Update failed."));
   }
 
   async function removeDepartment(id: string) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments/${id}`, { headers: authHeaders("admin"), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments/${id}`, { method: "DELETE" }, "admin");
     setMessage(await notifyResponse(response, "Department deleted.", "Could not delete department."));
     if (response.ok) await load();
   }
 
   async function addMember(departmentId: string, userId: string) {
     if (!userId) return;
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments/${departmentId}/members`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments/${departmentId}/members`, {
       body: JSON.stringify({ userId }),
-      headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
-    });
+    }, "admin");
     if (response.ok) await load();
   }
 
   async function removeMember(departmentId: string, userId: string) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments/${departmentId}/members/${userId}`, { headers: authHeaders("admin"), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments/${departmentId}/members/${userId}`, { method: "DELETE" }, "admin");
     if (response.ok) await load();
   }
 
   async function saveRouting() {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/departments/routing`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/departments/routing`, {
       body: JSON.stringify(routing),
-      headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+      headers: { "Content-Type": "application/json" },
       method: "PUT"
-    });
+    }, "admin");
     setMessage(await notifyResponse(response, "Form routing saved.", "Could not save routing."));
   }
 
@@ -183,7 +183,7 @@ function StaffAvatarRow({ admin, onChange }: { admin: ApiAdminUser; onChange: ()
     setBusy(true);
     const form = new FormData();
     form.append("files", file);
-    await fetch(`${API_BASE_URL}/admin/dev/admins/${admin.id}/avatar`, { body: form, headers: authHeaders("admin"), method: "POST" }).catch(() => undefined);
+    await authFetch(`${API_BASE_URL}/admin/dev/admins/${admin.id}/avatar`, { body: form, method: "POST" }, "admin").catch(() => undefined);
     setBusy(false);
     onChange();
   }
@@ -215,8 +215,8 @@ export function AdminNewTicketPanel() {
 
   useEffect(() => {
     void Promise.all([
-      fetch(`${API_BASE_URL}/users`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
-      fetch(`${API_BASE_URL}/admin/dev/departments`, { headers: authHeaders("admin") }).then((r) => (r.ok ? r.json() : [])).catch(() => [])
+      authFetch(`${API_BASE_URL}/users`, {}, "admin").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      authFetch(`${API_BASE_URL}/admin/dev/departments`, {}, "admin").then((r) => (r.ok ? r.json() : [])).catch(() => [])
     ]).then(([clientList, deps]) => {
       setClients(Array.isArray(clientList) ? clientList : []);
       setDepartments((Array.isArray(deps) ? deps : []).filter((d: ApiDepartment) => d.active));
@@ -236,11 +236,11 @@ export function AdminNewTicketPanel() {
       payload.name = String(formData.get("name") ?? "");
       payload.email = String(formData.get("email") ?? "");
     }
-    const response = await fetch(`${API_BASE_URL}/admin/dev/tickets`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/tickets`, {
       body: JSON.stringify(payload),
-      headers: { "Content-Type": "application/json", ...authHeaders("admin") },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
-    });
+    }, "admin");
     const ticket = await response.clone().json().catch(() => undefined) as { id?: string } | undefined;
     if (response.ok && ticket?.id) {
       window.location.assign(`/admin/tickets/${ticket.id}`);

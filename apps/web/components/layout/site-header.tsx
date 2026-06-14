@@ -34,7 +34,8 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
 
   const cloudChildren = [
     { href: `${base}/webhosting`, label: copy.nav.hosting },
-    { href: `${base}/virtual-servers`, label: copy.nav.virtualServers }
+    { href: `${base}/virtual-servers`, label: copy.nav.virtualServers },
+    { href: `${base}/reseller`, label: copy.nav.reseller }
   ];
 
   return (

@@ -23,6 +23,22 @@ type EmailSettingsPatch = {
 };
 
 type EmailEvent = ApiEmailAdminSettings["events"][number];
+type EmailPlaceholder = ApiEmailAdminSettings["placeholders"][number];
+
+// Each shortcode group gets its own tag colour so admins can tell at a glance what a
+// placeholder relates to (tickets, invoices, the Virtualmin module, …).
+const PLACEHOLDER_GROUP_CLASS: Record<string, string | undefined> = {
+  general: styles.tagGeneral,
+  customer: styles.tagCustomer,
+  invoice: styles.tagInvoice,
+  payment: styles.tagPayment,
+  order: styles.tagOrder,
+  service: styles.tagService,
+  domain: styles.tagDomain,
+  ticket: styles.tagTicket,
+  virtualmin: styles.tagVirtualmin,
+  resellbiz: styles.tagResellbiz
+};
 
 export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template"; timezone?: string }) {
   const [settings, setSettings] = useState(initial);
@@ -61,8 +77,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
   }
 
   return (
-    <div className={styles.form}>
-      <EmailSubnav current={section} />
+    <div className={`${styles.form} ${styles.emailCompact}`}>
       {section === "settings" ? <EmailSmtpSettingsSection settings={settings} save={save} sendTest={sendTest} /> : null}
       {section === "template" ? <EmailTemplateEditor settings={settings} save={save} /> : null}
       {section === "logs" ? <EmailLogsTable logs={settings.logs} timezone={timezone} /> : null}
@@ -70,16 +85,6 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
       {message ? <p>{message}</p> : null}
     </div>
   );
-}
-
-function EmailSubnav({ current }: { current: "emails" | "logs" | "settings" | "template" }) {
-  const links = [
-    { href: "/admin/emails/settings", key: "settings", label: "Email Settings" },
-    { href: "/admin/emails/template", key: "template", label: "Email Template" },
-    { href: "/admin/emails/logs", key: "logs", label: "Email Logs" },
-    { href: "/admin/emails", key: "emails", label: "Emails" }
-  ];
-  return <nav className={styles.emailSubnav}>{links.map((link) => <a aria-current={current === link.key ? "page" : undefined} href={link.href} key={link.key}>{link.label}</a>)}</nav>;
 }
 
 function EmailSmtpSettingsSection({ save, sendTest, settings }: {
@@ -108,17 +113,14 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
 
   async function submit(formData: FormData) {
     setTestResult(null);
-    await save({
-      smtp: collectSmtp(formData),
-      testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}"))
-    });
+    await save({ smtp: collectSmtp(formData) });
   }
 
   async function saveAndTest(formData: FormData) {
     setTestResult(null);
     setTesting(true);
     const smtp = collectSmtp(formData);
-    const saved = await save({ smtp, testVariables: parseJsonObject(String(formData.get("testVariables") ?? "{}")) });
+    const saved = await save({ smtp });
     if (!saved) {
       setTestResult({ ok: false, message: "Settings could not be saved. Check the error above." });
       setTesting(false);
@@ -154,7 +156,6 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
         <label>Password<input defaultValue={settings.smtp.password ?? ""} name="password" type="password" /></label>
         <label><span><input defaultChecked={Boolean(settings.smtp.secure)} name="secure" type="checkbox" /> TLS/SSL</span></label>
       </fieldset>
-      <label>Test variables JSON<textarea defaultValue={JSON.stringify(settings.testVariables, null, 2)} name="testVariables" rows={10} /></label>
       {testResult ? (
         <p style={{ color: testResult.ok ? "var(--success, green)" : "var(--danger, red)", fontWeight: 600 }}>
           {testResult.ok ? "✓" : "✗"} {testResult.message}
@@ -176,13 +177,12 @@ function EmailTemplateEditor({ save, settings }: {
   settings: ApiEmailAdminSettings;
 }) {
   const [templateHtml, setTemplateHtml] = useState(settings.templateHtml);
-  const [variables, setVariables] = useState(JSON.stringify(settings.testVariables, null, 2));
   const [previewKey, setPreviewKey] = useState(settings.events[0]?.key ?? "");
   const sampleEvent = settings.events.find((event) => event.key === previewKey) ?? settings.events[0];
-  const previewHtml = renderEmailPreview(templateHtml, sampleEvent?.layoutBlocks ?? [], sampleEvent?.subject ?? "Email Preview", parseJsonObject(variables));
+  const previewHtml = renderEmailPreview(templateHtml, sampleEvent?.layoutBlocks ?? [], sampleEvent?.subject ?? "Email Preview", settings.testVariables);
 
   async function submit() {
-    await save({ templateHtml, testVariables: parseJsonObject(variables) });
+    await save({ templateHtml });
   }
 
   return (
@@ -190,7 +190,6 @@ function EmailTemplateEditor({ save, settings }: {
       <form action={submit} className={styles.form}>
         <label>Template HTML<textarea value={templateHtml} onChange={(event) => setTemplateHtml(event.target.value)} name="templateHtml" rows={24} /></label>
         <label>Preview email<select value={previewKey} onChange={(event) => setPreviewKey(event.target.value)}>{settings.events.map((event) => <option key={event.key} value={event.key}>{event.subject}</option>)}</select></label>
-        <label>Preview variables JSON<textarea value={variables} onChange={(event) => setVariables(event.target.value)} name="testVariables" rows={8} /></label>
         <PlaceholderTray placeholders={settings.placeholders} />
         <Button icon={Save} type="submit">Save Template</Button>
       </form>
@@ -206,9 +205,8 @@ function EmailEventsEditor({ save, sendTest, settings }: {
 }) {
   const [events, setEvents] = useState(settings.events);
   const [selectedKey, setSelectedKey] = useState(settings.events[0]?.key ?? "");
-  const [variables, setVariables] = useState(JSON.stringify(settings.testVariables, null, 2));
   const selected = events.find((event) => event.key === selectedKey) ?? events[0];
-  const previewHtml = selected ? renderEmailPreview(settings.templateHtml, selected.layoutBlocks, selected.subject, parseJsonObject(variables)) : "";
+  const previewHtml = selected ? renderEmailPreview(settings.templateHtml, selected.layoutBlocks, selected.subject, settings.testVariables) : "";
 
   function updateSelected(patch: Partial<EmailEvent>) {
     if (!selected) {
@@ -231,8 +229,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
         layoutBlocks: event.layoutBlocks,
         recipients: event.recipients,
         subject: event.subject
-      })),
-      testVariables: parseJsonObject(variables)
+      }))
     });
   }
 
@@ -263,7 +260,6 @@ function EmailEventsEditor({ save, sendTest, settings }: {
         <EmailBlockPalette blockLibrary={settings.blockLibrary} onAdd={(type) => updateBlocks([...selected.layoutBlocks, createBlock(type)])} />
         <EmailBlockList blocks={selected.layoutBlocks} onChange={updateBlocks} />
         <PlaceholderTray placeholders={settings.placeholders} />
-        <label>Preview variables JSON<textarea value={variables} onChange={(event) => setVariables(event.target.value)} rows={8} /></label>
         <div className={styles.inlineForm}>
           <Button icon={Save} type="submit">Save Emails</Button>
           <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest(selected.key)}>Send Test</Button>
@@ -289,7 +285,7 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
           onDragStart={(event) => event.dataTransfer.setData("application/email-block", block.type)}
           type="button"
         >
-          <Plus size={16} />
+          <Plus size={14} />
           <span>{block.label}</span>
         </button>
       ))}
@@ -297,53 +293,146 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
   );
 }
 
+// Drag-and-drop block list. Reordering removes the dragged block first and re-inserts it
+// relative to the hovered block based on the pointer position (top half = before, bottom
+// half = after), which avoids the off-by-one jumps the previous implementation had. Only the
+// grip handle is draggable so editing the fields never starts an accidental drag.
 function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; onChange: (blocks: ApiEmailLayoutBlock[]) => void }) {
-  function addAt(type: ApiEmailLayoutBlock["type"], index: number) {
-    const next = [...blocks];
-    next.splice(index, 0, createBlock(type));
-    onChange(next);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [overPos, setOverPos] = useState<"after" | "before">("before");
+
+  function clearDrag() {
+    setDragId(null);
+    setOverId(null);
   }
 
-  function dropAt(event: DragEvent<HTMLElement>, index: number) {
-    event.preventDefault();
-    const newType = event.dataTransfer.getData("application/email-block") as ApiEmailLayoutBlock["type"];
-    const moveId = event.dataTransfer.getData("application/email-block-id");
-    if (newType) {
-      addAt(newType, index);
+  function moveBlock(fromId: string, targetId: string | null, position: "after" | "before") {
+    if (fromId === targetId) {
       return;
     }
-    if (!moveId) {
-      return;
-    }
-    const currentIndex = blocks.findIndex((block) => block.id === moveId);
-    if (currentIndex < 0) {
-      return;
-    }
-    const next = [...blocks];
-    const [moved] = next.splice(currentIndex, 1);
+    const moved = blocks.find((block) => block.id === fromId);
     if (!moved) {
       return;
     }
-    next.splice(currentIndex < index ? index - 1 : index, 0, moved);
+    const without = blocks.filter((block) => block.id !== fromId);
+    const targetIndex = targetId ? without.findIndex((block) => block.id === targetId) : -1;
+    if (targetIndex < 0) {
+      without.push(moved);
+    } else {
+      without.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, moved);
+    }
+    onChange(without);
+  }
+
+  function insertNew(type: ApiEmailLayoutBlock["type"], targetId: string | null, position: "after" | "before") {
+    const next = [...blocks];
+    const targetIndex = targetId ? next.findIndex((block) => block.id === targetId) : -1;
+    const block = createBlock(type);
+    if (targetIndex < 0) {
+      next.push(block);
+    } else {
+      next.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, block);
+    }
     onChange(next);
   }
 
+  function positionFor(event: DragEvent<HTMLElement>): "after" | "before" {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientY - rect.top > rect.height / 2 ? "after" : "before";
+  }
+
+  // A drag carries a block operation when it sets either the "new block" type (palette) or a
+  // block id (reorder). Plain-text shortcode drops set neither — we must leave those alone so the
+  // browser performs its native text insertion into the targeted input/textarea.
+  function isBlockDrag(event: DragEvent<HTMLElement>) {
+    return event.dataTransfer.types.includes("application/email-block") || event.dataTransfer.types.includes("application/email-block-id");
+  }
+
+  function onSummaryDragOver(event: DragEvent<HTMLElement>, blockId: string) {
+    if (!isBlockDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    setOverId(blockId);
+    setOverPos(positionFor(event));
+  }
+
+  function onSummaryDrop(event: DragEvent<HTMLElement>, blockId: string) {
+    if (!isBlockDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    // Stop the drop from also bubbling to the list container handler, which would otherwise
+    // run with a stale `blocks` closure and clobber this reorder (e.g. move the block to the end).
+    event.stopPropagation();
+    const position = positionFor(event);
+    const newType = event.dataTransfer.getData("application/email-block");
+    const moveId = event.dataTransfer.getData("application/email-block-id");
+    if (newType) {
+      insertNew(newType as ApiEmailLayoutBlock["type"], blockId, position);
+    } else if (moveId) {
+      moveBlock(moveId, blockId, position);
+    }
+    clearDrag();
+  }
+
+  function onListDragOver(event: DragEvent<HTMLElement>) {
+    if (isBlockDrag(event)) {
+      event.preventDefault();
+    }
+  }
+
+  function onListDrop(event: DragEvent<HTMLElement>) {
+    if (!isBlockDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    const newType = event.dataTransfer.getData("application/email-block");
+    const moveId = event.dataTransfer.getData("application/email-block-id");
+    if (newType) {
+      insertNew(newType as ApiEmailLayoutBlock["type"], null, "after");
+    } else if (moveId) {
+      moveBlock(moveId, null, "after");
+    }
+    clearDrag();
+  }
+
   return (
-    <div className={styles.emailBlockList} onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropAt(event, blocks.length)}>
-      {blocks.map((block, index) => (
-        <details className={styles.emailBuilderBlock} draggable key={block.id} onDragStart={(event) => event.dataTransfer.setData("application/email-block-id", block.id)} open>
-          <summary onDragOver={(event) => event.preventDefault()} onDrop={(event) => dropAt(event, index)}>
-            <GripVertical size={16} />
+    <div className={styles.emailBlockList} onDragOver={onListDragOver} onDrop={onListDrop}>
+      {blocks.map((block) => (
+        <details
+          className={styles.emailBuilderBlock}
+          data-drop={overId === block.id && dragId ? overPos : undefined}
+          data-dragging={dragId === block.id ? "true" : undefined}
+          key={block.id}
+          open
+        >
+          <summary onDragOver={(event) => onSummaryDragOver(event, block.id)} onDrop={(event) => onSummaryDrop(event, block.id)}>
+            <span
+              aria-label="Drag to reorder"
+              className={styles.emailBlockGrip}
+              draggable
+              onDragEnd={clearDrag}
+              onDragStart={(event) => {
+                event.dataTransfer.setData("application/email-block-id", block.id);
+                event.dataTransfer.effectAllowed = "move";
+                setDragId(block.id);
+              }}
+            >
+              <GripVertical size={15} />
+            </span>
             <strong>{blockLabel(block.type)}</strong>
             <span>{block.title || block.content || block.type}</span>
             <button onClick={(event) => {
               event.preventDefault();
               onChange(blocks.filter((item) => item.id !== block.id));
-            }} type="button"><Trash2 size={16} /></button>
+            }} type="button"><Trash2 size={15} /></button>
           </summary>
           <EmailBlockFields block={block} onChange={(patch) => onChange(blocks.map((item) => item.id === block.id ? { ...item, ...patch } : item))} />
         </details>
       ))}
+      {blocks.length ? null : <p className={styles.emailBlockHint}>Add a block above, or drag one here.</p>}
     </div>
   );
 }
@@ -352,10 +441,10 @@ function EmailBlockFields({ block, onChange }: { block: ApiEmailLayoutBlock; onC
   if (block.type === "divider") {
     return <div className={styles.lineEditor} />;
   }
-  if (block.type === "button") {
+  if (block.type === "button" || block.type === "link") {
     return (
       <div className={styles.lineEditor}>
-        <label>Label<input value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} /></label>
+        <label>{block.type === "link" ? "Link text" : "Label"}<input value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} /></label>
         <label>URL<input value={block.href ?? ""} onChange={(event) => onChange({ href: event.target.value })} /></label>
       </div>
     );
@@ -385,14 +474,25 @@ function EmailBlockFields({ block, onChange }: { block: ApiEmailLayoutBlock; onC
   );
 }
 
-function PlaceholderTray({ placeholders }: { placeholders: ApiEmailAdminSettings["placeholders"] }) {
+function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] }) {
   return (
-    <div className={styles.inlineForm}>
-      {placeholders.map((placeholder) => (
-        <code draggable key={placeholder.key} onDragStart={(event) => event.dataTransfer.setData("text/plain", `{{${placeholder.key}}}`)} title={placeholder.description}>
-          {`{{${placeholder.key}}}`}
-        </code>
-      ))}
+    <div className={styles.placeholderTray}>
+      <span className={styles.placeholderHint}>Drag a shortcode into any text field, or click to copy.</span>
+      <div className={styles.placeholderTags}>
+        {placeholders.map((placeholder) => (
+          <button
+            className={`${styles.placeholderTag} ${PLACEHOLDER_GROUP_CLASS[placeholder.group ?? "general"] ?? ""}`}
+            draggable
+            key={placeholder.key}
+            onClick={() => { void navigator.clipboard?.writeText(`{{${placeholder.key}}}`).catch(() => undefined); }}
+            onDragStart={(event) => event.dataTransfer.setData("text/plain", `{{${placeholder.key}}}`)}
+            title={placeholder.description}
+            type="button"
+          >
+            {`{{${placeholder.key}}}`}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -441,6 +541,7 @@ const DEFAULT_BLOCK_LIBRARY: NonNullable<ApiEmailAdminSettings["blockLibrary"]> 
   { description: "", label: "Key/value table", type: "keyValueTable" },
   { description: "", label: "Invoice table", type: "invoiceTable" },
   { description: "", label: "Button", type: "button" },
+  { description: "", label: "Link", type: "link" },
   { description: "", label: "Notice", type: "notice" },
   { description: "", label: "Divider", type: "divider" }
 ];
@@ -455,6 +556,9 @@ function createBlock(type: ApiEmailLayoutBlock["type"]): ApiEmailLayoutBlock {
   }
   if (type === "button") {
     return { content: "Open", href: "{{invoice_link}}", id, type };
+  }
+  if (type === "link") {
+    return { content: "Open link", href: "{{invoice_link}}", id, type };
   }
   if (type === "notice") {
     return { content: "Important account information.", id, tone: "default", type };
@@ -485,6 +589,9 @@ function renderBlocks(blocks: ApiEmailLayoutBlock[], context: Record<string, str
     }
     if (block.type === "button") {
       return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:6px;background:#b11226;"><a href="${renderInline(block.href || "#", context)}" style="display:inline-block;padding:13px 18px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
+    }
+    if (block.type === "link") {
+      return `<div style="margin:0 0 18px;color:#172033;font-size:16px;line-height:1.65;"><a href="${renderInline(block.href || "#", context)}" style="color:#0b3d91;font-weight:600;text-decoration:underline;">${renderInline(block.content || block.href || "Link", context)}</a></div>`;
     }
     if (block.type === "invoiceTable") {
       return renderDataTable(block, context);
@@ -555,15 +662,6 @@ function splitComma(value: FormDataEntryValue | null) {
 
 function splitCommaText(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function parseJsonObject(value: string) {
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
-  } catch {
-    return {};
-  }
 }
 
 function escapeHtml(value: string) {

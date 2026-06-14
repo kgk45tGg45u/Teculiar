@@ -3,8 +3,12 @@ import { load } from "cheerio";
 import PDFDocument from "pdfkit";
 
 type InvoiceLike = Record<string, any>;
+type RenderOptions = { logoUrl?: string };
 
-export function renderInvoiceDocument(invoice: InvoiceLike) {
+const PT_PER_MM = 2.834645669;
+const mm = (value: number) => value * PT_PER_MM;
+
+export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptions = {}) {
   const seller = asRecord(invoice.sellerSnapshot);
   const buyer = asRecord(invoice.customerSnapshot);
   const buyerAddress = asRecord(buyer.address);
@@ -19,6 +23,15 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
   const paymentInstructions = stringValue(seller.paymentInstructions);
   const bankDetails = stringValue(seller.bankDetails);
   const showVat = numberValue(invoice.taxAmountCents) > 0;
+  const sellerCompany = stringValue(seller.companyName) ?? "Dezhost";
+  const logoUrl = stringValue(options.logoUrl);
+
+  const sellerContact = [
+    ...addressLines(seller),
+    seller.vatNumber ? `USt-IdNr. ${String(seller.vatNumber)}` : "",
+    seller.email ? String(seller.email) : "",
+    seller.phone ? String(seller.phone) : ""
+  ].filter((line): line is string => typeof line === "string" && line.trim().length > 0);
 
   const html = `<!doctype html>
 <html lang="de">
@@ -27,57 +40,79 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rechnung ${escapeHtml(number)}</title>
   <style>
-    :root { color: #111827; font-family: Arial, Helvetica, sans-serif; }
-    body { margin: 0; background: #f3f6f9; }
-    .page { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm; background: #fff; }
-    .top { display: grid; grid-template-columns: 1fr auto; gap: 18mm; align-items: start; border-bottom: 1px solid #d9e2ec; padding-bottom: 10mm; }
-    .brand { font-size: 21px; font-weight: 700; letter-spacing: 0; }
-    .sellerCompany { margin-top: 2mm; color: #111827; font-size: 12px; font-weight: 700; }
-    .seller, .meta, .footer { color: #4b5563; font-size: 11px; line-height: 1.55; }
-    .sender { margin: 13mm 0 5mm; color: #6b7280; font-size: 10px; text-decoration: underline; }
-    .address { min-height: 35mm; font-size: 13px; line-height: 1.55; }
-    .address span { display: block; }
-    h1 { margin: 0 0 7mm; font-size: 26px; letter-spacing: 0; }
-    .intro { display: grid; grid-template-columns: 1fr 62mm; gap: 14mm; margin-bottom: 8mm; }
-    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 7mm; }
-    .meta strong { color: #111827; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th { border-bottom: 1px solid #111827; padding: 3mm 2mm; text-align: left; }
-    td { border-bottom: 1px solid #e5e7eb; padding: 3mm 2mm; vertical-align: top; }
-    th.num, td.num { text-align: right; white-space: nowrap; }
-    .totals { display: grid; justify-content: end; gap: 2mm; margin: 7mm 0 8mm; font-size: 12px; }
-    .totals div { display: grid; grid-template-columns: 38mm 32mm; gap: 8mm; }
-    .total { border-top: 1px solid #111827; padding-top: 3mm; font-size: 15px; font-weight: 700; }
-    .note { margin-top: 6mm; border-top: 1px solid #d9e2ec; padding-top: 5mm; color: #374151; font-size: 11px; line-height: 1.55; }
-    .footer { margin-top: 12mm; border-top: 1px solid #d9e2ec; padding-top: 5mm; }
+    :root { color: #1a1a1a; font-family: Arial, Helvetica, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; min-height: 297mm; margin: 0 auto; padding: 0 20mm 18mm; background: #fff; }
+
+    /* Top region holds the masthead and the recipient address window. Fixed
+       92 mm tall so the invoice body always starts below the window — and the
+       address itself is pinned to the DIN 5008 (Form B) position so it lines up
+       with a German Fensterumschlag window envelope. */
+    .letterhead { position: relative; height: 92mm; }
+    .masthead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12mm; padding-top: 15mm; }
+    .brandLogo { max-height: 22mm; max-width: 72mm; object-fit: contain; }
+    .brand { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+    .sellerBlock { text-align: right; color: #555; font-size: 10px; line-height: 1.5; }
+    .sellerBlock strong { display: block; color: #1a1a1a; font-size: 11.5px; margin-bottom: 1mm; }
+
+    .addressZone { position: absolute; top: 45mm; left: 25mm; width: 80mm; }
+    .sender { color: #777; font-size: 8px; text-decoration: underline; margin-bottom: 2.5mm; }
+    .recipient { font-size: 12.5px; line-height: 1.55; }
+    .recipient strong { display: block; font-size: 13px; }
+    .recipient span { display: block; }
+
+    .docHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12mm; margin-bottom: 8mm; }
+    .docHead h1 { margin: 0 0 2.5mm; font-size: 22px; letter-spacing: -0.01em; }
+    .docHead .intro { margin: 0; max-width: 96mm; color: #666; font-size: 10.5px; line-height: 1.55; }
+    .meta { display: grid; grid-template-columns: auto auto; gap: 1.6mm 7mm; font-size: 10.5px; white-space: nowrap; }
+    .meta span { color: #666; }
+    .meta strong { color: #1a1a1a; text-align: right; }
+
+    /* Rounded, border-only table — no fills, so it prints cleanly in black & white. */
+    table.items { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10.5px; border: 1px solid #c9c9c9; border-radius: 11px; overflow: hidden; }
+    table.items thead th { text-align: left; padding: 3.4mm 3.4mm; font-size: 8.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #555; border-bottom: 1px solid #b8b8b8; }
+    table.items tbody td { padding: 2.8mm 3.4mm; border-bottom: 1px solid #ededed; vertical-align: top; }
+    table.items tbody tr:last-child td { border-bottom: none; }
+    table.items th.num, table.items td.num { text-align: right; white-space: nowrap; }
+    table.items td.desc { color: #1a1a1a; }
+
+    .totals { width: 76mm; margin: 7mm 0 8mm auto; }
+    .totals > div { display: flex; justify-content: space-between; gap: 8mm; padding: 1.5mm 0; font-size: 11px; color: #555; }
+    .totals > div strong { color: #1a1a1a; font-weight: 600; }
+    .totals > div:last-child { margin-top: 1.5mm; padding-top: 3mm; border-top: 1.6px solid #1a1a1a; font-size: 13.5px; font-weight: 800; color: #1a1a1a; }
+    .totals > div:last-child strong { font-weight: 800; }
+
+    .note { margin-top: 5mm; border: 1px solid #dcdcdc; border-radius: 11px; padding: 4mm 5mm; color: #444; font-size: 10px; line-height: 1.6; }
+    .footer { margin-top: 9mm; border-top: 1px solid #dcdcdc; padding-top: 4mm; color: #777; font-size: 9px; line-height: 1.55; }
   </style>
 </head>
 <body>
   <main class="page">
-    <header class="top">
-      <div>
-        <div class="brand">Kundenrechnung</div>
-        <div class="sellerCompany">${escapeHtml(stringValue(seller.companyName) ?? "Dezhost")}</div>
-        <div class="seller sellerAddress">${addressLines(seller).map(escapeHtml).join("<br />")}</div>
-      </div>
-      <div class="seller sellerContact">
-        ${seller.vatNumber ? `USt-IdNr. ${escapeHtml(String(seller.vatNumber))}<br />` : ""}
-        ${seller.email ? escapeHtml(String(seller.email)) : ""}${seller.phone ? `<br />${escapeHtml(String(seller.phone))}` : ""}
-      </div>
-    </header>
+    <div class="letterhead">
+      <header class="masthead">
+        ${logoUrl ? `<img class="brandLogo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(sellerCompany)}" />` : `<div class="brand">${escapeHtml(sellerCompany)}</div>`}
+        <div class="sellerBlock">
+          <strong>${escapeHtml(sellerCompany)}</strong>
+          ${sellerContact.map((line) => escapeHtml(line)).join("<br />")}
+        </div>
+      </header>
 
-    <div class="sender">${escapeHtml(senderLine(seller))}</div>
-    <section class="address">
-      <strong>${escapeHtml(stringValue(buyer.companyName) ?? stringValue(buyer.name) ?? "")}</strong><br />
-      ${buyer.companyName && buyer.name ? `<span>${escapeHtml(String(buyer.name))}</span>` : ""}
-      ${[buyerAddress.line1, `${stringValue(buyerAddress.postalCode) ?? ""} ${stringValue(buyerAddress.city) ?? ""}`.trim(), buyer.countryCode].filter(Boolean).map((line) => `<span>${escapeHtml(String(line))}</span>`).join("")}
-      ${buyer.vatId ? `<span>USt-IdNr. ${escapeHtml(String(buyer.vatId))}</span>` : ""}
-    </section>
+      <section class="addressZone">
+        <div class="sender">${escapeHtml(senderLine(seller))}</div>
+        <div class="recipient">
+          <strong>${escapeHtml(stringValue(buyer.companyName) ?? stringValue(buyer.name) ?? "")}</strong>
+          ${buyer.companyName && buyer.name ? `<span>${escapeHtml(String(buyer.name))}</span>` : ""}
+          ${[buyerAddress.line1, `${stringValue(buyerAddress.postalCode) ?? ""} ${stringValue(buyerAddress.city) ?? ""}`.trim(), buyer.countryCode].filter(Boolean).map((line) => `<span>${escapeHtml(String(line))}</span>`).join("")}
+          ${buyer.vatId ? `<span>USt-IdNr. ${escapeHtml(String(buyer.vatId))}</span>` : ""}
+        </div>
+      </section>
+    </div>
 
-    <section class="intro">
+    <section class="docHead">
       <div>
         <h1>Rechnung ${escapeHtml(number)}</h1>
-        <p>Vielen Dank fuer Ihren Auftrag. Wir berechnen die folgenden Leistungen gemaess Bestellung.</p>
+        <p class="intro">Vielen Dank für Ihren Auftrag. Wir berechnen die folgenden Leistungen gemäß Ihrer Bestellung.</p>
       </div>
       <div class="meta">
         <span>Rechnungsdatum</span><strong>${escapeHtml(issuedAt)}</strong>
@@ -87,7 +122,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
       </div>
     </section>
 
-    <table>
+    <table class="items">
       <thead>
         <tr><th>Pos.</th><th>Beschreibung</th><th>Zeitraum</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Gesamt</th></tr>
       </thead>
@@ -100,7 +135,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
       <div><span>Zwischensumme</span><strong>${escapeHtml(formatMoney(numberValue(invoice.subtotalCents ?? invoice.totalCents), invoice.currency))}</strong></div>
       ${numberValue(invoice.discountCents) > 0 ? `<div><span>Rabatt</span><strong>-${escapeHtml(formatMoney(numberValue(invoice.discountCents), invoice.currency))}</strong></div>` : ""}
       ${showVat ? `<div><span>Umsatzsteuer</span><strong>${escapeHtml(formatMoney(numberValue(invoice.taxAmountCents), invoice.currency))}</strong></div>` : ""}
-      <div class="total"><span>Rechnungsbetrag</span><strong>${escapeHtml(formatMoney(numberValue(invoice.totalCents), invoice.currency))}</strong></div>
+      <div><span>Rechnungsbetrag</span><strong>${escapeHtml(formatMoney(numberValue(invoice.totalCents), invoice.currency))}</strong></div>
     </section>
 
     ${taxReason ? `<section class="note">${escapeHtml(taxReason)}</section>` : ""}
@@ -113,7 +148,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike) {
   return { fileName: `invoice-${number}.html`, html };
 }
 
-export function renderInvoicePdfFromHtml(html: string) {
+export function renderInvoicePdfFromHtml(html: string, logoImage?: Buffer) {
   const content = pdfContentFromHtml(html);
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -129,7 +164,7 @@ export function renderInvoicePdfFromHtml(html: string) {
     document.on("data", (chunk: Buffer) => chunks.push(chunk));
     document.on("end", () => resolve(Buffer.concat(chunks)));
     document.on("error", reject);
-    drawInvoicePdf(document, content);
+    drawInvoicePdf(document, content, logoImage);
     document.end();
   });
 }
@@ -137,10 +172,10 @@ export function renderInvoicePdfFromHtml(html: string) {
 function invoiceRow(item: Record<string, any>, index: number, currency: unknown) {
   const start = item.servicePeriodStart ? dateLabel(item.servicePeriodStart) : "";
   const end = item.servicePeriodEnd ? dateLabel(item.servicePeriodEnd) : "";
-  const period = start || end ? [start, end].filter(Boolean).join(" - ") : cycleLabel(item.billingCycle);
+  const period = start || end ? [start, end].filter(Boolean).join(" – ") : cycleLabel(item.billingCycle);
   return `<tr>
     <td>${index + 1}</td>
-    <td>${escapeHtml(String(item.description ?? ""))}</td>
+    <td class="desc">${escapeHtml(String(item.description ?? ""))}</td>
     <td>${escapeHtml(period)}</td>
     <td class="num">${escapeHtml(String(item.quantity ?? 1))}</td>
     <td class="num">${escapeHtml(formatMoney(numberValue(item.unitAmountCents), currency))}</td>
@@ -156,7 +191,6 @@ type PdfContent = {
   notes: string[];
   recipient: string[];
   rows: string[][];
-  sellerAddress: string[];
   sellerCompany: string;
   sellerContact: string[];
   sender: string;
@@ -174,9 +208,7 @@ function pdfContentFromHtml(html: string): PdfContent {
     fragment.find("br").replaceWith("\n");
     return fragment.text().split("\n").map(clean).filter(Boolean);
   };
-  const lineText = (selector: string) => {
-    return elementLines($(selector).first());
-  };
+  const lineText = (selector: string) => elementLines($(selector).first());
   const values = (selector: string) => $(selector).toArray().map((element) => clean($(element).text())).filter(Boolean);
   const labels = values(".meta span");
   const metaValues = values(".meta strong");
@@ -184,116 +216,175 @@ function pdfContentFromHtml(html: string): PdfContent {
   return {
     brand: text(".brand"),
     footer: values(".footer div"),
-    intro: text(".intro p"),
+    intro: text(".intro"),
     meta: labels.map((label, index) => [label, metaValues[index] ?? ""]),
     notes: $(".note").toArray().flatMap((element) => elementLines(element)),
-    recipient: [text(".address strong"), ...values(".address span")].filter(Boolean),
-    rows: $("table tbody tr").toArray().map((row) => $(row).find("td").toArray().map((cell) => clean($(cell).text()))),
-    sellerAddress: lineText(".sellerAddress"),
-    sellerCompany: text(".sellerCompany"),
-    sellerContact: lineText(".sellerContact"),
+    recipient: [text(".recipient strong"), ...values(".recipient span")].filter(Boolean),
+    rows: $("table.items tbody tr").toArray().map((row) => $(row).find("td").toArray().map((cell) => clean($(cell).text()))),
+    sellerCompany: text(".sellerBlock strong"),
+    sellerContact: lineText(".sellerBlock").slice(1),
     sender: text(".sender"),
-    tableHeaders: values("table thead th"),
+    tableHeaders: values("table.items thead th"),
     title: text("h1"),
-    totals: $(".totals div").toArray().map((row) => {
+    totals: $(".totals > div").toArray().map((row) => {
       const parts = $(row).children().toArray().map((element) => clean($(element).text()));
       return [parts[0] ?? "", parts[1] ?? ""];
     })
   };
 }
 
-function drawInvoicePdf(document: PDFKit.PDFDocument, content: PdfContent) {
+function drawInvoicePdf(document: PDFKit.PDFDocument, content: PdfContent, logoImage?: Buffer) {
   const left = document.page.margins.left;
   const right = document.page.width - document.page.margins.right;
   const width = right - left;
-  const textColor = "#111827";
-  const muted = "#4b5563";
-  const border = "#d9e2ec";
+  const ink = "#1a1a1a";
+  const muted = "#666666";
+  const line = "#c9c9c9";
+  const lineSoft = "#ededed";
 
-  document.fillColor(textColor).font("Helvetica-Bold").fontSize(21).text(content.brand, left, 52);
-  document.fontSize(11).text(content.sellerCompany, left, 81);
-  document.fillColor(muted).font("Helvetica").fontSize(9).text(content.sellerAddress.join("\n"), left, 98, { lineGap: 2 });
-  document.text(content.sellerContact.join("\n"), right - 170, 58, { align: "right", lineGap: 2, width: 170 });
-  document.moveTo(left, 132).lineTo(right, 132).strokeColor(border).lineWidth(1).stroke();
-
-  document.fillColor(muted).fontSize(8).text(content.sender, left, 155, { underline: true });
-  document.fillColor(textColor).fontSize(11).font("Helvetica-Bold").text(content.recipient[0] ?? "", left, 175);
-  document.font("Helvetica").text(content.recipient.slice(1).join("\n"), left, 193, { lineGap: 3 });
-
-  document.fillColor(textColor).font("Helvetica-Bold").fontSize(24).text(content.title, left, 262, { width: 278 });
-  document.fillColor(muted).font("Helvetica").fontSize(9).text(content.intro, left, 301, { lineGap: 2, width: 278 });
-
-  const metaX = right - 186;
-  let metaY = 265;
-  content.meta.forEach(([label, value]) => {
-    document.fillColor(muted).font("Helvetica").fontSize(8.5).text(label, metaX, metaY, { width: 82 });
-    document.fillColor(textColor).font("Helvetica-Bold").text(value, metaX + 88, metaY, { align: "right", width: 98 });
-    metaY += 16;
-  });
-
-  let y = drawPdfTableHeader(document, content.tableHeaders, left, width, 370, border, textColor);
-  for (const row of content.rows) {
-    const columns = pdfTableColumns(width);
-    document.font("Helvetica").fontSize(9);
-    const rowHeight = Math.max(...row.map((value, index) => document.heightOfString(value, { width: columns[index]!.width - 12 })), 10) + 15;
-    if (y + rowHeight > document.page.height - 145) {
-      document.addPage();
-      y = drawPdfTableHeader(document, content.tableHeaders, left, width, document.page.margins.top, border, textColor);
+  // ── Masthead: logo (or company name) left, full seller block right ──
+  const topY = mm(14);
+  let drewLogo = false;
+  if (logoImage) {
+    try {
+      document.image(logoImage, left, topY, { fit: [mm(62), mm(20)] });
+      drewLogo = true;
+    } catch {
+      drewLogo = false;
     }
-    row.forEach((value, index) => {
-      const column = columns[index]!;
-      document.fillColor(textColor).font("Helvetica").text(value, left + column.offset + 6, y + 8, {
-        align: index >= 3 ? "right" : "left",
-        width: column.width - 12
-      });
-    });
-    document.moveTo(left, y + rowHeight).lineTo(left + width, y + rowHeight).strokeColor("#e5e7eb").lineWidth(0.7).stroke();
-    y += rowHeight;
+  }
+  if (!drewLogo) {
+    document.fillColor(ink).font("Helvetica-Bold").fontSize(20).text(content.sellerCompany || content.brand, left, topY);
+  }
+  const sellerW = mm(76);
+  document.fillColor(ink).font("Helvetica-Bold").fontSize(10.5).text(content.sellerCompany, right - sellerW, topY, { align: "right", width: sellerW });
+  if (content.sellerContact.length) {
+    document.fillColor(muted).font("Helvetica").fontSize(8.5).text(content.sellerContact.join("\n"), right - sellerW, document.y + 1.5, { align: "right", width: sellerW, lineGap: 1.5 });
   }
 
-  y += 20;
-  const totalX = right - 222;
+  // ── Recipient address window — fixed to the DIN 5008 Form B position ──
+  const addrX = mm(25);
+  const addrW = mm(80);
+  document.fillColor(muted).font("Helvetica").fontSize(7.5).text(content.sender, addrX, mm(45), { underline: true, width: addrW });
+  document.fillColor(ink).font("Helvetica-Bold").fontSize(11).text(content.recipient[0] ?? "", addrX, mm(50), { width: addrW });
+  if (content.recipient.length > 1) {
+    document.font("Helvetica").fontSize(10.5).text(content.recipient.slice(1).join("\n"), addrX, document.y + 1.5, { width: addrW, lineGap: 2 });
+  }
+
+  // ── Document head: title + intro (left), meta (right) — start below the window ──
+  const headY = mm(92);
+  document.fillColor(ink).font("Helvetica-Bold").fontSize(20).text(content.title, left, headY, { width: mm(96) });
+  if (content.intro) {
+    document.fillColor(muted).font("Helvetica").fontSize(9).text(content.intro, left, document.y + 3, { width: mm(96), lineGap: 1.5 });
+  }
+  const leftBottom = document.y;
+
+  const metaW = mm(72);
+  const metaX = right - metaW;
+  let metaY = headY;
+  content.meta.forEach(([label, value]) => {
+    document.fillColor(muted).font("Helvetica").fontSize(9).text(label, metaX, metaY, { width: metaW * 0.52 });
+    document.fillColor(ink).font("Helvetica-Bold").fontSize(9).text(value, metaX + metaW * 0.52, metaY, { align: "right", width: metaW * 0.48 });
+    metaY += 14.5;
+  });
+
+  let y = Math.max(leftBottom, metaY) + mm(7);
+
+  // ── Items table (rounded, border-only) ──
+  y = drawPdfTable(document, content, left, width, y, { ink, muted, line, lineSoft });
+
+  // ── Totals ──
+  y += mm(6);
+  const totalX = right - mm(76);
   content.totals.forEach(([label, value], index) => {
     const finalRow = index === content.totals.length - 1;
     if (finalRow) {
-      document.moveTo(totalX, y).lineTo(right, y).strokeColor(textColor).lineWidth(1).stroke();
-      y += 10;
+      document.moveTo(totalX, y).lineTo(right, y).strokeColor(ink).lineWidth(1.2).stroke();
+      y += 9;
     }
-    document.fillColor(finalRow ? textColor : muted).font(finalRow ? "Helvetica-Bold" : "Helvetica").fontSize(finalRow ? 12 : 10).text(label, totalX, y, { width: 124 });
-    document.fillColor(textColor).font("Helvetica-Bold").text(value, totalX + 128, y, { align: "right", width: 94 });
-    y += finalRow ? 25 : 19;
+    document.fillColor(finalRow ? ink : muted).font(finalRow ? "Helvetica-Bold" : "Helvetica").fontSize(finalRow ? 12.5 : 10).text(label, totalX, y, { width: mm(44) });
+    document.fillColor(ink).font("Helvetica-Bold").fontSize(finalRow ? 12.5 : 10).text(value, totalX + mm(44), y, { align: "right", width: mm(32) });
+    y += finalRow ? 24 : 18;
   });
 
+  // ── Notes ──
   for (const note of content.notes) {
-    y = pdfSpace(document, y, 45);
-    document.moveTo(left, y).lineTo(right, y).strokeColor(border).lineWidth(0.8).stroke();
-    document.fillColor(muted).font("Helvetica").fontSize(9).text(note, left, y + 12, { lineGap: 2, width });
-    y += document.heightOfString(note, { lineGap: 2, width }) + 27;
+    y = pdfSpace(document, y, 48);
+    const noteHeight = document.heightOfString(note, { lineGap: 2, width: width - 24 }) + 22;
+    document.roundedRect(left, y, width, noteHeight, 10).strokeColor(line).lineWidth(0.8).stroke();
+    document.fillColor("#444444").font("Helvetica").fontSize(9).text(note, left + 12, y + 11, { lineGap: 2, width: width - 24 });
+    y += noteHeight + 8;
   }
 
+  // ── Footer ──
   if (content.footer.length) {
-    y = pdfSpace(document, y, 42);
-    document.moveTo(left, y).lineTo(right, y).strokeColor(border).lineWidth(0.8).stroke();
+    y = pdfSpace(document, y, 44);
+    document.moveTo(left, y).lineTo(right, y).strokeColor(line).lineWidth(0.8).stroke();
     document.fillColor(muted).font("Helvetica").fontSize(8).text(content.footer.join("\n"), left, y + 12, { lineGap: 2, width });
   }
 }
 
-function drawPdfTableHeader(document: PDFKit.PDFDocument, headers: string[], left: number, width: number, y: number, border: string, textColor: string) {
+function drawPdfTable(
+  document: PDFKit.PDFDocument,
+  content: PdfContent,
+  left: number,
+  width: number,
+  top: number,
+  colors: { ink: string; muted: string; line: string; lineSoft: string }
+) {
   const columns = pdfTableColumns(width);
-  document.rect(left, y, width, 30).fill("#f3f6f9");
-  headers.forEach((header, index) => {
-    const column = columns[index]!;
-    document.fillColor(textColor).font("Helvetica-Bold").fontSize(8.5).text(header, left + column.offset + 6, y + 10, {
-      align: index >= 3 ? "right" : "left",
-      width: column.width - 12
+  const headerHeight = 26;
+
+  const drawHeader = (y: number) => {
+    content.tableHeaders.forEach((header, index) => {
+      const column = columns[index]!;
+      document.fillColor(colors.muted).font("Helvetica-Bold").fontSize(8).text(header.toUpperCase(), left + column.offset + 9, y + 9, {
+        align: index >= 3 ? "right" : "left",
+        characterSpacing: 0.3,
+        width: column.width - 16
+      });
     });
+    document.moveTo(left, y + headerHeight).lineTo(left + width, y + headerHeight).strokeColor(colors.line).lineWidth(0.8).stroke();
+    return y + headerHeight;
+  };
+
+  let y = top;
+  let sectionTop = top;
+  let paged = false;
+  y = drawHeader(y);
+
+  content.rows.forEach((row, rowIndex) => {
+    document.font("Helvetica").fontSize(9);
+    const rowHeight = Math.max(...row.map((value, index) => document.heightOfString(value, { width: columns[index]!.width - 18 })), 10) + 14;
+    if (y + rowHeight > document.page.height - mm(38)) {
+      if (!paged) {
+        document.roundedRect(left, sectionTop, width, y - sectionTop, 10).strokeColor(colors.line).lineWidth(0.8).stroke();
+      }
+      document.addPage();
+      paged = true;
+      y = document.page.margins.top;
+      sectionTop = y;
+      y = drawHeader(y);
+    }
+    row.forEach((value, index) => {
+      const column = columns[index]!;
+      document.fillColor(index === 1 ? colors.ink : "#3a3a3a").font("Helvetica").fontSize(9).text(value, left + column.offset + 9, y + 8, {
+        align: index >= 3 ? "right" : "left",
+        width: column.width - 18
+      });
+    });
+    y += rowHeight;
+    if (rowIndex < content.rows.length - 1) {
+      document.moveTo(left + 6, y).lineTo(left + width - 6, y).strokeColor(colors.lineSoft).lineWidth(0.6).stroke();
+    }
   });
-  document.moveTo(left, y + 30).lineTo(left + width, y + 30).strokeColor(border).lineWidth(0.8).stroke();
-  return y + 30;
+
+  document.roundedRect(left, sectionTop, width, y - sectionTop, 10).strokeColor(colors.line).lineWidth(0.8).stroke();
+  return y;
 }
 
 function pdfTableColumns(width: number) {
-  const ratios = [0.08, 0.33, 0.2, 0.1, 0.145, 0.145];
+  const ratios = [0.07, 0.34, 0.21, 0.09, 0.145, 0.145];
   let offset = 0;
   return ratios.map((ratio) => {
     const column = { offset, width: width * ratio };

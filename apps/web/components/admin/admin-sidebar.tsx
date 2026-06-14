@@ -43,7 +43,7 @@ const baseNav: NavEntry[] = [
   {
     label: "Emails",
     children: [
-      { href: "/admin/emails", label: "All Emails" },
+      { href: "/admin/emails", label: "Emails" },
       { href: "/admin/emails/settings", label: "Settings" },
       { href: "/admin/emails/template", label: "Templates" },
       { href: "/admin/emails/logs", label: "Logs" }

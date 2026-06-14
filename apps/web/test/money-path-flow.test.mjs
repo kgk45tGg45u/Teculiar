@@ -8,7 +8,8 @@ const clientDashboard = readFileSync(new URL("../components/portal/client-dashbo
 const adminDashboard = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
 
 test("payment return sends paid clients to dashboard fast", () => {
-  assert.match(paymentReturn, /window\.location\.assign\(`\/client\?invoice=\$\{encodeURIComponent\(/);
+  assert.match(paymentReturn, /redirect: `\/client\?invoice=\$\{encodeURIComponent\(id\)\}`/);
+  assert.match(paymentReturn, /window\.location\.assign\(action\.redirect\)/);
   assert.doesNotMatch(paymentReturn, /window\.location\.assign\(`\/client\/invoices\//);
 });
 

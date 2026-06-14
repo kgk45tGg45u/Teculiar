@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { EmailService } from "../email/email.service";
@@ -209,12 +209,26 @@ export class BillingService {
 
   async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
-    return renderInvoiceDocument(invoice).html;
+    const { url } = await this.invoiceLogo();
+    return renderInvoiceDocument(invoice, { logoUrl: url }).html;
   }
 
   async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
-    const html = await this.invoiceHtml(id, user);
-    return renderInvoicePdfFromHtml(html);
+    const invoice = await this.getInvoice(id, user);
+    const { url, image } = await this.invoiceLogo();
+    const html = renderInvoiceDocument(invoice, { logoUrl: url }).html;
+    return renderInvoicePdfFromHtml(html, image);
+  }
+
+  // The invoice uses the same logo the admin configures on the settings page. For the HTML view we
+  // pass the URL straight through; for the PDF we need raw PNG/JPEG bytes (pdfkit can't render SVG),
+  // which we recover from the uploaded SVG wrapper or a data URL. Anything else falls back to text.
+  private async invoiceLogo(): Promise<{ url?: string; image?: Buffer }> {
+    const url = (await this.billing.settingString("siteLogoUrl")) || undefined;
+    if (!url) {
+      return {};
+    }
+    return { url, image: await loadPdfLogoImage(url) };
   }
 
   async sendInvoice(id: string) {
@@ -2133,14 +2147,19 @@ export class BillingService {
     if (!this.emails) {
       return [];
     }
-    const invoice = invoiceInput.customerSnapshot && invoiceInput.invoiceNumber
+    // Reload the full invoice when items or transactions are missing, otherwise {{service}}
+    // and {{payment_gateway}} would render empty (some callers pass a partially-loaded invoice).
+    const hasRelations = Array.isArray(invoiceInput.items) && Array.isArray(invoiceInput.transactions);
+    const invoice = hasRelations && invoiceInput.customerSnapshot && invoiceInput.invoiceNumber
       ? invoiceInput
-      : await this.billing.findInvoice(invoiceInput.id);
+      : (await this.billing.findInvoice(invoiceInput.id)) ?? invoiceInput;
     if (!invoice) {
       return [];
     }
     const snapshot = asRecord(options.customerSnapshot ?? invoice.customerSnapshot);
     const user = asRecord(invoice.user);
+    const itemNames = (invoice.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
+    const orderItemNames = (invoice.order?.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
     return this.emails.dispatch(eventKey, {
       context: {
         customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
@@ -2150,7 +2169,8 @@ export class BillingService {
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
         invoice_total_amount: formatEuro(invoice.totalCents),
         order_number: stringFrom(invoice.order?.orderNumber),
-        service: invoice.items?.map((item: Record<string, any>) => item.description).filter(Boolean).join(", ")
+        payment_gateway: paymentGatewayLabel(invoice.transactions),
+        service: (itemNames.length ? itemNames : orderItemNames).join(", ")
       },
       teamId: invoice.teamId,
       user: {
@@ -2168,17 +2188,33 @@ export class BillingService {
     }
     const user = asRecord(service.user);
     const product = asRecord(service.product);
+    const productSnapshot = asRecord(service.productSnapshot);
     const domain = service.domainRecords?.[0]?.domain ?? asRecord(service.configuration).domainName;
     const hosting = asRecord(asRecord(service.configuration).hosting);
+    const controlPanelUrl = stringFrom(hosting.controlPanelUrl) ?? "";
+    const controlPanelUsername = stringFrom(hosting.username) ?? "";
+    const controlPanelPassword = stringFrom(hosting.password) ?? "";
+    const mailServer = mailServerHost(controlPanelUrl, stringFrom(domain));
+    // Never leave {{service}} empty: fall back through the live product, the snapshot taken at
+    // order time, and finally the service id.
+    const serviceName = stringFrom(product.name) ?? stringFrom(productSnapshot.name) ?? service.id;
     return this.emails.dispatch(eventKey, {
       context: {
-        control_panel_password: stringFrom(hosting.password) ?? "",
-        control_panel_url: stringFrom(hosting.controlPanelUrl) ?? "",
-        control_panel_username: stringFrom(hosting.username) ?? "",
+        // Virtualmin module shortcodes.
+        virtualmin_control_panel_password: controlPanelPassword,
+        virtualmin_control_panel_url: controlPanelUrl,
+        virtualmin_control_panel_username: controlPanelUsername,
+        virtualmin_mail_server: mailServer,
+        virtualmin_imap_port: mailServer ? "993" : "",
+        virtualmin_smtp_port: mailServer ? "587" : "",
+        // Legacy aliases so email layouts saved before the module rename keep working.
+        control_panel_password: controlPanelPassword,
+        control_panel_url: controlPanelUrl,
+        control_panel_username: controlPanelUsername,
         customer_email: stringFrom(user.email),
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain),
-        service: stringFrom(product.name) ?? service.id,
+        service: serviceName,
         service_link: `${publicWebUrl()}/client/services/${service.id}`
       },
       teamId: service.teamId,
@@ -2198,14 +2234,19 @@ export class BillingService {
     const user = asRecord(domain.user);
     const service = asRecord(domain.service);
     const product = asRecord(service.product);
+    const domainStatus = domainStatusLabel(domain.status);
+    const nameservers = domainNameserverList(domain.nameservers);
     return this.emails.dispatch(eventKey, {
       context: {
         customer_email: stringFrom(user.email),
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain.domain),
         domain_link: `${publicWebUrl()}/client/domains`,
-        domain_status: domainStatusLabel(domain.status),
-        nameservers: domainNameserverList(domain.nameservers),
+        // Resell.biz module shortcodes (with legacy aliases for older saved layouts).
+        resellbiz_domain_status: domainStatus,
+        resellbiz_nameservers: nameservers,
+        domain_status: domainStatus,
+        nameservers,
         service: stringFrom(product.name)
       },
       user: {
@@ -2420,7 +2461,42 @@ function paymentMethodLabel(method: string) {
   if (method === "PAYPAL") {
     return "PayPal";
   }
+  if (method === "BANK_TRANSFER") {
+    return "Bank transfer";
+  }
+  if (method === "ACCOUNT_BALANCE") {
+    return "Account balance";
+  }
+  if (method === "CRYPTO") {
+    return "Cryptocurrency";
+  }
   return method;
+}
+
+// The payment gateway a customer used to pay an invoice — derived from its most recent
+// successful transaction (falling back to the latest transaction of any status).
+function paymentGatewayLabel(transactions: unknown): string {
+  if (!Array.isArray(transactions) || !transactions.length) {
+    return "";
+  }
+  const byNewest = [...transactions].sort(
+    (a, b) => new Date(b?.createdAt ?? 0).getTime() - new Date(a?.createdAt ?? 0).getTime()
+  );
+  const chosen = byNewest.find((transaction) => transaction?.status === "SUCCEEDED") ?? byNewest[0];
+  return chosen?.method ? paymentMethodLabel(String(chosen.method)) : "";
+}
+
+// Mail server hostname customers use for IMAP/POP and SMTP. Prefers the control-panel host,
+// falling back to mail.<domain>.
+function mailServerHost(controlPanelUrl: string, domain?: string): string {
+  if (controlPanelUrl) {
+    try {
+      return new URL(controlPanelUrl).hostname;
+    } catch {
+      // not a URL — ignore and fall back to the domain
+    }
+  }
+  return domain ? `mail.${domain}` : "";
 }
 
 type LifecycleItem = {
@@ -2784,4 +2860,31 @@ async function webUploadsDir() {
     : resolve(process.cwd(), "apps/web/public/uploads");
   await mkdir(dir, { recursive: true });
   return dir;
+}
+
+// Recover raw PNG/JPEG bytes for the invoice PDF logo. Uploaded logos are stored as an SVG wrapper
+// around a base64 data URL of the original image; we pull that out. Data URLs and direct png/jpg
+// uploads are handled too. Returns undefined for SVG/WebP/remote logos so the PDF falls back to text.
+async function loadPdfLogoImage(logoUrl: string): Promise<Buffer | undefined> {
+  try {
+    const dataMatch = logoUrl.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/i);
+    if (dataMatch) {
+      return Buffer.from(dataMatch[2]!, "base64");
+    }
+    if (!logoUrl.startsWith("/uploads/")) {
+      return undefined;
+    }
+    const filePath = join(await webUploadsDir(), logoUrl.replace("/uploads/", ""));
+    if (logoUrl.toLowerCase().endsWith(".svg")) {
+      const svg = await readFile(filePath, "utf8");
+      const embedded = svg.match(/data:(image\/(?:png|jpeg));base64,([^"')\s]+)/i);
+      return embedded ? Buffer.from(embedded[2]!, "base64") : undefined;
+    }
+    if (/\.(png|jpe?g)$/i.test(logoUrl)) {
+      return await readFile(filePath);
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }

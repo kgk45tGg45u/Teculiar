@@ -14,6 +14,8 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
   const quickLinks = isDe
     ? [
         { label: "Webhosting", href: `${base}/webhosting` },
+        { label: "VPS", href: `${base}/virtual-servers` },
+        { label: "Reseller", href: `${base}/reseller` },
         { label: "Domains", href: `${base}/domains` },
         { label: "IT-Lösungen", href: `${base}/it-losungen` },
         { label: "Webdesign", href: `${base}/webdesign` },
@@ -23,6 +25,8 @@ export function SiteFooter({ brandLogo, locale, variant = "site" }: { brandLogo?
       ]
     : [
         { label: "Web Hosting", href: `${base}/webhosting` },
+        { label: "VPS", href: `${base}/virtual-servers` },
+        { label: "Reseller", href: `${base}/reseller` },
         { label: "Domains", href: `${base}/domains` },
         { label: "IT Solutions", href: `${base}/it-losungen` },
         { label: "Web Design", href: `${base}/webdesign` },

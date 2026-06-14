@@ -1,4 +1,4 @@
-export type EmailLayoutBlockType = "button" | "divider" | "invoiceTable" | "keyValueTable" | "notice" | "text";
+export type EmailLayoutBlockType = "button" | "divider" | "invoiceTable" | "keyValueTable" | "link" | "notice" | "text";
 
 export type EmailLayoutBlock = {
   columns?: string[];
@@ -16,6 +16,7 @@ export const EMAIL_LAYOUT_BLOCK_LIBRARY: Array<{ description: string; label: str
   { description: "Two-column facts such as invoice number and total.", label: "Key/value table", type: "keyValueTable" },
   { description: "Email-safe line item table.", label: "Invoice table", type: "invoiceTable" },
   { description: "Primary call-to-action button.", label: "Button", type: "button" },
+  { description: "Inline text hyperlink.", label: "Link", type: "link" },
   { description: "Highlighted compliance or status note.", label: "Notice", type: "notice" },
   { description: "Thin visual break.", label: "Divider", type: "divider" }
 ];
@@ -25,8 +26,8 @@ const DEFAULT_EMAIL_LAYOUTS: Record<string, EmailLayoutBlock[]> = {
     text("domain-intro", "Hello {{customer_name}},<br /><br />your domain {{domain}} has been registered and is now active."),
     keyValueTable("domain-summary", "Domain", [
       ["Domain", "{{domain}}"],
-      ["Status", "{{domain_status}}"],
-      ["Name servers", "{{nameservers}}"]
+      ["Status", "{{resellbiz_domain_status}}"],
+      ["Name servers", "{{resellbiz_nameservers}}"]
     ]),
     button("domain-button", "Manage domain", "{{domain_link}}"),
     notice("domain-note", "Keep your domain contact data current to avoid registry compliance issues.")
@@ -39,9 +40,14 @@ const DEFAULT_EMAIL_LAYOUTS: Record<string, EmailLayoutBlock[]> = {
       ["Status", "Active"]
     ]),
     keyValueTable("hosting-access", "Control panel access", [
-      ["Address", "{{control_panel_url}}"],
-      ["Username", "{{control_panel_username}}"],
-      ["Password", "{{control_panel_password}}"]
+      ["Address", "{{virtualmin_control_panel_url}}"],
+      ["Username", "{{virtualmin_control_panel_username}}"],
+      ["Password", "{{virtualmin_control_panel_password}}"]
+    ]),
+    keyValueTable("hosting-mail", "Email settings", [
+      ["Mail server", "{{virtualmin_mail_server}}"],
+      ["IMAP port", "{{virtualmin_imap_port}}"],
+      ["SMTP port", "{{virtualmin_smtp_port}}"]
     ]),
     button("hosting-button", "Open hosting service", "{{service_link}}"),
     notice("hosting-note", "For your security, sign in and change this password after your first login.", "warning")
@@ -225,6 +231,10 @@ function renderBlock(block: EmailLayoutBlock, context: Record<string, string>) {
     const href = renderAttribute(block.href || "#", context);
     return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:6px;background:#b11226;"><a href="${href}" style="display:inline-block;padding:13px 18px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
   }
+  if (block.type === "link") {
+    const href = renderAttribute(block.href || "#", context);
+    return `<div style="margin:0 0 18px;color:#172033;font-size:16px;line-height:1.65;"><a href="${href}" style="color:#0b3d91;font-weight:600;text-decoration:underline;">${renderInline(block.content || block.href || "Link", context)}</a></div>`;
+  }
   if (block.type === "invoiceTable") {
     return renderDataTable(block, context);
   }
@@ -259,7 +269,7 @@ function renderAttribute(value: string, context: Record<string, string>) {
 }
 
 function emailLayoutBlockType(value: unknown): EmailLayoutBlockType | null {
-  return value === "button" || value === "divider" || value === "invoiceTable" || value === "keyValueTable" || value === "notice" || value === "text" ? value : null;
+  return value === "button" || value === "divider" || value === "invoiceTable" || value === "keyValueTable" || value === "link" || value === "notice" || value === "text" ? value : null;
 }
 
 function emailLayoutTone(value: unknown): EmailLayoutBlock["tone"] {

@@ -481,7 +481,7 @@ export class TicketsService {
         ticket_content: stringValue(extra.ticket_content) ?? stringValue(firstReply?.body),
         ticket_id: ticketId,
         ticket_reply: stringValue(extra.ticket_reply),
-        ticket_status: ticket.status,
+        ticket_status: ticketStatusLabel(ticket.status),
         ticket_subject: ticket.subject,
         ticket_url: `${appBaseUrl()}/client/tickets/${ticket.id}`,
         ...extra
@@ -517,6 +517,18 @@ function isStaff(roles: string[] = []) {
 
 function isTicketStatus(value: string) {
   return TICKET_STATUSES.includes(value);
+}
+
+// Friendly ticket status for emails so clients never see ALL_CAPS_WITH_UNDERSCORES.
+function ticketStatusLabel(status: unknown) {
+  const labels: Record<string, string> = {
+    OPEN: "Open",
+    ANSWERED: "Answered",
+    CUSTOMER_REPLY: "Customer reply",
+    CLOSED: "Closed"
+  };
+  const value = String(status ?? "");
+  return labels[value] ?? value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char) => char.toUpperCase());
 }
 
 function isUniqueCollision(error: unknown) {

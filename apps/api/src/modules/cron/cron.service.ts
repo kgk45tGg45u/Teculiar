@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { timingSafeEqual } from "node:crypto";
 import { BillingService } from "../billing/billing.service";
 import { CmsService } from "../cms/cms.service";
@@ -43,6 +43,7 @@ type CronSkipItem = {
 
 @Injectable()
 export class CronService {
+  private readonly logger = new Logger("Cron");
   private running = false;
   private aiBlogRunning = false;
 
@@ -93,6 +94,9 @@ export class CronService {
     const skipped: CronSkipItem[] = [];
     const settings = preloadedSettings ?? await this.billing.cronSettings();
     const startedAtMs = Date.now();
+    // Print to stdout/stderr so a manual run on the server (curl) and the captured API process logs
+    // both show how long each task took, not just the admin DB action log.
+    this.logger.log(`run started at ${now.toISOString()}`);
 
     try {
       // A heartbeat row written on every trigger — proves the server reached the cron, even when
@@ -139,18 +143,24 @@ export class CronService {
         await this.runAction("aiBlogPost", ran, async () => ({ reason, skipped: true }));
       }
 
+      const totalMs = Date.now() - startedAtMs;
+      const failedCount = ran.filter((item) => item.status === "failed").length;
       await this.billing.recordAction({
         action: "cron.completed",
         metadata: {
-          durationMs: Date.now() - startedAtMs,
+          durationMs: totalMs,
           ranCount: ran.length,
-          failedCount: ran.filter((item) => item.status === "failed").length,
+          failedCount,
           skippedCount: skipped.length,
           ran: ran.map((item) => ({ name: item.name, result: item.result, status: item.status })),
           skipped: skipped.map((item) => ({ name: item.name, nextAt: item.nextAt }))
         },
         subject: "cron"
       });
+      if (skipped.length) {
+        this.logger.log(`skipped ${skipped.length}: ${skipped.map((item) => item.name).join(", ")}`);
+      }
+      this.logger.log(`completed in ${totalMs}ms — ${ran.length} ran, ${failedCount} failed, ${skipped.length} skipped`);
       return { ok: ran.every((item) => item.status === "ran"), ran, skipped };
     } finally {
       this.running = false;
@@ -234,6 +244,7 @@ export class CronService {
     try {
       const result = await this.cms.generateAiBlogPost(settings, "system");
       await this.billing.markCronRun("aiBlogPost", runAt);
+      this.logger.log(`aiBlogPost (async) ran in ${Date.now() - startedAtMs}ms`);
       await this.billing
         .recordAction({
           action: "cron.aiBlogPost",
@@ -243,6 +254,7 @@ export class CronService {
         .catch(() => undefined);
     } catch (error) {
       const message = error instanceof Error ? error.message : "AI blog generation failed";
+      this.logger.error(`aiBlogPost (async) failed in ${Date.now() - startedAtMs}ms: ${message}`);
       // Intentionally do NOT markCronRun — a failed generation must retry on the next cron trigger.
       await this.billing
         .recordAction({
@@ -277,19 +289,23 @@ export class CronService {
     const startedAt = new Date(startedAtMs).toISOString();
     try {
       const result = await action();
+      const durationMs = Date.now() - startedAtMs;
       ran.push({ name, result, status: "ran" });
+      this.logger.log(`${name} ran in ${durationMs}ms`);
       await this.billing.recordAction({
         action: `cron.${name}`,
-        metadata: { result: result ?? null, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "ran" },
+        metadata: { result: result ?? null, startedAt, finishedAt: new Date().toISOString(), durationMs, status: "ran" },
         subject: "cron"
       }).catch(() => undefined);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Action failed";
+      const durationMs = Date.now() - startedAtMs;
       ran.push({ name, result: message, status: "failed" });
+      this.logger.error(`${name} failed in ${durationMs}ms: ${message}`);
       await this.billing.recordAction({
         action: `cron.${name}`,
-        metadata: { error: message, startedAt, finishedAt: new Date().toISOString(), durationMs: Date.now() - startedAtMs, status: "failed" },
+        metadata: { error: message, startedAt, finishedAt: new Date().toISOString(), durationMs, status: "failed" },
         subject: "cron"
       }).catch(() => undefined);
       return false;
@@ -299,7 +315,7 @@ export class CronService {
 
 // Mirrors the static paths in apps/web/app/sitemap.xml/route.ts — used only to count URLs for the log.
 const SITEMAP_STATIC_PATHS = [
-  "", "/domains", "/domains/pricing", "/hosting", "/webhosting", "/virtual-servers", "/vps",
+  "", "/domains", "/domains/pricing", "/hosting", "/webhosting", "/virtual-servers", "/vps", "/reseller",
   "/webdesign", "/it-losungen", "/blog", "/uber-uns", "/kontakt", "/knowledgebase",
   "/legal/agb", "/legal/datenschutz", "/legal/impressum"
 ];

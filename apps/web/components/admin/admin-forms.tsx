@@ -291,7 +291,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       <form action={createOrder} className={styles.form}>
         <h3>Create Order</h3>
         <label>Product<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-        <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {price.billingCycle} {money(price.amountCents, price.currency)}</option>))}</select></label>
+        <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
         <label>Domain name<input name="domainName" placeholder="example.com" /></label>
         <label>Domain action<select name="domainAction"><option value="register">Register</option><option value="transfer">Transfer</option></select></label>
         <label>API module<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
@@ -558,7 +558,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
         <form action={createOrder} className={styles.form}>
           <h3>Create Order</h3>
           <label>Product<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-          <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {price.billingCycle} {money(price.amountCents, price.currency)}</option>))}</select></label>
+          <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
           <label>Domain name<input name="domainName" placeholder="example.com" /></label>
           <label>Domain action<select name="domainAction"><option value="register">Register</option><option value="transfer">Transfer</option></select></label>
           <label>API module<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>

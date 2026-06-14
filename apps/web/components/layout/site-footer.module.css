@@ -31,7 +31,7 @@
 
 .brand {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   align-content: start;
 }
 
@@ -100,8 +100,14 @@
 
 .ctaBlock {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   align-content: start;
+}
+
+/* Group the "Not sure yet?" heading tightly with its blurb so they read as one
+   section, like the Services/Legal menu columns next to it. */
+.ctaBlock h4 {
+  margin-bottom: 0;
 }
 
 .ctaBlock p {

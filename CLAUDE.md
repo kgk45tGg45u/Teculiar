@@ -4,7 +4,7 @@
 - Keep files small so reading and editing stays cheap.
 - Prefer focused tests that cover different code paths.
 - Document temporary endpoints and integration notes clearly.
-- Don't write credits to yourself inside the code.
+- Don't write credits to yourself inside the code or on commit messages.
 
 
 ## Testing — always test on production
@@ -31,5 +31,5 @@ inherit the `E2E_*` credentials.  Without it, `source .env` only sets shell-loca
 Playwright never sees `E2E_ADMIN_EMAIL`, `E2E_CLIENT_EMAIL`, etc.
 
 ## Documentation
-- Keep tests and documentation up-to-date after every change.
+- Keep tests and documentation up-to-date after every change, even if you haven't touched them before.
 - README and docs/ files must reflect the current state of the codebase.
