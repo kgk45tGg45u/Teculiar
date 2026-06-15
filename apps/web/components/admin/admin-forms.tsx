@@ -1214,12 +1214,14 @@ export function PaymentGatewayForm() {
     setSaving(true);
     const next = gateways.map((gateway) => {
       const enabled = formData.get(`${gateway.method}_enabled`) === "on";
+      const displayName = String(formData.get(`${gateway.method}_displayName`) ?? "");
       if (gateway.method === "BANK_TRANSFER") {
         return {
           config: {
             accountHolder: String(formData.get(`${gateway.method}_accountHolder`) ?? ""),
             bankName: String(formData.get(`${gateway.method}_bankName`) ?? ""),
             bic: String(formData.get(`${gateway.method}_bic`) ?? ""),
+            displayName,
             iban: String(formData.get(`${gateway.method}_iban`) ?? ""),
             referenceNote: String(formData.get(`${gateway.method}_referenceNote`) ?? "")
           },
@@ -1232,6 +1234,7 @@ export function PaymentGatewayForm() {
           apiKey: String(formData.get(`${gateway.method}_apiKey`) ?? ""),
           clientId: String(formData.get(`${gateway.method}_clientId`) ?? ""),
           clientSecret: String(formData.get(`${gateway.method}_clientSecret`) ?? ""),
+          displayName,
           mode: String(formData.get(`${gateway.method}_mode`) ?? "test"),
           provider: gatewayProvider(gateway.method)
         },
@@ -1283,6 +1286,20 @@ export function PaymentGatewayForm() {
               </label>
               <span className={styles.gatewayBadge}>{gatewayProvider(gateway.method)}</span>
             </div>
+
+            {gateway.method !== "SANDBOX" ? (
+              <div className={styles.gatewayFields}>
+                <label>
+                  Name on invoice
+                  <input
+                    defaultValue={String(gateway.config?.displayName ?? "")}
+                    name={`${gateway.method}_displayName`}
+                    placeholder={gatewayTitle(gateway.method)}
+                  />
+                  <span className={styles.gatewayHint}>Shown as the payment method on paid invoices.</span>
+                </label>
+              </div>
+            ) : null}
 
             {gateway.method === "SANDBOX" ? (
               <p className={styles.gatewayHint}>Simulated gateway — no real payments. Use to test the checkout and client portal flow.</p>

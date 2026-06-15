@@ -79,6 +79,21 @@ test("invoice HTML is protected-route ready, formal, escaped, and snapshot based
   assert.match(document.html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
 
+test("paid invoices render the admin-defined payment method label next to the paid date", () => {
+  const document = renderInvoiceDocument({ ...invoice, paymentMethodLabel: "Kreditkarte (Mollie)" });
+
+  assert.match(document.html, /<span>Bezahlt am<\/span>/);
+  assert.match(document.html, /<span>Zahlungsart<\/span><strong>Kreditkarte \(Mollie\)<\/strong>/);
+});
+
+test("the payment method row is omitted when the invoice is unpaid or has no resolved label", () => {
+  const unpaid = renderInvoiceDocument({ ...invoice, status: "PENDING", paidAt: null, paymentMethodLabel: "Kreditkarte" });
+  assert.doesNotMatch(unpaid.html, /Zahlungsart/);
+
+  const paidButUnlabelled = renderInvoiceDocument({ ...invoice, paymentMethodLabel: undefined });
+  assert.doesNotMatch(paidButUnlabelled.html, /Zahlungsart/);
+});
+
 test("invoice uses the admin logo, a window-envelope address and a rounded black-and-white table", () => {
   const plain = renderInvoiceDocument(invoice);
   // Without a configured logo the masthead falls back to the seller company name.

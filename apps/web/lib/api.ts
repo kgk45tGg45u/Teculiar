@@ -191,6 +191,7 @@ export type ApiInvoice = {
   issuedAt: string;
   dueAt: string;
   paidAt?: string | null;
+  paymentMethodLabel?: string | null;
   subtotalCents?: number;
   taxAmountCents?: number;
   taxReason?: string | null;

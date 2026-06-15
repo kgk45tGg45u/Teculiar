@@ -75,6 +75,28 @@ PENDING → PAID
 
 Invoices only ever surface two statuses to customers: **Pending** (awaiting payment, temporary "N-" invoice number) and **Overdue**. Once paid, the invoice gets a final sequential invoice number and shows **no status badge** (paid is the normal, terminal state). `FAILED`, `CANCELLED`, and `REFUNDED` exist for the rare cases they occur. The older `DRAFT`, `UNSENT`, and `UNPAID` statuses were consolidated into `PENDING`.
 
+### Invoice Document (HTML / PDF)
+
+Invoices render from `apps/api/src/modules/billing/invoice-document.ts`:
+`renderInvoiceDocument()` builds the HTML, and `renderInvoicePdfFromHtml()` re-draws
+that HTML into a pixel-tuned A4 PDF with pdfkit.
+
+For **paid** invoices the document shows both the payment date (*Bezahlt am*) and the
+payment method (*Zahlungsart*). The payment-method label is resolved at render time by
+`getInvoice()` and attached as `invoice.paymentMethodLabel`:
+
+- It reads the method of the most recent `SUCCEEDED` transaction on the invoice.
+- The human-readable name comes from **Admin > Payment Gateways**, where each gateway
+  has a *"Name on invoice"* field. These names are persisted in the database:
+  - CREDIT_CARD / PAYPAL / SEPA → `PaymentProcessorConfig.config.displayName`
+  - BANK_TRANSFER → `SystemSetting` key `bankTransfer.displayName`
+- When no name is configured it falls back to a German default
+  (`Kreditkarte`, `PayPal`, `SEPA-Lastschrift`, `Banküberweisung`, `Guthaben`).
+
+The label is resolved live (not snapshotted onto the invoice), so renaming a gateway
+also updates how the method reads on previously paid invoices. The underlying
+`Transaction.method` enum is immutable.
+
 ### Invoice vs. Order: Key Differences
 
 | Aspect | Order | Invoice |

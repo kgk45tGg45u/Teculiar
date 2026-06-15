@@ -167,6 +167,13 @@ function dateLabel(value?: string | null, locale = "de") {
 }
 
 function paymentGateway(invoice: ApiInvoice) {
+  if (invoice.paymentMethodLabel) {
+    return invoice.paymentMethodLabel;
+  }
   const tx = invoice.transactions?.find((t) => t.status === "SUCCEEDED");
-  return tx?.method ?? "manual";
+  return tx?.method ? humanizePaymentMethod(tx.method) : "—";
+}
+
+function humanizePaymentMethod(method: string) {
+  return method.charAt(0).toUpperCase() + method.slice(1).toLowerCase().replace(/_/g, " ");
 }

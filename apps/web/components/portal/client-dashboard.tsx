@@ -1933,5 +1933,9 @@ function domainRowsFromServices(services: ApiService[]): DomainRow[] {
 }
 
 function paymentGateway(invoice: ApiInvoice) {
-  return invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method ?? "manual";
+  if (invoice.paymentMethodLabel) {
+    return invoice.paymentMethodLabel;
+  }
+  const method = invoice.transactions?.find((transaction) => transaction.status === "SUCCEEDED")?.method;
+  return method ? method.charAt(0).toUpperCase() + method.slice(1).toLowerCase().replace(/_/g, " ") : "—";
 }

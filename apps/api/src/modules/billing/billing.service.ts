@@ -204,7 +204,34 @@ export class BillingService {
       throw new NotFoundException("Invoice not found");
     }
 
+    if (invoice.status === "PAID") {
+      (invoice as Record<string, unknown>).paymentMethodLabel = await this.resolvePaymentMethodLabel(invoice);
+    }
+
     return invoice;
+  }
+
+  // Resolves the display name for the gateway used to pay an invoice. Names are
+  // admin-defined under settings > Payment gateways and fall back to a sensible
+  // default when unset. Returns undefined when no successful payment exists.
+  private async resolvePaymentMethodLabel(invoice: {
+    transactions?: Array<{ createdAt: Date; method: string; status: string }>;
+  }): Promise<string | undefined> {
+    const transactions = invoice.transactions ?? [];
+    const paid = transactions
+      .filter((transaction) => transaction.status === "SUCCEEDED")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    const method = paid?.method;
+    if (!method) {
+      return undefined;
+    }
+    if (method === "BANK_TRANSFER") {
+      const name = await this.billing.settingString("bankTransfer.displayName");
+      return name.trim() || defaultPaymentMethodLabel(method);
+    }
+    const gateway = await this.billing.paymentGateway(method);
+    const displayName = gateway && isRecord(gateway.config) ? stringFrom(gateway.config.displayName) : undefined;
+    return displayName ?? defaultPaymentMethodLabel(method);
   }
 
   async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
@@ -1643,7 +1670,7 @@ export class BillingService {
   }
 
   async adminPaymentGateways() {
-    const [gateways, sandboxEnabled, bankWireEnabled, bankWireIban, bankWireBic, bankWireBankName, bankWireHolder, bankWireRef] = await Promise.all([
+    const [gateways, sandboxEnabled, bankWireEnabled, bankWireIban, bankWireBic, bankWireBankName, bankWireHolder, bankWireRef, bankWireDisplayName] = await Promise.all([
       this.billing.listPaymentGateways(),
       this.billing.settingNumber("sandboxGatewayEnabled", 1),
       this.billing.settingNumber("bankTransfer.enabled", 0),
@@ -1651,7 +1678,8 @@ export class BillingService {
       this.billing.settingString("bankTransfer.bic"),
       this.billing.settingString("bankTransfer.bankName"),
       this.billing.settingString("bankTransfer.accountHolder"),
-      this.billing.settingString("bankTransfer.referenceNote")
+      this.billing.settingString("bankTransfer.referenceNote"),
+      this.billing.settingString("bankTransfer.displayName")
     ]);
     const byMethod = new Map(gateways.map((gateway) => [gateway.method, gateway]));
     const result: Array<{ config: Record<string, unknown>; enabled: boolean; method: string }> = defaultPaymentGateways().map((gateway) => {
@@ -1668,6 +1696,7 @@ export class BillingService {
         accountHolder: bankWireHolder,
         bankName: bankWireBankName,
         bic: bankWireBic,
+        displayName: bankWireDisplayName,
         iban: bankWireIban,
         referenceNote: bankWireRef
       },
@@ -1693,7 +1722,8 @@ export class BillingService {
           this.billing.upsertSettingString("bankTransfer.bic", String(cfg.bic ?? "")),
           this.billing.upsertSettingString("bankTransfer.bankName", String(cfg.bankName ?? "")),
           this.billing.upsertSettingString("bankTransfer.accountHolder", String(cfg.accountHolder ?? "")),
-          this.billing.upsertSettingString("bankTransfer.referenceNote", String(cfg.referenceNote ?? ""))
+          this.billing.upsertSettingString("bankTransfer.referenceNote", String(cfg.referenceNote ?? "")),
+          this.billing.upsertSettingString("bankTransfer.displayName", String(cfg.displayName ?? ""))
         ]);
         results.push({ config: cfg, enabled: Boolean(gateway.enabled), method: "BANK_TRANSFER", validation: { ok: true, message: "Bank wire settings saved." } });
         continue;
@@ -2810,6 +2840,17 @@ function gatewayTitle(method: string) {
     PAYPAL: "Paypal",
     SANDBOX: "Sandbox",
     SEPA: "SEPA Lastschrift"
+  }[method] ?? method;
+}
+
+// Fallback label shown on invoices when the admin hasn't named the gateway.
+function defaultPaymentMethodLabel(method: string) {
+  return {
+    ACCOUNT_BALANCE: "Guthaben",
+    BANK_TRANSFER: "Banküberweisung",
+    CREDIT_CARD: "Kreditkarte",
+    PAYPAL: "PayPal",
+    SEPA: "SEPA-Lastschrift"
   }[method] ?? method;
 }
 

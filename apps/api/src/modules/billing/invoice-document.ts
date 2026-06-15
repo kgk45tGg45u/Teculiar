@@ -16,6 +16,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
   const issuedAt = dateLabel(invoice.issuedAt);
   const dueAt = dateLabel(invoice.dueAt);
   const paidAt = invoice.paidAt ? dateLabel(invoice.paidAt) : "";
+  const paymentMethodLabel = paidAt ? stringValue(invoice.paymentMethodLabel) : undefined;
   const customerNumber = formatCustomerNumber(buyer.customerNumber ?? asRecord(invoice.user).customerNumber);
   const footerLines = Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string" && line.trim().length > 0) : [];
   const rows = Array.isArray(invoice.items) ? invoice.items : [];
@@ -118,6 +119,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
         <span>Rechnungsdatum</span><strong>${escapeHtml(issuedAt)}</strong>
         <span>Fällig am</span><strong>${escapeHtml(dueAt)}</strong>
         ${paidAt ? `<span>Bezahlt am</span><strong>${escapeHtml(paidAt)}</strong>` : ""}
+        ${paymentMethodLabel ? `<span>Zahlungsart</span><strong>${escapeHtml(paymentMethodLabel)}</strong>` : ""}
         <span>Kundennummer</span><strong>${escapeHtml(customerNumber)}</strong>
       </div>
     </section>
@@ -281,11 +283,19 @@ function drawInvoicePdf(document: PDFKit.PDFDocument, content: PdfContent, logoI
 
   const metaW = mm(72);
   const metaX = right - metaW;
+  const metaLabelW = metaW * 0.44;
+  const metaValueW = metaW - metaLabelW;
   let metaY = headY;
   content.meta.forEach(([label, value]) => {
-    document.fillColor(muted).font("Helvetica").fontSize(9).text(label, metaX, metaY, { width: metaW * 0.52 });
-    document.fillColor(ink).font("Helvetica-Bold").fontSize(9).text(value, metaX + metaW * 0.52, metaY, { align: "right", width: metaW * 0.48 });
-    metaY += 14.5;
+    // Advance by the taller of the two cells so a long, admin-defined value (e.g. a
+    // payment method name) that wraps to a second line never overlaps the next row.
+    document.font("Helvetica").fontSize(9);
+    const labelH = document.heightOfString(label, { width: metaLabelW });
+    document.font("Helvetica-Bold").fontSize(9);
+    const valueH = document.heightOfString(value, { width: metaValueW });
+    document.fillColor(muted).font("Helvetica").fontSize(9).text(label, metaX, metaY, { width: metaLabelW });
+    document.fillColor(ink).font("Helvetica-Bold").fontSize(9).text(value, metaX + metaLabelW, metaY, { align: "right", width: metaValueW });
+    metaY += Math.max(labelH, valueH, 10.5) + 4;
   });
 
   let y = Math.max(leftBottom, metaY) + mm(7);
@@ -308,11 +318,19 @@ function drawInvoicePdf(document: PDFKit.PDFDocument, content: PdfContent, logoI
   });
 
   // ── Notes ──
+  const notePadY = 11;
+  const noteLineGap = 2;
+  const noteInnerW = width - 24;
   for (const note of content.notes) {
     y = pdfSpace(document, y, 48);
-    const noteHeight = document.heightOfString(note, { lineGap: 2, width: width - 24 }) + 22;
+    // Measure with the same font the text is drawn in, then trim the descender +
+    // line-gap slack pdfkit reserves below the final baseline so the ink (which has
+    // no descenders in these notes) sits optically centred in the rounded box.
+    document.font("Helvetica").fontSize(9);
+    const textHeight = document.heightOfString(note, { lineGap: noteLineGap, width: noteInnerW });
+    const noteHeight = textHeight - 4 + notePadY * 2;
     document.roundedRect(left, y, width, noteHeight, 10).strokeColor(line).lineWidth(0.8).stroke();
-    document.fillColor("#444444").font("Helvetica").fontSize(9).text(note, left + 12, y + 11, { lineGap: 2, width: width - 24 });
+    document.fillColor("#444444").text(note, left + 12, y + notePadY, { lineGap: noteLineGap, width: noteInnerW });
     y += noteHeight + 8;
   }
 
@@ -340,8 +358,9 @@ function drawPdfTable(
       const column = columns[index]!;
       document.fillColor(colors.muted).font("Helvetica-Bold").fontSize(8).text(header.toUpperCase(), left + column.offset + 9, y + 9, {
         align: index >= 3 ? "right" : "left",
-        characterSpacing: 0.3,
-        width: column.width - 16
+        characterSpacing: 0.2,
+        lineBreak: false,
+        width: column.width - 18
       });
     });
     document.moveTo(left, y + headerHeight).lineTo(left + width, y + headerHeight).strokeColor(colors.line).lineWidth(0.8).stroke();
@@ -384,7 +403,9 @@ function drawPdfTable(
 }
 
 function pdfTableColumns(width: number) {
-  const ratios = [0.07, 0.34, 0.21, 0.09, 0.145, 0.145];
+  // Widths tuned so the upper-cased German headers ("EINZELPREIS", "MENGE", "POS.")
+  // never wrap onto a second line at the header font size below.
+  const ratios = [0.085, 0.33, 0.165, 0.105, 0.1575, 0.1575];
   let offset = 0;
   return ratios.map((ratio) => {
     const column = { offset, width: width * ratio };
