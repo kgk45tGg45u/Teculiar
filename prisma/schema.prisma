@@ -336,6 +336,8 @@ model Product {
   active      Boolean         @default(true)
   homepageVisible Boolean     @default(true)
   provisioningModule String?
+  domainRequirement String     @default("NOT_NEEDED")
+  freeDomainBillingCycle String?
   sortOrder   Int             @default(0)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

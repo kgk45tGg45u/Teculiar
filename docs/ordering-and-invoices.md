@@ -118,6 +118,37 @@ Standalone invoices do **not** create services or domains when paid — they are
 
 ---
 
+## Product Domain Requirement
+
+Every non-domain product carries a **domain requirement** set in **Admin > Products** (the
+`Product.domainRequirement` column). It decides whether and how the storefront order form offers a
+domain alongside the service:
+
+| Value | Admin control | Order form behaviour |
+|-------|---------------|----------------------|
+| `NECESSARY` | "Can be ordered with a domain" ticked, requirement = *Necessary* | Domain field is **required** — register, transfer, or keep an external domain (the long-standing web-hosting flow). |
+| `OPTIONAL` | ticked, requirement = *Optional* | Domain field is shown but **skippable**; a note tells the customer it is optional. Leave it blank to order without a domain. |
+| `NOT_NEEDED` | "Can be ordered with a domain" unticked | **No domain step** — no whois search, no register/transfer. |
+
+`DOMAIN`-type products (and products in a *domain* category) are the domain itself, so the controls
+are hidden for them and the value is forced to `NOT_NEEDED`.
+
+The type-based migration seeds existing products: shared hosting → `NECESSARY`, virtual servers →
+`OPTIONAL`, reseller packages → `NECESSARY`, everything else → `NOT_NEEDED`. Admins can override any
+product afterwards.
+
+### Free domain included
+
+When a product can be ordered with a domain, the admin may also set **Free domain included** to a
+billing cycle (`Product.freeDomainBillingCycle`). A domain ordered together with that service is then
+free once the chosen billing cycle is at least that long (e.g. `YEAR_1` → every annual cycle). The
+discount still respects the **€15 price cap** — domains above €15 are never given away for free. The
+backend applies this in `applyFreeDomainDiscount` (`orders.service.ts`); the storefront mirrors it via
+`freeDomainApplies` in `checkout-form.tsx`. Shared hosting keeps its previous "free domain on annual
+plans" behaviour because the migration backfills `freeDomainBillingCycle = YEAR_1` for it.
+
+---
+
 ## Checkout Flow (Storefront)
 
 1. Customer fills out the cart and submits checkout

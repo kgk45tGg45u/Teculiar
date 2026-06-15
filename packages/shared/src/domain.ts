@@ -55,6 +55,14 @@ export const productTypes = [
 
 export type ProductType = (typeof productTypes)[number];
 
+// Whether a product can / must be ordered together with a domain registration.
+// NECESSARY  – a domain is required (e.g. web hosting); same flow as before.
+// OPTIONAL   – a domain can be added but may be skipped (e.g. virtual servers).
+// NOT_NEEDED – no domain step at all (no whois search, no register/transfer).
+export const domainRequirements = ["NECESSARY", "OPTIONAL", "NOT_NEEDED"] as const;
+
+export type DomainRequirement = (typeof domainRequirements)[number];
+
 export const serviceStatuses = [
   "PENDING",
   "PROVISIONING",

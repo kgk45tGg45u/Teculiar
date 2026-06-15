@@ -10,7 +10,7 @@ export type PricedOrderItem = {
   domainName?: string;
   productId: string;
   productPriceId: string;
-  productSnapshot: { name: string; type: string; slug: string; provisioningModule?: string | null };
+  productSnapshot: { name: string; type: string; slug: string; provisioningModule?: string | null; freeDomainBillingCycle?: string | null };
   quantity: number;
   setupFeeCents: number;
   totalCents: number;

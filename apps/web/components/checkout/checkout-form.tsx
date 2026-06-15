@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { billingCycles } from "@dezhost/shared";
 import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
 import { getLocale, type Locale } from "../../lib/i18n";
@@ -110,9 +111,12 @@ export function CheckoutForm({
     [selectedHosting, selectedHostingPriceId]
   );
   const needsDomain = product.type === "DOMAIN";
-  const needsHostingDomain = product.type === "SHARED_HOSTING";
+  // Non-domain products carry a per-product domain requirement set in the admin panel.
+  const domainMode = needsDomain ? "NOT_NEEDED" : product.domainRequirement ?? "NOT_NEEDED";
+  const needsHostingDomain = domainMode !== "NOT_NEEDED";
+  const domainOptional = domainMode === "OPTIONAL";
   const freeDomainEligible = Boolean(
-    selectedHostingPrice?.billingCycle.startsWith("YEAR_") && domainCheck.status === "ok" && domainCheck.priceCents <= 1500
+    needsHostingDomain && freeDomainApplies(product, selectedPrice?.billingCycle) && domainCheck.status === "ok" && domainCheck.priceCents <= 1500
   );
   const countries = useMemo(() => countriesForLocale(locale), [locale]);
   const summary = orderSummary({
@@ -605,8 +609,9 @@ export function CheckoutForm({
           {needsHostingDomain ? (
             <div className={styles.formSection}>
               <p className={styles.sectionLabel}>{copy.hostingDomain}</p>
+              {domainOptional ? <p className={styles.statusMsg}>{copy.domainOptionalNote}</p> : null}
               <label className={styles.fieldLabel}>
-                <span>{copy.domain} <span className={styles.required}>*</span></span>
+                <span>{copy.domain} {domainOptional ? null : <span className={styles.required}>*</span>}</span>
                 <div className={styles.domainCheckRow}>
                   <input
                     autoComplete="off"
@@ -617,7 +622,7 @@ export function CheckoutForm({
                       setDomainCheck({ status: "idle" });
                     }}
                     placeholder="example.de"
-                    required
+                    required={!domainOptional}
                     value={hostingDomain}
                   />
                   <Button className={styles.domainActionButton} size="sm" type="button" variant="secondary" onClick={() => checkDomain(hostingDomain)}>
@@ -649,7 +654,7 @@ export function CheckoutForm({
                 </label>
               ) : null}
               {freeDomainEligible ? <p className={styles.available}>✓ {copy.freeDomainIncluded}</p> : null}
-              {domainCheck.status === "ok" && selectedPrice?.billingCycle.startsWith("YEAR_") && domainCheck.priceCents > 1500 ? (
+              {domainCheck.status === "ok" && freeDomainApplies(product, selectedPrice?.billingCycle) && domainCheck.priceCents > 1500 ? (
                 <p className={styles.unavailable}>{copy.freeDomainLimit}</p>
               ) : null}
             </div>
@@ -700,7 +705,7 @@ export function CheckoutForm({
                     </label>
                   ))}
                 </div>
-                {selectedHostingPrice?.billingCycle.startsWith("YEAR_") ? (
+                {selectedHosting && freeDomainApplies(selectedHosting, selectedHostingPrice?.billingCycle) ? (
                   <p className={styles.available}>✓ {copy.yearlyFreeDomain}</p>
                 ) : null}
                 <div className={styles.modalActions}>
@@ -1277,12 +1282,13 @@ const checkoutCopy = {
     domainMissing: "Domain fehlt.",
     domainName: "Domain-Name",
     domainOnly: "Nur Domain",
+    domainOptionalNote: "Eine Domain ist für diesen Dienst optional – leer lassen, um ohne Domain zu bestellen.",
     domainUnavailable: (domain: string) => `${domain} ist nicht verfügbar.`,
     editDomain: "Domain bearbeiten",
     editHosting: "Hosting bearbeiten",
     email: "E-Mail",
     existingCustomer: "Bereits Kunde?",
-    freeDomainIncluded: "Diese Domain ist bei Jahreslaufzeit kostenlos enthalten.",
+    freeDomainIncluded: "Diese Domain ist bei dieser Laufzeit kostenlos enthalten.",
     freeDomainLimit: "Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos enthalten.",
     generate: "Generieren",
     hideNameServers: "Eigene Name-Server ausblenden",
@@ -1376,12 +1382,13 @@ const checkoutCopy = {
     domainMissing: "Domain missing.",
     domainName: "Domain name",
     domainOnly: "Domain only",
+    domainOptionalNote: "A domain is optional for this service — leave blank to order without one.",
     domainUnavailable: (domain: string) => `${domain} is not available.`,
     editDomain: "Edit domain",
     editHosting: "Edit hosting",
     email: "Email",
     existingCustomer: "Already a customer?",
-    freeDomainIncluded: "This domain is included free with yearly billing.",
+    freeDomainIncluded: "This domain is included free with your selected billing cycle.",
     freeDomainLimit: "This domain costs more than EUR 15 and is not included free.",
     generate: "Generate",
     hideNameServers: "Hide custom name servers",
@@ -1578,10 +1585,10 @@ function orderSummary(input: {
       label: `${input.product.name} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
     });
     const domainUse = hostingDomainUse(input.domainUse, input.domainCheck, input.hostingDomain);
-    if (input.needsHostingDomain && domainUse !== "external" && input.domainProduct) {
+    if (input.needsHostingDomain && domainUse !== "external" && input.domainProduct && input.hostingDomain.trim()) {
       const domainYears = yearsFromCycle(input.selectedPrice?.billingCycle);
       const domainUnitPrice = domainUnitPriceCents(input.domainCheck, priceForCycle(input.domainProduct, input.selectedPrice?.billingCycle), input.domainProduct.minimumPriceCents);
-      const free = input.selectedPrice?.billingCycle.startsWith("YEAR_") && domainUnitPrice <= 1500;
+      const free = freeDomainApplies(input.product, input.selectedPrice?.billingCycle) && domainUnitPrice <= 1500;
       lines.push({
         amountCents: free ? 0 : domainYears * domainUnitPrice,
         id: "domain-addon",
@@ -1606,6 +1613,18 @@ function orderSummary(input: {
 
 function domainUnitPriceCents(domainCheck: DomainCheck, price?: ApiProduct["prices"][number], minimumPriceCents?: number) {
   return domainCheck.status === "ok" ? domainCheck.priceCents : price && price.amountCents > 0 ? price.amountCents : minimumPriceCents ?? 0;
+}
+
+// A product includes a free domain when it has a configured free-domain billing cycle and the
+// selected cycle is at least that long (e.g. "YEAR_1" → every annual cycle qualifies).
+function freeDomainApplies(product: ApiProduct, cycle?: string) {
+  const threshold = product.freeDomainBillingCycle;
+  if (!threshold || !cycle) {
+    return false;
+  }
+  const ordered = billingCycles.indexOf(cycle as never);
+  const minimum = billingCycles.indexOf(threshold as never);
+  return ordered >= 0 && minimum >= 0 && ordered >= minimum;
 }
 
 function productDetails(product?: ApiProduct) {

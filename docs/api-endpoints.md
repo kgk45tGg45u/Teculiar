@@ -35,8 +35,8 @@ Customer-number note:
 - `GET /storefront/payment-gateways` - public enabled payment methods for checkout. API credentials are not exposed.
 - `GET /products`
 - `POST /products`
-- `POST /admin/dev/products` - temporary guarded product create endpoint.
-- `PATCH /admin/dev/products/:id` - temporary guarded product update endpoint.
+- `POST /admin/dev/products` - temporary guarded product create endpoint. Accepts `domainRequirement` (`NECESSARY` | `OPTIONAL` | `NOT_NEEDED`) and `freeDomainBillingCycle` (a billing cycle, or null) — see [ordering-and-invoices.md](ordering-and-invoices.md#product-domain-requirement).
+- `PATCH /admin/dev/products/:id` - temporary guarded product update endpoint (same `domainRequirement` / `freeDomainBillingCycle` fields).
 - `GET /admin/dev/product-categories` - temporary admin category list. Categories own the automation module used by products inside them.
 - `POST /admin/dev/product-categories` - temporary admin category create.
 - `PATCH /admin/dev/product-categories/:id` - temporary admin category update, including module selection.

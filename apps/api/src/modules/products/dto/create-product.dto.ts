@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
-import { billingCycles, productTypes } from "@dezhost/shared";
+import { billingCycles, domainRequirements, productTypes } from "@dezhost/shared";
 
 type PriceInput = {
   amountCents: number;
@@ -31,6 +31,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   provisioningModule?: string;
+
+  @IsOptional()
+  @IsIn([...domainRequirements])
+  domainRequirement?: string;
+
+  @IsOptional()
+  @IsIn([...billingCycles, ""])
+  freeDomainBillingCycle?: string | null;
 
   @IsOptional()
   @IsArray()

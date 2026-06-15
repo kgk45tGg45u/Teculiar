@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { BillingCycle, Prisma, ProductType, ServiceStatus } from "@prisma/client";
+import { billingCycles, domainRequirements } from "@dezhost/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 
@@ -64,6 +65,7 @@ export class ProductsRepository {
         description: dto.description,
         homepageVisible: dto.homepageVisible ?? true,
         provisioningModule: normalizeModule(dto.provisioningModule),
+        ...domainFields(dto),
         sortOrder: dto.sortOrder ?? 0,
         prices: {
           create: productPrices(dto).map((price) => ({
@@ -100,6 +102,7 @@ export class ProductsRepository {
           homepageVisible: dto.homepageVisible ?? true,
           name: dto.name,
           provisioningModule: normalizeModule(dto.provisioningModule),
+          ...domainFields(dto),
           slug: dto.slug,
           sortOrder: dto.sortOrder ?? 0,
           type: dto.type as ProductType,
@@ -165,6 +168,8 @@ export class ProductsRepository {
           active: true,
           categoryId,
           description: input.description,
+          domainRequirement: "NECESSARY",
+          freeDomainBillingCycle: "YEAR_1",
           homepageVisible: true,
           name: input.name,
           provisioningModule: "virtualmin",
@@ -399,4 +404,39 @@ function normalizeModule(value: string | null | undefined) {
     return null;
   }
   return moduleName;
+}
+
+// Domain products are the domain itself, so the requirement never applies to them. When the admin
+// did not send a value (older clients, internal sync), fall back to a sensible default per type.
+function resolveDomainRequirement(value: string | null | undefined, type: string) {
+  if (type === "DOMAIN") {
+    return "NOT_NEEDED";
+  }
+  if (value && domainRequirements.includes(value as never)) {
+    return value;
+  }
+  if (type === "SHARED_HOSTING") {
+    return "NECESSARY";
+  }
+  if (type === "VPS") {
+    return "OPTIONAL";
+  }
+  return "NOT_NEEDED";
+}
+
+// A free domain only makes sense when a domain can be ordered with the product at all.
+function resolveFreeDomainCycle(value: string | null | undefined, requirement: string) {
+  if (requirement === "NOT_NEEDED") {
+    return null;
+  }
+  const cycle = String(value ?? "").trim();
+  return cycle && billingCycles.includes(cycle as never) ? cycle : null;
+}
+
+function domainFields(dto: CreateProductDto) {
+  const domainRequirement = resolveDomainRequirement(dto.domainRequirement, dto.type);
+  return {
+    domainRequirement,
+    freeDomainBillingCycle: resolveFreeDomainCycle(dto.freeDomainBillingCycle, domainRequirement)
+  };
 }

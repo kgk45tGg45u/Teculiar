@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
+import { billingCycles } from "@dezhost/shared";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -562,7 +563,8 @@ export class OrdersService implements OnModuleInit {
         name: product.name,
         type: product.type,
         slug: product.slug,
-        provisioningModule: product.provisioningModule ?? null
+        provisioningModule: product.provisioningModule ?? null,
+        freeDomainBillingCycle: product.freeDomainBillingCycle ?? null
       },
       quantity,
       setupFeeCents: price.setupFeeCents,
@@ -784,9 +786,20 @@ function customerSnapshotFromUser(user: {
   };
 }
 
+// A service item grants a free domain when its product is configured with a free-domain billing
+// cycle and the ordered cycle is at least that long (e.g. "YEAR_1" → every annual cycle).
+function cycleAtLeast(cycle: string, threshold: string) {
+  const ordered = billingCycles.indexOf(cycle as never);
+  const minimum = billingCycles.indexOf(threshold as never);
+  return ordered >= 0 && minimum >= 0 && ordered >= minimum;
+}
+
 function applyFreeDomainDiscount(items: PricedOrderItem[]) {
-  const hasAnnualHosting = items.some((item) => item.type === "SHARED_HOSTING" && item.billingCycle.startsWith("YEAR_"));
-  if (!hasAnnualHosting) {
+  const grantsFreeDomain = items.some((item) => {
+    const threshold = item.productSnapshot?.freeDomainBillingCycle;
+    return item.type !== "DOMAIN" && threshold && cycleAtLeast(item.billingCycle, threshold);
+  });
+  if (!grantsFreeDomain) {
     return items;
   }
 

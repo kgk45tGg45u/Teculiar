@@ -14,6 +14,8 @@ export type ApiProduct = {
   homepageVisible?: boolean;
   minimumPriceCents?: number;
   provisioningModule?: string | null;
+  domainRequirement?: "NECESSARY" | "OPTIONAL" | "NOT_NEEDED" | string;
+  freeDomainBillingCycle?: string | null;
   sortOrder?: number;
   prices: Array<{
     id: string;

@@ -57,6 +57,17 @@
   gap: 12px;
 }
 
+.checkboxRow {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkboxRow input {
+  width: auto !important;
+}
+
 .priceGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

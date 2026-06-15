@@ -146,6 +146,8 @@ export function AdminProductManager() {
   const [module, setModule] = useState("resellbiz");
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState("DOMAIN");
+  const [domainRequirement, setDomainRequirement] = useState("NOT_NEEDED");
+  const [freeDomainCycle, setFreeDomainCycle] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("");
   const [detectedPlans, setDetectedPlans] = useState<VirtualminOption[]>([]);
 
@@ -176,6 +178,8 @@ export function AdminProductManager() {
           ],
           categoryId: String(formData.get("categoryId") ?? "") || null,
           description: String(formData.get("description") ?? ""),
+          domainRequirement: String(formData.get("domainRequirement") ?? "NOT_NEEDED"),
+          freeDomainBillingCycle: String(formData.get("freeDomainBillingCycle") ?? "") || null,
           name: String(formData.get("name") ?? ""),
           prices,
           slug: String(formData.get("slug") ?? ""),
@@ -222,6 +226,8 @@ export function AdminProductManager() {
     setCategoryId(product.categoryId ?? product.category?.id ?? "");
     setModule(product.category ? product.category.provisioningModule ?? "none" : product.provisioningModule ?? "none");
     setType(product.type);
+    setDomainRequirement(product.domainRequirement ?? "NOT_NEEDED");
+    setFreeDomainCycle(product.freeDomainBillingCycle ?? "");
     setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -270,6 +276,10 @@ export function AdminProductManager() {
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
   const selectedCategory = categories.find((category) => category.id === categoryId);
   const effectiveModule = selectedCategory ? selectedCategory.provisioningModule ?? "none" : module;
+  // Domain products are the domain itself, and a "domain" category groups them — neither gets the
+  // can-be-ordered-with-a-domain controls.
+  const isDomainProduct = type === "DOMAIN" || /domain/i.test(selectedCategory?.slug ?? "") || /domain/i.test(selectedCategory?.name ?? "");
+  const canOrderWithDomain = !isDomainProduct && domainRequirement !== "NOT_NEEDED";
 
   return (
     <div className={styles.stack}>
@@ -277,7 +287,7 @@ export function AdminProductManager() {
         <div className={styles.cardHeader}>
           <h2>{editing ? `Edit: ${editing.name}` : "New Product"}</h2>
           {editing ? (
-            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setCategoryId(""); setType("DOMAIN"); }}>
+            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); }}>
               + New Product
             </Button>
           ) : null}
@@ -286,6 +296,8 @@ export function AdminProductManager() {
         <form action={submit} className={styles.form} key={editing?.id ?? "new"}>
           <input name="productId" type="hidden" value={editing?.id ?? ""} />
           <input name="categoryModule" type="hidden" value={effectiveModule ?? "none"} />
+          <input name="domainRequirement" type="hidden" value={isDomainProduct ? "NOT_NEEDED" : domainRequirement} />
+          <input name="freeDomainBillingCycle" type="hidden" value={canOrderWithDomain ? freeDomainCycle : ""} />
 
           <fieldset className={styles.fieldset}>
             <legend>Basic Info</legend>
@@ -316,6 +328,40 @@ export function AdminProductManager() {
             </div>
             <label>Description<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
           </fieldset>
+
+          {isDomainProduct ? null : (
+            <fieldset className={styles.fieldset}>
+              <legend>Domain</legend>
+              <label className={styles.checkboxRow}>
+                <input
+                  checked={canOrderWithDomain}
+                  onChange={(e) => setDomainRequirement(e.target.checked ? "NECESSARY" : "NOT_NEEDED")}
+                  type="checkbox"
+                />
+                Can be ordered with a domain
+              </label>
+              {canOrderWithDomain ? (
+                <div className={styles.grid}>
+                  <label>
+                    Domain requirement
+                    <select value={domainRequirement} onChange={(e) => setDomainRequirement(e.target.value)}>
+                      <option value="NECESSARY">Necessary — domain required</option>
+                      <option value="OPTIONAL">Optional — domain can be skipped</option>
+                    </select>
+                  </label>
+                  <label>
+                    Free domain included
+                    <select value={freeDomainCycle} onChange={(e) => setFreeDomainCycle(e.target.value)}>
+                      <option value="">No free domain</option>
+                      {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
+                        <option key={cycle} value={cycle}>{cycleLabel(cycle)} and longer</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
+            </fieldset>
+          )}
 
           {type === "DOMAIN" ? (
             <p className={styles.note}>Domain pricing comes from Admin / Domain Prices. The product price shows "from" the cheapest TLD.</p>
@@ -404,6 +450,7 @@ export function AdminProductManager() {
                 <th>Type</th>
                 <th>Category</th>
                 <th>Module</th>
+                <th>Domain</th>
                 <th></th>
               </tr>
             </thead>
@@ -415,13 +462,14 @@ export function AdminProductManager() {
                   <td>{typeLabel(product.type)}</td>
                   <td>{product.category?.name ?? <span className={styles.muted}>—</span>}</td>
                   <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule)}</td>
+                  <td>{product.type === "DOMAIN" ? <span className={styles.muted}>—</span> : domainRequirementLabel(product.domainRequirement)}</td>
                   <td className={styles.rowActions}>
                     <Button size="sm" type="button" variant="secondary" onClick={() => editProduct(product)}>Edit</Button>
                     <Button size="sm" type="button" variant="ghost" onClick={() => removeProduct(product)}>Remove</Button>
                   </td>
                 </tr>
               ))}
-              {products.length === 0 && <tr><td colSpan={6} className={styles.empty}>No products yet.</td></tr>}
+              {products.length === 0 && <tr><td colSpan={7} className={styles.empty}>No products yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -491,6 +539,14 @@ function typeLabel(type: string) {
     SHARED_HOSTING: "Web Hosting",
     VPS: "VPS"
   }[type] ?? type.toLowerCase().replace(/_/g, " ");
+}
+
+function domainRequirementLabel(requirement?: string | null) {
+  return {
+    NECESSARY: "Necessary",
+    OPTIONAL: "Optional",
+    NOT_NEEDED: "Not needed"
+  }[requirement ?? "NOT_NEEDED"] ?? "Not needed";
 }
 
 function moduleLabel(moduleName?: string | null) {
