@@ -82,7 +82,11 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
       </div>
 
       {selectedModule?.name === "resellbiz" && (
-        <ResellbizConfig initialPrices={initialPrices} />
+        <ResellbizConfig
+          initialPrices={initialPrices}
+          module={selectedModule}
+          onSaved={(updated) => setModules((prev) => prev.map((m) => (m.name === "resellbiz" ? updated : m)))}
+        />
       )}
 
       {selectedModule?.name === "virtualmin" && (
@@ -95,10 +99,54 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
   );
 }
 
-function ResellbizConfig({ initialPrices }: { initialPrices: ApiDomainPrice[] }) {
+function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: ApiDomainPrice[]; module: ApiModule; onSaved: (updated: ApiModule) => void }) {
   const [prices, setPrices] = useState<ApiDomainPrice[]>(initialPrices);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
+  const [config, setConfig] = useState({
+    mode: String(module.config.mode ?? "test"),
+    resellerId: String(module.config.resellerId ?? ""),
+    apiKey: String(module.config.apiKey ?? ""),
+    defaultNs: String(module.config.defaultNs ?? "")
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  async function saveConfig(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingConfig(true);
+    const response = await fetch(`${API_BASE_URL}/admin/dev/modules/resellbiz`, {
+      body: JSON.stringify({
+        config: {
+          mode: config.mode,
+          resellerId: config.resellerId,
+          // Skip the masked placeholder so saving without retyping keeps the stored key.
+          apiKey: config.apiKey === "********" ? "********" : config.apiKey,
+          defaultNs: config.defaultNs
+        }
+      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      method: "PATCH"
+    });
+    setSavingConfig(false);
+    if (response.ok) {
+      const data = await response.json().catch(() => null);
+      if (Array.isArray(data)) {
+        const rb = data.find((m: ApiModule) => m.name === "resellbiz");
+        if (rb) {
+          onSaved(rb);
+          setConfig({
+            mode: String(rb.config.mode ?? "test"),
+            resellerId: String(rb.config.resellerId ?? ""),
+            apiKey: String(rb.config.apiKey ?? ""),
+            defaultNs: String(rb.config.defaultNs ?? "")
+          });
+        }
+      }
+      notify.success("Resell.biz credentials saved.");
+    } else {
+      notify.error("Failed to save Resell.biz config.");
+    }
+  }
 
   async function sync() {
     setSyncing(true);
@@ -136,10 +184,65 @@ function ResellbizConfig({ initialPrices }: { initialPrices: ApiDomainPrice[] })
   return (
     <div className={styles.moduleConfig}>
       <div className={styles.moduleConfigHeader}>
+        <h3>Resell.biz — API Credentials</h3>
+      </div>
+      <p style={{ padding: "0 16px 12px", margin: 0, fontSize: "0.88rem", color: "var(--muted)" }}>
+        Credentials are stored in the database and used for domain registration, transfer, renewal and
+        price sync. The server <code>.env</code> is only a fallback. Leave the API key blank to keep the stored one.
+      </p>
+      <form className={styles.form} onSubmit={saveConfig}>
+        <div className={styles.formGrid}>
+          <label>
+            API mode
+            <select value={config.mode} onChange={(e) => setConfig({ ...config, mode: e.target.value })}>
+              <option value="test">Test (test.httpapi.com)</option>
+              <option value="live">Live (httpapi.com)</option>
+            </select>
+          </label>
+          <label>
+            Reseller ID
+            <input
+              placeholder="auth-userid"
+              value={config.resellerId}
+              onChange={(e) => setConfig({ ...config, resellerId: e.target.value })}
+            />
+          </label>
+          <label>
+            API key
+            <input
+              autoComplete="off"
+              placeholder={config.apiKey === "********" ? "••••••••" : "Enter API key"}
+              type="password"
+              value={config.apiKey === "********" ? "" : config.apiKey}
+              onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+            />
+          </label>
+          <label className={styles.formSpan2}>
+            Default name servers
+            <input
+              placeholder="ns5.dezhost.com, ns6.dezhost.com"
+              value={config.defaultNs}
+              onChange={(e) => setConfig({ ...config, defaultNs: e.target.value })}
+            />
+            <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
+              Used when the customer leaves name servers blank at checkout. Falls back to ns5.dezhost.com, ns6.dezhost.com.
+            </span>
+          </label>
+        </div>
+        <div className={styles.formActions}>
+          <Button icon={Save} type="submit">{savingConfig ? "Saving…" : "Save Credentials"}</Button>
+        </div>
+      </form>
+
+      <div className={styles.moduleConfigHeader}>
         <h3>Resell.biz — Domain Prices</h3>
-        <Button icon={RefreshCw} type="button" variant="secondary" onClick={sync}>
-          {syncing ? "Syncing…" : "Sync from Resell.biz"}
-        </Button>
+        {module.active ? (
+          <Button icon={RefreshCw} type="button" variant="secondary" onClick={sync}>
+            {syncing ? "Syncing…" : "Sync from Resell.biz"}
+          </Button>
+        ) : (
+          <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Module disabled — prices are managed manually below.</span>
+        )}
       </div>
 
       <form action={upsertPrice} className={styles.form}>
@@ -195,7 +298,8 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
     allowSelfSigned: Boolean(initial.allowSelfSigned),
     endpoint: String(initial.endpoint ?? ""),
     password: String(initial.password ?? ""),
-    username: String(initial.username ?? "")
+    username: String(initial.username ?? ""),
+    jobDelayMinutes: String(initial.jobDelayMinutes ?? "0")
   });
   const [active, setActive] = useState(true);
   const [message, setMessage] = useState("");
@@ -209,7 +313,8 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
           allowSelfSigned: config.allowSelfSigned,
           endpoint: config.endpoint,
           password: config.password || initial.password,
-          username: config.username
+          username: config.username,
+          jobDelayMinutes: config.jobDelayMinutes
         }
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -266,6 +371,19 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
               value={config.password}
               onChange={(e) => setConfig({ ...config, password: e.target.value })}
             />
+          </label>
+          <label>
+            Minutes between server jobs
+            <input
+              min="0"
+              step="1"
+              type="number"
+              value={config.jobDelayMinutes}
+              onChange={(e) => setConfig({ ...config, jobDelayMinutes: e.target.value })}
+            />
+            <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
+              Minimum delay enforced between create / suspend / delete jobs so Virtualmin never gets simultaneous changes. 0 disables it.
+            </span>
           </label>
           <label className={styles.formSpan2}>
             <span>

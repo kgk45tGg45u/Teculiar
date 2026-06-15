@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
+import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { TicketsService } from "../tickets/tickets.service";
 import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
@@ -22,7 +23,8 @@ export class BillingService {
     private readonly payments: AbstractPaymentService,
     private readonly external?: ExternalService,
     private readonly emails?: EmailService,
-    private readonly ticketsService?: TicketsService
+    private readonly ticketsService?: TicketsService,
+    private readonly modules?: ModuleRegistryService
   ) {}
 
   private onCheckoutInvoicePaidHook?: (invoiceId: string) => Promise<void>;
@@ -1010,15 +1012,25 @@ export class BillingService {
     if (!this.external) {
       return { externalId: service.externalId ?? service.id, metadata: { reason: "External provider module is not configured." }, status: "QUEUED" as const };
     }
+    // A disabled hosting module means automation is off — the service is left QUEUED for the admin to
+    // provision/manage manually. (Unknown modules with no registry entry default to active.)
+    const moduleEnabled = this.modules ? await this.modules.moduleActive(moduleName) : true;
     if (action === "unsuspend") {
       // Paying an overdue invoice re-enables the account that billing maintenance disabled.
-      if (moduleName === "virtualmin" && service.externalId) {
+      if (moduleEnabled && moduleName === "virtualmin" && service.externalId) {
         await this.external.virtualmin.enable(service.externalId).catch(() => undefined);
       }
       return { externalId: service.externalId ?? service.id, metadata: { action }, status: "ACTIVE" as const };
     }
     if (action === "renew") {
       return { externalId: service.externalId ?? service.id, metadata: { action }, status: "ACTIVE" as const };
+    }
+    if (!moduleEnabled) {
+      return {
+        externalId: service.externalId ?? service.id,
+        metadata: { moduleName, reason: `The ${moduleName} module is disabled — provision this service manually.` },
+        status: "QUEUED" as const
+      };
     }
     if (moduleName === "hetzner" || ["VPS", "DEDICATED_SERVER"].includes(service.product?.type)) {
       return this.external.hetzner.provision(request as never);
@@ -1032,6 +1044,14 @@ export class BillingService {
     }
     if (moduleName !== "resellbiz") {
       return { externalId: request.domain, metadata: { moduleName, reason: "Domain module is not configured." }, status: "QUEUED" as const };
+    }
+    // A disabled registrar module means the admin registers domains manually — leave it QUEUED.
+    if (this.modules && !(await this.modules.moduleActive("resellbiz"))) {
+      return {
+        externalId: request.domain,
+        metadata: { moduleName, reason: "The resell.biz module is disabled — register this domain manually." },
+        status: "QUEUED" as const
+      };
     }
     if (action === "transfer_domain") {
       return this.external.resellBiz.transfer(request as never);
@@ -2097,72 +2117,31 @@ export class BillingService {
     return { mimeType, buffer };
   }
 
+  // Module catalog, enabled-state and config are owned by the ModuleRegistryService (DB-backed with
+  // .env fallback). These delegates keep the existing /admin/dev/modules routes stable.
   async getModules() {
-    const [vmActive, vmEndpoint, vmUsername, vmPassword, vmAllowSelfSigned, rbActive] = await Promise.all([
-      this.billing.settingNumber("module.virtualmin.active", 1),
-      this.billing.settingString("module.virtualmin.endpoint"),
-      this.billing.settingString("module.virtualmin.username"),
-      this.billing.settingString("module.virtualmin.password"),
-      this.billing.settingNumber("module.virtualmin.allowSelfSigned", 0),
-      this.billing.settingNumber("module.resellbiz.active", 1)
-    ]);
-    return [
-      {
-        name: "resellbiz",
-        label: "Resell.biz Domain Registrar",
-        description: "Automated domain registration, transfer, and renewal via Resell.biz API.",
-        active: rbActive !== 0,
-        config: {}
-      },
-      {
-        name: "virtualmin",
-        label: "Virtualmin Hosting Panel",
-        description: "Automated hosting account provisioning and management via Virtualmin API.",
-        active: vmActive !== 0,
-        config: {
-          endpoint: vmEndpoint || process.env.VIRTUALMIN_ADMIN_ENDPOINT || "",
-          username: vmUsername || process.env.VIRTUALMIN_ADMIN_USERNAME || "",
-          password: vmPassword ? "********" : (process.env.VIRTUALMIN_ADMIN_PASSWORD ? "********" : ""),
-          allowSelfSigned: vmAllowSelfSigned === 1
-        }
-      }
-    ];
+    if (!this.modules) {
+      return [];
+    }
+    return this.modules.list();
   }
 
   async updateModule(name: string, input: { active?: boolean; config?: Record<string, unknown> }) {
-    const ops: Promise<unknown>[] = [];
-    if (name === "resellbiz") {
-      if (input.active !== undefined) {
-        ops.push(this.billing.upsertSettingNumber("module.resellbiz.active", input.active ? 1 : 0));
-      }
-    } else if (name === "virtualmin") {
-      if (input.active !== undefined) {
-        ops.push(this.billing.upsertSettingNumber("module.virtualmin.active", input.active ? 1 : 0));
-      }
-      if (input.config) {
-        const cfg = input.config;
-        if (typeof cfg.endpoint === "string") {
-          ops.push(this.billing.upsertSettingString("module.virtualmin.endpoint", cfg.endpoint));
-        }
-        if (typeof cfg.username === "string") {
-          ops.push(this.billing.upsertSettingString("module.virtualmin.username", cfg.username));
-        }
-        if (typeof cfg.password === "string" && cfg.password !== "********") {
-          ops.push(this.billing.upsertSettingString("module.virtualmin.password", cfg.password));
-        }
-        if (typeof cfg.allowSelfSigned === "boolean") {
-          ops.push(this.billing.upsertSettingNumber("module.virtualmin.allowSelfSigned", cfg.allowSelfSigned ? 1 : 0));
-        }
-      }
+    if (!this.modules) {
+      return [];
     }
-    await Promise.all(ops);
-    return this.getModules();
+    return this.modules.update(name, input);
   }
 
   async updateServiceStatus(id: string, status: string) {
     const service = await this.billing.setServiceStatus(id, status);
     if (status === "ACTIVE") {
-      void this.dispatchServiceEmail("hosting_account_information", service).catch(() => undefined);
+      // Reload with relations and backfill the Virtualmin panel username / control-panel URL before
+      // emailing, otherwise {{virtualmin_control_panel_username}} renders empty for admin-activated
+      // accounts (the create call never returns the panel-derived username).
+      const full = (await this.billing.serviceForEmail(id).catch(() => undefined)) ?? service;
+      await this.ensureHostingCredentials(full).catch(() => undefined);
+      void this.dispatchServiceEmail("hosting_account_information", full).catch(() => undefined);
     }
     if (status === "SUSPENDED") {
       void this.dispatchServiceEmail("hosting_account_suspended", service).catch(() => undefined);

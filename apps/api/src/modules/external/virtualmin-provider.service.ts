@@ -4,14 +4,50 @@ import { callVirtualmin } from "../virtualmin-client/virtualmin-api";
 import { actionFromBody, createDomainAction } from "../virtualmin-client/virtualmin-actions";
 import { buildVirtualminReport } from "../virtualmin-client/virtualmin-report";
 import { pickField } from "../virtualmin-client/virtualmin-normalize";
-import { adminCredentialsFromEnv, assertSafeDomain } from "../virtualmin-client/virtualmin-security";
+import { assertSafeDomain } from "../virtualmin-client/virtualmin-security";
 import type { VirtualminCredentials, VirtualminEntry } from "../virtualmin-client/virtualmin-types";
+import { ModuleRegistryService, VirtualminConfig } from "../module-registry/module-registry.service";
 import type { HostingProvider, ProvisioningRequest } from "./provider.types";
 
 @Injectable()
 export class VirtualminProviderService implements HostingProvider {
+  constructor(private readonly modules: ModuleRegistryService) {}
+
+  // Virtualmin cannot safely process simultaneous server create/suspend/delete operations (it rewrites
+  // shared config files like httpd.conf). We therefore serialize every WRITE through a single promise
+  // chain and, when the admin configures a delay, keep a minimum gap between consecutive writes. Reads
+  // (status / list) are never throttled.
+  private writeChain: Promise<unknown> = Promise.resolve();
+  private lastWriteAt = 0;
+
+  private runSerializedWrite<T>(delayMinutes: number, fn: () => Promise<T>): Promise<T> {
+    const run = this.writeChain.then(async () => {
+      const delayMs = Math.max(0, delayMinutes) * 60_000;
+      if (delayMs > 0 && this.lastWriteAt > 0) {
+        const wait = this.lastWriteAt + delayMs - Date.now();
+        if (wait > 0) {
+          await sleep(wait);
+        }
+      }
+      try {
+        return await fn();
+      } finally {
+        this.lastWriteAt = Date.now();
+      }
+    });
+    // Keep the chain progressing whether the job resolved or rejected, so one failure never deadlocks
+    // every later Virtualmin write.
+    this.writeChain = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  private async credentials(): Promise<{ credentials?: VirtualminCredentials; config: VirtualminConfig }> {
+    const config = await this.modules.virtualmin();
+    return { credentials: credentialsFromConfig(config), config };
+  }
+
   async provision(request: ProvisioningRequest) {
-    const credentials = credentialsFromEnv();
+    const { credentials, config } = await this.credentials();
     if (!credentials) {
       return {
         externalId: `virtualmin_${request.serviceId}`,
@@ -37,7 +73,9 @@ export class VirtualminProviderService implements HostingProvider {
       plan: stringOption(request.options, "virtualminPlan"),
       template: stringOption(request.options, "virtualminTemplate")
     });
-    const result = await callVirtualmin(credentials, action.program, action.params).catch((error: unknown) => {
+    const result = await this.runSerializedWrite(config.jobDelayMinutes, () =>
+      callVirtualmin(credentials, action.program, action.params)
+    ).catch((error: unknown) => {
       if (error instanceof Error && /timed out/i.test(error.message)) {
         return {
           entries: [],
@@ -71,7 +109,7 @@ export class VirtualminProviderService implements HostingProvider {
   // hosting account. Used to complete the hosting activation email when the account becomes active
   // (the create call does not return the username Virtualmin derived from the domain). Never throws.
   async accountSummary(serviceExternalId: string) {
-    const credentials = credentialsFromEnv();
+    const { credentials } = await this.credentials();
     if (!credentials) {
       return { controlPanelUrl: "", username: "" };
     }
@@ -79,8 +117,10 @@ export class VirtualminProviderService implements HostingProvider {
     const controlPanelUrl = controlPanelOrigin(credentials.endpoint);
     try {
       const result = await callVirtualmin(credentials, "list-domains", { domain: domainName, multiline: true });
-      const entry = result.entries.find((item) => item.name === domainName) ?? result.entries[0];
-      const username = entry ? pickField(entry.fields, ["Username", "username"]) ?? "" : "";
+      // Prefer the exact top-level domain entry; only fall back to the first entry when the panel
+      // returned a single record. Virtualmin labels the owner login under "Username" (multiline).
+      const entry = result.entries.find((item) => item.name === domainName) ?? (result.entries.length === 1 ? result.entries[0] : undefined);
+      const username = entry ? pickField(entry.fields, ["Username", "username", "Owner", "owner"]) ?? "" : "";
       return { controlPanelUrl, username };
     } catch {
       return { controlPanelUrl, username: "" };
@@ -88,7 +128,7 @@ export class VirtualminProviderService implements HostingProvider {
   }
 
   async listHostingTemplates() {
-    const credentials = credentialsFromEnv();
+    const { credentials } = await this.credentials();
     if (!credentials) {
       return { plans: [], templates: [], warning: "Virtualmin admin credentials are not configured." };
     }
@@ -124,12 +164,13 @@ export class VirtualminProviderService implements HostingProvider {
   }
 
   private async toggleDomain(serviceExternalId: string, program: "disable-domain" | "enable-domain") {
-    const credentials = credentialsFromEnv();
+    const { credentials, config } = await this.credentials();
     if (!credentials) {
       return { accepted: false, reason: "Virtualmin admin credentials are not configured." };
     }
     const domain = assertSafeDomain(serviceExternalId);
-    const result = await callVirtualmin(credentials, program, { domain }).catch((error: unknown) => ({
+    // Suspend / unsuspend are server writes — serialize + space them like creates.
+    const result = await this.runSerializedWrite(config.jobDelayMinutes, () => callVirtualmin(credentials, program, { domain })).catch((error: unknown) => ({
       ok: false,
       message: error instanceof Error ? error.message : "Virtualmin request failed"
     }));
@@ -137,7 +178,7 @@ export class VirtualminProviderService implements HostingProvider {
   }
 
   async status(serviceExternalId: string) {
-    const credentials = credentialsFromEnv();
+    const { credentials } = await this.credentials();
     if (!credentials) {
       return {
         externalId: serviceExternalId,
@@ -191,7 +232,7 @@ export class VirtualminProviderService implements HostingProvider {
 
   async hostingControlPanel(serviceExternalId: string) {
     const domainName = assertSafeDomain(serviceExternalId);
-    const credentials = credentialsFromEnv();
+    const { credentials } = await this.credentials();
     if (!credentials) {
       return emptyControlPanel(domainName, "Virtualmin admin credentials are not configured.");
     }
@@ -237,7 +278,7 @@ export class VirtualminProviderService implements HostingProvider {
 
   async hostingControlAction(serviceExternalId: string, body: Record<string, string | undefined>) {
     const domainName = assertSafeDomain(serviceExternalId);
-    const credentials = credentialsFromEnv();
+    const { credentials } = await this.credentials();
     if (!credentials) {
       return { accepted: false, message: "Virtualmin admin credentials are not configured." };
     }
@@ -250,11 +291,22 @@ export class VirtualminProviderService implements HostingProvider {
   }
 }
 
-function credentialsFromEnv(): VirtualminCredentials | undefined {
-  return adminCredentialsFromEnv(process.env, {
-    allowSelfSigned: process.env.VIRTUALMIN_ADMIN_ALLOW_SELF_SIGNED === "1",
-    endpoint: process.env.VIRTUALMIN_ADMIN_ENDPOINT ?? ""
-  });
+// Build live Virtualmin credentials from the admin-configured module values. The registry already
+// folds in the .env fallback, so an empty endpoint/username/password here means "not configured".
+function credentialsFromConfig(config: VirtualminConfig): VirtualminCredentials | undefined {
+  if (!config.endpoint || !config.username || !config.password) {
+    return undefined;
+  }
+  return {
+    allowSelfSigned: config.allowSelfSigned,
+    endpoint: config.endpoint,
+    password: config.password,
+    username: config.username
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function domainFromOptions(options: Record<string, unknown>) {

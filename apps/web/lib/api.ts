@@ -52,10 +52,19 @@ export type ApiPaymentGateway = {
 
 export type ApiModule = {
   name: string;
+  kind?: string;
   label: string;
   description: string;
   active: boolean;
   config: Record<string, unknown>;
+  fields?: Array<{
+    key: string;
+    label: string;
+    type: "text" | "secret" | "boolean" | "select";
+    options?: Array<{ value: string; label: string }>;
+    placeholder?: string;
+    help?: string;
+  }>;
 };
 
 export type ApiOrder = {

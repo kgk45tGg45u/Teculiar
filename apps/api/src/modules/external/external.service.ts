@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
+import { canonicalModuleName } from "../module-registry/module-catalog";
 import { HetznerProviderService } from "./hetzner-provider.service";
 import { ResellBizProviderService } from "./resellbiz-provider.service";
 import { VirtualminProviderService } from "./virtualmin-provider.service";
-import type { HostingProvider } from "./provider.types";
+import type { DomainProvider, HostingProvider } from "./provider.types";
 
 @Injectable()
 export class ExternalService {
@@ -20,5 +21,12 @@ export class ExternalService {
     }
 
     return this.virtualmin;
+  }
+
+  // Resolve the registrar provider that owns a stored registrar identifier (DomainRecord.registrarModule
+  // / registrarProvider). Returns undefined for manual domains or registrars with no installed module —
+  // future registrar modules add their case here without touching the cron.
+  registrarProvider(registrar: string | null | undefined): DomainProvider | undefined {
+    return canonicalModuleName(registrar) === "resellbiz" ? this.resellBiz : undefined;
   }
 }

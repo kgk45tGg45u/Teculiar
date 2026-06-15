@@ -50,8 +50,8 @@ Set secret in one place:
 Cron runs every 5 minutes, but each timed job runs only when due:
 
 - Domain prices: every configured hours.
-- Domain expirations: every configured hours.
-- Domain statuses: every configured minutes.
+- Domain expirations: every configured hours. **Only runs when a domain registrar module is active**, and only for domains registered through an active registrar — manual (admin-registered) domains are skipped. See [modules.md](modules.md).
+- Domain statuses: every configured minutes. Same registrar gating as domain expirations.
 - Hosting statuses: every configured minutes.
 - Mailbox imports: every configured minutes. Every fetched email is logged (with subject and matched client) and turned into a ticket; mail from an unknown sender creates a guest contact so nothing is lost. IMAP connection/login errors are recorded instead of being swallowed.
 - Invoice generation, due-date auto-pay, overdue marking, and hosting suspension: every cron run, idempotent.

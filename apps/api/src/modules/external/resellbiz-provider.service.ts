@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { ResellBizClient, credentialsFromEnv, ResellBizApiError } from "../resellbiz-client/resellbiz-api";
+import { ResellBizClient, ResellBizApiError } from "../resellbiz-client/resellbiz-api";
+import { ModuleRegistryService, resolveNameServers, ResellbizConfig } from "../module-registry/module-registry.service";
 import type {
   DomainCustomerContactRequest,
   DomainProvider,
@@ -10,6 +11,8 @@ import type {
 
 @Injectable()
 export class ResellBizProviderService implements DomainProvider {
+  constructor(private readonly modules: ModuleRegistryService) {}
+
   async search(domain: string) {
     return {
       domain,
@@ -18,8 +21,25 @@ export class ResellBizProviderService implements DomainProvider {
     };
   }
 
+  // Build a client from the admin-configured Resell.biz module credentials (API key, Reseller ID,
+  // Test/Live base URL). The prod/dev .env is consulted only as a fallback inside the registry.
+  private async config(): Promise<ResellbizConfig> {
+    return this.modules.resellbiz();
+  }
+
+  private clientFrom(config: ResellbizConfig): ResellBizClient {
+    if (!config.resellerId) {
+      throw new ResellBizApiError("Resell.biz Reseller ID is not configured. Set it in Admin → Products → Modules.");
+    }
+    if (!config.apiKey) {
+      throw new ResellBizApiError("Resell.biz API key is not configured. Set it in Admin → Products → Modules.");
+    }
+    return new ResellBizClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, resellerId: config.resellerId });
+  }
+
   async register(request: DomainRegistrationRequest) {
-    const client = resellBizClient();
+    const config = await this.config();
+    const client = this.clientFrom(config);
     const contacts = await registrationContacts(client, request);
     const payload = await client.registerDomain({
       ...contacts,
@@ -28,7 +48,7 @@ export class ResellBizProviderService implements DomainProvider {
       domainName: request.domain,
       extraAttributes: request.extraAttributes,
       invoiceOption: "NoInvoice",
-      nameServers: request.nameServers ?? defaultNameServers(),
+      nameServers: resolveNameServers(request.nameServers, config.defaultNs),
       protectPrivacy: false,
       purchasePrivacy: false,
       years: request.years
@@ -38,12 +58,13 @@ export class ResellBizProviderService implements DomainProvider {
     return {
       externalId,
       status: mapDomainActionStatus(payload),
-      metadata: { raw: payload, testApi: true }
+      metadata: { raw: payload, testApi: config.mode === "test" }
     };
   }
 
   async transfer(request: DomainTransferRequest) {
-    const client = resellBizClient();
+    const config = await this.config();
+    const client = this.clientFrom(config);
     const contacts = await registrationContacts(client, request);
     const payload = await client.transferDomain({
       ...contacts,
@@ -52,7 +73,7 @@ export class ResellBizProviderService implements DomainProvider {
       domainName: request.domain,
       extraAttributes: request.extraAttributes,
       invoiceOption: "NoInvoice",
-      nameServers: request.nameServers ?? defaultNameServers(),
+      nameServers: resolveNameServers(request.nameServers, config.defaultNs),
       protectPrivacy: false,
       purchasePrivacy: false
     });
@@ -61,12 +82,12 @@ export class ResellBizProviderService implements DomainProvider {
     return {
       externalId,
       status: mapDomainActionStatus(payload),
-      metadata: { authCodePresent: Boolean(request.authCode), raw: payload, testApi: true }
+      metadata: { authCodePresent: Boolean(request.authCode), raw: payload, testApi: config.mode === "test" }
     };
   }
 
   async renew(request: DomainRenewalRequest) {
-    const client = resellBizClient();
+    const client = this.clientFrom(await this.config());
     const payload = await client.renewDomain({
       autoRenew: request.autoRenew ?? true,
       expDate: request.expDate,
@@ -82,12 +103,12 @@ export class ResellBizProviderService implements DomainProvider {
     return {
       externalId,
       status: mapDomainActionStatus(payload),
-      metadata: { domain: request.domain, raw: payload, testApi: true }
+      metadata: { domain: request.domain, raw: payload }
     };
   }
 
   async renewDomain(domain: string, years: number) {
-    const client = resellBizClient();
+    const client = this.clientFrom(await this.config());
     const summary = await client.getDomainSummary(domain);
     return this.renew({
       domain,
@@ -98,7 +119,7 @@ export class ResellBizProviderService implements DomainProvider {
   }
 
   async ensureCustomerContact(request: DomainCustomerContactRequest) {
-    const client = resellBizClient();
+    const client = this.clientFrom(await this.config());
     const customerId = await ensureCustomer(client, request);
     const contactId = await client.addContact({
       ...request,
@@ -111,7 +132,7 @@ export class ResellBizProviderService implements DomainProvider {
   }
 
   async status(domain: string) {
-    const client = resellBizClient();
+    const client = this.clientFrom(await this.config());
     let summary;
     try {
       summary = await client.getDomainSummary(domain);
@@ -204,37 +225,8 @@ async function ensureCustomer(client: ResellBizClient, request: DomainCustomerCo
   });
 }
 
-function resellBizClient() {
-  return new ResellBizClient(
-    credentialsFromEnv({
-      ...process.env,
-      RESELLBIZ_API_BASE_URL: process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com"
-    })
-  );
-}
-
 function temporaryCustomerPassword() {
   return `Dz${Math.random().toString(36).slice(2, 8)}!9Aa`.slice(0, 16);
-}
-
-function defaultNameServers() {
-  if (isResellBizTestApi()) {
-    return ["ns1.domain.com", "ns2.domain.com"];
-  }
-
-  const combined = process.env.RESELLBIZ_DEFAULT_NS?.split(",").map((value) => value.trim()).filter(Boolean);
-  if (combined && combined.length > 0) {
-    return combined;
-  }
-
-  return [
-    process.env.RESELLBIZ_DEFAULT_NS1 ?? "ns1.domain.com",
-    process.env.RESELLBIZ_DEFAULT_NS2 ?? "ns2.domain.com"
-  ];
-}
-
-function isResellBizTestApi() {
-  return (process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com").includes("test.httpapi.com");
 }
 
 function numberFromEnv(key: string) {

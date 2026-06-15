@@ -62,7 +62,10 @@ test("client table shares overview service list while detail refreshes once", as
   assert.doesNotMatch(source, /loadServiceFresh/);
 });
 
-test("active hosting service is not kept active when Virtualmin cannot find it", async () => {
+test("active hosting service is terminated when Virtualmin definitively reports it gone", async () => {
+  // A live (ACTIVE) service is only changed on a DEFINITIVE "does not exist" from the panel (status
+  // FAILED) → TERMINATED for Virtualmin. Inconclusive results (PROVISIONING / QUEUED) must never flip a
+  // working service, so a transient outage can't mass-change every account.
   const calls = [];
   const products = {
     findService: async () => ({
@@ -81,7 +84,7 @@ test("active hosting service is not kept active when Virtualmin cannot find it",
   };
   const external = {
     hostingProvider: () => ({
-      status: async () => ({ externalId: "missing-host.example.com", status: "PROVISIONING" })
+      status: async () => ({ externalId: "missing-host.example.com", status: "FAILED" })
     }),
     resellBiz: {}
   };
@@ -89,8 +92,39 @@ test("active hosting service is not kept active when Virtualmin cannot find it",
   const service = new ProductsService(products, external);
   const refreshed = await service.refreshService("service-1", "user-1");
 
-  assert.deepEqual(calls, [["service-1", "PROVISIONING", "missing-host.example.com"]]);
-  assert.equal(refreshed.status, "PROVISIONING");
+  assert.deepEqual(calls, [["service-1", "TERMINATED", "missing-host.example.com"]]);
+  assert.equal(refreshed.status, "TERMINATED");
+});
+
+test("active hosting service stays active on an inconclusive Virtualmin status", async () => {
+  const calls = [];
+  const products = {
+    findService: async () => ({
+      configuration: { domainName: "live-host.example.com" },
+      domainRecords: [],
+      externalId: "live-host.example.com",
+      id: "service-1",
+      product: { type: "SHARED_HOSTING" },
+      status: "ACTIVE",
+      userId: "user-1"
+    }),
+    updateServiceStatus: async (id, status, externalId) => {
+      calls.push([id, status, externalId]);
+      return { id, status, externalId };
+    }
+  };
+  const external = {
+    hostingProvider: () => ({
+      status: async () => ({ externalId: "live-host.example.com", status: "PROVISIONING" })
+    }),
+    resellBiz: {}
+  };
+
+  const service = new ProductsService(products, external);
+  const refreshed = await service.refreshService("service-1", "user-1");
+
+  assert.deepEqual(calls, []);
+  assert.equal(refreshed.status, "ACTIVE");
 });
 
 test("hosting refresh does not activate while Virtualmin create log is still running", async () => {

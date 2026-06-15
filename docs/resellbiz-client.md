@@ -8,16 +8,23 @@ Checkout provisioning now also uses the same Resell.biz client through the API.
 
 ## Credentials
 
-OrderBox / LogicBoxes docs use a reseller ID plus API key:
+**Primary configuration is in Admin → Products → Modules → Resell.biz** (API key, Reseller ID, Test/Live
+mode, default name servers). Values are stored in the DB; the `.env` is only a **fallback**. See
+[modules.md](modules.md) for the full module model.
+
+OrderBox / LogicBoxes docs use a reseller ID plus API key. The matching `.env` fallbacks:
 
 ```bash
-RESELLBIZ_RESELLER_ID="1325587"
-RESELLBIZ_API_KEY="..."
-RESELLBIZ_API_BASE_URL="https://test.httpapi.com"
-RESELLBIZ_TEST_CUSTOMER_ID="..."
+RESELLBIZ_RESELLER_ID="1325587"          # fallback for the module Reseller ID
+RESELLBIZ_API_KEY="..."                   # fallback for the module API key
+RESELLBIZ_API_BASE_URL="https://test.httpapi.com"  # fallback when no Test/Live mode is set
+RESELLBIZ_TEST_CUSTOMER_ID="..."          # test-only; customer/contacts are created per registration
 RESELLBIZ_TEST_CONTACT_ID="..."
-RESELLBIZ_DEFAULT_NS="ns1.example.com,ns2.example.com"
+RESELLBIZ_DEFAULT_NS="ns5.dezhost.com,ns6.dezhost.com"  # fallback for the module default name servers
 ```
+
+Name servers sent with a registration: customer's (from checkout, if ≥ 2) → module default →
+`ns5.dezhost.com, ns6.dezhost.com`. At least two are always sent.
 
 The reseller email is a control-panel login field, not used by the documented domain HTTP API calls.
 

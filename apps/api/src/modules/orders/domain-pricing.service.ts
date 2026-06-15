@@ -5,6 +5,7 @@ import {
   type ResellBizDomainPrice,
   type ResellBizDomainPriceAction
 } from "../resellbiz-client/resellbiz-api";
+import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 type PriceResult = {
@@ -16,7 +17,10 @@ type PriceResult = {
 
 @Injectable()
 export class DomainPricingService {
-  constructor(private readonly prisma?: PrismaService) {}
+  constructor(
+    private readonly prisma?: PrismaService,
+    private readonly modules?: ModuleRegistryService
+  ) {}
 
   async priceFor(
     domainName: string,
@@ -47,16 +51,41 @@ export class DomainPricingService {
   }
 
   async syncFromResellBiz(customerId?: number) {
-    const client = new ResellBizClient(
+    const client = await this.resellbizClient();
+    const prices = await client.getCustomerDomainPrices(customerId);
+    await this.replaceStoredPrices(prices);
+
+    return { count: prices.length, updatedAt: new Date().toISOString() };
+  }
+
+  // Build the sync client from the admin-configured Resell.biz module credentials (API key, Reseller
+  // ID, Test/Live base URL). Falls back to .env only when the registry is unavailable (e.g. tests).
+  private async resellbizClient(): Promise<ResellBizClient> {
+    if (this.modules) {
+      const config = await this.modules.resellbiz();
+      if (config.apiKey && config.resellerId) {
+        return new ResellBizClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, resellerId: config.resellerId });
+      }
+    }
+    return new ResellBizClient(
       credentialsFromEnv({
         ...process.env,
         RESELLBIZ_API_BASE_URL: process.env.RESELLBIZ_API_BASE_URL ?? "https://test.httpapi.com"
       })
     );
-    const prices = await client.getCustomerDomainPrices(customerId);
-    await this.replaceStoredPrices(prices);
+  }
 
-    return { count: prices.length, updatedAt: new Date().toISOString() };
+  // Storefront pricing only ever shows TLDs that have a real price — rows left at 0 (unpriced or
+  // "live" placeholders) are hidden so the public table never displays a €0.00 / blank row.
+  async listStorefrontPrices() {
+    if (!this.prisma) {
+      return [];
+    }
+    return this.prisma.domainTldPrice.findMany({
+      orderBy: [{ tld: "asc" }, { action: "asc" }, { years: "asc" }],
+      select: { action: true, amountCents: true, currency: true, manual: true, suggested: true, tld: true, updatedAt: true, years: true },
+      where: { amountCents: { gt: 0 } }
+    });
   }
 
   async upsertStoredPrice(input: {

@@ -161,12 +161,14 @@ test("paid bundled order starts Resell.biz even when Virtualmin is slow", async 
   assert.ok(calls.findIndex((call) => call[0] === "register") < calls.findIndex((call) => call[0] === "virtualmin-end"));
 });
 
-test("Resell.biz test API uses safe fallback nameservers for default registration", async () => {
+test("Resell.biz registration resolves name servers via the module registry (no ns1/ns2.domain.com)", async () => {
   const source = await readFile(new URL("../src/modules/external/resellbiz-provider.service.ts", import.meta.url), "utf8");
 
-  assert.match(source, /isResellBizTestApi\(\)/);
-  assert.match(source, /ns1\.domain\.com/);
-  assert.match(source, /ns2\.domain\.com/);
+  // Name servers now come from resolveNameServers(customer, configured default) — the ns5/ns6.dezhost.com
+  // fallback lives in the registry. The old test-API stub (ns1/ns2.domain.com) is gone.
+  assert.match(source, /resolveNameServers\(request\.nameServers, config\.defaultNs\)/);
+  assert.doesNotMatch(source, /ns1\.domain\.com/);
+  assert.doesNotMatch(source, /isResellBizTestApi/);
 });
 
 test("failed Resell.biz paid lifecycle keeps domain service pending and logs failure", async () => {

@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ExternalService } from "../external/external.service";
+import { canonicalModuleName } from "../module-registry/module-catalog";
+import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { ProductsRepository } from "./products.repository";
 
@@ -7,7 +9,8 @@ import { ProductsRepository } from "./products.repository";
 export class ProductsService {
   constructor(
     private readonly products: ProductsRepository,
-    private readonly external: ExternalService
+    private readonly external: ExternalService,
+    private readonly modules: ModuleRegistryService
   ) {}
 
   listProducts() {
@@ -124,15 +127,29 @@ export class ProductsService {
   }
 
   async refreshAllDomainStatuses() {
+    // No registrar module active → registrations are managed manually; nothing to reconcile.
+    const activeRegistrars = new Set(await this.modules.activeModuleNames("registrar"));
+    if (activeRegistrars.size === 0) {
+      return { checked: 0, refreshed: 0, skipped: "no_active_registrar" };
+    }
     const domains = await this.products.listDomainRecords();
     let refreshed = 0;
+    let checked = 0;
     for (const domain of domains) {
-      if (!this.external.resellBiz.status || ["CANCELLED"].includes(domain.status)) {
+      // Only domains registered through a currently-active registrar module are reconciled. Manual
+      // (admin-registered) domains and domains owned by a now-disabled registrar are left untouched.
+      const moduleName = canonicalModuleName(domain.registrarModule ?? domain.registrarProvider);
+      if (!moduleName || !activeRegistrars.has(moduleName)) {
         continue;
       }
+      const provider = this.external.registrarProvider(moduleName);
+      if (!provider?.status || ["CANCELLED"].includes(domain.status)) {
+        continue;
+      }
+      checked += 1;
       // A connection/auth error throws and is skipped (inconclusive). A definitive "not found on the
-      // resell.biz panel" resolves to CANCELLED so stale domains stop showing as active.
-      const status = await this.external.resellBiz.status(domain.domain).catch(() => undefined);
+      // registrar panel" resolves to CANCELLED so stale domains stop showing as active.
+      const status = await provider.status(domain.domain).catch(() => undefined);
       if (!status) {
         continue;
       }
@@ -153,17 +170,29 @@ export class ProductsService {
       }
       refreshed += 1;
     }
-    return { checked: domains.length, refreshed };
+    return { checked, refreshed };
   }
 
   async refreshAllDomainExpirations() {
+    // Only refresh expiry dates when a registrar module is active, and only for domains it manages.
+    const activeRegistrars = new Set(await this.modules.activeModuleNames("registrar"));
+    if (activeRegistrars.size === 0) {
+      return { checked: 0, refreshed: 0, skipped: "no_active_registrar" };
+    }
     const domains = await this.products.listDomainRecords();
     let refreshed = 0;
+    let checked = 0;
     for (const domain of domains) {
-      if (!this.external.resellBiz.status || ["CANCELLED"].includes(domain.status)) {
+      const moduleName = canonicalModuleName(domain.registrarModule ?? domain.registrarProvider);
+      if (!moduleName || !activeRegistrars.has(moduleName)) {
         continue;
       }
-      const status = await this.external.resellBiz.status(domain.domain).catch(() => undefined);
+      const provider = this.external.registrarProvider(moduleName);
+      if (!provider?.status || ["CANCELLED"].includes(domain.status)) {
+        continue;
+      }
+      checked += 1;
+      const status = await provider.status(domain.domain).catch(() => undefined);
       const expiresAt = status ? dateFromProvider(status) : undefined;
       if (!status || !expiresAt) {
         continue;
@@ -171,7 +200,7 @@ export class ProductsService {
       await this.products.updateDomainRecordExpiration(domain.id, status.externalId, expiresAt);
       refreshed += 1;
     }
-    return { checked: domains.length, refreshed };
+    return { checked, refreshed };
   }
 
   async refreshAllHostingStatuses() {

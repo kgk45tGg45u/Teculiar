@@ -11,6 +11,7 @@ import { DepartmentsModule } from "./modules/departments/departments.module";
 import { EmailModule } from "./modules/email/email.module";
 import { ExternalModule } from "./modules/external/external.module";
 import { KnowledgebaseModule } from "./modules/knowledgebase/knowledgebase.module";
+import { ModuleRegistryModule } from "./modules/module-registry/module-registry.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -24,6 +25,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     ConfigModule.forRoot({ envFilePath: findDotEnv(), isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    ModuleRegistryModule,
     AuthModule,
     UsersModule,
     OrdersModule,

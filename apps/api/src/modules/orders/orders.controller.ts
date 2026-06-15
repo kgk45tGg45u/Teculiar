@@ -17,7 +17,7 @@ export class OrdersController {
 
   @Get("storefront/domain-prices")
   storefrontDomainPrices() {
-    return this.orders.listDomainPrices();
+    return this.orders.listStorefrontDomainPrices();
   }
 
   @Get("domains/search")

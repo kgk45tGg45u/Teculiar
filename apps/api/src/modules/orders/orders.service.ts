@@ -49,6 +49,10 @@ export class OrdersService implements OnModuleInit {
     return this.domainPricing.listStoredPrices();
   }
 
+  listStorefrontDomainPrices() {
+    return this.domainPricing.listStorefrontPrices();
+  }
+
   upsertDomainPrice(input: { action: string; amountCents?: number; manual?: boolean; suggested?: boolean; tld: string; years: number }) {
     return this.domainPricing.upsertStoredPrice(input);
   }

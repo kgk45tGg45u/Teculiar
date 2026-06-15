@@ -14,6 +14,14 @@ It asks for:
 The endpoint calls Virtualmin Remote API at `/virtual-server/remote.cgi` with HTTP Basic auth and `json=1`.
 List commands use bare flags like `multiline`, not `multiline=1`.
 
+## Module configuration
+
+Automated provisioning credentials are configured in **Admin → Products → Modules → Virtualmin**
+(Server URL, Admin Username, Admin Password, Allow Self-Signed SSL, and **Minutes between server jobs**).
+These are stored in the DB; the `VIRTUALMIN_ADMIN_*` `.env` vars are only a **fallback**. Because
+Virtualmin cannot process simultaneous server CRUD, create / suspend / delete writes are serialized
+in-process and spaced by the configured delay (reads are never throttled). See [modules.md](modules.md).
+
 References:
 
 - https://www.virtualmin.com/documentation/developer/http
