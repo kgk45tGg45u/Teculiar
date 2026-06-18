@@ -143,7 +143,7 @@ export default function DomainPricingPage() {
           )}
 
           <div className={styles.cta}>
-            <p>{isDe ? "Alle Preise zzgl. 19% MwSt. Preise können sich ändern." : "All prices excl. 19% VAT. Prices may change."}</p>
+            <p>{isDe ? "Registriere deine Domain und sichere jetzt deinen Namen im Internet." : "Register your domain and save your name on the internet now."}</p>
             <Button href={`/${locale}/domains`} icon={ArrowRight}>
               {isDe ? "Domain registrieren" : "Register a domain"}
             </Button>
