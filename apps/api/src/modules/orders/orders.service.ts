@@ -111,7 +111,7 @@ export class OrdersService implements OnModuleInit {
     const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
 
     return {
-      currency: "EUR",
+      currency: (await this.billing.mainCurrency?.()) ?? "EUR",
       items,
       setupFeeCents,
       subtotalCents,

@@ -35,7 +35,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto & { suppressNewInvoiceEmail?: boolean }) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const [vatRate, sellerSnapshot, footerLines] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines()]);
+    const [vatRate, sellerSnapshot, footerLines, currency] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency()]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: line.vatRate })),
       coupon: coupon
@@ -64,6 +64,7 @@ export class BillingService {
       totalCents: draft.totalCents,
       reverseCharge: draft.reverseCharge,
       taxReason: draft.taxReason,
+      currency,
       customerSnapshot: dto.customerSnapshot,
       sellerSnapshot,
       footerLines,
@@ -309,7 +310,7 @@ export class BillingService {
         method: "BANK_TRANSFER",
         status: "PENDING",
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         providerReference,
         raw: { manual: true }
       });
@@ -342,7 +343,7 @@ export class BillingService {
         method: "ACCOUNT_BALANCE",
         status: "SUCCEEDED",
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         providerReference: `account_balance_${id}_${Date.now()}`,
         raw: { source: "account_balance" }
       });
@@ -362,7 +363,7 @@ export class BillingService {
       result = await processor.charge({
         invoiceId: id,
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         description: `Invoice ${invoice.invoiceNumber}`,
         iban: dto.iban ? validateAndNormalizeIban(dto.iban) : undefined,
         paymentMethodId: dto.paymentMethodId,
@@ -385,7 +386,7 @@ export class BillingService {
       method: dto.method,
       status: result.status,
       amountCents: externalAmountCents,
-      currency: "EUR",
+      currency: invoice.currency,
       providerReference: result.providerReference,
       raw: { ...(result.raw ?? {}), ...(appliedBalanceCents > 0 ? { balanceCents: appliedBalanceCents } : {}) }
     });
@@ -1262,7 +1263,7 @@ export class BillingService {
 
       await this.billing.createTransaction({
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         invoiceId: invoice.id,
         method: "ACCOUNT_BALANCE",
         providerReference: `account_balance_${invoice.id}_${Date.now()}`,
@@ -1299,7 +1300,7 @@ export class BillingService {
         }
         await this.billing.createTransaction({
           amountCents: invoice.totalCents,
-          currency: "EUR",
+          currency: invoice.currency,
           invoiceId: invoice.id,
           method: "ACCOUNT_BALANCE",
           providerReference: `account_balance_${invoice.id}_${Date.now()}`,
@@ -1319,7 +1320,7 @@ export class BillingService {
       const externalAmountCents = invoice.totalCents - balanceCents;
       const result = await this.payments.chargeSavedPayment({
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         customerId: paymentMethod.providerCustomerId,
         description: `Invoice ${invoice.invoiceNumber}`,
         invoiceId: invoice.id,
@@ -1330,7 +1331,7 @@ export class BillingService {
       const raw = { ...(result.raw ?? {}), automaticPayment: true, balanceCents, paymentMethodId: paymentMethod.id };
       await this.billing.createTransaction({
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         invoiceId: invoice.id,
         method: paymentMethod.type,
         providerReference: result.providerReference,
@@ -1404,7 +1405,7 @@ export class BillingService {
     }
     await this.billing.createTransaction({
       amountCents: balanceCents,
-      currency: "EUR",
+      currency: invoice.currency,
       invoiceId: invoice.id,
       method: "ACCOUNT_BALANCE",
       providerReference,
@@ -1442,6 +1443,11 @@ export class BillingService {
       this.billing.settingNumber("usdBufferCents", 0)
     ]);
     return { main: "EUR", others: ["USD"], rates: { USD: { rate, buffer, bufferEnabled: buffer > 0 } } };
+  }
+
+  // The configured main/base currency stamped on new invoices/orders.
+  async mainCurrency(): Promise<string> {
+    return (await this.currencyConfig()).main;
   }
 
   async publicSettings() {

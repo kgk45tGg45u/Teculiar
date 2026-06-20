@@ -32,6 +32,7 @@ export class BillingRepository {
     orderSnapshot?: Record<string, unknown>;
     adminNotes?: string;
     couponId?: string;
+    currency?: string;
     lines: Array<{
       billingCycle?: string;
       description: string;
@@ -75,6 +76,7 @@ export class BillingRepository {
         orderSnapshot: (input.orderSnapshot ?? {}) as Prisma.InputJsonValue,
         adminNotes: input.adminNotes,
         couponId: input.couponId,
+        currency: input.currency,
         items: {
           create: input.lines.map((line) => ({
             billingCycle: line.billingCycle ? (line.billingCycle as BillingCycle) : undefined,
@@ -683,6 +685,12 @@ export class BillingRepository {
       create: { key, value },
       update: { value }
     });
+  }
+
+  // The configured main/base currency (the currency stored amounts are denominated in).
+  async mainCurrency(): Promise<string> {
+    const config = await this.settingJson<{ main?: string } | null>("currency.config", null);
+    return config && typeof config.main === "string" && config.main ? config.main : "EUR";
   }
 
   listPaymentGateways() {
