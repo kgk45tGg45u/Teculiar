@@ -6,7 +6,9 @@ first when resuming. The approved plan is at
 (Theme/Menus/Pages/Customizer) are in [docs/teculiar-roadmap.md](./teculiar-roadmap.md).
 
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`)
-- **Status:** Steps 1–7 done & committed. **Next: Step 8 (docs/tests + verification).**
+- **Status:** Steps 1–8 implemented & committed (build/typecheck/unit-tests green). **Remaining:
+  runtime verification — `db push` locally + the local matrix, then prod verification on
+  https://www.dezhost.com after deploy.**
 - **Cadence:** small reviewable commits, build green between each, stop for review after each major step.
 - **Build/verify:** `npm run typecheck` and `npm run build` (both must be green). API unit tests: see "Testing" below.
 - No self-credit in code/commits (per CLAUDE.md).
@@ -58,6 +60,7 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
 | `ad58238` | 6a | apps/api wired to `@dezhost/locales` (dep + prebuild/prestart hooks); `apps/api/src/common/i18n.ts` (`t`/`formatMoney`/`formatDate`); `invoice-document.ts` fully localized (labels from packs, money/date via meta, takes `locale`); `billing.service.invoiceLocale()` resolves invoice locale (snapshot → buyer `User.locale` → main). |
 | `9d6e553` | 6b | Stored `currency:"EUR"` → main currency: `Invoice.currency` stamped at creation; transactions/charges use the invoice's own currency; previewOrder/DomainTldPrice/ProductPrice use main; `PaymentProcessor`/abstract-payment types `"EUR"`→`string`; `common/currency.ts` `readMainCurrency` + `mainCurrency()` on service/repo. **Tests:** `apps/api/test/i18n-currency.test.mjs` + invoice test updates. |
 | `bbc32c1` | 7a | Prisma migration: `User.locale`/`Content.locale`/`EmailTemplate.locale` `Locale` enum → `String`; new `Invoice.locale` (frozen at creation next to `currency`; final-invoice rebuild copies it). `Locale` enum kept only for deferred `Announcement.locale`/`Translation.targetLocale`. Migration `20260620120000_locale_to_string_and_invoice_locale` is MariaDB-idempotent (`MODIFY COLUMN` + `ADD COLUMN IF NOT EXISTS`); local syncs via `db push`. Dropped the email/cms `Locale` casts + the templateFor try/catch. **Tests:** invoice-locale stamping in `i18n-currency.test.mjs`. |
+| `0bb334b` | 8 | Docs: new `docs/i18n-currency.md` (authoritative — packs, `i18n.languages`/`currency.config` registry, currency model, locale resolution + persistence, immutable invoice snapshots, localized emails, String locale columns); `docs/localization.md` reduced to a pointer; README localization line + `packages/locales` entry. No e2e specs hard-coded breaking `de/en`/`EUR/USD` (only a still-valid `dezhost_locale=de` cookie in login.spec). |
 | `abda7d7` | 7b | Client-locale persistence: `locale` on `PATCH /users/me` (validated to a well-formed code via `wellFormedLocale`) + exposed on `publicUser`/`publicUserSelect`. Web `persistClientLocale()` writes a signed-in client's choice from the toggle, and the client portal syncs the effective browser-derived locale when it drifts from the stored `profile.locale`. **Tests:** `apps/api/test/user-locale-persistence.test.mjs`. |
 | `17b5d25` | 6c | Email localization: dispatch/`sendEventToUser`/`sendCustomToUser` resolve recipient locale from up-to-date `User.locale` → main language (`common/currency.ts` `readMainLanguage`); subjects/bodies/layout-block text + admin block palette seeded from the `email` pack (`email-layouts.ts` `buildDefaultLayouts`/`emailLayoutBlockLibrary` take the localized dict); `templateFor`/admin editor key on the main language with per-locale DB overrides still winning (try/catch tolerates the pre-Step-7 enum); `current_date` + invoice money via `common/i18n` `formatDate`/`formatMoney`; the two `formatEuro()`/`formatDateLabel()` helpers in billing/orders dispatch now use the invoice's frozen currency + recipient locale; test-variable sample money localized. **Tests:** email localization (by `User.locale` + main fallback) in `email-module.test.mjs`; frozen-currency order-email money + `readMainLanguage` in `i18n-currency.test.mjs`; removed the stale `mailpit-preset` controller assertion. |
 
@@ -103,13 +106,18 @@ is MariaDB-only). After pulling, run `npm run db:generate` so the client types m
   `Invoice.locale` column and the relaxed enum.
 
 ### Step 8 — Docs + tests + verification
-- Create `docs/i18n-currency.md` (how the modular system works, where config lives, admin flow,
-  single-language no-toggle). **Reconcile/replace the existing [docs/localization.md](./localization.md).**
-  Add a SystemSetting-keys registry note (`i18n.languages`, `currency.config`).
-- Update root `README.md` + any stale `CLAUDE.md` references.
-- Update Playwright specs that assume hard-coded `de/en`/`EUR/USD`.
-- Local verification matrix (plan §Verification 2–6) then **prod verification on
-  https://www.dezhost.com after deploy** (per CLAUDE.md, with `E2E_*` + `set -a && source .env`).
+- ✅ `docs/i18n-currency.md` created (modular system, config location, admin flow, single-language
+  no-toggle, SystemSetting-keys registry). `docs/localization.md` reduced to a pointer.
+- ✅ Root `README.md` localization line + `packages/locales` entry updated. `CLAUDE.md` had no stale
+  i18n references.
+- ✅ Playwright specs: nothing hard-codes breaking `de/en`/`EUR/USD` (verified). `login.spec.ts`'s
+  `dezhost_locale=de` cookie is still valid.
+- ⏳ **Remaining (runtime, needs a running stack / deploy):**
+  - Local matrix (plan §Verification 2–6): `npm run db:push` to sync the schema, then drive the
+    local full-stack — toggle hides on single language+currency; admin-add a 3rd language/currency;
+    invoice freezes currency+locale; an email renders in the recipient's `User.locale`.
+  - **Prod verification on https://www.dezhost.com after deploy** (per CLAUDE.md, `E2E_*` +
+    `set -a && source .env`). The user is taking the website check.
 
 ### Deferred (post-Phase-1, approved today)
 - Convert remaining inline `de/en` copy (marketing page bodies, checkout/login local maps, blog CMS
