@@ -1,6 +1,7 @@
 import { formatCustomerNumber } from "@dezhost/shared";
-import { loadDictionary } from "@dezhost/locales";
+import { loadDictionary, getMeta } from "@dezhost/locales";
 import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./supported-locales";
 
 export { formatCustomerNumber };
 
@@ -469,58 +470,80 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   }
 }
 
-// Exchange rate cache populated from storefront settings
-let _usdExchangeRate = 1.0;
-let _usdBufferCents = 0;
+// ── Currency config (injected from /storefront/settings via the config provider) ──
+export type CurrencyRate = { rate: number; buffer: number; bufferEnabled: boolean };
+export type CurrencyConfig = { main: string; currencies: string[]; rates: Record<string, CurrencyRate> };
 
+// Prices are always stored in the main currency (EUR); other currencies are converted for
+// display only. Defaults to a 1:1 EUR/USD until the config provider injects the real config.
+let _currencyConfig: CurrencyConfig = {
+  main: "EUR",
+  currencies: ["EUR", "USD"],
+  rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } }
+};
+
+export function initCurrencyConfig(config: CurrencyConfig) {
+  _currencyConfig = config;
+}
+
+export function currentCurrencyConfig(): CurrencyConfig {
+  return _currencyConfig;
+}
+
+/** @deprecated legacy USD-only shim; prefer initCurrencyConfig. */
 export function initExchangeRate(rate: number, bufferCents: number) {
-  _usdExchangeRate = rate;
-  _usdBufferCents = bufferCents;
+  initCurrencyConfig({ main: "EUR", currencies: ["EUR", "USD"], rates: { USD: { rate, buffer: bufferCents, bufferEnabled: true } } });
 }
 
+/** Build the web currency config from /storefront/settings (new currencyConfig, else legacy USD fields). */
+export function currencyConfigFromSettings(
+  settings: { currencyConfig?: CurrencyConfig; usdExchangeRate?: number; usdBufferCents?: number } | null | undefined
+): CurrencyConfig {
+  if (settings?.currencyConfig?.main) {
+    return settings.currencyConfig;
+  }
+  const rate = settings?.usdExchangeRate ?? 1.0;
+  const buffer = settings?.usdBufferCents ?? 0;
+  return { main: "EUR", currencies: ["EUR", "USD"], rates: { USD: { rate, buffer, bufferEnabled: true } } };
+}
+
+/** Convert a main-currency amount (in cents) to the target currency for display. */
+export function convert(cents: number, target: string, config: CurrencyConfig = _currencyConfig): number {
+  if (cents === 0 || target === config.main) {
+    return cents;
+  }
+  const rate = config.rates[target];
+  if (!rate) {
+    return cents;
+  }
+  return Math.round(cents * rate.rate) + (rate.bufferEnabled ? rate.buffer : 0);
+}
+
+/** @deprecated use convert(cents, "USD"). */
 export function convertEurToUsd(eurCents: number): number {
-  if (eurCents === 0) return 0;
-  return Math.round(eurCents * _usdExchangeRate) + _usdBufferCents;
+  return convert(eurCents, "USD");
 }
 
-export function money(cents: number, _currency = "EUR", locale: Locale = currentLocale()) {
-  const displayCurrency = currentCurrency();
-  const displayLocale = locale === "en" ? "en-US" : "de-DE";
-  // Prices are always stored in EUR; convert to USD if customer selected USD
-  const displayCents = displayCurrency === "USD" ? convertEurToUsd(cents) : cents;
-  return new Intl.NumberFormat(displayLocale, {
-    currency: displayCurrency,
-    style: "currency"
-  }).format(displayCents / 100);
+function formatMoney(cents: number, currency: string, locale: Locale): string {
+  return new Intl.NumberFormat(getMeta(locale).numberFormat, { currency, style: "currency" }).format(cents / 100);
+}
+
+export function money(cents: number, _currency = _currencyConfig.main, locale: Locale = currentLocale()) {
+  const target = currentCurrency();
+  return formatMoney(convert(cents, target), target, locale);
 }
 
 /**
  * Display a frozen/locked invoice amount — always shows in the stored currency
- * regardless of the user's current currency preference. For paid invoices.
+ * regardless of the user's current currency preference. For issued/paid invoices.
  */
 export function frozenMoney(cents: number, currency: string, locale: Locale = currentLocale()): string {
-  const displayLocale = locale === "en" ? "en-US" : "de-DE";
-  const safeCurrency = currency || "EUR";
-  return new Intl.NumberFormat(displayLocale, {
-    currency: safeCurrency,
-    style: "currency"
-  }).format(cents / 100);
+  return formatMoney(cents, currency || _currencyConfig.main, locale);
 }
 
-/** Server-safe money formatter — takes explicit display params instead of reading window/localStorage */
-export function serverMoney(
-  cents: number,
-  displayCurrency: Currency,
-  exchangeRate: number,
-  bufferCents: number,
-  locale: Locale
-): string {
-  const displayLocale = locale === "en" ? "en-US" : "de-DE";
-  const displayCents = displayCurrency === "USD" ? Math.round(cents * exchangeRate) + bufferCents : cents;
-  return new Intl.NumberFormat(displayLocale, {
-    currency: displayCurrency,
-    style: "currency"
-  }).format(displayCents / 100);
+/** Server-safe money formatter — takes an explicit currency config instead of reading window/localStorage. */
+export function serverMoney(cents: number, displayCurrency: string, config: CurrencyConfig, locale: Locale): string {
+  return formatMoney(convert(cents, displayCurrency, config), displayCurrency, locale);
 }
 
 export function invoiceDisplayNumber(invoice: Pick<ApiInvoice, "finalInvoiceNumber" | "tempInvoiceNumber" | "invoiceNumber" | "status">) {
@@ -538,18 +561,18 @@ export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
 }
 
 export function dateLabel(value?: string | null, locale: Locale = currentLocale(), options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }) {
-  return value ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "de-DE", options).format(new Date(value)) : "-";
+  return value ? new Intl.DateTimeFormat(getMeta(locale).dateFormat, options).format(new Date(value)) : "-";
 }
 
 export function currentLocale(): Locale {
   if (typeof window === "undefined") {
-    return "de";
+    return DEFAULT_LOCALE;
   }
   // Prefer the cookie so the client matches the server (requestLocale) and the visible language
   // toggle. localStorage is only a fallback — otherwise a stale localStorage value can override a
   // newer cookie (e.g. set by visiting /de), showing a DE toggle but an EN dashboard.
   const saved = readCookie(LOCALE_COOKIE) ?? window.localStorage.getItem(LOCALE_COOKIE);
-  if (saved === "de" || saved === "en") {
+  if (saved && SUPPORTED_LOCALES.includes(saved)) {
     return saved;
   }
   return browserLocale(window.navigator.language);
@@ -565,13 +588,16 @@ export function storeLocale(locale: Locale) {
 
 export function currentCurrency(): Currency {
   if (typeof window === "undefined") {
-    return "EUR";
+    return _currencyConfig.main;
   }
   const saved = window.localStorage.getItem(CURRENCY_COOKIE) ?? readCookie(CURRENCY_COOKIE);
-  if (saved === "EUR" || saved === "USD") {
+  if (saved && _currencyConfig.currencies.includes(saved)) {
     return saved;
   }
-  return currentLocale() === "en" ? "USD" : "EUR";
+  // No saved choice: prefer the language's natural currency (meta.defaultCurrency) when it is
+  // configured, otherwise the main currency.
+  const metaDefault = getMeta(currentLocale()).defaultCurrency;
+  return _currencyConfig.currencies.includes(metaDefault) ? metaDefault : _currencyConfig.main;
 }
 
 export function storeCurrency(currency: Currency) {

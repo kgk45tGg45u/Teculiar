@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { DomainSearch } from "../../../../components/marketing/domain-search";
 import { Button } from "../../../../components/ui/button";
-import { apiGet, serverMoney, type ApiDomainSearch, type ApiDomainSearchResult, type ApiProduct } from "../../../../lib/api";
+import { getMeta } from "@dezhost/locales";
+import { apiGet, currencyConfigFromSettings, serverMoney, type ApiDomainSearch, type ApiDomainSearchResult, type ApiProduct, type CurrencyConfig } from "../../../../lib/api";
 import { CURRENCY_COOKIE, getLocale, type Currency, type Locale } from "../../../../lib/i18n";
 import styles from "./domain-results.module.css";
 
@@ -24,12 +25,10 @@ export default async function DomainSearchPage({
 
   const cookieStore = await cookies();
   const savedCurrency = cookieStore.get(CURRENCY_COOKIE)?.value;
-  const displayCurrency: Currency =
-    savedCurrency === "EUR" || savedCurrency === "USD" ? savedCurrency : locale === "en" ? "USD" : "EUR";
 
   const [result, settings, products] = await Promise.all([
     apiGet<ApiDomainSearch>(`/domains/search?domain=${encodeURIComponent(query)}`),
-    apiGet<{ usdExchangeRate?: number; usdBufferCents?: number }>("/storefront/settings"),
+    apiGet<{ usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: CurrencyConfig }>("/storefront/settings"),
     apiGet<ApiProduct[]>("/storefront/products")
   ]);
 
@@ -37,8 +36,12 @@ export default async function DomainSearchPage({
     notFound();
   }
 
-  const exchangeRate = settings?.usdExchangeRate ?? 1.0;
-  const bufferCents = settings?.usdBufferCents ?? 0;
+  const currencyConfig = currencyConfigFromSettings(settings);
+  const metaDefault = getMeta(locale).defaultCurrency;
+  const displayCurrency: Currency =
+    savedCurrency && currencyConfig.currencies.includes(savedCurrency)
+      ? savedCurrency
+      : currencyConfig.currencies.includes(metaDefault) ? metaDefault : currencyConfig.main;
   const domainProduct = products?.find((product) => product.type === "DOMAIN");
   const productId = result.productId ?? domainProduct?.id;
 
@@ -47,8 +50,7 @@ export default async function DomainSearchPage({
       <div className={`container ${styles.grid}`}>
         <DomainResultCard
           displayCurrency={displayCurrency}
-          bufferCents={bufferCents}
-          exchangeRate={exchangeRate}
+          currencyConfig={currencyConfig}
           locale={locale}
           productId={productId}
           result={result}
@@ -57,8 +59,7 @@ export default async function DomainSearchPage({
           <DomainResultCard
             key={suggestion.domain}
             displayCurrency={displayCurrency}
-            bufferCents={bufferCents}
-            exchangeRate={exchangeRate}
+            currencyConfig={currencyConfig}
             locale={locale}
             productId={suggestion.productId ?? productId}
             result={suggestion}
@@ -71,15 +72,13 @@ export default async function DomainSearchPage({
 
 function DomainResultCard({
   displayCurrency,
-  bufferCents,
-  exchangeRate,
+  currencyConfig,
   locale,
   productId,
   result
 }: {
   displayCurrency: Currency;
-  bufferCents: number;
-  exchangeRate: number;
+  currencyConfig: CurrencyConfig;
   locale: Locale;
   productId?: string;
   result: ApiDomainSearchResult;
@@ -105,7 +104,7 @@ function DomainResultCard({
         </p>
       )}
       <strong className={styles.price}>
-        {serverMoney(result.price.amountCents, displayCurrency, exchangeRate, bufferCents, locale)}
+        {serverMoney(result.price.amountCents, displayCurrency, currencyConfig, locale)}
       </strong>
       <Button href={href}>{result.available ? (isDe ? "Bestellen" : "Order") : "Transfer"}</Button>
       {result.price.error ? <p className={styles.muted}>{result.price.error}</p> : null}
