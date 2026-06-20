@@ -20,7 +20,7 @@ export class CmsRepository {
 
   findBySlug(locale: string, slug: string) {
     return this.prisma.content.findFirst({
-      where: { slug, locale: locale as Locale, publishedAt: { not: null } },
+      where: { slug, locale, publishedAt: { not: null } },
       include: { translations: true, ...POST_RELATIONS }
     });
   }

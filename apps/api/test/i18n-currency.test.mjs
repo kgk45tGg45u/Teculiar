@@ -47,10 +47,34 @@ test("createInvoice stamps the configured main currency when the admin changes i
   assert.equal(captured.currency, "USD");
 });
 
-test("mark-paid keeps the invoice's own currency (immutable once issued)", async () => {
-  // markInvoicePaid recreates the final invoice from the existing one, preserving its currency.
+test("createInvoice freezes the main language as the invoice locale", async () => {
+  let captured;
+  const repo = billingRepoMock({ createInvoice: async (input) => { captured = input; return { id: "inv-1", ...input }; } });
+  const service = new BillingService(repo, engineMock, {});
+
+  await service.createInvoice(invoiceDto);
+
+  assert.equal(captured.locale, "de");
+});
+
+test("createInvoice freezes the configured main language when the admin changes it", async () => {
+  let captured;
+  const repo = billingRepoMock({
+    settingJson: async (key, fallback) => (key === "i18n.languages" ? { main: "en", others: ["de"] } : fallback),
+    createInvoice: async (input) => { captured = input; return { id: "inv-1", ...input }; }
+  });
+  const service = new BillingService(repo, engineMock, {});
+
+  await service.createInvoice(invoiceDto);
+
+  assert.equal(captured.locale, "en");
+});
+
+test("mark-paid keeps the invoice's own currency + locale (immutable once issued)", async () => {
+  // The final-invoice rebuild copies the stored currency and frozen locale from the source invoice.
   const source = await import("node:fs").then((fs) => fs.promises.readFile(new URL("../src/modules/billing/billing.repository.ts", import.meta.url), "utf8"));
-  assert.match(source, /currency: invoice\.currency,/); // markInvoicePaid copies the stored currency
+  assert.match(source, /currency: invoice\.currency,/);
+  assert.match(source, /locale: invoice\.locale,/);
 });
 
 test("previewOrder returns the configured main currency", async () => {

@@ -36,7 +36,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto & { suppressNewInvoiceEmail?: boolean }) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const [vatRate, sellerSnapshot, footerLines, currency] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency()]);
+    const [vatRate, sellerSnapshot, footerLines, currency, languages] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency(), this.i18nLanguages()]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: line.vatRate })),
       coupon: coupon
@@ -66,6 +66,8 @@ export class BillingService {
       reverseCharge: draft.reverseCharge,
       taxReason: draft.taxReason,
       currency,
+      // Freeze the invoice's language at creation (main language), mirroring `currency`.
+      locale: languages.main,
       customerSnapshot: dto.customerSnapshot,
       sellerSnapshot,
       footerLines,

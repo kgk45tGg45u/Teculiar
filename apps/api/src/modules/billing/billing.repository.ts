@@ -33,6 +33,7 @@ export class BillingRepository {
     adminNotes?: string;
     couponId?: string;
     currency?: string;
+    locale?: string;
     lines: Array<{
       billingCycle?: string;
       description: string;
@@ -77,6 +78,7 @@ export class BillingRepository {
         adminNotes: input.adminNotes,
         couponId: input.couponId,
         currency: input.currency,
+        locale: input.locale,
         items: {
           create: input.lines.map((line) => ({
             billingCycle: line.billingCycle ? (line.billingCycle as BillingCycle) : undefined,
@@ -297,6 +299,7 @@ export class BillingRepository {
           adminNotes: invoice.adminNotes,
           couponId: invoice.couponId,
           currency: invoice.currency,
+          locale: invoice.locale,
           customerSnapshot: invoice.customerSnapshot as Prisma.InputJsonValue,
           discountCents: invoice.discountCents,
           dueAt: invoice.dueAt,

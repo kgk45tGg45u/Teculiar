@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Locale, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import net from "node:net";
 import tls from "node:tls";
 import { readMainCurrency, readMainLanguage } from "../../common/currency";
@@ -144,11 +144,11 @@ export class EmailService {
           recipients: normalizedRecipients(event.recipients, definition.defaultRecipients)
         };
         tasks.push(this.prisma.emailTemplate.upsert({
-          where: { key_locale: { key: event.key, locale: mainLang as Locale } },
+          where: { key_locale: { key: event.key, locale: mainLang } },
           create: {
             body: event.body ?? fallbackBody,
             key: event.key,
-            locale: mainLang as Locale,
+            locale: mainLang,
             subject: event.subject ?? packSubject(dict, event.key, definition.subject)
           },
           update: {
@@ -456,15 +456,10 @@ export class EmailService {
     });
   }
 
-  // A per-locale DB override for an event, or null (→ the pack default applies). Until the
-  // Step-7 migration turns EmailTemplate.locale into a String, a locale without a matching
-  // enum value throws on lookup; we swallow that so any language falls back to the pack.
-  private async templateFor(key: string, preferredLocale: string) {
-    try {
-      return await this.prisma.emailTemplate.findUnique({ where: { key_locale: { key, locale: preferredLocale as Locale } } });
-    } catch {
-      return null;
-    }
+  // A per-locale DB override for an event, or null (→ the pack default applies). EmailTemplate.locale
+  // is a free-form String, so any language resolves; a missing row simply yields the pack default.
+  private templateFor(key: string, preferredLocale: string) {
+    return this.prisma.emailTemplate.findUnique({ where: { key_locale: { key, locale: preferredLocale } } });
   }
 
   private mainLanguage() {
