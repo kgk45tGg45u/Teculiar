@@ -6,7 +6,7 @@ first when resuming. The approved plan is at
 (Theme/Menus/Pages/Customizer) are in [docs/teculiar-roadmap.md](./teculiar-roadmap.md).
 
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`)
-- **Status:** Steps 1–6c done & committed. **Next: Step 7 (Prisma migration) → Step 8 (docs/tests).**
+- **Status:** Steps 1–7 done & committed. **Next: Step 8 (docs/tests + verification).**
 - **Cadence:** small reviewable commits, build green between each, stop for review after each major step.
 - **Build/verify:** `npm run typecheck` and `npm run build` (both must be green). API unit tests: see "Testing" below.
 - No self-credit in code/commits (per CLAUDE.md).
@@ -57,6 +57,8 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
 | `fb1f838` | fix | Locale routing accepts any well-formed code (admin-added langs route to `/it/…` instead of `/de/it/…`); `getLocale`/`currentLocale` no longer coerce to manifest packs only. |
 | `ad58238` | 6a | apps/api wired to `@dezhost/locales` (dep + prebuild/prestart hooks); `apps/api/src/common/i18n.ts` (`t`/`formatMoney`/`formatDate`); `invoice-document.ts` fully localized (labels from packs, money/date via meta, takes `locale`); `billing.service.invoiceLocale()` resolves invoice locale (snapshot → buyer `User.locale` → main). |
 | `9d6e553` | 6b | Stored `currency:"EUR"` → main currency: `Invoice.currency` stamped at creation; transactions/charges use the invoice's own currency; previewOrder/DomainTldPrice/ProductPrice use main; `PaymentProcessor`/abstract-payment types `"EUR"`→`string`; `common/currency.ts` `readMainCurrency` + `mainCurrency()` on service/repo. **Tests:** `apps/api/test/i18n-currency.test.mjs` + invoice test updates. |
+| `bbc32c1` | 7a | Prisma migration: `User.locale`/`Content.locale`/`EmailTemplate.locale` `Locale` enum → `String`; new `Invoice.locale` (frozen at creation next to `currency`; final-invoice rebuild copies it). `Locale` enum kept only for deferred `Announcement.locale`/`Translation.targetLocale`. Migration `20260620120000_locale_to_string_and_invoice_locale` is MariaDB-idempotent (`MODIFY COLUMN` + `ADD COLUMN IF NOT EXISTS`); local syncs via `db push`. Dropped the email/cms `Locale` casts + the templateFor try/catch. **Tests:** invoice-locale stamping in `i18n-currency.test.mjs`. |
+| `abda7d7` | 7b | Client-locale persistence: `locale` on `PATCH /users/me` (validated to a well-formed code via `wellFormedLocale`) + exposed on `publicUser`/`publicUserSelect`. Web `persistClientLocale()` writes a signed-in client's choice from the toggle, and the client portal syncs the effective browser-derived locale when it drifts from the stored `profile.locale`. **Tests:** `apps/api/test/user-locale-persistence.test.mjs`. |
 | `17b5d25` | 6c | Email localization: dispatch/`sendEventToUser`/`sendCustomToUser` resolve recipient locale from up-to-date `User.locale` → main language (`common/currency.ts` `readMainLanguage`); subjects/bodies/layout-block text + admin block palette seeded from the `email` pack (`email-layouts.ts` `buildDefaultLayouts`/`emailLayoutBlockLibrary` take the localized dict); `templateFor`/admin editor key on the main language with per-locale DB overrides still winning (try/catch tolerates the pre-Step-7 enum); `current_date` + invoice money via `common/i18n` `formatDate`/`formatMoney`; the two `formatEuro()`/`formatDateLabel()` helpers in billing/orders dispatch now use the invoice's frozen currency + recipient locale; test-variable sample money localized. **Tests:** email localization (by `User.locale` + main fallback) in `email-module.test.mjs`; frozen-currency order-email money + `readMainLanguage` in `i18n-currency.test.mjs`; removed the stale `mailpit-preset` controller assertion. |
 
 ## Refinements vs. the original plan (intentional)
@@ -81,24 +83,24 @@ billing/orders `dispatch*Email`.
 - ✅ Money via `common/i18n.formatMoney` with the **invoice's frozen currency** + recipient locale;
   dates via `formatDate`. Old `formatEuro()`/`formatDateLabel()` removed from billing/orders dispatch.
   Test-variable sample money localized.
-- ⚠️ **Carry-over for Step 7:** `email.service.ts` still imports `Locale` from `@prisma/client` and
-  casts `locale as Locale` in `templateFor`/`updateSettings`. When Step 7 turns
-  `EmailTemplate.locale` into `String`, drop the cast/`try-catch` guard and the `Locale` import.
-  The admin editor currently only edits the **main-language** override (per-locale editor = later phase).
+- ✅ **Resolved in 7a:** the `email.service.ts` `Locale` cast + try/catch guard and import are gone
+  (`EmailTemplate.locale` is now `String`). The admin editor still only edits the **main-language**
+  override (per-locale editor = later phase).
 
-### Step 7 — Prisma migration (the one real migration) — MariaDB-idempotent
-Per the `db-engine-and-migrations` memory: **prod=MariaDB, local=MySQL 8.3**. Hand-write
-MariaDB-idempotent SQL (`... IF NOT EXISTS`); locally use `npm run db:push` (the IF-NOT-EXISTS
-syntax fails on MySQL 8.3), keep `migration.sql` for prod.
-- `Locale` enum (`de`/`en`) → `String` on `User.locale`, `EmailTemplate.locale`, `Content.locale`
-  (default main language; validate values in app code, not DB). `prisma/schema.prisma` currently
-  has `Locale` as a Prisma enum.
-- Add `Invoice.locale String`, backfilled to the main language, **captured at creation**
-  (set it in `billing.service.createInvoice` next to `currency`). This is what freezes an invoice's
-  language. `invoiceLocale()` already prefers `invoice.locale` when present.
-- Client-locale **persistence**: write effective `User.locale` (browser-derived if a pack exists;
-  toggle writes immediately for logged-in clients via an API call). Emails then read up-to-date
-  `User.locale`.
+### Step 7 — Prisma migration (DONE) — MariaDB-idempotent
+Migration `20260620120000_locale_to_string_and_invoice_locale`. **Prod applies it via
+`migrate deploy`; locally run `npm run db:push`** to sync MySQL 8.3 (the `ADD COLUMN IF NOT EXISTS`
+is MariaDB-only). After pulling, run `npm run db:generate` so the client types match.
+- ✅ `Locale` enum → `String` on `User.locale`, `EmailTemplate.locale`, `Content.locale` (validated
+  in app code). Enum **kept** for the deferred `Announcement.locale` + `Translation.targetLocale`.
+- ✅ `Invoice.locale String` (default `'de'`, backfills existing German invoices), **captured at
+  creation** in `billing.service.createInvoice` next to `currency`; final-invoice rebuild copies it.
+  `invoiceLocale()` already prefers `invoice.locale`.
+- ✅ Client-locale **persistence**: toggle + client portal write effective `User.locale` via
+  `PATCH /users/me` (`persistClientLocale`, validated server-side). Emails read up-to-date `User.locale`.
+- ⚠️ **For whoever deploys:** run `prisma db push` locally (or `migrate deploy` on prod) before
+  testing — the unit tests use mocked Prisma so they pass without it, but the running app needs the
+  `Invoice.locale` column and the relaxed enum.
 
 ### Step 8 — Docs + tests + verification
 - Create `docs/i18n-currency.md` (how the modular system works, where config lives, admin flow,
