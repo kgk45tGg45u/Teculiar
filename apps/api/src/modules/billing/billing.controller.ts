@@ -371,6 +371,8 @@ export class BillingDevController {
       aiBlogTagsPrompt?: string;
       aiBlogKeywordsPrompt?: string;
       logRetentionDays?: number;
+      languages?: { main?: string; others?: string[] };
+      currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
     }
   ) {
     return this.billing.updateSettings(body);

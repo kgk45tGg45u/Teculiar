@@ -495,16 +495,37 @@ export function initExchangeRate(rate: number, bufferCents: number) {
   initCurrencyConfig({ main: "EUR", currencies: ["EUR", "USD"], rates: { USD: { rate, buffer: bufferCents, bufferEnabled: true } } });
 }
 
+/** The currency config as stored/returned by the backend ({ main, others, rates }). */
+export type StoredCurrencyConfig = { main?: string; others?: string[]; currencies?: string[]; rates?: Record<string, CurrencyRate> };
+
 /** Build the web currency config from /storefront/settings (new currencyConfig, else legacy USD fields). */
 export function currencyConfigFromSettings(
-  settings: { currencyConfig?: CurrencyConfig; usdExchangeRate?: number; usdBufferCents?: number } | null | undefined
+  settings: { currencyConfig?: StoredCurrencyConfig; usdExchangeRate?: number; usdBufferCents?: number } | null | undefined
 ): CurrencyConfig {
-  if (settings?.currencyConfig?.main) {
-    return settings.currencyConfig;
+  const config = settings?.currencyConfig;
+  if (config?.main) {
+    const currencies = config.currencies?.length
+      ? config.currencies
+      : [config.main, ...(Array.isArray(config.others) ? config.others : [])];
+    return { main: config.main, currencies, rates: config.rates ?? {} };
   }
   const rate = settings?.usdExchangeRate ?? 1.0;
   const buffer = settings?.usdBufferCents ?? 0;
   return { main: "EUR", currencies: ["EUR", "USD"], rates: { USD: { rate, buffer, bufferEnabled: true } } };
+}
+
+// ── Language config (which languages are enabled + the main one) ──
+export type I18nConfig = { main: string; languages: string[] };
+
+/** Build the web language config from /storefront/settings, defaulting to the shipped packs. */
+export function i18nConfigFromSettings(
+  settings: { languages?: { main?: string; others?: string[] } } | null | undefined
+): I18nConfig {
+  const languages = settings?.languages;
+  if (languages?.main) {
+    return { main: languages.main, languages: [languages.main, ...(Array.isArray(languages.others) ? languages.others : [])] };
+  }
+  return { main: DEFAULT_LOCALE, languages: SUPPORTED_LOCALES };
 }
 
 /** Convert a main-currency amount (in cents) to the target currency for display. */

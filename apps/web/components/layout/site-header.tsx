@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { ChevronDown, Globe } from "lucide-react";
 import { type Locale } from "../../lib/i18n";
 import { getDictionary } from "../../lib/dictionary";
+import { SUPPORTED_LOCALES } from "../../lib/supported-locales";
 import { AccountMenu } from "./account-menu";
 import { DetailsAutoClose } from "./details-auto-close";
 import { LanguageToggle } from "./language-toggle";
@@ -16,9 +17,11 @@ type SiteHeaderProps = {
   brandHref?: string;
   locale: Locale;
   variant?: "site" | "admin";
+  languages?: string[];
+  currencies?: string[];
 };
 
-export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"] }: SiteHeaderProps) {
   const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
@@ -66,7 +69,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
 
         <div className={styles.actions}>
           <Suspense>
-            <LanguageToggle locale={locale} />
+            <LanguageToggle locale={locale} languages={languages} currencies={currencies} />
           </Suspense>
           <AccountMenu />
           <MobileMenu

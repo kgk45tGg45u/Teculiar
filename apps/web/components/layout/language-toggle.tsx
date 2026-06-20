@@ -5,61 +5,89 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
-import { currencies, currencySymbols, localeNames, type Currency, type Locale } from "../../lib/i18n";
+import type { Currency, Locale } from "../../lib/i18n";
+import { currencySymbol, languageFlag, languageNativeName } from "../../lib/i18n-catalog";
 import { LOCALE_PATH_PREFIX, SUPPORTED_LOCALES } from "../../lib/supported-locales";
 import styles from "./site-header.module.css";
 
-// Cartesian product of the configured languages and currencies. The grouped-selector
-// redesign + hide-when-single behaviour lands with the admin settings work.
-const COMBOS: Array<{ locale: Locale; currency: Currency }> = SUPPORTED_LOCALES.flatMap(
-  (locale) => currencies.map((currency) => ({ locale, currency }))
-);
-
-export function LanguageToggle({ locale }: { locale: Locale }) {
+/**
+ * Two grouped selectors (languages and currencies) built from the configured lists, so adding
+ * a language/currency never causes a combinatorial blow-up. The whole toggle is hidden when a
+ * single language AND a single currency are configured; each selector hides on its own when
+ * only one option exists.
+ */
+export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"] }: { locale: Locale; languages?: string[]; currencies?: string[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currency, setCurrency] = useState<Currency>(() => locale === "en" ? "USD" : "EUR");
+  const [currency, setCurrency] = useState<Currency>(() => currencies[0] ?? "EUR");
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     setCurrency(currentCurrency());
   }, []);
 
-  function selectCombo(newLocale: Locale, newCurrency: Currency) {
-    storeLocale(newLocale);
-    storeCurrency(newCurrency);
-    setCurrency(newCurrency);
+  const showLanguages = languages.length > 1;
+  const showCurrencies = currencies.length > 1;
+  if (!showLanguages && !showCurrencies) {
+    return null;
+  }
+
+  function close() {
     if (detailsRef.current) detailsRef.current.open = false;
-    const localeChanged = newLocale !== locale;
+  }
+
+  function selectLanguage(newLocale: Locale) {
+    close();
+    storeLocale(newLocale);
+    if (newLocale === locale) {
+      return;
+    }
     if (LOCALE_PATH_PREFIX.test(pathname)) {
-      if (localeChanged) {
-        const nextPath = pathname.replace(LOCALE_PATH_PREFIX, `/${newLocale}`);
-        const qs = searchParams.toString();
-        router.push(`${nextPath}${qs ? `?${qs}` : ""}` as Route);
-      } else {
-        router.refresh();
-      }
+      const nextPath = pathname.replace(LOCALE_PATH_PREFIX, `/${newLocale}`);
+      const qs = searchParams.toString();
+      router.push(`${nextPath}${qs ? `?${qs}` : ""}` as Route);
     } else {
       window.location.reload();
     }
   }
 
+  function selectCurrency(newCurrency: Currency) {
+    close();
+    storeCurrency(newCurrency);
+    setCurrency(newCurrency);
+    router.refresh();
+  }
+
+  const summary = [showLanguages ? locale.toUpperCase() : null, showCurrencies ? currencySymbol(currency) : null]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <details ref={detailsRef} className={styles.languageDropdown}>
       <summary className={styles.languageToggle}>
-        <span>{locale.toUpperCase()} · {currencySymbols[currency] ?? currency}</span>
+        <span>{summary}</span>
         <ChevronDown aria-hidden size={13} className={styles.languageChevron} />
       </summary>
       <div className={styles.languageDropdownMenu}>
-        {COMBOS.map(({ locale: l, currency: c }) => (
+        {showLanguages && languages.map((code) => (
           <button
-            key={`${l}:${c}`}
+            key={`lang:${code}`}
             type="button"
-            className={`${styles.languageOption}${locale === l && currency === c ? ` ${styles.languageOptionActive}` : ""}`}
-            onClick={() => selectCombo(l, c)}
+            className={`${styles.languageOption}${locale === code ? ` ${styles.languageOptionActive}` : ""}`}
+            onClick={() => selectLanguage(code)}
           >
-            {localeNames[l] ?? l} · {currencySymbols[c] ?? c}
+            {languageFlag(code)} {languageNativeName(code)}
+          </button>
+        ))}
+        {showCurrencies && currencies.map((code) => (
+          <button
+            key={`cur:${code}`}
+            type="button"
+            className={`${styles.languageOption}${currency === code ? ` ${styles.languageOptionActive}` : ""}`}
+            onClick={() => selectCurrency(code)}
+          >
+            {currencySymbol(code)} {code}
           </button>
         ))}
       </div>

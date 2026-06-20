@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import type { Locale } from "../../lib/i18n";
 import { serviceStatusLabel } from "../../lib/status-labels";
+import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
 import { Button } from "../ui/button";
 import { ImageUploader } from "../ui/image-uploader";
 import { notify, notifyResponse } from "../ui/toast-provider";
@@ -1024,9 +1025,9 @@ export function SettingsForm() {
     siteLogoUrl: "",
     siteUrl: "",
     termsUrl: "",
-    usdBufferCents: 0,
-    usdExchangeRate: 1.0,
-    vatPercent: 19
+    vatPercent: 19,
+    languages: { main: "de", others: ["en"] } as LanguagesValue,
+    currencyConfig: { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } } as CurrencyConfigValue
   });
 
   useEffect(() => {
@@ -1053,9 +1054,9 @@ export function SettingsForm() {
         siteLogoUrl: p.siteLogoUrl ?? "",
         siteUrl: p.siteUrl ?? "",
         termsUrl: p.termsUrl ?? "",
-        usdBufferCents: p.usdBufferCents ?? 0,
-        usdExchangeRate: p.usdExchangeRate ?? 1.0,
-        vatPercent: p.vatPercent ?? 19
+        vatPercent: p.vatPercent ?? 19,
+        languages: p.languages?.main ? p.languages : { main: "de", others: ["en"] },
+        currencyConfig: p.currencyConfig?.main ? p.currencyConfig : { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } }
       }))
       .catch(() => undefined);
   }, []);
@@ -1082,9 +1083,9 @@ export function SettingsForm() {
         siteLogoUrl: s.siteLogoUrl,
         siteUrl: String(formData.get("siteUrl") ?? ""),
         termsUrl: String(formData.get("termsUrl") ?? ""),
-        usdBufferCents: Number(formData.get("usdBufferCents") ?? 0),
-        usdExchangeRate: Number(formData.get("usdExchangeRate") ?? 1.0),
-        vatPercent: Number(formData.get("vatPercent") ?? 19)
+        vatPercent: Number(formData.get("vatPercent") ?? 19),
+        languages: s.languages,
+        currencyConfig: s.currencyConfig
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
@@ -1153,10 +1154,12 @@ export function SettingsForm() {
       </p>
       <h3>Legal</h3>
       <label>AGB / Terms URL<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
-      <h3>Currency (USD)</h3>
-      <p>Prices are stored in EUR. These settings control the EUR→USD conversion displayed to customers who select USD.</p>
-      <label>EUR→USD exchange rate<input min="0.01" step="0.0001" value={s.usdExchangeRate} name="usdExchangeRate" type="number" onChange={(e) => setS({ ...s, usdExchangeRate: Number(e.target.value) })} /></label>
-      <label>Buffer (extra cents added to USD price)<input min="0" step="1" value={s.usdBufferCents} name="usdBufferCents" type="number" onChange={(e) => setS({ ...s, usdBufferCents: Number(e.target.value) })} /></label>
+      <LanguageCurrencySettings
+        languages={s.languages}
+        currencyConfig={s.currencyConfig}
+        onLanguages={(v) => setS({ ...s, languages: v })}
+        onCurrencyConfig={(v) => setS({ ...s, currencyConfig: v })}
+      />
       <h3>Invoice branding</h3>
       <label>VAT percent<input min="0" step="0.01" value={s.vatPercent} name="vatPercent" type="number" onChange={(e) => setS({ ...s, vatPercent: Number(e.target.value) })} /></label>
       <ImageUploader

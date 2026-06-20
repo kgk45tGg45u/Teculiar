@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CurrencyConfigInit } from "../../components/layout/currency-config-init";
 import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
-import { apiGet, currencyConfigFromSettings, type CurrencyConfig } from "../../lib/api";
+import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
 import { getLocale } from "../../lib/i18n";
 
 type SiteSettings = {
@@ -11,7 +11,8 @@ type SiteSettings = {
   siteUrl?: string;
   usdExchangeRate?: number;
   usdBufferCents?: number;
-  currencyConfig?: CurrencyConfig;
+  currencyConfig?: StoredCurrencyConfig;
+  languages?: { main?: string; others?: string[] };
   siteName?: string;
   metaDescription?: string;
   ogImageStatic?: string;
@@ -60,10 +61,11 @@ export default async function PublicLayout({
   const settings = await apiGet<SiteSettings>("/storefront/settings");
   const brandLogo = settings?.siteLogoUrl;
   const currencyConfig = currencyConfigFromSettings(settings);
+  const i18nConfig = i18nConfigFromSettings(settings);
 
   return (
     <div className="shell">
-      <SiteHeader brandLogo={brandLogo} locale={locale} />
+      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
       <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
       <SiteFooter brandLogo={brandLogo} locale={locale} />

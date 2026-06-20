@@ -671,6 +671,20 @@ export class BillingRepository {
     });
   }
 
+  async settingJson<T>(key: string, fallback: T): Promise<T> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key } });
+    const value = setting?.value;
+    return value !== null && value !== undefined && typeof value === "object" ? (value as T) : fallback;
+  }
+
+  upsertSettingJson(key: string, value: Prisma.InputJsonValue) {
+    return this.prisma.systemSetting.upsert({
+      where: { key },
+      create: { key, value },
+      update: { value }
+    });
+  }
+
   listPaymentGateways() {
     return this.prisma.paymentProcessorConfig.findMany({ orderBy: { method: "asc" } });
   }

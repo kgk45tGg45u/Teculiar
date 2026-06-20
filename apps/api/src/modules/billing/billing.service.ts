@@ -1405,6 +1405,29 @@ export class BillingService {
     return this.billing.settingString("siteUrl");
   }
 
+  // Configured languages (main + others). Defaults to German main / English secondary.
+  async i18nLanguages(): Promise<StoredLanguages> {
+    const stored = await this.billing.settingJson<Partial<StoredLanguages> | null>("i18n.languages", null);
+    if (!stored || typeof stored.main !== "string" || !stored.main) {
+      return { main: "de", others: ["en"] };
+    }
+    return sanitizeLanguages(stored);
+  }
+
+  // Configured currencies + rates. Falls back to the legacy usdExchangeRate/usdBufferCents
+  // settings (migrated into a USD entry) when currency.config has never been saved.
+  async currencyConfig(): Promise<StoredCurrencyConfig> {
+    const stored = await this.billing.settingJson<Partial<StoredCurrencyConfig> | null>("currency.config", null);
+    if (stored && typeof stored.main === "string" && stored.main) {
+      return sanitizeCurrencyConfig(stored);
+    }
+    const [rate, buffer] = await Promise.all([
+      this.billing.settingNumber("usdExchangeRate", 1.0),
+      this.billing.settingNumber("usdBufferCents", 0)
+    ]);
+    return { main: "EUR", others: ["USD"], rates: { USD: { rate, buffer, bufferEnabled: buffer > 0 } } };
+  }
+
   async publicSettings() {
     const [
       vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
@@ -1441,9 +1464,12 @@ export class BillingService {
       this.billing.settingString("theme.blue.knowledgebaseHeroImageUrl")
     ]);
 
+    const [currencyConfig, languages] = await Promise.all([this.currencyConfig(), this.i18nLanguages()]);
+
     return {
       blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard,
       ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent,
+      currencyConfig, languages,
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
       themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
@@ -1581,8 +1607,12 @@ export class BillingService {
       this.billing.settingNumber("logRetentionDays", 0)
     ]);
 
+    const [currencyConfig, languages] = await Promise.all([this.currencyConfig(), this.i18nLanguages()]);
+
     return {
       adminTimezone,
+      currencyConfig,
+      languages,
       logRetentionDays,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
       deepseekApiKey: maskSecrets && deepseekApiKey ? "********" : deepseekApiKey,
@@ -1823,8 +1853,12 @@ export class BillingService {
     aiBlogTagsPrompt?: string;
     aiBlogKeywordsPrompt?: string;
     logRetentionDays?: number;
+    languages?: { main?: string; others?: string[] };
+    currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
   }) {
     return Promise.all([
+      input.languages === undefined ? undefined : this.billing.upsertSettingJson("i18n.languages", sanitizeLanguages(input.languages)),
+      input.currencyConfig === undefined ? undefined : this.billing.upsertSettingJson("currency.config", sanitizeCurrencyConfig(input.currencyConfig)),
       input.logRetentionDays === undefined
         ? undefined
         : this.billing.upsertSettingNumber("logRetentionDays", Math.max(0, Math.trunc(input.logRetentionDays))),
@@ -2458,6 +2492,43 @@ function formatEuro(cents: number) {
 function positiveSetting(value: unknown, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+// ── Modular i18n / currency config (stored as JSON in SystemSetting) ──
+type StoredLanguages = { main: string; others: string[] };
+type StoredCurrencyRate = { rate: number; buffer: number; bufferEnabled: boolean };
+type StoredCurrencyConfig = { main: string; others: string[]; rates: Record<string, StoredCurrencyRate> };
+
+function sanitizeLanguages(input: { main?: string; others?: unknown }): StoredLanguages {
+  const main = typeof input.main === "string" && input.main ? input.main : "de";
+  const others = Array.isArray(input.others)
+    ? Array.from(new Set(input.others.filter((code): code is string => typeof code === "string" && Boolean(code) && code !== main)))
+    : [];
+  return { main, others };
+}
+
+function sanitizeCurrencyConfig(input: {
+  main?: string;
+  others?: unknown;
+  rates?: Record<string, { rate?: unknown; buffer?: unknown; bufferEnabled?: unknown }> | unknown;
+}): StoredCurrencyConfig {
+  const main = typeof input.main === "string" && input.main ? input.main : "EUR";
+  const others = Array.isArray(input.others)
+    ? Array.from(new Set(input.others.filter((code): code is string => typeof code === "string" && Boolean(code) && code !== main)))
+    : [];
+  const ratesIn = input.rates && typeof input.rates === "object" ? (input.rates as Record<string, { rate?: unknown; buffer?: unknown; bufferEnabled?: unknown }>) : {};
+  const rates: Record<string, StoredCurrencyRate> = {};
+  for (const code of others) {
+    const raw = ratesIn[code] ?? {};
+    const rate = Number(raw.rate);
+    const buffer = Number(raw.buffer);
+    rates[code] = {
+      rate: Number.isFinite(rate) && rate > 0 ? rate : 1,
+      buffer: Number.isFinite(buffer) && buffer >= 0 ? Math.round(buffer) : 0,
+      bufferEnabled: Boolean(raw.bufferEnabled)
+    };
+  }
+  return { main, others, rates };
 }
 
 function paymentMethodLabel(method: string) {
