@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
+import { formatDate, formatMoney } from "../../common/i18n";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -2225,14 +2226,17 @@ export class BillingService {
     const user = asRecord(invoice.user);
     const itemNames = (invoice.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
     const orderItemNames = (invoice.order?.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
+    // Email money uses the invoice's frozen currency; locale = up-to-date recipient locale → main.
+    const locale = stringFrom(user.locale) ?? (await this.i18nLanguages()).main;
+    const currency = stringFrom(invoice.currency) ?? await this.mainCurrency();
     return this.emails.dispatch(eventKey, {
       context: {
         customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
         customer_name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email),
-        invoice_due_date: invoice.dueAt ? formatDateLabel(invoice.dueAt) : "",
+        invoice_due_date: invoice.dueAt ? formatDate(invoice.dueAt, locale) : "",
         invoice_link: `${publicWebUrl()}/client/invoices/${invoice.id}`,
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
-        invoice_total_amount: formatEuro(invoice.totalCents),
+        invoice_total_amount: formatMoney(invoice.totalCents, currency, locale),
         order_number: stringFrom(invoice.order?.orderNumber),
         payment_gateway: paymentGatewayLabel(invoice.transactions),
         service: (itemNames.length ? itemNames : orderItemNames).join(", ")
@@ -2505,10 +2509,6 @@ export class BillingService {
       zip
     };
   }
-}
-
-function formatEuro(cents: number) {
-  return `${(cents / 100).toFixed(2)} EUR`;
 }
 
 function positiveSetting(value: unknown, fallback: number) {
@@ -2863,10 +2863,6 @@ function stringFrom(value: unknown) {
 
 function asRecord(value: unknown): Record<string, any> {
   return isRecord(value) ? value : {};
-}
-
-function formatDateLabel(value: Date | string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

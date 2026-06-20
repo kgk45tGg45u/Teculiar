@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
 import { billingCycles } from "@dezhost/shared";
+import { formatMoney } from "../../common/i18n";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -492,18 +493,23 @@ export class OrdersService implements OnModuleInit {
     if (!this.emails) {
       return [];
     }
+    // Order-email money uses the invoice's frozen currency; locale = recipient locale → main.
+    const userLocale = stringOrUndefined(invoice.user?.locale) ?? stringOrUndefined(snapshot.locale);
+    const locale = userLocale ?? (await this.billing.i18nLanguages()).main;
+    const currency = stringOrUndefined(invoice.currency) ?? await this.billing.mainCurrency();
     return this.emails.dispatch("order_confirmation", {
       context: {
         customer_email: stringOrUndefined(snapshot.email),
         customer_name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email),
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
-        invoice_total_amount: formatEuro(invoice.totalCents),
+        invoice_total_amount: formatMoney(invoice.totalCents, currency, locale),
         order_number: order.orderNumber,
         service: Array.isArray(order.items) ? order.items.map((item) => item.description).filter(Boolean).join(", ") : ""
       },
       user: {
         email: stringOrUndefined(snapshot.email),
         id: order.userId,
+        locale: userLocale,
         name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email)
       }
     });
@@ -1028,10 +1034,6 @@ function optionalString(value: unknown) {
 
 function stringOrUndefined(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function formatEuro(cents: number) {
-  return `${(cents / 100).toFixed(2)} EUR`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

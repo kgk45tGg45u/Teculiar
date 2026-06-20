@@ -8,10 +8,20 @@ type SettingStore = {
 };
 
 export async function readMainCurrency(prisma: SettingStore | undefined | null): Promise<string> {
+  return readSettingMain(prisma, "currency.config", "EUR");
+}
+
+// Reads the configured main/base language (i18n.languages.main) directly from SystemSetting,
+// for services that only have a Prisma client. Falls back to "de" (the historical default).
+export async function readMainLanguage(prisma: SettingStore | undefined | null): Promise<string> {
+  return readSettingMain(prisma, "i18n.languages", "de");
+}
+
+async function readSettingMain(prisma: SettingStore | undefined | null, key: string, fallback: string): Promise<string> {
   if (!prisma?.systemSetting?.findUnique) {
-    return "EUR";
+    return fallback;
   }
-  const row = await prisma.systemSetting.findUnique({ where: { key: "currency.config" } });
+  const row = await prisma.systemSetting.findUnique({ where: { key } });
   const value = row?.value;
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const main = (value as { main?: unknown }).main;
@@ -19,5 +29,5 @@ export async function readMainCurrency(prisma: SettingStore | undefined | null):
       return main;
     }
   }
-  return "EUR";
+  return fallback;
 }

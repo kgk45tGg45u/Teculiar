@@ -2,9 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { Locale, Prisma } from "@prisma/client";
 import net from "node:net";
 import tls from "node:tls";
+import { readMainCurrency, readMainLanguage } from "../../common/currency";
+import { formatDate, formatMoney, loadDictionary } from "../../common/i18n";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, type EmailRecipientType } from "./email-events";
-import { EMAIL_LAYOUT_BLOCK_LIBRARY, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailLayoutBlock } from "./email-layouts";
+import { emailLayoutBlockLibrary, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailDict, type EmailLayoutBlock } from "./email-layouts";
 import { emailPlaceholdersForModules } from "./email-placeholders";
 
 type EmailUser = {
@@ -52,13 +54,17 @@ export class EmailService {
   constructor(private readonly prisma: PrismaService) {}
 
   async adminSettings() {
+    // The admin editor shows defaults in the store's main language; DB overrides still win.
+    const [mainLang, mainCurrency] = await Promise.all([this.mainLanguage(), this.mainCurrency()]);
+    const dict = loadDictionary(mainLang).email;
+    const sampleVars = defaultTestVariables(mainCurrency, mainLang);
     const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, activeModules] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.settingJson<Record<string, unknown>>("emailTestVariables", defaultTestVariables()),
-      Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, "de"))),
+      this.settingJson<Record<string, unknown>>("emailTestVariables", sampleVars),
+      Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, mainLang))),
       this.listLogs(100),
       this.activeModules()
     ]);
@@ -67,19 +73,19 @@ export class EmailService {
       events: EMAIL_EVENTS.map((event, index) => ({
         ...event,
         enabled: eventConfigs[event.key]?.enabled ?? true,
-        layoutBlocks: normalizeEmailLayoutBlocks(layoutConfigs[event.key], event.key, templates[index]?.body ?? event.body),
+        layoutBlocks: normalizeEmailLayoutBlocks(layoutConfigs[event.key], event.key, templates[index]?.body ?? packBody(dict, event.key, event.body), dict),
         recipients: eventConfigs[event.key]?.recipients ?? event.defaultRecipients,
-        body: templates[index]?.body ?? event.body,
-        subject: templates[index]?.subject ?? event.subject
+        body: templates[index]?.body ?? packBody(dict, event.key, event.body),
+        subject: templates[index]?.subject ?? packSubject(dict, event.key, event.subject)
       })),
-      blockLibrary: EMAIL_LAYOUT_BLOCK_LIBRARY,
+      blockLibrary: emailLayoutBlockLibrary(dict),
       logs,
       // Only show shortcodes contributed by modules that are currently active.
       placeholders: emailPlaceholdersForModules(activeModules),
       smtp: publicSmtp(smtp),
       templateHtml,
       // Merge defaults under any saved overrides so newly added placeholders still preview.
-      testVariables: { ...defaultTestVariables(), ...testVariables }
+      testVariables: { ...sampleVars, ...testVariables }
     };
   }
 
@@ -121,6 +127,9 @@ export class EmailService {
       tasks.push(this.upsertSetting("emailTestVariables", input.testVariables));
     }
     if (input.events) {
+      // Overrides are stored against the main language (the locale the admin editor shows).
+      const mainLang = await this.mainLanguage();
+      const dict = loadDictionary(mainLang).email;
       const configs: Record<string, EmailEventConfig> = {};
       const currentLayouts = await this.layoutConfigs();
       const layouts: Record<string, EmailLayoutBlock[]> = { ...currentLayouts };
@@ -129,25 +138,26 @@ export class EmailService {
         if (!definition) {
           continue;
         }
+        const fallbackBody = packBody(dict, event.key, definition.body);
         configs[event.key] = {
           enabled: event.enabled !== false,
           recipients: normalizedRecipients(event.recipients, definition.defaultRecipients)
         };
         tasks.push(this.prisma.emailTemplate.upsert({
-          where: { key_locale: { key: event.key, locale: "de" } },
+          where: { key_locale: { key: event.key, locale: mainLang as Locale } },
           create: {
-            body: event.body ?? definition.body,
+            body: event.body ?? fallbackBody,
             key: event.key,
-            locale: "de",
-            subject: event.subject ?? definition.subject
+            locale: mainLang as Locale,
+            subject: event.subject ?? packSubject(dict, event.key, definition.subject)
           },
           update: {
-            body: event.body ?? definition.body,
-            subject: event.subject ?? definition.subject
+            body: event.body ?? fallbackBody,
+            subject: event.subject ?? packSubject(dict, event.key, definition.subject)
           }
         }));
         if (Array.isArray(event.layoutBlocks)) {
-          layouts[event.key] = normalizeEmailLayoutBlocks(event.layoutBlocks, event.key, event.body ?? definition.body);
+          layouts[event.key] = normalizeEmailLayoutBlocks(event.layoutBlocks, event.key, event.body ?? fallbackBody, dict);
         }
       }
       tasks.push(this.upsertSetting("emailEventConfigs", configs));
@@ -176,12 +186,15 @@ export class EmailService {
       return [];
     }
 
+    const mainLang = await this.mainLanguage();
+    const recipientLocale = resolveLocale(input.user?.locale, mainLang);
+    const dict = loadDictionary(recipientLocale).email;
     const [smtp, configs, layoutConfigs, templateHtml, template] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.templateFor(eventKey, locale(input.user?.locale))
+      this.templateFor(eventKey, recipientLocale)
     ]);
     const config = configs[eventKey] ?? { enabled: true, recipients: definition.defaultRecipients };
     if (config.enabled === false) {
@@ -191,12 +204,12 @@ export class EmailService {
     const context = normalizeContext({
       ...input.context,
       brand_name: smtp.fromName || stringValue(input.context?.brand_name) || "Dezhost",
-      current_date: formatDate(new Date()),
+      current_date: formatDate(new Date(), recipientLocale),
       customer_email: input.user?.email ?? input.context?.customer_email,
       customer_name: input.user?.name ?? input.context?.customer_name ?? input.user?.email
     });
-    const subject = renderText(template?.subject ?? definition.subject, context);
-    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? definition.body);
+    const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
+    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
     const content = renderEmailLayout(layoutBlocks, context);
     const html = renderShell(templateHtml, { ...context, content, subject });
     const text = stripHtml(content);
@@ -282,20 +295,23 @@ export class EmailService {
     if (!definition) {
       return [];
     }
+    const mainLang = await this.mainLanguage();
+    const recipientLocale = resolveLocale(user.locale, mainLang);
+    const dict = loadDictionary(recipientLocale).email;
     const [smtp, layoutConfigs, templateHtml, template] = await Promise.all([
       this.smtpSettings(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.templateFor(eventKey, locale(user.locale))
+      this.templateFor(eventKey, recipientLocale)
     ]);
     const context = normalizeContext({
       brand_name: smtp.fromName || "Dezhost",
-      current_date: formatDate(new Date()),
+      current_date: formatDate(new Date(), recipientLocale),
       customer_email: user.email,
       customer_name: user.name ?? user.email
     });
-    const subject = renderText(template?.subject ?? definition.subject, context);
-    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? definition.body);
+    const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
+    const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
     const content = renderEmailLayout(layoutBlocks, context);
     const html = renderShell(templateHtml, { ...context, content, subject });
     const text = stripHtml(content);
@@ -318,13 +334,14 @@ export class EmailService {
     if (!user?.email) {
       return [];
     }
-    const [smtp, templateHtml] = await Promise.all([
+    const [smtp, templateHtml, mainLang] = await Promise.all([
       this.smtpSettings(),
-      this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML)
+      this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
+      this.mainLanguage()
     ]);
     const context = normalizeContext({
       brand_name: smtp.fromName || "Dezhost",
-      current_date: formatDate(new Date()),
+      current_date: formatDate(new Date(), resolveLocale(user.locale, mainLang)),
       customer_email: user.email,
       customer_name: user.name ?? user.email
     });
@@ -439,12 +456,23 @@ export class EmailService {
     });
   }
 
-  private async templateFor(key: string, preferredLocale: Locale = "de") {
-    const template = await this.prisma.emailTemplate.findUnique({ where: { key_locale: { key, locale: preferredLocale } } });
-    if (template || preferredLocale === "de") {
-      return template;
+  // A per-locale DB override for an event, or null (→ the pack default applies). Until the
+  // Step-7 migration turns EmailTemplate.locale into a String, a locale without a matching
+  // enum value throws on lookup; we swallow that so any language falls back to the pack.
+  private async templateFor(key: string, preferredLocale: string) {
+    try {
+      return await this.prisma.emailTemplate.findUnique({ where: { key_locale: { key, locale: preferredLocale as Locale } } });
+    } catch {
+      return null;
     }
-    return this.prisma.emailTemplate.findUnique({ where: { key_locale: { key, locale: "de" } } });
+  }
+
+  private mainLanguage() {
+    return readMainLanguage(this.prisma);
+  }
+
+  private mainCurrency() {
+    return readMainCurrency(this.prisma);
   }
 
   private async eventConfigs() {
@@ -558,8 +586,17 @@ function emailFrom(smtp: EmailSmtpSettings) {
   return `${name} <${email}>`;
 }
 
-function locale(value?: string | null): Locale {
-  return value === "en" ? "en" : "de";
+// Email language = the up-to-date recipient locale, falling back to the store's main language.
+function resolveLocale(value: string | null | undefined, mainLang: string): string {
+  return typeof value === "string" && value ? value : mainLang;
+}
+
+function packSubject(dict: EmailDict, key: string, fallback: string): string {
+  return (dict.events as Record<string, { subject?: string } | undefined>)[key]?.subject ?? fallback;
+}
+
+function packBody(dict: EmailDict, key: string, fallback: string): string {
+  return (dict.events as Record<string, { body?: string } | undefined>)[key]?.body ?? fallback;
 }
 
 function normalizeContext(value: Record<string, unknown>) {
@@ -592,11 +629,7 @@ function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(date);
-}
-
-function defaultTestVariables() {
+function defaultTestVariables(currency = "EUR", locale = "de") {
   const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return {
     customer_email: "client@example.test",
@@ -604,7 +637,7 @@ function defaultTestVariables() {
     domain: "example.com",
     invoice_due_date: "2026-06-01",
     invoice_number: "N-100001",
-    invoice_total_amount: "29.00 EUR",
+    invoice_total_amount: formatMoney(2900, currency, locale),
     order_number: "123456",
     password_reset_link: `${baseUrl}/reset-password?token=test`,
     payment_gateway: "PayPal",

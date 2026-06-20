@@ -1,3 +1,8 @@
+import type { Dictionary } from "../../common/i18n";
+
+// The localized `email` namespace from a loaded dictionary (English baked in per key).
+export type EmailDict = Dictionary["email"];
+
 export type EmailLayoutBlockType = "button" | "divider" | "invoiceTable" | "keyValueTable" | "link" | "notice" | "text";
 
 export type EmailLayoutBlock = {
@@ -11,165 +16,173 @@ export type EmailLayoutBlock = {
   type: EmailLayoutBlockType;
 };
 
-export const EMAIL_LAYOUT_BLOCK_LIBRARY: Array<{ description: string; label: string; type: EmailLayoutBlockType }> = [
-  { description: "Rich copy with placeholders.", label: "Text", type: "text" },
-  { description: "Two-column facts such as invoice number and total.", label: "Key/value table", type: "keyValueTable" },
-  { description: "Email-safe line item table.", label: "Invoice table", type: "invoiceTable" },
-  { description: "Primary call-to-action button.", label: "Button", type: "button" },
-  { description: "Inline text hyperlink.", label: "Link", type: "link" },
-  { description: "Highlighted compliance or status note.", label: "Notice", type: "notice" },
-  { description: "Thin visual break.", label: "Divider", type: "divider" }
-];
-
-const DEFAULT_EMAIL_LAYOUTS: Record<string, EmailLayoutBlock[]> = {
-  domain_information: [
-    text("domain-intro", "Hello {{customer_name}},<br /><br />your domain {{domain}} has been registered and is now active."),
-    keyValueTable("domain-summary", "Domain", [
-      ["Domain", "{{domain}}"],
-      ["Status", "{{resellbiz_domain_status}}"],
-      ["Name servers", "{{resellbiz_nameservers}}"]
-    ]),
-    button("domain-button", "Manage domain", "{{domain_link}}"),
-    notice("domain-note", "Keep your domain contact data current to avoid registry compliance issues.")
-  ],
-  hosting_account_information: [
-    text("hosting-intro", "Hello {{customer_name}},<br /><br />your hosting account is active. Use the control panel details below to sign in."),
-    keyValueTable("hosting-summary", "Hosting account", [
-      ["Service", "{{service}}"],
-      ["Domain", "{{domain}}"],
-      ["Status", "Active"]
-    ]),
-    keyValueTable("hosting-access", "Control panel access", [
-      ["Address", "{{virtualmin_control_panel_url}}"],
-      ["Username", "{{virtualmin_control_panel_username}}"],
-      ["Password", "{{virtualmin_control_panel_password}}"]
-    ]),
-    keyValueTable("hosting-mail", "Email settings", [
-      ["Mail server", "{{virtualmin_mail_server}}"],
-      ["IMAP port", "{{virtualmin_imap_port}}"],
-      ["SMTP port", "{{virtualmin_smtp_port}}"]
-    ]),
-    button("hosting-button", "Open hosting service", "{{service_link}}"),
-    notice("hosting-note", "For your security, sign in and change this password after your first login.", "warning")
-  ],
-  hosting_account_suspended: [
-    text("hosting-suspended-intro", "Hello {{customer_name}},<br /><br />your hosting service has been suspended."),
-    keyValueTable("hosting-suspended-summary", "Service status", [
-      ["Service", "{{service}}"],
-      ["Domain", "{{domain}}"],
-      ["Status", "Suspended"]
-    ]),
-    notice("hosting-suspended-note", "Contact support if you believe this suspension is incorrect.", "warning")
-  ],
-  hosting_account_terminated: [
-    text("hosting-terminated-intro", "Hello {{customer_name}},<br /><br />your hosting service has been terminated."),
-    keyValueTable("hosting-terminated-summary", "Service status", [
-      ["Service", "{{service}}"],
-      ["Domain", "{{domain}}"],
-      ["Status", "Terminated"]
-    ]),
-    notice("hosting-terminated-note", "Backups and retained data depend on your service terms.", "danger")
-  ],
-  invoice_reminder: [
-    text("invoice-reminder-intro", "Hello {{customer_name}},<br /><br />this is a friendly reminder that your invoice is due."),
-    invoiceSummaryBlocks("invoice-reminder"),
-    button("invoice-reminder-button", "Pay invoice", "{{invoice_link}}")
-  ].flat(),
-  new_invoice: [
-    text("new-invoice-intro", "Hello {{customer_name}},<br /><br />a new invoice has been generated for your account."),
-    invoiceSummaryBlocks("new-invoice"),
-    button("new-invoice-button", "View invoice", "{{invoice_link}}")
-  ].flat(),
-  order_confirmation: [
-    text("order-confirmation-intro", "Hello {{customer_name}},<br /><br />your order was registered successfully."),
-    keyValueTable("order-confirmation-summary", "Order summary", [
-      ["Order", "{{order_number}}"],
-      ["Total", "{{invoice_total_amount}}"],
-      ["Service", "{{service}}"],
-      ["Domain", "{{domain}}"]
-    ])
-  ],
-  password_reset: [
-    text("password-reset-intro", "Hello {{customer_name}},<br /><br />use the secure link below to reset your password."),
-    button("password-reset-button", "Reset password", "{{password_reset_link}}"),
-    notice("password-reset-note", "Ignore this email if you did not request a password reset.")
-  ],
-  payment_successful: [
-    text("payment-successful-intro", "Hello {{customer_name}},<br /><br />we received your payment. Thank you."),
-    invoiceSummaryBlocks("payment-successful"),
-    notice("payment-successful-note", "Paid invoices are stored in your client dashboard.", "success")
-  ].flat(),
-  refund_request_sent: [
-    text("refund-intro", "Hello {{customer_name}},<br /><br />a refund was recorded for this invoice."),
-    invoiceSummaryBlocks("refund"),
-    notice("refund-note", "Refund processing time depends on the original payment method.")
-  ].flat(),
-  ticket_answered: [
-    text("ticket-answered-intro", "Your support ticket has a new answer."),
-    keyValueTable("ticket-answered-summary", "Ticket", [
-      ["Ticket", "#{{ticket_id}}"],
-      ["Subject", "{{ticket_subject}}"],
-      ["Status", "{{ticket_status}}"]
-    ]),
-    notice("ticket-answer", "{{ticket_reply}}")
-  ],
-  ticket_closed: [
-    text("ticket-closed-intro", "Your support ticket has been closed."),
-    keyValueTable("ticket-closed-summary", "Ticket", [
-      ["Ticket", "#{{ticket_id}}"],
-      ["Subject", "{{ticket_subject}}"],
-      ["Status", "{{ticket_status}}"]
-    ])
-  ],
-  ticket_opened: [
-    text("ticket-opened-intro", "A new support ticket was opened."),
-    keyValueTable("ticket-opened-summary", "Ticket", [
-      ["Ticket", "#{{ticket_id}}"],
-      ["Subject", "{{ticket_subject}}"],
-      ["Status", "{{ticket_status}}"]
-    ]),
-    notice("ticket-content", "{{ticket_content}}")
-  ],
-  welcome: [
-    text("welcome-intro", "Hello {{customer_name}},<br /><br />welcome to {{brand_name}}. Your account is ready."),
-    keyValueTable("welcome-summary", "Account", [
-      ["Customer", "{{customer_name}}"],
-      ["Email", "{{customer_email}}"]
-    ])
-  ]
-};
-
-export function defaultEmailLayout(eventKey: string, fallbackBody: string) {
-  return cloneBlocks(DEFAULT_EMAIL_LAYOUTS[eventKey] ?? [text(`${eventKey}-body`, fallbackBody)]);
+// The admin block palette, labelled in the store's language.
+export function emailLayoutBlockLibrary(email: EmailDict): Array<{ description: string; label: string; type: EmailLayoutBlockType }> {
+  const b = email.blockLibrary;
+  return [
+    { description: b.text.description, label: b.text.label, type: "text" },
+    { description: b.keyValueTable.description, label: b.keyValueTable.label, type: "keyValueTable" },
+    { description: b.invoiceTable.description, label: b.invoiceTable.label, type: "invoiceTable" },
+    { description: b.button.description, label: b.button.label, type: "button" },
+    { description: b.link.description, label: b.link.label, type: "link" },
+    { description: b.notice.description, label: b.notice.label, type: "notice" },
+    { description: b.divider.description, label: b.divider.label, type: "divider" }
+  ];
 }
 
-export function normalizeEmailLayoutBlocks(value: unknown, eventKey: string, fallbackBody: string) {
+// Builds the per-event default layouts from a localized `email` pack. Layout-block copy,
+// table titles and status labels all read from the pack so a default email renders in the
+// recipient's language; admin-saved overrides (stored verbatim) bypass this.
+function buildDefaultLayouts(email: EmailDict): Record<string, EmailLayoutBlock[]> {
+  const L = email.labels;
+  const lay = email.layout;
+  const invoiceSummaryBlocks = (prefix: string): EmailLayoutBlock[] => [
+    keyValueTable(`${prefix}-summary`, lay.invoiceSummary.title, [
+      [L.invoice, "{{invoice_number}}"],
+      [L.total, "{{invoice_total_amount}}"],
+      [L.dueDate, "{{invoice_due_date}}"]
+    ]),
+    {
+      columns: [L.service, L.amount],
+      id: `${prefix}-lines`,
+      rows: [{ cells: ["{{service}}", "{{invoice_total_amount}}"] }],
+      title: lay.invoiceSummary.linesTitle,
+      type: "invoiceTable"
+    }
+  ];
+  return {
+    domain_information: [
+      text("domain-intro", lay.domain_information.intro),
+      keyValueTable("domain-summary", lay.domain_information.summaryTitle, [
+        [L.domain, "{{domain}}"],
+        [L.status, "{{resellbiz_domain_status}}"],
+        [L.nameServers, "{{resellbiz_nameservers}}"]
+      ]),
+      button("domain-button", lay.domain_information.button, "{{domain_link}}"),
+      notice("domain-note", lay.domain_information.note)
+    ],
+    hosting_account_information: [
+      text("hosting-intro", lay.hosting_account_information.intro),
+      keyValueTable("hosting-summary", lay.hosting_account_information.summaryTitle, [
+        [L.service, "{{service}}"],
+        [L.domain, "{{domain}}"],
+        [L.status, L.active]
+      ]),
+      keyValueTable("hosting-access", lay.hosting_account_information.accessTitle, [
+        [L.address, "{{virtualmin_control_panel_url}}"],
+        [L.username, "{{virtualmin_control_panel_username}}"],
+        [L.password, "{{virtualmin_control_panel_password}}"]
+      ]),
+      keyValueTable("hosting-mail", lay.hosting_account_information.mailTitle, [
+        [L.mailServer, "{{virtualmin_mail_server}}"],
+        [L.imapPort, "{{virtualmin_imap_port}}"],
+        [L.smtpPort, "{{virtualmin_smtp_port}}"]
+      ]),
+      button("hosting-button", lay.hosting_account_information.button, "{{service_link}}"),
+      notice("hosting-note", lay.hosting_account_information.note, "warning")
+    ],
+    hosting_account_suspended: [
+      text("hosting-suspended-intro", lay.hosting_account_suspended.intro),
+      keyValueTable("hosting-suspended-summary", lay.hosting_account_suspended.summaryTitle, [
+        [L.service, "{{service}}"],
+        [L.domain, "{{domain}}"],
+        [L.status, L.suspended]
+      ]),
+      notice("hosting-suspended-note", lay.hosting_account_suspended.note, "warning")
+    ],
+    hosting_account_terminated: [
+      text("hosting-terminated-intro", lay.hosting_account_terminated.intro),
+      keyValueTable("hosting-terminated-summary", lay.hosting_account_terminated.summaryTitle, [
+        [L.service, "{{service}}"],
+        [L.domain, "{{domain}}"],
+        [L.status, L.terminated]
+      ]),
+      notice("hosting-terminated-note", lay.hosting_account_terminated.note, "danger")
+    ],
+    invoice_reminder: [
+      text("invoice-reminder-intro", lay.invoice_reminder.intro),
+      ...invoiceSummaryBlocks("invoice-reminder"),
+      button("invoice-reminder-button", lay.invoice_reminder.button, "{{invoice_link}}")
+    ],
+    new_invoice: [
+      text("new-invoice-intro", lay.new_invoice.intro),
+      ...invoiceSummaryBlocks("new-invoice"),
+      button("new-invoice-button", lay.new_invoice.button, "{{invoice_link}}")
+    ],
+    order_confirmation: [
+      text("order-confirmation-intro", lay.order_confirmation.intro),
+      keyValueTable("order-confirmation-summary", lay.order_confirmation.summaryTitle, [
+        [L.order, "{{order_number}}"],
+        [L.total, "{{invoice_total_amount}}"],
+        [L.service, "{{service}}"],
+        [L.domain, "{{domain}}"]
+      ])
+    ],
+    password_reset: [
+      text("password-reset-intro", lay.password_reset.intro),
+      button("password-reset-button", lay.password_reset.button, "{{password_reset_link}}"),
+      notice("password-reset-note", lay.password_reset.note)
+    ],
+    payment_successful: [
+      text("payment-successful-intro", lay.payment_successful.intro),
+      ...invoiceSummaryBlocks("payment-successful"),
+      notice("payment-successful-note", lay.payment_successful.note, "success")
+    ],
+    refund_request_sent: [
+      text("refund-intro", lay.refund_request_sent.intro),
+      ...invoiceSummaryBlocks("refund"),
+      notice("refund-note", lay.refund_request_sent.note)
+    ],
+    ticket_answered: [
+      text("ticket-answered-intro", lay.ticket_answered.intro),
+      keyValueTable("ticket-answered-summary", lay.ticket_answered.summaryTitle, [
+        [L.ticket, "#{{ticket_id}}"],
+        [L.subject, "{{ticket_subject}}"],
+        [L.status, "{{ticket_status}}"]
+      ]),
+      notice("ticket-answer", "{{ticket_reply}}")
+    ],
+    ticket_closed: [
+      text("ticket-closed-intro", lay.ticket_closed.intro),
+      keyValueTable("ticket-closed-summary", lay.ticket_closed.summaryTitle, [
+        [L.ticket, "#{{ticket_id}}"],
+        [L.subject, "{{ticket_subject}}"],
+        [L.status, "{{ticket_status}}"]
+      ])
+    ],
+    ticket_opened: [
+      text("ticket-opened-intro", lay.ticket_opened.intro),
+      keyValueTable("ticket-opened-summary", lay.ticket_opened.summaryTitle, [
+        [L.ticket, "#{{ticket_id}}"],
+        [L.subject, "{{ticket_subject}}"],
+        [L.status, "{{ticket_status}}"]
+      ]),
+      notice("ticket-content", "{{ticket_content}}")
+    ],
+    welcome: [
+      text("welcome-intro", lay.welcome.intro),
+      keyValueTable("welcome-summary", lay.welcome.summaryTitle, [
+        [L.customer, "{{customer_name}}"],
+        [L.email, "{{customer_email}}"]
+      ])
+    ]
+  };
+}
+
+export function defaultEmailLayout(eventKey: string, fallbackBody: string, email: EmailDict) {
+  return cloneBlocks(buildDefaultLayouts(email)[eventKey] ?? [text(`${eventKey}-body`, fallbackBody)]);
+}
+
+export function normalizeEmailLayoutBlocks(value: unknown, eventKey: string, fallbackBody: string, email: EmailDict) {
   if (!Array.isArray(value) || !value.length) {
-    return defaultEmailLayout(eventKey, fallbackBody);
+    return defaultEmailLayout(eventKey, fallbackBody, email);
   }
   const blocks = value.map((item, index) => normalizeBlock(item, eventKey, index)).filter(Boolean) as EmailLayoutBlock[];
-  return blocks.length ? blocks : defaultEmailLayout(eventKey, fallbackBody);
+  return blocks.length ? blocks : defaultEmailLayout(eventKey, fallbackBody, email);
 }
 
 export function renderEmailLayout(blocks: EmailLayoutBlock[], context: Record<string, string>) {
   return blocks.map((block) => renderBlock(block, context)).join("");
-}
-
-function invoiceSummaryBlocks(prefix: string): EmailLayoutBlock[] {
-  return [
-    keyValueTable(`${prefix}-summary`, "Invoice summary", [
-      ["Invoice", "{{invoice_number}}"],
-      ["Total", "{{invoice_total_amount}}"],
-      ["Due date", "{{invoice_due_date}}"]
-    ]),
-    {
-      columns: ["Service", "Amount"],
-      id: `${prefix}-lines`,
-      rows: [{ cells: ["{{service}}", "{{invoice_total_amount}}"] }],
-      title: "Invoice lines",
-      type: "invoiceTable"
-    }
-  ];
 }
 
 function text(id: string, content: string): EmailLayoutBlock {
