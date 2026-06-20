@@ -1,9 +1,10 @@
 import { formatCustomerNumber } from "@dezhost/shared";
 import { load } from "cheerio";
 import PDFDocument from "pdfkit";
+import { formatDate, formatMoney as fmtMoney, loadDictionary } from "../../common/i18n";
 
 type InvoiceLike = Record<string, any>;
-type RenderOptions = { logoUrl?: string };
+type RenderOptions = { logoUrl?: string; locale?: string };
 
 const PT_PER_MM = 2.834645669;
 const mm = (value: number) => value * PT_PER_MM;
@@ -12,10 +13,14 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
   const seller = asRecord(invoice.sellerSnapshot);
   const buyer = asRecord(invoice.customerSnapshot);
   const buyerAddress = asRecord(buyer.address);
+  const locale = options.locale || "de";
+  const dict = loadDictionary(locale);
+  const inv = dict.invoice;
+  const currency = stringValue(invoice.currency) ?? "EUR";
   const number = stringValue(invoice.finalInvoiceNumber) ?? stringValue(invoice.tempInvoiceNumber) ?? stringValue(invoice.invoiceNumber) ?? invoice.id;
-  const issuedAt = dateLabel(invoice.issuedAt);
-  const dueAt = dateLabel(invoice.dueAt);
-  const paidAt = invoice.paidAt ? dateLabel(invoice.paidAt) : "";
+  const issuedAt = formatDate(invoice.issuedAt, locale);
+  const dueAt = formatDate(invoice.dueAt, locale);
+  const paidAt = invoice.paidAt ? formatDate(invoice.paidAt, locale) : "";
   const paymentMethodLabel = paidAt ? stringValue(invoice.paymentMethodLabel) : undefined;
   const customerNumber = formatCustomerNumber(buyer.customerNumber ?? asRecord(invoice.user).customerNumber);
   const footerLines = Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string" && line.trim().length > 0) : [];
@@ -29,17 +34,17 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
 
   const sellerContact = [
     ...addressLines(seller),
-    seller.vatNumber ? `USt-IdNr. ${String(seller.vatNumber)}` : "",
+    seller.vatNumber ? `${inv.vatId} ${String(seller.vatNumber)}` : "",
     seller.email ? String(seller.email) : "",
     seller.phone ? String(seller.phone) : ""
   ].filter((line): line is string => typeof line === "string" && line.trim().length > 0);
 
   const html = `<!doctype html>
-<html lang="de">
+<html lang="${escapeHtml(locale)}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rechnung ${escapeHtml(number)}</title>
+  <title>${escapeHtml(inv.title)} ${escapeHtml(number)}</title>
   <style>
     :root { color: #1a1a1a; font-family: Arial, Helvetica, sans-serif; }
     * { box-sizing: border-box; }
@@ -105,39 +110,39 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
           <strong>${escapeHtml(stringValue(buyer.companyName) ?? stringValue(buyer.name) ?? "")}</strong>
           ${buyer.companyName && buyer.name ? `<span>${escapeHtml(String(buyer.name))}</span>` : ""}
           ${[buyerAddress.line1, `${stringValue(buyerAddress.postalCode) ?? ""} ${stringValue(buyerAddress.city) ?? ""}`.trim(), buyer.countryCode].filter(Boolean).map((line) => `<span>${escapeHtml(String(line))}</span>`).join("")}
-          ${buyer.vatId ? `<span>USt-IdNr. ${escapeHtml(String(buyer.vatId))}</span>` : ""}
+          ${buyer.vatId ? `<span>${escapeHtml(inv.vatId)} ${escapeHtml(String(buyer.vatId))}</span>` : ""}
         </div>
       </section>
     </div>
 
     <section class="docHead">
       <div>
-        <h1>Rechnung ${escapeHtml(number)}</h1>
-        <p class="intro">Vielen Dank für Ihren Auftrag. Wir berechnen die folgenden Leistungen gemäß Ihrer Bestellung.</p>
+        <h1>${escapeHtml(inv.title)} ${escapeHtml(number)}</h1>
+        <p class="intro">${escapeHtml(inv.intro)}</p>
       </div>
       <div class="meta">
-        <span>Rechnungsdatum</span><strong>${escapeHtml(issuedAt)}</strong>
-        <span>Fällig am</span><strong>${escapeHtml(dueAt)}</strong>
-        ${paidAt ? `<span>Bezahlt am</span><strong>${escapeHtml(paidAt)}</strong>` : ""}
-        ${paymentMethodLabel ? `<span>Zahlungsart</span><strong>${escapeHtml(paymentMethodLabel)}</strong>` : ""}
-        <span>Kundennummer</span><strong>${escapeHtml(customerNumber)}</strong>
+        <span>${escapeHtml(inv.meta.invoiceDate)}</span><strong>${escapeHtml(issuedAt)}</strong>
+        <span>${escapeHtml(inv.meta.dueDate)}</span><strong>${escapeHtml(dueAt)}</strong>
+        ${paidAt ? `<span>${escapeHtml(inv.meta.paidDate)}</span><strong>${escapeHtml(paidAt)}</strong>` : ""}
+        ${paymentMethodLabel ? `<span>${escapeHtml(inv.meta.paymentMethod)}</span><strong>${escapeHtml(paymentMethodLabel)}</strong>` : ""}
+        <span>${escapeHtml(inv.meta.customerNumber)}</span><strong>${escapeHtml(customerNumber)}</strong>
       </div>
     </section>
 
     <table class="items">
       <thead>
-        <tr><th>Pos.</th><th>Beschreibung</th><th>Zeitraum</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Gesamt</th></tr>
+        <tr><th>${escapeHtml(inv.table.position)}</th><th>${escapeHtml(inv.table.description)}</th><th>${escapeHtml(inv.table.period)}</th><th class="num">${escapeHtml(inv.table.quantity)}</th><th class="num">${escapeHtml(inv.table.unitPrice)}</th><th class="num">${escapeHtml(inv.table.total)}</th></tr>
       </thead>
       <tbody>
-        ${rows.map((item, index) => invoiceRow(item, index, invoice.currency)).join("")}
+        ${rows.map((item, index) => invoiceRow(item, index, currency, locale)).join("")}
       </tbody>
     </table>
 
     <section class="totals">
-      <div><span>Zwischensumme</span><strong>${escapeHtml(formatMoney(numberValue(invoice.subtotalCents ?? invoice.totalCents), invoice.currency))}</strong></div>
-      ${numberValue(invoice.discountCents) > 0 ? `<div><span>Rabatt</span><strong>-${escapeHtml(formatMoney(numberValue(invoice.discountCents), invoice.currency))}</strong></div>` : ""}
-      ${showVat ? `<div><span>Umsatzsteuer</span><strong>${escapeHtml(formatMoney(numberValue(invoice.taxAmountCents), invoice.currency))}</strong></div>` : ""}
-      <div><span>Rechnungsbetrag</span><strong>${escapeHtml(formatMoney(numberValue(invoice.totalCents), invoice.currency))}</strong></div>
+      <div><span>${escapeHtml(inv.totals.subtotal)}</span><strong>${escapeHtml(fmtMoney(numberValue(invoice.subtotalCents ?? invoice.totalCents), currency, locale))}</strong></div>
+      ${numberValue(invoice.discountCents) > 0 ? `<div><span>${escapeHtml(inv.totals.discount)}</span><strong>-${escapeHtml(fmtMoney(numberValue(invoice.discountCents), currency, locale))}</strong></div>` : ""}
+      ${showVat ? `<div><span>${escapeHtml(inv.totals.vat)}</span><strong>${escapeHtml(fmtMoney(numberValue(invoice.taxAmountCents), currency, locale))}</strong></div>` : ""}
+      <div><span>${escapeHtml(inv.totals.grandTotal)}</span><strong>${escapeHtml(fmtMoney(numberValue(invoice.totalCents), currency, locale))}</strong></div>
     </section>
 
     ${taxReason ? `<section class="note">${escapeHtml(taxReason)}</section>` : ""}
@@ -171,17 +176,17 @@ export function renderInvoicePdfFromHtml(html: string, logoImage?: Buffer) {
   });
 }
 
-function invoiceRow(item: Record<string, any>, index: number, currency: unknown) {
-  const start = item.servicePeriodStart ? dateLabel(item.servicePeriodStart) : "";
-  const end = item.servicePeriodEnd ? dateLabel(item.servicePeriodEnd) : "";
-  const period = start || end ? [start, end].filter(Boolean).join(" – ") : cycleLabel(item.billingCycle);
+function invoiceRow(item: Record<string, any>, index: number, currency: string, locale: string) {
+  const start = item.servicePeriodStart ? formatDate(item.servicePeriodStart, locale) : "";
+  const end = item.servicePeriodEnd ? formatDate(item.servicePeriodEnd, locale) : "";
+  const period = start || end ? [start, end].filter(Boolean).join(" – ") : cycleLabel(item.billingCycle, locale);
   return `<tr>
     <td>${index + 1}</td>
     <td class="desc">${escapeHtml(String(item.description ?? ""))}</td>
     <td>${escapeHtml(period)}</td>
     <td class="num">${escapeHtml(String(item.quantity ?? 1))}</td>
-    <td class="num">${escapeHtml(formatMoney(numberValue(item.unitAmountCents), currency))}</td>
-    <td class="num">${escapeHtml(formatMoney(numberValue(item.totalCents), currency))}</td>
+    <td class="num">${escapeHtml(fmtMoney(numberValue(item.unitAmountCents), currency, locale))}</td>
+    <td class="num">${escapeHtml(fmtMoney(numberValue(item.totalCents), currency, locale))}</td>
   </tr>`;
 }
 
@@ -434,20 +439,12 @@ function senderLine(seller: Record<string, any>) {
   return [seller.companyName, seller.address, seller.zip, seller.city].filter(Boolean).join(", ");
 }
 
-function cycleLabel(value: unknown) {
+function cycleLabel(value: unknown, locale: string) {
   if (typeof value !== "string" || !value) {
     return "-";
   }
-  return value.replace(/_/g, " ").toLowerCase();
-}
-
-function dateLabel(value: unknown) {
-  const date = value instanceof Date ? value : new Date(String(value));
-  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(date) : "-";
-}
-
-function formatMoney(cents: number, currency: unknown) {
-  return new Intl.NumberFormat("de-DE", { currency: typeof currency === "string" ? currency : "EUR", style: "currency" }).format(cents / 100);
+  const labels = loadDictionary(locale).common.billingCycle as Record<string, string>;
+  return labels[value] ?? value.replace(/_/g, " ").toLowerCase();
 }
 
 function numberValue(value: unknown) {

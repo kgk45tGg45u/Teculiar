@@ -236,16 +236,32 @@ export class BillingService {
     return displayName ?? defaultPaymentMethodLabel(method);
   }
 
+  // Locale an invoice renders in: its own frozen snapshot (added in the Prisma migration) if
+  // present, else the buyer's current language, else the configured main language.
+  private async invoiceLocale(invoice: Record<string, any>): Promise<string> {
+    const stored = stringFrom(invoice.locale);
+    if (stored) {
+      return stored;
+    }
+    const userLocale = stringFrom(invoice.user?.locale);
+    if (userLocale) {
+      return userLocale;
+    }
+    return (await this.i18nLanguages()).main;
+  }
+
   async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
     const { url } = await this.invoiceLogo();
-    return renderInvoiceDocument(invoice, { logoUrl: url }).html;
+    const locale = await this.invoiceLocale(invoice);
+    return renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
   }
 
   async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
     const { url, image } = await this.invoiceLogo();
-    const html = renderInvoiceDocument(invoice, { logoUrl: url }).html;
+    const locale = await this.invoiceLocale(invoice);
+    const html = renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
     return renderInvoicePdfFromHtml(html, image);
   }
 
