@@ -6,7 +6,7 @@ first when resuming. The approved plan is at
 (Theme/Menus/Pages/Customizer) are in [docs/teculiar-roadmap.md](./teculiar-roadmap.md).
 
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`)
-- **Status:** Steps 1–6b done & committed. **Next: Step 6c (emails) → Step 7 (Prisma migration) → Step 8 (docs/tests).**
+- **Status:** Steps 1–6c done & committed. **Next: Step 7 (Prisma migration) → Step 8 (docs/tests).**
 - **Cadence:** small reviewable commits, build green between each, stop for review after each major step.
 - **Build/verify:** `npm run typecheck` and `npm run build` (both must be green). API unit tests: see "Testing" below.
 - No self-credit in code/commits (per CLAUDE.md).
@@ -57,6 +57,7 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
 | `fb1f838` | fix | Locale routing accepts any well-formed code (admin-added langs route to `/it/…` instead of `/de/it/…`); `getLocale`/`currentLocale` no longer coerce to manifest packs only. |
 | `ad58238` | 6a | apps/api wired to `@dezhost/locales` (dep + prebuild/prestart hooks); `apps/api/src/common/i18n.ts` (`t`/`formatMoney`/`formatDate`); `invoice-document.ts` fully localized (labels from packs, money/date via meta, takes `locale`); `billing.service.invoiceLocale()` resolves invoice locale (snapshot → buyer `User.locale` → main). |
 | `9d6e553` | 6b | Stored `currency:"EUR"` → main currency: `Invoice.currency` stamped at creation; transactions/charges use the invoice's own currency; previewOrder/DomainTldPrice/ProductPrice use main; `PaymentProcessor`/abstract-payment types `"EUR"`→`string`; `common/currency.ts` `readMainCurrency` + `mainCurrency()` on service/repo. **Tests:** `apps/api/test/i18n-currency.test.mjs` + invoice test updates. |
+| `17b5d25` | 6c | Email localization: dispatch/`sendEventToUser`/`sendCustomToUser` resolve recipient locale from up-to-date `User.locale` → main language (`common/currency.ts` `readMainLanguage`); subjects/bodies/layout-block text + admin block palette seeded from the `email` pack (`email-layouts.ts` `buildDefaultLayouts`/`emailLayoutBlockLibrary` take the localized dict); `templateFor`/admin editor key on the main language with per-locale DB overrides still winning (try/catch tolerates the pre-Step-7 enum); `current_date` + invoice money via `common/i18n` `formatDate`/`formatMoney`; the two `formatEuro()`/`formatDateLabel()` helpers in billing/orders dispatch now use the invoice's frozen currency + recipient locale; test-variable sample money localized. **Tests:** email localization (by `User.locale` + main fallback) in `email-module.test.mjs`; frozen-currency order-email money + `readMainLanguage` in `i18n-currency.test.mjs`; removed the stale `mailpit-preset` controller assertion. |
 
 ## Refinements vs. the original plan (intentional)
 - **`getDictionary` is synchronous** (packs are static imports) — plan said `await`. Simpler; works in server + client components.
@@ -67,20 +68,23 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
 
 ## Remaining work
 
-### Step 6c — Email localization (NEXT)
-Files: `apps/api/src/modules/email/{email-events.ts, email-layouts.ts, email.service.ts}`.
-- Resolve the recipient's language from the up-to-date **`User.locale`** (fall back to main
-  language, NOT hard-coded "de").
-- Seed default subjects/bodies + layout-block text from the **`email` pack** (`loadDictionary(locale).email`).
-  Note: DB `EmailTemplate` overrides still win — the table has a `locale` column, so an override is
-  per-locale; when no override exists for a locale, the pack default applies. **No DB migration of
-  templates needed.**
-- Money placeholders (`invoice_total_amount`, etc.) use the **invoice's frozen currency** +
-  recipient locale via `common/i18n.formatMoney`; dates via `formatDate`.
-- Generalize the two `formatEuro()` helpers (still `"X.XX EUR"`) in `billing.service.ts` and
-  `orders.service.ts` to locale/currency-aware formatting. The email preview sample
-  (`email.service.ts` ~line 607 `"29.00 EUR"`) should use the helper too.
-- Add tests (mirror the unit-test harness): correct language by `User.locale`, frozen-currency money.
+### Step 6c — Email localization (DONE)
+Files: `apps/api/src/modules/email/{email-layouts.ts, email.service.ts}`, `common/currency.ts`,
+billing/orders `dispatch*Email`.
+- ✅ Recipient language resolved from up-to-date **`User.locale`** → main language
+  (`readMainLanguage`), no hard-coded "de". `resolveLocale()` in `email.service.ts`.
+- ✅ Default subjects/bodies + layout-block text + admin block palette seeded from the **`email`
+  pack**; `email-layouts.ts` `buildDefaultLayouts`/`emailLayoutBlockLibrary` take the localized dict.
+  DB `EmailTemplate` overrides still win per-locale (`templateFor` try/catch swallows the pre-Step-7
+  enum mismatch so any language falls back to the pack). The admin editor seeds & saves overrides on
+  the **main language**. No template-row migration.
+- ✅ Money via `common/i18n.formatMoney` with the **invoice's frozen currency** + recipient locale;
+  dates via `formatDate`. Old `formatEuro()`/`formatDateLabel()` removed from billing/orders dispatch.
+  Test-variable sample money localized.
+- ⚠️ **Carry-over for Step 7:** `email.service.ts` still imports `Locale` from `@prisma/client` and
+  casts `locale as Locale` in `templateFor`/`updateSettings`. When Step 7 turns
+  `EmailTemplate.locale` into `String`, drop the cast/`try-catch` guard and the `Locale` import.
+  The admin editor currently only edits the **main-language** override (per-locale editor = later phase).
 
 ### Step 7 — Prisma migration (the one real migration) — MariaDB-idempotent
 Per the `db-engine-and-migrations` memory: **prod=MariaDB, local=MySQL 8.3**. Hand-write
