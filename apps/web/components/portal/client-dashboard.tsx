@@ -23,7 +23,8 @@ import {
   type ApiTicket
 } from "../../lib/api";
 import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
 import { Button } from "../ui/button";
@@ -132,7 +133,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
@@ -541,7 +542,7 @@ function DashboardKnowledgeFeed({
 }) {
   const items = dashboardFeedItems(announcements, knowledgebase);
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.dashboardFeed}>
       <div className={styles.blockHeader}>
@@ -593,7 +594,7 @@ function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowl
 
 function ServicesTable({ loading, services }: { loading: boolean; services: ApiService[] }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block} id="services">
           <div className={styles.blockHeader}>
@@ -644,7 +645,7 @@ type DomainRow = {
 
 function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boolean }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block} id="domains">
       <div className={styles.blockHeader}>
@@ -964,7 +965,7 @@ function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => 
 }
 
 function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading: boolean }) {
-  const copy = dictionary[currentLocale()].client;
+  const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.invoiceCards}>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingInvoices} />{copy.loadingInvoices}</span></section> : null}
@@ -997,7 +998,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
     return loading ? <LoadingBlock title="Invoice" /> : <section className={styles.module}><h2>Invoice</h2><p>Invoice not found.</p></section>;
   }
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};
@@ -1172,7 +1173,7 @@ function PlanChange({ service }: { service: ApiService }) {
 }
 
 function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTicket[] }) {
-  const copy = dictionary[currentLocale()].client;
+  const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
@@ -1284,7 +1285,7 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
 
 function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseArticle[]; loading: boolean }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
@@ -1776,7 +1777,7 @@ function titleFor(view: ClientView, locale: Locale = currentLocale()) {
       tickets: "My Support Tickets"
     }
   } as const;
-  return labels[locale][view];
+  return labels[locale === "en" ? "en" : "de"][view];
 }
 
 function dateLabel(value?: string | null) {

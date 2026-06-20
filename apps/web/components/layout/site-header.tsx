@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Suspense } from "react";
 import { ChevronDown, Globe } from "lucide-react";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { AccountMenu } from "./account-menu";
 import { DetailsAutoClose } from "./details-auto-close";
 import { LanguageToggle } from "./language-toggle";
@@ -18,7 +19,7 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: SiteHeaderProps) {
-  const copy = dictionary[locale];
+  const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
   const brandLabel = isPanel ? "Teculiar" : "Dezhost";

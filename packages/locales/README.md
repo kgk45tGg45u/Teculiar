@@ -10,6 +10,9 @@ source of UI copy — inline strings get migrated here.
 ```
 packages/locales/
   manifest.json          # { version, languages, updatedAt } — one shared version for all packs
+                         # languages[] is primary-first (build-time default for edge code);
+                         # English is always the source-of-truth pack regardless of order
+                         # (SOURCE_LOCALE), and is the per-key fallback.
   index.ts               # loader + types (loadDictionary / loadNamespace / t / getMeta)
   en/  common.json admin.json client.json storefront.json email.json invoice.json meta.json
   de/  common.json admin.json client.json storefront.json email.json invoice.json meta.json

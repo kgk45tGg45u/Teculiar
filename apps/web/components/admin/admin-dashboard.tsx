@@ -19,7 +19,8 @@ import {
   type ApiTicket,
   type AuthUser
 } from "../../lib/api";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { requestLocale } from "../../lib/server-locale";
 import { LanguageToggle } from "../layout/language-toggle";
 import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
@@ -71,7 +72,7 @@ export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
 export async function AdminDashboard({ blogEditId, emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { blogEditId?: string; emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
   const locale = await requestLocale();
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     await redirectToAdminLogin();
@@ -226,7 +227,7 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
 }
 
 function ModuleGrid({ locale }: { locale: Locale }) {
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const isDE = locale === "de";
   const modules = [
     { title: copy.clients, body: isDE ? "Kunden, Kontakte, Segmente und E-Mail Logs." : "Clients, contacts, segments, email logs.", href: "/admin/clients", icon: UsersRound },
@@ -362,7 +363,7 @@ function BlogAiSettingsPanel() {
 }
 
 function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const sorted = [...orders].sort((a, b) => new Date(b.placedAt ?? b.createdAt).getTime() - new Date(a.placedAt ?? a.createdAt).getTime());
   return (
     <section className={styles.panel}>
@@ -742,7 +743,7 @@ function SeoSettingsPanel() {
 }
 
 function adminTitle(view: AdminView, locale: Locale) {
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const titles: Record<AdminView, string> = {
     announcements: copy.announcements,
     blog: copy.blog,

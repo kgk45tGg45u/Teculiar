@@ -1166,8 +1166,8 @@ function focusByName(name: string) {
   field?.focus();
 }
 
-function checkoutLocale(locale: string): Locale {
-  return getLocale(locale);
+function checkoutLocale(locale: string): keyof typeof checkoutCopy {
+  return locale === "en" ? "en" : "de";
 }
 
 function missingProfileFields(profile: ClientProfile): ProfileField[] {
@@ -1452,7 +1452,7 @@ const checkoutCopy = {
   }
 } as const;
 
-type CheckoutCopy = (typeof checkoutCopy)[Locale];
+type CheckoutCopy = (typeof checkoutCopy)[keyof typeof checkoutCopy];
 
 const defaultPaymentGateways: ApiPaymentGateway[] = [
   { method: "SANDBOX", title: "Sandbox" },

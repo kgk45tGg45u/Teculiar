@@ -554,7 +554,7 @@ export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
       YEAR_4: "4 years"
     }
   } as const;
-  return labels[locale][cycle as keyof typeof labels.en] ?? cycle.toLowerCase().replaceAll("_", " ");
+  return labels[locale === "en" ? "en" : "de"][cycle as keyof typeof labels.en] ?? cycle.toLowerCase().replaceAll("_", " ");
 }
 
 export function dateLabel(value?: string | null, locale: Locale = currentLocale(), options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }) {

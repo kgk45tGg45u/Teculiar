@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LOCALE_COOKIE, localeFromAcceptLanguage, getLocale } from "./lib/i18n";
+import { SUPPORTED_LOCALES } from "./lib/supported-locales";
 
 const PUBLIC_FILE = /\.(.*)$/;
-const locales = ["de", "en"];
 const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
 const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
 
@@ -64,7 +64,7 @@ export function middleware(request: NextRequest) {
   const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
   const locale = savedLocale ? getLocale(savedLocale) : localeFromAcceptLanguage(request.headers.get("accept-language"));
 
-  const pathLocale = locales.find((item) => pathname === `/${item}` || pathname.startsWith(`/${item}/`));
+  const pathLocale = SUPPORTED_LOCALES.find((item) => pathname === `/${item}` || pathname.startsWith(`/${item}/`));
   if (pathLocale) {
     const response = NextResponse.next();
     response.cookies.set(LOCALE_COOKIE, pathLocale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });

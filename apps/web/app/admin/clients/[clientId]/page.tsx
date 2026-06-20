@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type AuthUser } from "../../../../lib/api";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { requestLocale } from "../../../../lib/server-locale";
-import { dictionary } from "../../../../lib/i18n";
+import { getDictionary } from "../../../../lib/dictionary";
 import { AdminClientActions } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { Button } from "../../../../components/ui/button";
@@ -31,7 +31,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
     );
   }
 
-  const copy = dictionary[locale];
+  const copy = getDictionary(locale);
   const paidRevenue = client.invoices?.filter((inv) => inv.status === "PAID").reduce((sum, inv) => sum + inv.totalCents, 0) ?? 0;
 
   return (

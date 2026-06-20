@@ -5,15 +5,15 @@ import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
-import { currencySymbols, localeNames, type Currency, type Locale } from "../../lib/i18n";
+import { currencies, currencySymbols, localeNames, type Currency, type Locale } from "../../lib/i18n";
+import { LOCALE_PATH_PREFIX, SUPPORTED_LOCALES } from "../../lib/supported-locales";
 import styles from "./site-header.module.css";
 
-const COMBOS: Array<{ locale: Locale; currency: Currency }> = [
-  { locale: "de", currency: "EUR" },
-  { locale: "de", currency: "USD" },
-  { locale: "en", currency: "EUR" },
-  { locale: "en", currency: "USD" }
-];
+// Cartesian product of the configured languages and currencies. The grouped-selector
+// redesign + hide-when-single behaviour lands with the admin settings work.
+const COMBOS: Array<{ locale: Locale; currency: Currency }> = SUPPORTED_LOCALES.flatMap(
+  (locale) => currencies.map((currency) => ({ locale, currency }))
+);
 
 export function LanguageToggle({ locale }: { locale: Locale }) {
   const pathname = usePathname();
@@ -32,9 +32,9 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
     setCurrency(newCurrency);
     if (detailsRef.current) detailsRef.current.open = false;
     const localeChanged = newLocale !== locale;
-    if (/^\/(de|en)(\/|$)/.test(pathname)) {
+    if (LOCALE_PATH_PREFIX.test(pathname)) {
       if (localeChanged) {
-        const nextPath = pathname.replace(/^\/(de|en)/, `/${newLocale}`);
+        const nextPath = pathname.replace(LOCALE_PATH_PREFIX, `/${newLocale}`);
         const qs = searchParams.toString();
         router.push(`${nextPath}${qs ? `?${qs}` : ""}` as Route);
       } else {
@@ -48,7 +48,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
   return (
     <details ref={detailsRef} className={styles.languageDropdown}>
       <summary className={styles.languageToggle}>
-        <span>{locale.toUpperCase()} · {currencySymbols[currency]}</span>
+        <span>{locale.toUpperCase()} · {currencySymbols[currency] ?? currency}</span>
         <ChevronDown aria-hidden size={13} className={styles.languageChevron} />
       </summary>
       <div className={styles.languageDropdownMenu}>
@@ -59,7 +59,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
             className={`${styles.languageOption}${locale === l && currency === c ? ` ${styles.languageOptionActive}` : ""}`}
             onClick={() => selectCombo(l, c)}
           >
-            {localeNames[l]} · {currencySymbols[c]}
+            {localeNames[l] ?? l} · {currencySymbols[c] ?? c}
           </button>
         ))}
       </div>

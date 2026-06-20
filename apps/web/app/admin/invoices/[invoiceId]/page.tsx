@@ -1,6 +1,6 @@
 import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
-import { dictionary } from "../../../../lib/i18n";
+import { getDictionary } from "../../../../lib/dictionary";
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
@@ -30,7 +30,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
     );
   }
 
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};

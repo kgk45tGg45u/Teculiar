@@ -1,32 +1,56 @@
-export type Locale = "de" | "en";
-export type Currency = "EUR" | "USD";
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "./supported-locales";
 
-export const locales: Locale[] = ["de", "en"];
+// Widened from literal unions to plain strings so buyers can add arbitrary language packs
+// and currencies. Allowed values are validated at runtime against the configured packs
+// (SUPPORTED_LOCALES) / currency config rather than at the type level.
+export type Locale = string;
+export type Currency = string;
+
+// Typed config shapes for the modular language/currency settings (Admin > Settings).
+export type Language = {
+  code: string;
+  name: string;
+  nativeName: string;
+  flag: string;
+  bcp47: string;
+  isMain: boolean;
+};
+
+export type CurrencyDef = {
+  code: string;
+  symbol: string;
+  decimals: number;
+};
+
+export const locales: Locale[] = SUPPORTED_LOCALES;
 export const currencies: Currency[] = ["EUR", "USD"];
 export const LOCALE_COOKIE = "dezhost_locale";
 export const CURRENCY_COOKIE = "dezhost_currency";
 
-export const localeNames: Record<Locale, string> = {
+export const localeNames: Record<string, string> = {
   de: "Deutsch",
   en: "English"
 };
 
-export const localeFlags: Record<Locale, string> = {
+export const localeFlags: Record<string, string> = {
   de: "🇩🇪",
   en: "🇺🇸"
 };
 
-export const currencySymbols: Record<Currency, string> = {
+export const currencySymbols: Record<string, string> = {
   EUR: "€",
   USD: "$"
 };
 
+// Resolve a saved/cookie locale to a supported one, defaulting to the main language.
 export function getLocale(value?: string | null): Locale {
-  return value === "en" ? "en" : "de";
+  return value && SUPPORTED_LOCALES.includes(value) ? value : DEFAULT_LOCALE;
 }
 
+// Map a browser language tag (e.g. "en-US") to the best supported locale, else the default.
 export function browserLocale(value?: string | null): Locale {
-  return value?.toLowerCase().startsWith("en") ? "en" : "de";
+  const lower = value?.toLowerCase() ?? "";
+  return SUPPORTED_LOCALES.find((locale) => lower.startsWith(locale)) ?? DEFAULT_LOCALE;
 }
 
 export function localeFromAcceptLanguage(value?: string | null): Locale {

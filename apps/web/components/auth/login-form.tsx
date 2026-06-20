@@ -17,7 +17,7 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
   const [forgotMode, setForgotMode] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
   const [resetSent, setResetSent] = useState(false);
-  const copy = loginCopy[locale];
+  const copy = loginCopy[locale === "en" ? "en" : "de"];
 
   async function submit(formData: FormData) {
     setError("");

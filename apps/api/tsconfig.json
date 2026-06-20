@@ -11,7 +11,9 @@
     "noEmit": false,
     "paths": {
       "@dezhost/shared": ["packages/shared/dist/index.d.ts"],
-      "@dezhost/shared/*": ["packages/shared/dist/*"]
+      "@dezhost/shared/*": ["packages/shared/dist/*"],
+      "@dezhost/locales": ["packages/locales/dist/index.d.ts"],
+      "@dezhost/locales/*": ["packages/locales/dist/*"]
     }
   },
   "include": ["src/**/*.ts"]
