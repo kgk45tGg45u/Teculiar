@@ -8,13 +8,14 @@ Production-grade SaaS foundation for a German hosting and IT services provider. 
 - `apps/api` - NestJS REST API with auth, billing, products, tickets, CMS, users, and provider abstraction modules.
 - `prisma` - MySQL schema covering accounts, teams, billing, products, services, domains, support, CMS, localization, permissions, and GDPR workflows. Use MySQL 8+ or a compatible MariaDB server.
 - `packages/shared` - shared enums and DTO-level contracts used by both web and API.
+- `packages/locales` - the shared language-pack bundle (`@dezhost/locales`) consumed by both web and API; see [docs/i18n-currency.md](docs/i18n-currency.md).
 
 ## Architecture Principles
 
 - Modular boundaries: every backend domain owns its controller, service, and repository.
 - Provider isolation: Virtualmin, Resell.biz, and Hetzner integrations sit behind interfaces and do not leak into billing or product logic.
 - Billing is event-oriented: invoice generation, coupons, tax policy, transactions, and subscription renewals are separate concepts.
-- Localization is first-class: `/de/` and `/en/` content, localized prices, and German legal pages.
+- Localization is first-class and **modular**: an admin configures the languages and currencies; the site, panels, localized prices, invoices, and emails follow. See [docs/i18n-currency.md](docs/i18n-currency.md).
 - Security is layered: JWT access and refresh tokens, TOTP 2FA, role permissions, validation pipes, rate limiting, CSRF middleware, audit logs, GDPR export/deletion records.
 
 ## Getting Started
