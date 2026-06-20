@@ -104,6 +104,8 @@ sync with `npm run db:push`).
 
 ## Deferred (post-Phase-1)
 
+Actionable next steps live in [teculiar-roadmap.md → "Phase 1 — deferred follow-ups"](./teculiar-roadmap.md#phase-1--deferred-follow-ups-do-after-phase-1-ships):
+
 - Inline `de/en` copy still in marketing page bodies, checkout/login local maps, and the blog CMS
   editor — works in de/en but won't pick up a 3rd language until converted.
 - Admin guard/warning when changing the main currency on a store with existing priced data.

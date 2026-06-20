@@ -28,10 +28,12 @@ renamed to reflect that name. More themes come later.
 
 ---
 
-## Phase 1 — Modular languages, locale & currency (FULL-STACK) — *in progress*
+## Phase 1 — Modular languages, locale & currency (FULL-STACK) — *implemented; verification pending*
 
-Status: **planned & approved**, not yet started. Branch `feat/teculiar-i18n-currency`. Full detail in the
-plan file above; one-paragraph summary here for context:
+Status: **Steps 1–8 implemented & committed** (2026-06-20) on branch `feat/teculiar-i18n-currency`;
+build/typecheck/unit-tests green. Remaining: runtime verification — `npm run db:push` locally + the local
+matrix, then prod verification after deploy. Working tracker: [teculiar-i18n-currency-progress.md](./teculiar-i18n-currency-progress.md).
+Reference docs: [i18n-currency.md](./i18n-currency.md). One-paragraph summary:
 
 Make languages, locale and currency admin-configurable across **web *and* api**. Language packs become a
 `packages/locales` workspace bundle (namespaced JSON + shared version manifest, English-as-source + per-key
@@ -41,7 +43,25 @@ rules: **issued invoices are immutable** (frozen currency+locale+amounts), **cli
 saved `User.locale`** (explicit > toggle > browser-if-pack-exists > main; emails use it), and the **toggle
 is hidden when only one language + one currency** are configured.
 
-> Everything below (Phases 2–4) depends on Phase 1's modular language list: menus, pages, and element
+### Phase 1 — deferred follow-ups (do after Phase 1 ships)
+
+These were intentionally scoped out of Phase 1 (approved 2026-06-20). They are independent of Phases 2–4
+and can be picked up any time after Phase 1 is verified on prod:
+
+1. **Convert remaining inline `de/en` copy** so a 3rd configured language is fully covered. Today these
+   still use inline `de/en` ternaries and won't pick up an admin-added language:
+   - marketing page bodies (hero/feature copy),
+   - the checkout / login local copy maps,
+   - the blog CMS editor.
+   Move each onto the `@dezhost/locales` packs (storefront/common namespaces), mirroring how the chrome
+   was done in Phase 1.
+2. **Admin guard when changing the main currency** on a store that already has priced data — warn that
+   existing amounts are *not* re-converted (stored amounts stay denominated in the old main currency).
+3. **Per-locale email-template editor** — the admin email editor currently seeds/saves overrides on the
+   **main language** only; add a locale switcher so overrides can be authored per configured language
+   (the dispatch path already resolves DB overrides per-locale).
+
+> Everything in Phases 2–4 depends on Phase 1's modular language list: menus, pages, and element
 > content all carry **per-language translations for every language configured in Admin > Settings**, with
 > English fallback, and are **locale-aware** for prices/numbers/dates.
 

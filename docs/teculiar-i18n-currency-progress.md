@@ -119,10 +119,10 @@ is MariaDB-only). After pulling, run `npm run db:generate` so the client types m
   - **Prod verification on https://www.dezhost.com after deploy** (per CLAUDE.md, `E2E_*` +
     `set -a && source .env`). The user is taking the website check.
 
-### Deferred (post-Phase-1, approved today)
-- Convert remaining inline `de/en` copy (marketing page bodies, checkout/login local maps, blog CMS
-  editor) for full 3rd-language coverage.
-- Admin **guard/warning** when changing the main currency on a store with existing priced data.
+### Deferred (post-Phase-1)
+Tracked as actionable next steps in **[teculiar-roadmap.md → "Phase 1 — deferred follow-ups"](./teculiar-roadmap.md#phase-1--deferred-follow-ups-do-after-phase-1-ships)**:
+remaining inline `de/en` copy (marketing bodies, checkout/login maps, blog CMS editor), the
+main-currency-change admin guard, and a per-locale email-template editor.
 
 ## Gotchas / notes for future-me
 - **API unit tests** (`apps/api/test/*.test.mjs`) are `node --test` files importing the **built
