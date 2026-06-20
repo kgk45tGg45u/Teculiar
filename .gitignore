@@ -14,6 +14,9 @@ prisma/migrations/dev
 apps/web/public/sitemap.xml
 .npm-cache
 .agents
+# Local Claude Code permission/settings state (auto-generated, machine-specific)
+.claude/settings.json
+.claude/settings.local.json
 .vercel
 .neon
 tests/e2e/artifacts/
