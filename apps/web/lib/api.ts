@@ -1,4 +1,5 @@
 import { formatCustomerNumber } from "@dezhost/shared";
+import { loadDictionary } from "@dezhost/locales";
 import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
 
 export { formatCustomerNumber };
@@ -532,29 +533,8 @@ export function displayCurrencyForLocale(_currency = "EUR", _locale: Locale = cu
 }
 
 export function cycleLabel(cycle: string, locale: Locale = currentLocale()) {
-  const labels = {
-    de: {
-      ONE_TIME: "Einmalig",
-      MONTHLY: "Monatlich",
-      QUARTERLY: "Vierteljährlich",
-      SEMI_ANNUAL: "Halbjährlich",
-      YEAR_1: "Jährlich",
-      YEAR_2: "2 Jahre",
-      YEAR_3: "3 Jahre",
-      YEAR_4: "4 Jahre"
-    },
-    en: {
-      ONE_TIME: "One time",
-      MONTHLY: "Monthly",
-      QUARTERLY: "Quarterly",
-      SEMI_ANNUAL: "Semi-annual",
-      YEAR_1: "Yearly",
-      YEAR_2: "2 years",
-      YEAR_3: "3 years",
-      YEAR_4: "4 years"
-    }
-  } as const;
-  return labels[locale === "en" ? "en" : "de"][cycle as keyof typeof labels.en] ?? cycle.toLowerCase().replaceAll("_", " ");
+  const labels = loadDictionary(locale).common.billingCycle as Record<string, string>;
+  return labels[cycle] ?? cycle.toLowerCase().replaceAll("_", " ");
 }
 
 export function dateLabel(value?: string | null, locale: Locale = currentLocale(), options: Intl.DateTimeFormatOptions = { dateStyle: "medium" }) {

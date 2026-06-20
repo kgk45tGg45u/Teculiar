@@ -1,15 +1,15 @@
-import { dictionary, type Locale } from "./i18n";
+import { loadDictionary, type Dictionary } from "@dezhost/locales";
 
-// The full string dictionary shape for one locale (keyed off the inline source).
-export type Dictionary = (typeof dictionary)[keyof typeof dictionary];
+export type { Dictionary };
 
 /**
- * Synchronous dictionary accessor with English fallback for unknown locales.
+ * Active dictionary for a locale, sourced from the shared @dezhost/locales packs with
+ * per-key English fallback baked in. Synchronous (static imports), so server and client
+ * components call it the same way.
  *
- * For now this is backed by the inline `dictionary` in i18n.ts; the web sweep swaps the
- * implementation to read the shared `@dezhost/locales` packs (with per-key English
- * fallback) without changing any call site.
+ * Shape: { common (nav/cta/status/billingCycle), admin, client, storefront, email,
+ * invoice, meta }.
  */
-export function getDictionary(locale: Locale): Dictionary {
-  return (dictionary as Record<string, Dictionary>)[locale] ?? dictionary.en;
+export function getDictionary(locale: string): Dictionary {
+  return loadDictionary(locale);
 }

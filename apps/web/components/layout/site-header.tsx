@@ -25,18 +25,18 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
   const brandLabel = isPanel ? "Teculiar" : "Dezhost";
 
   const navLinks = [
-    { href: `${base}/domains`, label: copy.nav.domains },
-    { href: `${base}/it-losungen`, label: copy.nav.itSolutions },
-    { href: `${base}/webdesign`, label: copy.nav.webdesign },
-    { href: `${base}/blog`, label: copy.nav.blog },
-    { href: `${base}/uber-uns`, label: copy.nav.about },
-    { href: `${base}/kontakt`, label: copy.nav.contact }
+    { href: `${base}/domains`, label: copy.common.nav.domains },
+    { href: `${base}/it-losungen`, label: copy.common.nav.itSolutions },
+    { href: `${base}/webdesign`, label: copy.common.nav.webdesign },
+    { href: `${base}/blog`, label: copy.common.nav.blog },
+    { href: `${base}/uber-uns`, label: copy.common.nav.about },
+    { href: `${base}/kontakt`, label: copy.common.nav.contact }
   ];
 
   const cloudChildren = [
-    { href: `${base}/webhosting`, label: copy.nav.hosting },
-    { href: `${base}/virtual-servers`, label: copy.nav.virtualServers },
-    { href: `${base}/reseller`, label: copy.nav.reseller }
+    { href: `${base}/webhosting`, label: copy.common.nav.hosting },
+    { href: `${base}/virtual-servers`, label: copy.common.nav.virtualServers },
+    { href: `${base}/reseller`, label: copy.common.nav.reseller }
   ];
 
   return (
@@ -50,7 +50,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
         <nav className={styles.nav} aria-label="Primary">
           <details className={styles.navDropdown}>
             <summary className={styles.navDropdownToggle}>
-              {copy.nav.cloud}
+              {copy.common.nav.cloud}
               <ChevronDown aria-hidden size={14} className={styles.navChevron} />
             </summary>
             <div className={styles.navDropdownMenu}>
@@ -70,7 +70,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
           </Suspense>
           <AccountMenu />
           <MobileMenu
-            cloudLabel={copy.nav.cloud}
+            cloudLabel={copy.common.nav.cloud}
             cloudChildren={cloudChildren}
             navLinks={navLinks}
           />

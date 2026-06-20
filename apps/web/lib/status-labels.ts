@@ -1,26 +1,27 @@
+import { loadDictionary } from "@dezhost/locales";
 import type { Locale } from "./i18n";
 
 export function orderStatusLabel(status: string, locale: Locale = "en") {
-  const de = locale === "de";
+  const labels = loadDictionary(locale).common.status.order;
   if (status === "COMPLETE") {
-    return de ? "Abgeschlossen" : "Completed";
+    return labels.complete;
   }
   if (status === "CANCELLED") {
-    return de ? "Storniert" : "Canceled";
+    return labels.cancelled;
   }
   if (["PENDING", "PROVISIONING"].includes(status)) {
-    return de ? "Ausstehend" : "Pending";
+    return labels.pending;
   }
   return humanStatus(status, locale);
 }
 
 export function serviceStatusLabel(status: string, locale: Locale = "en") {
-  const de = locale === "de";
+  const labels = loadDictionary(locale).common.status.service;
   if (status === "ACTIVE") {
-    return de ? "Aktiv" : "Active";
+    return labels.active;
   }
   if (["PENDING", "PROVISIONING"].includes(status)) {
-    return de ? "Ausstehend" : "Pending";
+    return labels.pending;
   }
   return humanStatus(status, locale);
 }
@@ -29,15 +30,8 @@ export function serviceStatusLabel(status: string, locale: Locale = "en") {
 // case and show no badge at all (callers skip rendering for PAID). CANCELLED/REFUNDED/FAILED keep
 // their own label for the rare cases they occur.
 export function invoiceStatusLabel(status: string, locale: Locale = "en") {
-  const labels: Record<string, Record<Locale, string>> = {
-    PENDING: { de: "Ausstehend", en: "Pending" },
-    OVERDUE: { de: "Überfällig", en: "Overdue" },
-    PAID: { de: "Bezahlt", en: "Paid" },
-    FAILED: { de: "Fehlgeschlagen", en: "Failed" },
-    CANCELLED: { de: "Storniert", en: "Canceled" },
-    REFUNDED: { de: "Erstattet", en: "Refunded" }
-  };
-  return labels[status]?.[locale] ?? humanStatus(status, locale);
+  const labels = loadDictionary(locale).common.status.invoice as Record<string, string>;
+  return labels[status] ?? humanStatus(status, locale);
 }
 
 // Whether an invoice status should render a visible badge. Paid invoices (the normal, final state)
@@ -51,13 +45,8 @@ export function invoiceStatusVisible(status: string) {
 export const TICKET_STATUS_VALUES = ["OPEN", "ANSWERED", "CUSTOMER_REPLY", "CLOSED"] as const;
 
 export function ticketStatusLabel(status: string, locale: Locale = "en") {
-  const labels: Record<string, Record<Locale, string>> = {
-    OPEN: { de: "Offen", en: "Open" },
-    ANSWERED: { de: "Beantwortet", en: "Answered" },
-    CUSTOMER_REPLY: { de: "Kundenantwort", en: "Customer reply" },
-    CLOSED: { de: "Geschlossen", en: "Closed" }
-  };
-  return labels[status]?.[locale] ?? humanStatus(status, locale);
+  const labels = loadDictionary(locale).common.status.ticket as Record<string, string>;
+  return labels[status] ?? humanStatus(status, locale);
 }
 
 export function ticketStatusTone(status: string): "good" | "warn" | "neutral" {
