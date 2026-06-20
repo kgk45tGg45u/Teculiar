@@ -607,6 +607,20 @@ export function storeLocale(locale: Locale) {
   setCookie(LOCALE_COOKIE, locale);
 }
 
+// Persist a signed-in client's effective language to their account (User.locale) so server-rendered
+// surfaces and transactional emails follow the up-to-date preference. No-op for guests and the admin
+// scope, so the toggle on public pages never fires an API call when nobody is signed in as a client.
+export function persistClientLocale(locale: Locale) {
+  if (typeof window === "undefined" || !browserToken("client")) {
+    return;
+  }
+  void authFetch(
+    `${API_BASE_URL}/users/me`,
+    { body: JSON.stringify({ locale }), headers: { "Content-Type": "application/json" }, method: "PATCH" },
+    "client"
+  ).catch(() => undefined);
+}
+
 export function currentCurrency(): Currency {
   if (typeof window === "undefined") {
     return _currencyConfig.main;

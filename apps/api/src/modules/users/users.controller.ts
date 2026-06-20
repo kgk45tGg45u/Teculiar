@@ -31,6 +31,7 @@ export class UsersController {
     countryCode?: string;
     customerType?: "INDIVIDUAL" | "BUSINESS";
     email?: string;
+    locale?: string;
     name?: string;
     phone?: string;
     vatId?: string;

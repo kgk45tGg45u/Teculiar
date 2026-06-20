@@ -14,6 +14,7 @@ import {
   frozenMoney,
   invoiceDisplayNumber,
   money,
+  persistClientLocale,
   serviceUnitPriceCents,
   type ApiAnnouncement,
   type ApiDepartmentRef,
@@ -73,6 +74,7 @@ type ClientProfile = {
   customerNumber?: number | null;
   customerType?: string;
   email?: string;
+  locale?: string;
   name?: string;
   phone?: string;
   vatId?: string | null;
@@ -158,6 +160,14 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       setAuthChecked(true);
     }
   }, []);
+
+  // Persist the effective (browser-derived or chosen) locale to the account when it drifts from the
+  // stored value, so transactional emails follow it even without an explicit toggle this visit.
+  useEffect(() => {
+    if (profile && profile.locale !== locale) {
+      persistClientLocale(locale);
+    }
+  }, [profile, locale]);
 
   usePortalLoadingFallback(setLoading);
   usePortalNavigationRecovery(setLoading, setRefreshVersion);

@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { currentCurrency, storeLocale, storeCurrency } from "../../lib/api";
+import { currentCurrency, persistClientLocale, storeLocale, storeCurrency } from "../../lib/api";
 import type { Currency, Locale } from "../../lib/i18n";
 import { currencySymbol, languageFlag, languageNativeName } from "../../lib/i18n-catalog";
 import { LOCALE_PATH_PREFIX, SUPPORTED_LOCALES } from "../../lib/supported-locales";
@@ -40,6 +40,8 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
   function selectLanguage(newLocale: Locale) {
     close();
     storeLocale(newLocale);
+    // Save the explicit choice to the account immediately (no-op for guests/admin).
+    persistClientLocale(newLocale);
     if (newLocale === locale) {
       return;
     }
