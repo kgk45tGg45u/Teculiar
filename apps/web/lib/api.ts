@@ -1,7 +1,7 @@
 import { formatCustomerNumber } from "@dezhost/shared";
 import { loadDictionary, getMeta } from "@dezhost/locales";
 import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./supported-locales";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isLocaleCode } from "./supported-locales";
 
 export { formatCustomerNumber };
 
@@ -593,8 +593,8 @@ export function currentLocale(): Locale {
   // toggle. localStorage is only a fallback — otherwise a stale localStorage value can override a
   // newer cookie (e.g. set by visiting /de), showing a DE toggle but an EN dashboard.
   const saved = readCookie(LOCALE_COOKIE) ?? window.localStorage.getItem(LOCALE_COOKIE);
-  if (saved && SUPPORTED_LOCALES.includes(saved)) {
-    return saved;
+  if (isLocaleCode(saved)) {
+    return saved!.toLowerCase();
   }
   return browserLocale(window.navigator.language);
 }

@@ -1,4 +1,4 @@
-import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from "./supported-locales";
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isLocaleCode } from "./supported-locales";
 
 // Widened from literal unions to plain strings so buyers can add arbitrary language packs
 // and currencies. Allowed values are validated at runtime against the configured packs
@@ -42,9 +42,10 @@ export const currencySymbols: Record<string, string> = {
   USD: "$"
 };
 
-// Resolve a saved/cookie locale to a supported one, defaulting to the main language.
+// Resolve a saved/cookie/path locale, accepting any well-formed code (incl. admin-added
+// languages) and defaulting to the main language. Unknown codes render with English fallback.
 export function getLocale(value?: string | null): Locale {
-  return value && SUPPORTED_LOCALES.includes(value) ? value : DEFAULT_LOCALE;
+  return isLocaleCode(value) ? value!.toLowerCase() : DEFAULT_LOCALE;
 }
 
 // Map a browser language tag (e.g. "en-US") to the best supported locale, else the default.

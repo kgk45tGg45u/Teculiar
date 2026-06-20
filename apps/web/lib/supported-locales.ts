@@ -11,6 +11,17 @@ export const SUPPORTED_LOCALES: string[] = manifest.languages;
 // fallback when no locale can be resolved. manifest.languages is primary-first.
 export const DEFAULT_LOCALE: string = manifest.languages[0] ?? "de";
 
-// A regex matching a leading "/<locale>" path segment, built from the supported list so
-// there is no hard-coded /(de|en)/ to keep in sync.
-export const LOCALE_PATH_PREFIX = new RegExp(`^/(${SUPPORTED_LOCALES.join("|")})(?=/|$)`);
+// A well-formed locale code: a 2-letter language subtag with an optional 2-letter region
+// (e.g. "de", "it", "pt-br"). Routing accepts ANY such code, not just the shipped packs, so
+// languages an admin adds at runtime (which the build-time manifest can't know about) still
+// route to /<locale>/… instead of being treated as a non-locale path. Unknown-but-well-formed
+// locales simply render with the English per-key fallback.
+export const LOCALE_CODE_PATTERN = /^[a-z]{2}(?:-[a-z]{2})?$/i;
+
+export function isLocaleCode(value?: string | null): boolean {
+  return Boolean(value && LOCALE_CODE_PATTERN.test(value));
+}
+
+// A regex matching a leading "/<locale>" path segment (any well-formed code), used by the
+// toggle to swap the locale in the current path.
+export const LOCALE_PATH_PREFIX = /^\/[a-z]{2}(?:-[a-z]{2})?(?=\/|$)/i;
