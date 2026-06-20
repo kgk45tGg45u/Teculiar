@@ -1,0 +1,32 @@
+{
+  "footer": {
+    "mission": "Sicheres Hosting für Vereine, NGOs, Initiativen und kleine Unternehmen. Persönlich. Transparent. Zuverlässig.",
+    "missionPanel": "Billing- und Automatisierungspanel für Dezhost Dienste.",
+    "servicesHeading": "Angebote",
+    "legalHeading": "Rechtliches",
+    "ctaHeading": "Noch unsicher?",
+    "ctaText": "Wir erklären alles Schritt für Schritt. Kostenlos und ohne Verpflichtung.",
+    "ctaButton": "Jetzt beraten lassen",
+    "rightsReserved": "Alle Rechte vorbehalten.",
+    "tagline": "Hosting mit Haltung. Gemacht in Deutschland.",
+    "taglinePanel": "Automation für Dezhost Hosting.",
+    "links": {
+      "webhosting": "Webhosting",
+      "vps": "VPS",
+      "reseller": "Reseller",
+      "domains": "Domains",
+      "itSolutions": "IT-Lösungen",
+      "webdesign": "Webdesign",
+      "blog": "Blog",
+      "about": "Über uns",
+      "contact": "Kontakt"
+    },
+    "legal": {
+      "impressum": "Impressum",
+      "datenschutz": "Datenschutz",
+      "agb": "AGB",
+      "zahlung": "Zahlungsinformationen",
+      "widerruf": "Widerrufsbelehrung"
+    }
+  }
+}

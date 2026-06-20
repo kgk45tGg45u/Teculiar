@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "hosting": "Webhosting",
+    "cloud": "Cloud",
+    "virtualServers": "Virtuelle Server",
+    "reseller": "Reseller-Hosting",
+    "itSolutions": "IT-Lösungen",
+    "domains": "Domains",
+    "pricing": "Preisliste",
+    "blog": "Blog",
+    "contact": "Kontakt",
+    "about": "Über uns",
+    "webdesign": "Webdesign",
+    "client": "Mein Konto"
+  },
+  "cta": "Kostenlos beraten lassen",
+  "status": {
+    "order": {
+      "complete": "Abgeschlossen",
+      "cancelled": "Storniert",
+      "pending": "Ausstehend"
+    },
+    "service": {
+      "active": "Aktiv",
+      "pending": "Ausstehend"
+    },
+    "invoice": {
+      "PENDING": "Ausstehend",
+      "OVERDUE": "Überfällig",
+      "PAID": "Bezahlt",
+      "FAILED": "Fehlgeschlagen",
+      "CANCELLED": "Storniert",
+      "REFUNDED": "Erstattet"
+    },
+    "ticket": {
+      "OPEN": "Offen",
+      "ANSWERED": "Beantwortet",
+      "CUSTOMER_REPLY": "Kundenantwort",
+      "CLOSED": "Geschlossen"
+    }
+  },
+  "billingCycle": {
+    "ONE_TIME": "Einmalig",
+    "MONTHLY": "Monatlich",
+    "QUARTERLY": "Vierteljährlich",
+    "SEMI_ANNUAL": "Halbjährlich",
+    "YEAR_1": "Jährlich",
+    "YEAR_2": "2 Jahre",
+    "YEAR_3": "3 Jahre",
+    "YEAR_4": "4 Jahre"
+  }
+}

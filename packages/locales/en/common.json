@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "hosting": "Web Hosting",
+    "cloud": "Cloud",
+    "virtualServers": "Virtual Servers",
+    "reseller": "Reseller Hosting",
+    "itSolutions": "IT Solutions",
+    "domains": "Domains",
+    "pricing": "Pricing",
+    "blog": "Blog",
+    "contact": "Contact",
+    "about": "About",
+    "webdesign": "Web Design",
+    "client": "My Account"
+  },
+  "cta": "Get free consultation",
+  "status": {
+    "order": {
+      "complete": "Completed",
+      "cancelled": "Canceled",
+      "pending": "Pending"
+    },
+    "service": {
+      "active": "Active",
+      "pending": "Pending"
+    },
+    "invoice": {
+      "PENDING": "Pending",
+      "OVERDUE": "Overdue",
+      "PAID": "Paid",
+      "FAILED": "Failed",
+      "CANCELLED": "Canceled",
+      "REFUNDED": "Refunded"
+    },
+    "ticket": {
+      "OPEN": "Open",
+      "ANSWERED": "Answered",
+      "CUSTOMER_REPLY": "Customer reply",
+      "CLOSED": "Closed"
+    }
+  },
+  "billingCycle": {
+    "ONE_TIME": "One time",
+    "MONTHLY": "Monthly",
+    "QUARTERLY": "Quarterly",
+    "SEMI_ANNUAL": "Semi-annual",
+    "YEAR_1": "Yearly",
+    "YEAR_2": "2 years",
+    "YEAR_3": "3 years",
+    "YEAR_4": "4 years"
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "template": {
+    "footer": "{{brand_name}} - {{current_date}}"
+  },
+  "blockLibrary": {
+    "text": { "label": "Text", "description": "Formatierter Text mit Platzhaltern." },
+    "keyValueTable": { "label": "Schlüssel/Wert-Tabelle", "description": "Zweispaltige Angaben wie Rechnungsnummer und Gesamtbetrag." },
+    "invoiceTable": { "label": "Rechnungstabelle", "description": "E-Mail-taugliche Positionstabelle." },
+    "button": { "label": "Schaltfläche", "description": "Primäre Handlungsaufforderung." },
+    "link": { "label": "Link", "description": "Inline-Texthyperlink." },
+    "notice": { "label": "Hinweis", "description": "Hervorgehobener Compliance- oder Statushinweis." },
+    "divider": { "label": "Trennlinie", "description": "Dünne visuelle Trennung." }
+  },
+  "labels": {
+    "service": "Service",
+    "domain": "Domain",
+    "status": "Status",
+    "active": "Aktiv",
+    "suspended": "Gesperrt",
+    "terminated": "Gekündigt",
+    "invoice": "Rechnung",
+    "total": "Gesamt",
+    "dueDate": "Fällig am",
+    "order": "Bestellung",
+    "customer": "Kunde",
+    "email": "E-Mail",
+    "address": "Adresse",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "mailServer": "Mailserver",
+    "imapPort": "IMAP-Port",
+    "smtpPort": "SMTP-Port",
+    "nameServers": "Nameserver",
+    "ticket": "Ticket",
+    "subject": "Betreff",
+    "amount": "Betrag",
+    "description": "Beschreibung",
+    "details": "Details",
+    "items": "Positionen"
+  },
+  "events": {
+    "new_invoice": {
+      "subject": "Neue Rechnung",
+      "body": "<p>Hallo {{customer_name}},</p><p>Die Rechnung {{invoice_number}} über {{invoice_total_amount}} wurde erstellt. Fällig am: {{invoice_due_date}}.</p>"
+    },
+    "welcome": {
+      "subject": "Willkommen",
+      "body": "<p>Hallo {{customer_name}},</p><p>Willkommen bei {{brand_name}}. Ihr Konto ist bereit.</p>"
+    },
+    "payment_successful": {
+      "subject": "Zahlung erfolgreich",
+      "body": "<p>Hallo {{customer_name}},</p><p>Die Zahlung für Rechnung {{invoice_number}} war erfolgreich. Betrag: {{invoice_total_amount}}.</p>"
+    },
+    "domain_information": {
+      "subject": "Domain-Informationen",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihre Domain {{domain}} ist jetzt {{resellbiz_domain_status}}. Nameserver: {{resellbiz_nameservers}}. Hier verwalten: <a href=\"{{domain_link}}\">{{domain_link}}</a></p>"
+    },
+    "hosting_account_information": {
+      "subject": "Hosting-Konto-Informationen",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihr Hosting-Dienst {{service}} ist aktiv. Domain: {{domain}}. Control Panel: {{virtualmin_control_panel_url}} (Benutzername {{virtualmin_control_panel_username}}, Passwort {{virtualmin_control_panel_password}}). Hier verwalten: <a href=\"{{service_link}}\">{{service_link}}</a></p>"
+    },
+    "hosting_account_suspended": {
+      "subject": "Hosting-Konto gesperrt",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihr Hosting-Dienst {{service}} wurde gesperrt.</p>"
+    },
+    "hosting_account_terminated": {
+      "subject": "Hosting-Konto gekündigt",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihr Hosting-Dienst {{service}} wurde gekündigt.</p>"
+    },
+    "refund_request_sent": {
+      "subject": "Rückerstattung gesendet",
+      "body": "<p>Hallo {{customer_name}},</p><p>Die Rechnung {{invoice_number}} wurde erstattet. Betrag: {{invoice_total_amount}}.</p>"
+    },
+    "order_confirmation": {
+      "subject": "Bestellbestätigung",
+      "body": "<p>Hallo {{customer_name}},</p><p>Die Bestellung {{order_number}} ist registriert. Gesamt: {{invoice_total_amount}}.</p>"
+    },
+    "invoice_reminder": {
+      "subject": "Zahlungserinnerung",
+      "body": "<p>Hallo {{customer_name}},</p><p>Erinnerung: Die Rechnung {{invoice_number}} über {{invoice_total_amount}} ist am {{invoice_due_date}} fällig.</p>"
+    },
+    "password_reset": {
+      "subject": "Passwort zurücksetzen",
+      "body": "<p>Hallo {{customer_name}},</p><p>Setzen Sie hier Ihr Passwort zurück: <a href=\"{{password_reset_link}}\">{{password_reset_link}}</a></p>"
+    },
+    "ticket_opened": {
+      "subject": "Ticket eröffnet — #{{ticket_id}}",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihr Ticket <strong>#{{ticket_id}}</strong> wurde bei unserem <strong>{{department_name}}</strong>-Team eröffnet: {{ticket_subject}}</p><p>{{ticket_content}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">Ticket ansehen</a></p>"
+    },
+    "ticket_answered": {
+      "subject": "Ticket beantwortet — #{{ticket_id}}",
+      "body": "<p>Hallo {{customer_name}},</p><p>{{staff_name}} aus unserem <strong>{{department_name}}</strong>-Team hat auf Ihr Ticket <strong>#{{ticket_id}}</strong> geantwortet: {{ticket_subject}}</p><p>{{ticket_reply}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">Ticket ansehen</a></p>"
+    },
+    "ticket_closed": {
+      "subject": "Ticket geschlossen — #{{ticket_id}}",
+      "body": "<p>Hallo {{customer_name}},</p><p>Ihr Ticket <strong>#{{ticket_id}}</strong> ({{ticket_subject}}) bei unserem <strong>{{department_name}}</strong>-Team wurde geschlossen.</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">Ticket ansehen</a></p>"
+    }
+  },
+  "layout": {
+    "invoiceSummary": {
+      "title": "Rechnungsübersicht",
+      "linesTitle": "Rechnungspositionen"
+    },
+    "domain_information": {
+      "intro": "Hallo {{customer_name}},<br /><br />Ihre Domain {{domain}} wurde registriert und ist jetzt aktiv.",
+      "summaryTitle": "Domain",
+      "button": "Domain verwalten",
+      "note": "Halten Sie Ihre Domain-Kontaktdaten aktuell, um Compliance-Probleme bei der Registrierungsstelle zu vermeiden."
+    },
+    "hosting_account_information": {
+      "intro": "Hallo {{customer_name}},<br /><br />Ihr Hosting-Konto ist aktiv. Verwenden Sie die untenstehenden Control-Panel-Daten zur Anmeldung.",
+      "summaryTitle": "Hosting-Konto",
+      "accessTitle": "Control-Panel-Zugang",
+      "mailTitle": "E-Mail-Einstellungen",
+      "button": "Hosting-Dienst öffnen",
+      "note": "Melden Sie sich aus Sicherheitsgründen an und ändern Sie dieses Passwort nach Ihrer ersten Anmeldung."
+    },
+    "hosting_account_suspended": {
+      "intro": "Hallo {{customer_name}},<br /><br />Ihr Hosting-Dienst wurde gesperrt.",
+      "summaryTitle": "Dienststatus",
+      "note": "Kontaktieren Sie den Support, wenn Sie der Meinung sind, dass diese Sperrung nicht korrekt ist."
+    },
+    "hosting_account_terminated": {
+      "intro": "Hallo {{customer_name}},<br /><br />Ihr Hosting-Dienst wurde gekündigt.",
+      "summaryTitle": "Dienststatus",
+      "note": "Backups und aufbewahrte Daten richten sich nach Ihren Vertragsbedingungen."
+    },
+    "invoice_reminder": {
+      "intro": "Hallo {{customer_name}},<br /><br />dies ist eine freundliche Erinnerung, dass Ihre Rechnung fällig ist.",
+      "button": "Rechnung bezahlen"
+    },
+    "new_invoice": {
+      "intro": "Hallo {{customer_name}},<br /><br />für Ihr Konto wurde eine neue Rechnung erstellt.",
+      "button": "Rechnung ansehen"
+    },
+    "order_confirmation": {
+      "intro": "Hallo {{customer_name}},<br /><br />Ihre Bestellung wurde erfolgreich registriert.",
+      "summaryTitle": "Bestellübersicht"
+    },
+    "password_reset": {
+      "intro": "Hallo {{customer_name}},<br /><br />verwenden Sie den sicheren Link unten, um Ihr Passwort zurückzusetzen.",
+      "button": "Passwort zurücksetzen",
+      "note": "Ignorieren Sie diese E-Mail, wenn Sie keine Passwortzurücksetzung angefordert haben."
+    },
+    "payment_successful": {
+      "intro": "Hallo {{customer_name}},<br /><br />wir haben Ihre Zahlung erhalten. Vielen Dank.",
+      "note": "Bezahlte Rechnungen werden in Ihrem Kundenbereich gespeichert."
+    },
+    "refund_request_sent": {
+      "intro": "Hallo {{customer_name}},<br /><br />für diese Rechnung wurde eine Rückerstattung erfasst.",
+      "note": "Die Bearbeitungszeit der Rückerstattung hängt von der ursprünglichen Zahlungsmethode ab."
+    },
+    "ticket_answered": {
+      "intro": "Ihr Support-Ticket hat eine neue Antwort.",
+      "summaryTitle": "Ticket"
+    },
+    "ticket_closed": {
+      "intro": "Ihr Support-Ticket wurde geschlossen.",
+      "summaryTitle": "Ticket"
+    },
+    "ticket_opened": {
+      "intro": "Ein neues Support-Ticket wurde eröffnet.",
+      "summaryTitle": "Ticket"
+    },
+    "welcome": {
+      "intro": "Hallo {{customer_name}},<br /><br />willkommen bei {{brand_name}}. Ihr Konto ist bereit.",
+      "summaryTitle": "Konto"
+    }
+  }
+}

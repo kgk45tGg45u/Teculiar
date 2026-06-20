@@ -1,0 +1,170 @@
+{
+  "template": {
+    "footer": "{{brand_name}} - {{current_date}}"
+  },
+  "blockLibrary": {
+    "text": { "label": "Text", "description": "Rich copy with placeholders." },
+    "keyValueTable": { "label": "Key/value table", "description": "Two-column facts such as invoice number and total." },
+    "invoiceTable": { "label": "Invoice table", "description": "Email-safe line item table." },
+    "button": { "label": "Button", "description": "Primary call-to-action button." },
+    "link": { "label": "Link", "description": "Inline text hyperlink." },
+    "notice": { "label": "Notice", "description": "Highlighted compliance or status note." },
+    "divider": { "label": "Divider", "description": "Thin visual break." }
+  },
+  "labels": {
+    "service": "Service",
+    "domain": "Domain",
+    "status": "Status",
+    "active": "Active",
+    "suspended": "Suspended",
+    "terminated": "Terminated",
+    "invoice": "Invoice",
+    "total": "Total",
+    "dueDate": "Due date",
+    "order": "Order",
+    "customer": "Customer",
+    "email": "Email",
+    "address": "Address",
+    "username": "Username",
+    "password": "Password",
+    "mailServer": "Mail server",
+    "imapPort": "IMAP port",
+    "smtpPort": "SMTP port",
+    "nameServers": "Name servers",
+    "ticket": "Ticket",
+    "subject": "Subject",
+    "amount": "Amount",
+    "description": "Description",
+    "details": "Details",
+    "items": "Items"
+  },
+  "events": {
+    "new_invoice": {
+      "subject": "New Invoice",
+      "body": "<p>Hello {{customer_name}},</p><p>Invoice {{invoice_number}} for {{invoice_total_amount}} has been created. Due date: {{invoice_due_date}}.</p>"
+    },
+    "welcome": {
+      "subject": "Welcome",
+      "body": "<p>Hello {{customer_name}},</p><p>Welcome to {{brand_name}}. Your account is ready.</p>"
+    },
+    "payment_successful": {
+      "subject": "Payment successful",
+      "body": "<p>Hello {{customer_name}},</p><p>Payment for invoice {{invoice_number}} succeeded. Amount: {{invoice_total_amount}}.</p>"
+    },
+    "domain_information": {
+      "subject": "Domain Information",
+      "body": "<p>Hello {{customer_name}},</p><p>Your domain {{domain}} is now {{resellbiz_domain_status}}. Name servers: {{resellbiz_nameservers}}. Manage it here: <a href=\"{{domain_link}}\">{{domain_link}}</a></p>"
+    },
+    "hosting_account_information": {
+      "subject": "Hosting Account Information",
+      "body": "<p>Hello {{customer_name}},</p><p>Your hosting service {{service}} is active. Domain: {{domain}}. Control panel: {{virtualmin_control_panel_url}} (username {{virtualmin_control_panel_username}}, password {{virtualmin_control_panel_password}}). Manage it here: <a href=\"{{service_link}}\">{{service_link}}</a></p>"
+    },
+    "hosting_account_suspended": {
+      "subject": "Hosting Account Suspended",
+      "body": "<p>Hello {{customer_name}},</p><p>Your hosting service {{service}} has been suspended.</p>"
+    },
+    "hosting_account_terminated": {
+      "subject": "Hosting Account Terminated",
+      "body": "<p>Hello {{customer_name}},</p><p>Your hosting service {{service}} has been terminated.</p>"
+    },
+    "refund_request_sent": {
+      "subject": "Refund Request Sent",
+      "body": "<p>Hello {{customer_name}},</p><p>Invoice {{invoice_number}} has been refunded. Amount: {{invoice_total_amount}}.</p>"
+    },
+    "order_confirmation": {
+      "subject": "Order Confirmation",
+      "body": "<p>Hello {{customer_name}},</p><p>Order {{order_number}} is registered. Total: {{invoice_total_amount}}.</p>"
+    },
+    "invoice_reminder": {
+      "subject": "Invoice Reminder",
+      "body": "<p>Hello {{customer_name}},</p><p>Reminder: invoice {{invoice_number}} for {{invoice_total_amount}} is due on {{invoice_due_date}}.</p>"
+    },
+    "password_reset": {
+      "subject": "Password Reset",
+      "body": "<p>Hello {{customer_name}},</p><p>Reset your password here: <a href=\"{{password_reset_link}}\">{{password_reset_link}}</a></p>"
+    },
+    "ticket_opened": {
+      "subject": "Ticket Opened — #{{ticket_id}}",
+      "body": "<p>Hello {{customer_name}},</p><p>Your ticket <strong>#{{ticket_id}}</strong> has been opened with our <strong>{{department_name}}</strong> team: {{ticket_subject}}</p><p>{{ticket_content}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
+    },
+    "ticket_answered": {
+      "subject": "Ticket Answered — #{{ticket_id}}",
+      "body": "<p>Hello {{customer_name}},</p><p>{{staff_name}} from our <strong>{{department_name}}</strong> team replied to your ticket <strong>#{{ticket_id}}</strong>: {{ticket_subject}}</p><p>{{ticket_reply}}</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
+    },
+    "ticket_closed": {
+      "subject": "Ticket Closed — #{{ticket_id}}",
+      "body": "<p>Hello {{customer_name}},</p><p>Your ticket <strong>#{{ticket_id}}</strong> ({{ticket_subject}}) with our <strong>{{department_name}}</strong> team has been closed.</p><p><a href=\"{{ticket_url}}\" style=\"display:inline-block;padding:11px 20px;background:#0b3d91;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;\">View ticket</a></p>"
+    }
+  },
+  "layout": {
+    "invoiceSummary": {
+      "title": "Invoice summary",
+      "linesTitle": "Invoice lines"
+    },
+    "domain_information": {
+      "intro": "Hello {{customer_name}},<br /><br />your domain {{domain}} has been registered and is now active.",
+      "summaryTitle": "Domain",
+      "button": "Manage domain",
+      "note": "Keep your domain contact data current to avoid registry compliance issues."
+    },
+    "hosting_account_information": {
+      "intro": "Hello {{customer_name}},<br /><br />your hosting account is active. Use the control panel details below to sign in.",
+      "summaryTitle": "Hosting account",
+      "accessTitle": "Control panel access",
+      "mailTitle": "Email settings",
+      "button": "Open hosting service",
+      "note": "For your security, sign in and change this password after your first login."
+    },
+    "hosting_account_suspended": {
+      "intro": "Hello {{customer_name}},<br /><br />your hosting service has been suspended.",
+      "summaryTitle": "Service status",
+      "note": "Contact support if you believe this suspension is incorrect."
+    },
+    "hosting_account_terminated": {
+      "intro": "Hello {{customer_name}},<br /><br />your hosting service has been terminated.",
+      "summaryTitle": "Service status",
+      "note": "Backups and retained data depend on your service terms."
+    },
+    "invoice_reminder": {
+      "intro": "Hello {{customer_name}},<br /><br />this is a friendly reminder that your invoice is due.",
+      "button": "Pay invoice"
+    },
+    "new_invoice": {
+      "intro": "Hello {{customer_name}},<br /><br />a new invoice has been generated for your account.",
+      "button": "View invoice"
+    },
+    "order_confirmation": {
+      "intro": "Hello {{customer_name}},<br /><br />your order was registered successfully.",
+      "summaryTitle": "Order summary"
+    },
+    "password_reset": {
+      "intro": "Hello {{customer_name}},<br /><br />use the secure link below to reset your password.",
+      "button": "Reset password",
+      "note": "Ignore this email if you did not request a password reset."
+    },
+    "payment_successful": {
+      "intro": "Hello {{customer_name}},<br /><br />we received your payment. Thank you.",
+      "note": "Paid invoices are stored in your client dashboard."
+    },
+    "refund_request_sent": {
+      "intro": "Hello {{customer_name}},<br /><br />a refund was recorded for this invoice.",
+      "note": "Refund processing time depends on the original payment method."
+    },
+    "ticket_answered": {
+      "intro": "Your support ticket has a new answer.",
+      "summaryTitle": "Ticket"
+    },
+    "ticket_closed": {
+      "intro": "Your support ticket has been closed.",
+      "summaryTitle": "Ticket"
+    },
+    "ticket_opened": {
+      "intro": "A new support ticket was opened.",
+      "summaryTitle": "Ticket"
+    },
+    "welcome": {
+      "intro": "Hello {{customer_name}},<br /><br />welcome to {{brand_name}}. Your account is ready.",
+      "summaryTitle": "Account"
+    }
+  }
+}
