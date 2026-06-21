@@ -10,6 +10,7 @@ import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, typ
 import type { Locale } from "../../lib/i18n";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
+import { TaxCountrySettings, type TaxCountriesValue } from "./tax-country-settings";
 import { Button } from "../ui/button";
 import { ImageUploader } from "../ui/image-uploader";
 import { notify, notifyResponse } from "../ui/toast-provider";
@@ -1025,9 +1026,9 @@ export function SettingsForm() {
     siteLogoUrl: "",
     siteUrl: "",
     termsUrl: "",
-    vatPercent: 19,
     languages: { main: "de", others: ["en"] } as LanguagesValue,
-    currencyConfig: { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } } as CurrencyConfigValue
+    currencyConfig: { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } } as CurrencyConfigValue,
+    taxCountries: { default: "DE", rates: { DE: 19 } } as TaxCountriesValue
   });
 
   useEffect(() => {
@@ -1054,9 +1055,9 @@ export function SettingsForm() {
         siteLogoUrl: p.siteLogoUrl ?? "",
         siteUrl: p.siteUrl ?? "",
         termsUrl: p.termsUrl ?? "",
-        vatPercent: p.vatPercent ?? 19,
         languages: p.languages?.main ? p.languages : { main: "de", others: ["en"] },
-        currencyConfig: p.currencyConfig?.main ? p.currencyConfig : { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } }
+        currencyConfig: p.currencyConfig?.main ? p.currencyConfig : { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } },
+        taxCountries: p.taxCountries?.rates ? p.taxCountries : { default: "DE", rates: { DE: p.vatPercent ?? 19 } }
       }))
       .catch(() => undefined);
   }, []);
@@ -1083,9 +1084,12 @@ export function SettingsForm() {
         siteLogoUrl: s.siteLogoUrl,
         siteUrl: String(formData.get("siteUrl") ?? ""),
         termsUrl: String(formData.get("termsUrl") ?? ""),
-        vatPercent: Number(formData.get("vatPercent") ?? 19),
+        // Keep the legacy flat vatPercent in sync with the default country's rate for any consumer
+        // that still reads it; tax.countries is the source of truth.
+        vatPercent: Number(s.taxCountries.rates[s.taxCountries.default] ?? 19),
         languages: s.languages,
-        currencyConfig: s.currencyConfig
+        currencyConfig: s.currencyConfig,
+        taxCountries: s.taxCountries
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
@@ -1160,8 +1164,8 @@ export function SettingsForm() {
         onLanguages={(v) => setS({ ...s, languages: v })}
         onCurrencyConfig={(v) => setS({ ...s, currencyConfig: v })}
       />
+      <TaxCountrySettings value={s.taxCountries} onChange={(v) => setS({ ...s, taxCountries: v })} />
       <h3>Invoice branding</h3>
-      <label>VAT percent<input min="0" step="0.01" value={s.vatPercent} name="vatPercent" type="number" onChange={(e) => setS({ ...s, vatPercent: Number(e.target.value) })} /></label>
       <ImageUploader
         action={`${API_BASE_URL}/admin/dev/assets/logo`}
         headers={authHeaders()}

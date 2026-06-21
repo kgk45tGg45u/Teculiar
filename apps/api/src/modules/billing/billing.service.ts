@@ -1661,12 +1661,13 @@ export class BillingService {
       this.billing.settingNumber("logRetentionDays", 0)
     ]);
 
-    const [currencyConfig, languages] = await Promise.all([this.currencyConfig(), this.i18nLanguages()]);
+    const [currencyConfig, languages, taxCountries] = await Promise.all([this.currencyConfig(), this.i18nLanguages(), this.taxCountryConfig()]);
 
     return {
       adminTimezone,
       currencyConfig,
       languages,
+      taxCountries,
       logRetentionDays,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
       deepseekApiKey: maskSecrets && deepseekApiKey ? "********" : deepseekApiKey,
@@ -1909,10 +1910,12 @@ export class BillingService {
     logRetentionDays?: number;
     languages?: { main?: string; others?: string[] };
     currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
+    taxCountries?: { default?: string; rates?: Record<string, number> };
   }) {
     return Promise.all([
       input.languages === undefined ? undefined : this.billing.upsertSettingJson("i18n.languages", sanitizeLanguages(input.languages)),
       input.currencyConfig === undefined ? undefined : this.billing.upsertSettingJson("currency.config", sanitizeCurrencyConfig(input.currencyConfig)),
+      input.taxCountries === undefined ? undefined : this.billing.upsertSettingJson("tax.countries", sanitizeTaxCountryConfig(input.taxCountries)),
       input.logRetentionDays === undefined
         ? undefined
         : this.billing.upsertSettingNumber("logRetentionDays", Math.max(0, Math.trunc(input.logRetentionDays))),
