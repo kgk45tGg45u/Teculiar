@@ -31,21 +31,39 @@ build copies the JSON next to `dist/index.js`).
 
 ## Where configuration lives — SystemSetting keys
 
-Two JSON rows in the `SystemSetting` table drive everything. Edit them via **Admin → Settings**
-(language/currency section), never by hand in normal operation.
+Three JSON rows in the `SystemSetting` table drive everything. Edit them via **Admin → Settings**
+(language/currency + VAT sections), never by hand in normal operation.
 
 | Key | Shape | Meaning |
 |-----|-------|---------|
 | `i18n.languages` | `{ "main": "de", "others": ["en", "it"] }` | Configured languages. `main` is the primary/fallback language. |
 | `currency.config` | `{ "main": "EUR", "others": ["USD"], "rates": { "USD": { "rate": 1.08, "buffer": 0, "bufferEnabled": false } } }` | Configured currencies, per-currency conversion `rate` and optional `buffer`. |
+| `tax.countries` | `{ "enabled": true, "default": "DE", "rates": { "DE": 19, "AT": 20 } }` | Per-country VAT. `enabled` is the global on/off switch; `default` is the country whose rate applies to buyers with no own entry; `rates` is percent per uppercase ISO country code. |
 
 Legacy fallbacks: when `currency.config` was never saved, the old `usdExchangeRate` / `usdBufferCents`
 settings are migrated into a `USD` entry on read. When `i18n.languages` is unset, the default is
-`{ main: "de", others: ["en"] }`.
+`{ main: "de", others: ["en"] }`. When `tax.countries` was never saved, the old flat `vatPercent`
+setting becomes the default country's (`DE`) rate, with `enabled: true`.
 
-Backend readers: `BillingService.i18nLanguages()` / `currencyConfig()` / `mainCurrency()`, and the
-dependency-free `common/currency.ts` `readMainLanguage()` / `readMainCurrency()` for services that
-only hold a Prisma client.
+Backend readers: `BillingService.i18nLanguages()` / `currencyConfig()` / `mainCurrency()` /
+`taxCountryConfig()` / `vatForBuyer()`, and the dependency-free `common/currency.ts`
+`readMainLanguage()` / `readMainCurrency()` for services that only hold a Prisma client.
+
+## VAT by country
+
+VAT is resolved by a single source of truth shared between the API and the web checkout —
+[`packages/shared/src/tax.ts`](../packages/shared/src/tax.ts) (`resolveVat`, `vatPercentForCountry`,
+`TaxCountryConfig`).
+
+- **Rate = the buyer's country.** Checkout reads the buyer country from the country selector (or the
+  logged-in profile); orders/renewals use the client's saved `User.countryCode`.
+- A country with **no configured rate falls back to the default country's rate** — never silently 0
+  (the bug that previously hid VAT on checkout).
+- **Global switch:** `tax.countries.enabled = false` charges **0% VAT everywhere**.
+- **EU reverse charge:** EU B2B cross-border with a valid VAT ID ⇒ 0% (buyer self-accounts).
+- **Non-EU export:** buyers outside the EU are zero-rated automatically.
+- The checkout figure is a live estimate; the **authoritative VAT (incl. reverse-charge) is computed
+  server-side** at invoice creation (`createInvoice` → `engine.createDraft` → `tax.service.resolveVat`).
 
 ## Currency model
 

@@ -61,22 +61,22 @@ the user referenced when reordering the deferred items.
    *Follow-up (minor):* on a fresh browser the saved `User.locale` isn't auto-seeded into the scope
    cookie until the user picks a language once; same-browser persistence already works via the cookie.
    Cross-device seeding would add `locale` to the login response and set the scope cookie on `storeAuth`.
-3. ⏳ **Country-based VAT** *(the "step 3")*. Replace the single admin VAT rate with **per-country VAT
-   rates + a default country**, defined in the admin panel. VAT for an order/renewal is the buyer's
-   country rate (entered at checkout, or the saved country for existing clients); countries with no rate
-   defined fall back to the default country's rate. Keep the existing EU reverse-charge logic (B2B
-   cross-border with a valid VAT ID stays 0). Touches: a `tax.countries` SystemSetting (`{ default, rates }`),
-   the admin settings UI, `vatPercent()` → country lookup, and the billing engine / checkout / renewal.
+3. ✅ **Country-based VAT** *(the "step 3")* (`4a7453d`, `82fd3a9`, + checkout commit). Per-country VAT
+   rates + a default country, defined in the admin panel; plus a **global "Charge VAT" on/off switch**.
+   VAT for an order/renewal is the buyer's country rate (entered at checkout, or the saved
+   `User.countryCode` for existing clients); countries with no rate fall back to the default country's
+   rate (**never silently 0**). EU reverse-charge (B2B cross-border w/ valid VAT ID → 0) and non-EU
+   export (→ 0) preserved. Single source of truth: [`packages/shared/src/tax.ts`](../packages/shared/src/tax.ts)
+   (`resolveVat`, `vatPercentForCountry`), used by checkout preview, order preview AND invoice creation.
+   New `tax.countries` SystemSetting `{ enabled, default, rates }` (legacy flat `vatPercent` kept in sync
+   with the default-country rate / 0 when off). Admin UI:
+   [`tax-country-settings.tsx`](../apps/web/components/admin/tax-country-settings.tsx). Full reference:
+   [docs/i18n-currency.md → "VAT by country"](./i18n-currency.md#vat-by-country).
 
-   **Known bug to fix here (reported 2026-06-21):** with a 4% VAT set, checkout showed **0 VAT**. VAT is
-   currently computed in **three** unsynced places: the checkout form (`orderSummary`,
-   `subtotal * vatPercent/100`, country-unaware, `vatPercent` from `/storefront/settings` **defaulting to
-   0**), `orders.service.previewOrder` (flat `vatPercent`, country-unaware), and the billing engine
-   `tax.service.resolveVat` (country-aware; zeroes for non-EU / EU B2B reverse-charge; per-line
-   `line.taxRate ?? vat.rate` can be zeroed by a line rate of `0` — the `0 ?? rate` nullish trap). The
-   rewrite must collapse these onto **one country-aware source** (e.g. `vatPercentForCountry(country)`)
-   used by checkout preview, order preview AND invoice creation, pass the buyer country through checkout,
-   and **fall back to the default-country rate, never silently to 0**.
+   **Fixed here:** the reported "4% VAT set → checkout showed 0 VAT" bug. VAT had been computed in three
+   unsynced places (checkout `orderSummary` country-unaware with `vatPercent` defaulting to 0,
+   `orders.service.previewOrder` flat, and the billing engine) — now collapsed onto the one shared
+   country-aware resolver; the buyer country is threaded through checkout.
 4. ⏳ **Convert remaining inline `de/en` copy** (do now, per the user) so a 3rd configured language is
    fully covered — marketing page bodies (incl. the IT-Solutions pricing prose), the checkout/login local
    copy maps, and the blog CMS editor. Move each onto the `@dezhost/locales` packs.

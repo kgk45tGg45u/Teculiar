@@ -10,31 +10,35 @@ first when resuming. The approved plan is at
   Now working a **follow-up batch** (storefront i18n polish + country VAT + scope-aware locale) tracked
   in [teculiar-roadmap.md → "Phase 1 — follow-up batch"](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21).
   **Done:** product-grid currency (`73e7e58`), toggle modal (`a2d34fb`), Apply-button toggle (`d68e0f8`),
-  scope-aware admin/client locale (`8988b60`). **Pending:** country-VAT (next), then inline-`de/en`-copy.
+  scope-aware admin/client locale (`8988b60`), **country-based VAT + global VAT switch** (`4a7453d`,
+  `82fd3a9`, + checkout commit). **Pending:** inline-`de/en`-copy conversion (incl. IT-Solutions prose).
 
-### ▶ RESUME HERE — Country-based VAT (the "step 3")
-Approved data model + approach (also fixes the reported checkout VAT-0 bug):
-- **Setting:** `tax.countries` SystemSetting JSON `{ default: "DE", rates: { DE: 19, AT: 20, … } }`
-  (percent per ISO country). Replaces the single `vatPercent` setting/UI.
-- **One source of truth:** `vatPercentForCountry(country)` (resolve `rates[country]` → else `rates[default]`,
-  **never 0** as a silent fallback). Use it in **all three** VAT paths that currently diverge:
-  1. checkout form `orderSummary` (`apps/web/components/checkout/checkout-form.tsx`, ~L1604, currently
-     `subtotal * vatPercent/100` with `vatPercent` from `/storefront/settings` defaulting to **0**);
-  2. `orders.service.previewOrder` (`apps/api/.../orders/orders.service.ts`, flat `vatPercent`);
-  3. billing engine — `tax.service.resolveVat` (`apps/api/.../billing/tax.service.ts`) + the per-line
-     `line.taxRate ?? vat.rate` in `billing-engine.service.ts` (watch the `0 ?? rate` nullish trap).
-- **By country:** rate = buyer country (checkout form field / existing client's saved `User.countryCode`).
-  **Keep EU reverse-charge** (B2B cross-border w/ valid VAT ID → 0) in `resolveVat`.
-- **Admin UI:** replace the single VAT field with a per-country table + default-country selector
-  (`apps/web/components/admin/...` settings) writing `tax.countries`; expose the buyer-country rate via
-  `/storefront/settings` (or a small endpoint) so checkout is country-aware, not a flat number.
-- **Recalc:** order create + renewal must compute VAT from the (then-current) buyer country.
-- **Tests:** mirror `apps/api/test/i18n-currency.test.mjs` — `vatPercentForCountry` fallback to default
-  (not 0), order/renewal VAT by country, reverse-charge still 0.
+### ✅ DONE — Country-based VAT (the "step 3")
+Shipped as designed; also fixes the reported checkout VAT-0 bug. **Single source of truth** lives in
+[`packages/shared/src/tax.ts`](../packages/shared/src/tax.ts) and is used by both API and web:
+- **Setting:** `tax.countries` SystemSetting JSON `{ enabled, default, rates }` — global on/off switch,
+  default ISO country, and percent per uppercase ISO country. Replaces the single `vatPercent` setting/UI
+  (the legacy `vatPercent` is still written, kept in sync with the default country's rate / 0 when off).
+- **Resolver:** `resolveVat(context, config)` + `vatPercentForCountry(config, country)`. A country with no
+  rate falls back to the **default country's** rate (never silently 0). `enabled: false` ⇒ 0 everywhere.
+  EU B2B cross-border with a valid VAT ID ⇒ reverse charge (0); non-EU buyers ⇒ zero-rated export.
+- **All three VAT paths unified** on the resolver:
+  1. checkout `orderSummary` ([`checkout-form.tsx`](../apps/web/components/checkout/checkout-form.tsx)) —
+     now reads `taxCountries` from `/storefront/settings` and resolves the buyer-country rate live
+     (buyer country tracked from the country selector + logged-in profile);
+  2. `orders.service.previewOrder` / `createAdminOrder` — `billing.vatForBuyer({ countryCode, isBusinessCustomer, vatId })`;
+  3. billing engine — `tax.service.resolveVat` delegates to the shared resolver; `createInvoice` threads
+     the resolved `taxConfig` into `engine.createDraft` (per-line `line.taxRate ?? vat.rate` unchanged —
+     only the funds-deposit line sets an explicit 0, which is intentional, not the nullish trap).
+- **By country:** rate follows the buyer country — checkout field for guests, existing client's saved
+  `User.countryCode` for renewals (`renewSubscription` already passes it through `createInvoice`).
+- **Admin UI:** [`tax-country-settings.tsx`](../apps/web/components/admin/tax-country-settings.tsx) — a
+  "Charge VAT" checkbox (global switch) + default-country selector + per-country rate table, writing
+  `tax.countries` via `PATCH /admin/dev/billing/settings`. Buyer-country rate exposed via `/storefront/settings`.
+- **Tests:** [`apps/api/test/tax.test.mjs`](../apps/api/test/tax.test.mjs) — country rate, default fallback
+  (not 0), reverse-charge, non-EU export, global-off, sanitize. Plus a country-rate case in
+  `i18n-currency.test.mjs`. `typecheck` + `build` green for shared/api/web; `next build` green.
 - **Note:** prod verification still pending deploy (only `main` deploys; this branch does not).
-- **Cadence:** small reviewable commits, build green between each, stop for review after each major step.
-- **Build/verify:** `npm run typecheck` and `npm run build` (both must be green). API unit tests: see "Testing" below.
-- No self-credit in code/commits (per CLAUDE.md).
 
 ## How to resume (new session)
 ```bash
