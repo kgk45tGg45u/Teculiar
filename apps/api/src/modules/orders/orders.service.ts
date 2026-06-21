@@ -108,17 +108,22 @@ export class OrdersService implements OnModuleInit {
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
-    const vatPercent = await this.billing.vatPercent();
-    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
+    const vat = await this.billing.vatForBuyer({
+      countryCode: dto.customer?.countryCode,
+      isBusinessCustomer: dto.customer?.customerType === "BUSINESS",
+      vatId: dto.customer?.vatId
+    });
+    const taxAmountCents = Math.round(taxableCents * (vat.rate / 100));
 
     return {
       currency: (await this.billing.mainCurrency?.()) ?? "EUR",
       items,
+      reverseCharge: vat.reverseCharge,
       setupFeeCents,
       subtotalCents,
       taxAmountCents,
       totalCents: taxableCents + taxAmountCents,
-      vatPercent
+      vatPercent: vat.rate
     };
   }
 
@@ -207,8 +212,12 @@ export class OrdersService implements OnModuleInit {
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
-    const vatPercent = await this.billing.vatPercent();
-    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
+    const vat = await this.billing.vatForBuyer({
+      countryCode: user.countryCode,
+      isBusinessCustomer: user.customerType === "BUSINESS",
+      vatId: user.vatId
+    });
+    const taxAmountCents = Math.round(taxableCents * (vat.rate / 100));
     const snapshot = customerSnapshotFromUser(user);
     const defaultDueAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
     const invoice = await this.billing.createInvoice({

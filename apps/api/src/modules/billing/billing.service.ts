@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
+import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@dezhost/shared";
 import { formatDate, formatMoney } from "../../common/i18n";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -36,7 +37,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto & { suppressNewInvoiceEmail?: boolean }) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const [vatRate, sellerSnapshot, footerLines, currency, languages] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency(), this.i18nLanguages()]);
+    const [taxConfig, sellerSnapshot, footerLines, currency, languages] = await Promise.all([this.taxCountryConfig(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency(), this.i18nLanguages()]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: line.vatRate })),
       coupon: coupon
@@ -50,7 +51,7 @@ export class BillingService {
         buyerVatId: dto.buyerVatId,
         isBusinessCustomer: Boolean(dto.isBusinessCustomer)
       },
-      vatRate
+      taxConfig
     });
 
     const invoice = await this.billing.createInvoice({
@@ -1421,6 +1422,31 @@ export class BillingService {
     return this.billing.settingNumber("vatPercent", 19);
   }
 
+  // Per-country VAT config (the single source of truth for tax rates). Falls back to the legacy
+  // flat `vatPercent` setting as the default country's rate so installs that never saved the new
+  // table keep charging the same VAT.
+  async taxCountryConfig(): Promise<TaxCountryConfig> {
+    const stored = await this.billing.settingJson<{ default?: unknown; rates?: unknown } | null>("tax.countries", null);
+    if (stored && stored.rates && typeof stored.rates === "object") {
+      return sanitizeTaxCountryConfig(stored);
+    }
+    const legacy = await this.vatPercent();
+    return sanitizeTaxCountryConfig({ default: "DE", rates: { DE: legacy } });
+  }
+
+  // Resolves the VAT a specific buyer pays (country rate + reverse-charge / export rules) using
+  // the shared resolver. Used by the order preview and admin order creation.
+  async vatForBuyer(context: { countryCode?: string | null; isBusinessCustomer?: boolean; vatId?: string | null }) {
+    const config = await this.taxCountryConfig();
+    const taxContext: TaxContext = {
+      sellerCountryCode: "DE",
+      buyerCountryCode: context.countryCode ?? "",
+      buyerVatId: context.vatId ?? undefined,
+      isBusinessCustomer: Boolean(context.isBusinessCustomer)
+    };
+    return resolveVat(taxContext, config);
+  }
+
   siteUrl() {
     return this.billing.settingString("siteUrl");
   }
@@ -1455,14 +1481,13 @@ export class BillingService {
 
   async publicSettings() {
     const [
-      vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
+      siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
       siteName, metaDescription, blogMetaDescription, ogTitleSuffix, ogImageStatic, ogImageDashboard, ogImageBlog,
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
       themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
       themeBlueeBlogHeroImageUrl, themeBlueKnowledgebaseHeroImageUrl
     ] = await Promise.all([
-      this.vatPercent(),
       this.billing.settingString("siteLogoUrl"),
       this.billing.settingString("faviconUrl"),
       this.billing.settingString("founderPhotoUrl"),
@@ -1489,11 +1514,15 @@ export class BillingService {
       this.billing.settingString("theme.blue.knowledgebaseHeroImageUrl")
     ]);
 
-    const [currencyConfig, languages] = await Promise.all([this.currencyConfig(), this.i18nLanguages()]);
+    const [currencyConfig, languages, taxCountries] = await Promise.all([this.currencyConfig(), this.i18nLanguages(), this.taxCountryConfig()]);
+    // Headline VAT (used where a single number is enough) is the default country's rate; the
+    // checkout uses `taxCountries` to compute the buyer-country rate live.
+    const defaultVatPercent = vatPercentForCountry(taxCountries, taxCountries.default);
 
     return {
       blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard,
-      ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent,
+      ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
+      vatPercent: defaultVatPercent, taxCountries,
       currencyConfig, languages,
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,

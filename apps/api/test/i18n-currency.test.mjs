@@ -78,7 +78,7 @@ test("mark-paid keeps the invoice's own currency + locale (immutable once issued
 });
 
 test("previewOrder returns the configured main currency", async () => {
-  const billing = { vatPercent: async () => 0, mainCurrency: async () => "USD" };
+  const billing = { vatForBuyer: async () => ({ rate: 0, reverseCharge: false }), mainCurrency: async () => "USD" };
   const service = new OrdersService({}, billing, {}, {}, { priceFor: async (_d, amountCents) => ({ amountCents }) });
   service.priceItems = async () => [{ unitAmountCents: 1000, quantity: 1, setupFeeCents: 0 }];
 
@@ -88,13 +88,24 @@ test("previewOrder returns the configured main currency", async () => {
 });
 
 test("previewOrder falls back to EUR when no currency config is wired", async () => {
-  const billing = { vatPercent: async () => 0 };
+  const billing = { vatForBuyer: async () => ({ rate: 0, reverseCharge: false }) };
   const service = new OrdersService({}, billing, {}, {}, { priceFor: async (_d, amountCents) => ({ amountCents }) });
   service.priceItems = async () => [{ unitAmountCents: 1000, quantity: 1, setupFeeCents: 0 }];
 
   const preview = await service.previewOrder({ items: [{ productId: "p" }] });
 
   assert.equal(preview.currency, "EUR");
+});
+
+test("previewOrder taxes the buyer country at its configured rate", async () => {
+  const billing = { vatForBuyer: async ({ countryCode }) => ({ rate: countryCode === "AT" ? 20 : 19, reverseCharge: false }), mainCurrency: async () => "EUR" };
+  const service = new OrdersService({}, billing, {}, {}, { priceFor: async (_d, amountCents) => ({ amountCents }) });
+  service.priceItems = async () => [{ unitAmountCents: 1000, quantity: 1, setupFeeCents: 0 }];
+
+  const preview = await service.previewOrder({ items: [{ productId: "p" }], customer: { countryCode: "AT" } });
+
+  assert.equal(preview.vatPercent, 20);
+  assert.equal(preview.taxAmountCents, 200);
 });
 
 test("backend i18n helper looks up keys with English fallback and formats by locale", () => {

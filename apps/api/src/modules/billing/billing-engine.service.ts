@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { InvoiceLineInput, TaxContext } from "@dezhost/shared";
+import type { InvoiceLineInput, TaxContext, TaxCountryConfig } from "@dezhost/shared";
 import { TaxService } from "./tax.service";
 
 type Coupon =
@@ -10,7 +10,7 @@ type InvoiceDraftInput = {
   lines: InvoiceLineInput[];
   coupon?: Coupon;
   taxContext: TaxContext;
-  vatRate?: number;
+  taxConfig: TaxCountryConfig;
 };
 
 @Injectable()
@@ -18,7 +18,7 @@ export class BillingEngineService {
   constructor(private readonly taxes: TaxService) {}
 
   createDraft(input: InvoiceDraftInput) {
-    const vat = this.taxes.resolveVat(input.taxContext, input.vatRate);
+    const vat = this.taxes.resolveVat(input.taxContext, input.taxConfig);
     const subtotalCents = input.lines.reduce(
       (sum, line) => sum + line.quantity * line.unitAmountCents,
       0
