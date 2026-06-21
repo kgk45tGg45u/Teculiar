@@ -282,5 +282,26 @@
     "validExceeds": "{a} × {i} Std. = {t} Std. – überschreitet 24 Stunden. Reduziere Artikel oder Intervall.",
     "saveJobSettings": "Job-Einstellungen speichern",
     "jobSettingsSaved": "Job-Einstellungen gespeichert."
+  },
+  "nav": {
+    "allClients": "Alle Kunden",
+    "allOrders": "Alle Bestellungen",
+    "domainsServices": "Domains & Dienste",
+    "templates": "Vorlagen",
+    "allTickets": "Alle Tickets",
+    "posts": "Beiträge",
+    "newPost": "Neuer Beitrag",
+    "theme": "Theme",
+    "menu": "Menü",
+    "toggleNav": "Navigation umschalten",
+    "toggleGroup": "{label} umschalten"
+  },
+  "crumb": {
+    "seo": "SEO & Social",
+    "tickets": "Tickets",
+    "new": "Neu",
+    "ticket": "Ticket",
+    "detail": "Detail",
+    "breadcrumb": "Brotkrümelnavigation"
   }
 }

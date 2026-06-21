@@ -3,91 +3,97 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ADMIN_AUTH_COOKIE, clearAuth } from "../../lib/api";
+import { ADMIN_AUTH_COOKIE, clearAuth, currentLocale } from "../../lib/api";
+import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 
+type AdminDict = Dictionary["admin"];
 type NavLeaf = { href: string; label: string };
 type NavGroup = { children: NavLeaf[]; label: string };
 type NavEntry = NavLeaf | NavGroup;
 
-const baseNav: NavEntry[] = [
-  { href: "/admin", label: "Home" },
-  {
-    label: "Clients",
-    children: [
-      { href: "/admin/clients", label: "All Clients" },
-      { href: "/admin/clients/new", label: "Add Client" }
-    ]
-  },
-  {
-    label: "Orders",
-    children: [
-      { href: "/admin/orders", label: "All Orders" },
-      { href: "/admin/orders/new", label: "New Order" }
-    ]
-  },
-  { href: "/admin/services", label: "Domains & Services" },
-  {
-    label: "Products",
-    children: [
-      { href: "/admin/products", label: "Products" },
-      { href: "/admin/products/categories", label: "Categories" },
-      { href: "/admin/products/modules", label: "Modules" }
-    ]
-  },
-  {
-    label: "Billing",
-    children: [{ href: "/admin/invoices", label: "Invoices" }]
-  },
-  {
-    label: "Emails",
-    children: [
-      { href: "/admin/emails", label: "Emails" },
-      { href: "/admin/emails/settings", label: "Settings" },
-      { href: "/admin/emails/template", label: "Templates" },
-      { href: "/admin/emails/logs", label: "Logs" }
-    ]
-  },
-  {
-    label: "Support",
-    children: [
-      { href: "/admin/tickets", label: "All Tickets" },
-      { href: "/admin/tickets/new", label: "New Ticket" },
-      { href: "/admin/tickets/departments", label: "Departments" },
-      { href: "/admin/knowledgebase", label: "Knowledgebase" }
-    ]
-  },
-  {
-    label: "Blog",
-    children: [
-      { href: "/admin/blog", label: "Posts" },
-      { href: "/admin/blog/new", label: "New Post" },
-      { href: "/admin/blog/categories", label: "Categories & Tags" },
-      { href: "/admin/blog/ai-content", label: "AI Content" },
-      { href: "/admin/blog/ai-settings", label: "AI Job Settings" }
-    ]
-  },
-  { href: "/admin/announcements", label: "Announcements" },
-  {
-    label: "Theme",
-    children: [
-      { href: "/admin/theme/blue", label: "Blue" }
-    ]
-  }
-];
+function buildBaseNav(c: AdminDict): NavEntry[] {
+  return [
+    { href: "/admin", label: c.home },
+    {
+      label: c.clients,
+      children: [
+        { href: "/admin/clients", label: c.nav.allClients },
+        { href: "/admin/clients/new", label: c.view.addClient }
+      ]
+    },
+    {
+      label: c.orders,
+      children: [
+        { href: "/admin/orders", label: c.nav.allOrders },
+        { href: "/admin/orders/new", label: c.view.newOrder }
+      ]
+    },
+    { href: "/admin/services", label: c.nav.domainsServices },
+    {
+      label: c.view.products,
+      children: [
+        { href: "/admin/products", label: c.view.products },
+        { href: "/admin/products/categories", label: c.view.categories },
+        { href: "/admin/products/modules", label: c.view.modules }
+      ]
+    },
+    {
+      label: c.eyebrow.billing,
+      children: [{ href: "/admin/invoices", label: c.invoices }]
+    },
+    {
+      label: c.emails,
+      children: [
+        { href: "/admin/emails", label: c.emails },
+        { href: "/admin/emails/settings", label: c.settings },
+        { href: "/admin/emails/template", label: c.nav.templates },
+        { href: "/admin/emails/logs", label: c.logs }
+      ]
+    },
+    {
+      label: c.eyebrow.support,
+      children: [
+        { href: "/admin/tickets", label: c.nav.allTickets },
+        { href: "/admin/tickets/new", label: c.view.newTicket },
+        { href: "/admin/tickets/departments", label: c.view.departments },
+        { href: "/admin/knowledgebase", label: c.knowledgebase }
+      ]
+    },
+    {
+      label: c.blog,
+      children: [
+        { href: "/admin/blog", label: c.nav.posts },
+        { href: "/admin/blog/new", label: c.nav.newPost },
+        { href: "/admin/blog/categories", label: c.view.categoriesTags },
+        { href: "/admin/blog/ai-content", label: c.view.aiContent },
+        { href: "/admin/blog/ai-settings", label: c.view.aiJobSettings }
+      ]
+    },
+    { href: "/admin/announcements", label: c.announcements },
+    {
+      label: c.nav.theme,
+      children: [
+        { href: "/admin/theme/blue", label: "Blue" }
+      ]
+    }
+  ];
+}
 
-const settingsNav: NavEntry = {
-  label: "Settings",
-  children: [
-    { href: "/admin/settings", label: "General Settings" },
-    { href: "/admin/settings/seo", label: "SEO & Social Settings" },
-    { href: "/admin/settings/cron", label: "Cron Settings" },
-    { href: "/admin/settings/admins", label: "Admins & Roles" },
-    { href: "/admin/payment-gateways", label: "Payment Gateways" },
-    { href: "/admin/logs", label: "Logs" }
-  ]
-};
+function buildSettingsNav(c: AdminDict): NavEntry {
+  return {
+    label: c.settings,
+    children: [
+      { href: "/admin/settings", label: c.view.generalSettings },
+      { href: "/admin/settings/seo", label: c.view.seoSocial },
+      { href: "/admin/settings/cron", label: c.view.cronSettings },
+      { href: "/admin/settings/admins", label: c.view.admins },
+      { href: "/admin/payment-gateways", label: c.paymentGateways },
+      { href: "/admin/logs", label: c.logs }
+    ]
+  };
+}
 
 function adminRolesFromToken(): string[] {
   if (typeof window === "undefined") return [];
@@ -116,6 +122,9 @@ function groupContainsPath(group: NavGroup, path: string) {
 }
 
 export function AdminSidebar(_props: { brandLogo?: string }) {
+  const copy = getDictionary(currentLocale()).admin;
+  const baseNav = buildBaseNav(copy);
+  const settingsNav = buildSettingsNav(copy);
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nav, setNav] = useState<NavEntry[]>(baseNav);
@@ -168,13 +177,13 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
       <div className={styles.mobileBar}>
         <button
           aria-expanded={mobileOpen}
-          aria-label="Toggle navigation"
+          aria-label={copy.nav.toggleNav}
           className={styles.mobileToggle}
           onClick={() => setMobileOpen((prev) => !prev)}
           type="button"
         >
           <Menu aria-hidden size={16} />
-          <span>Menu</span>
+          <span>{copy.nav.menu}</span>
           <ChevronRight
             aria-hidden
             className={`${styles.chevron}${mobileOpen ? ` ${styles.chevronOpen}` : ""}`}
@@ -183,7 +192,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
         </button>
         <button className={styles.mobileLogout} onClick={logout} type="button">
           <LogOut aria-hidden size={13} />
-          <span>Log out</span>
+          <span>{copy.logout}</span>
         </button>
       </div>
 
@@ -221,7 +230,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
                 </a>
                 <button
                   aria-expanded={isOpen}
-                  aria-label={`Toggle ${entry.label}`}
+                  aria-label={copy.nav.toggleGroup.replace("{label}", entry.label)}
                   className={styles.chevronBtn}
                   onClick={() => toggle(entry.label)}
                   type="button"
@@ -257,7 +266,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
 
       <button className={styles.logoutBtn} onClick={logout} type="button">
         <LogOut aria-hidden size={14} />
-        Log out
+        {copy.logout}
       </button>
     </aside>
   );

@@ -282,5 +282,26 @@
     "validExceeds": "{a} × {i}h = {t}h — exceeds 24 hours. Reduce articles or interval.",
     "saveJobSettings": "Save Job Settings",
     "jobSettingsSaved": "Job settings saved."
+  },
+  "nav": {
+    "allClients": "All Clients",
+    "allOrders": "All Orders",
+    "domainsServices": "Domains & Services",
+    "templates": "Templates",
+    "allTickets": "All Tickets",
+    "posts": "Posts",
+    "newPost": "New Post",
+    "theme": "Theme",
+    "menu": "Menu",
+    "toggleNav": "Toggle navigation",
+    "toggleGroup": "Toggle {label}"
+  },
+  "crumb": {
+    "seo": "SEO & Social",
+    "tickets": "Tickets",
+    "new": "New",
+    "ticket": "Ticket",
+    "detail": "Detail",
+    "breadcrumb": "Breadcrumb"
   }
 }
