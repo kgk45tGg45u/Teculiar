@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { billingCycles } from "@dezhost/shared";
+import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@dezhost/shared";
 import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
 import { getLocale, type Locale } from "../../lib/i18n";
@@ -85,7 +85,10 @@ export function CheckoutForm({
   const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(defaultPaymentGateways);
   const [domainPrices, setDomainPrices] = useState<ApiDomainPrice[]>([]);
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: "idle" });
-  const [vatPercent, setVatPercent] = useState(0);
+  const [taxCountries, setTaxCountries] = useState<TaxCountryConfig>(DEFAULT_TAX_COUNTRY_CONFIG);
+  // Buyer country drives the VAT estimate. The server recomputes the authoritative VAT (incl.
+  // reverse-charge) at invoice creation; this is the live checkout preview.
+  const [buyerCountry, setBuyerCountry] = useState(profile?.countryCode ?? "DE");
   const [termsUrl, setTermsUrl] = useState("");
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
   const [pendingBankGateway, setPendingBankGateway] = useState<ApiPaymentGateway | undefined>(undefined);
@@ -119,6 +122,12 @@ export function CheckoutForm({
     needsHostingDomain && freeDomainApplies(product, selectedPrice?.billingCycle) && domainCheck.status === "ok" && domainCheck.priceCents <= 1500
   );
   const countries = useMemo(() => countriesForLocale(locale), [locale]);
+  // Country-aware VAT rate for the buyer (resolveVat applies the per-country rate, plus non-EU
+  // export zero-rating). Reverse-charge for EU B2B is finalised server-side.
+  const vatPercent = useMemo(
+    () => resolveVat({ sellerCountryCode: "DE", buyerCountryCode: buyerCountry, isBusinessCustomer: false }, taxCountries).rate,
+    [buyerCountry, taxCountries]
+  );
   const summary = orderSummary({
     addHosting,
     domainCheck,
@@ -137,13 +146,13 @@ export function CheckoutForm({
 
   useEffect(() => {
     void Promise.all([
-      getJson<{ termsUrl?: string; vatPercent: number }>("/storefront/settings")
+      getJson<{ termsUrl?: string; taxCountries?: TaxCountryConfig }>("/storefront/settings")
         .then((settings) => {
-          setVatPercent(settings.vatPercent ?? 0);
+          setTaxCountries(settings.taxCountries ?? DEFAULT_TAX_COUNTRY_CONFIG);
           setTermsUrl(settings.termsUrl ?? "");
         })
         .catch(() => {
-          setVatPercent(0);
+          setTaxCountries(DEFAULT_TAX_COUNTRY_CONFIG);
           setTermsUrl("");
         }),
       getJson<ApiPaymentGateway[]>("/storefront/payment-gateways")
@@ -167,6 +176,7 @@ export function CheckoutForm({
       .then((me) => {
         setProfile(me);
         setPhoneCountryCode(splitProfilePhone(me.phone).countryCode);
+        if (me.countryCode) setBuyerCountry(me.countryCode);
       })
       .catch(() => undefined);
   }, []);
@@ -407,6 +417,7 @@ export function CheckoutForm({
       setProfile(me);
       setLoggedInPassword(loginPassword);
       setPhoneCountryCode(splitProfilePhone(me.phone).countryCode);
+      if (me.countryCode) setBuyerCountry(me.countryCode);
       setPassword("");
       setLoginOpen(false);
       setState({ status: "idle" });
@@ -723,6 +734,7 @@ export function CheckoutForm({
           {!profile ? <ContactFields
             copy={copy}
             countries={countries}
+            onCountry={setBuyerCountry}
             password={password}
             phoneCountryCode={phoneCountryCode}
             setPassword={setPassword}
@@ -734,6 +746,7 @@ export function CheckoutForm({
             copy={copy}
             countries={countries}
             missingFields={missingProfile}
+            onCountry={setBuyerCountry}
             phoneCountryCode={phoneCountryCode}
             profile={profile}
             setPhoneCountryCode={setPhoneCountryCode}
@@ -841,6 +854,7 @@ function PasswordRules({ copy, password }: { copy: CheckoutCopy; password: strin
 function ContactFields({
   copy,
   countries,
+  onCountry,
   password,
   phoneCountryCode,
   setPassword,
@@ -850,6 +864,7 @@ function ContactFields({
 }: {
   copy: CheckoutCopy;
   countries: CountryOption[];
+  onCountry: (code: string) => void;
   password: string;
   phoneCountryCode: string;
   setPassword: (password: string) => void;
@@ -959,6 +974,7 @@ function ContactFields({
               defaultValue="DE"
               name="countryCode"
               onChange={(event) => {
+                onCountry(event.target.value);
                 const country = countries.find((item) => item.code === event.target.value);
                 if (country) setPhoneCountryCode(country.phone);
               }}
@@ -981,6 +997,7 @@ function ProfileCompletionFields({
   copy,
   countries,
   missingFields,
+  onCountry,
   phoneCountryCode,
   profile,
   setPhoneCountryCode
@@ -988,6 +1005,7 @@ function ProfileCompletionFields({
   copy: CheckoutCopy;
   countries: CountryOption[];
   missingFields: ProfileField[];
+  onCountry: (code: string) => void;
   phoneCountryCode: string;
   profile: ClientProfile;
   setPhoneCountryCode: (code: string) => void;
@@ -1058,6 +1076,7 @@ function ProfileCompletionFields({
               defaultValue={profile.countryCode ?? "DE"}
               name="countryCode"
               onChange={(event) => {
+                onCountry(event.target.value);
                 const country = countries.find((item) => item.code === event.target.value);
                 if (country) setPhoneCountryCode(country.phone);
               }}

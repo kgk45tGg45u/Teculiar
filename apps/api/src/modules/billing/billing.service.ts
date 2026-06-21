@@ -1431,7 +1431,7 @@ export class BillingService {
       return sanitizeTaxCountryConfig(stored);
     }
     const legacy = await this.vatPercent();
-    return sanitizeTaxCountryConfig({ default: "DE", rates: { DE: legacy } });
+    return sanitizeTaxCountryConfig({ enabled: true, default: "DE", rates: { DE: legacy } });
   }
 
   // Resolves the VAT a specific buyer pays (country rate + reverse-charge / export rules) using
@@ -1515,9 +1515,10 @@ export class BillingService {
     ]);
 
     const [currencyConfig, languages, taxCountries] = await Promise.all([this.currencyConfig(), this.i18nLanguages(), this.taxCountryConfig()]);
-    // Headline VAT (used where a single number is enough) is the default country's rate; the
-    // checkout uses `taxCountries` to compute the buyer-country rate live.
-    const defaultVatPercent = vatPercentForCountry(taxCountries, taxCountries.default);
+    // Headline VAT (used where a single number is enough) is the default country's rate, or 0 when
+    // VAT charging is switched off; the checkout uses `taxCountries` to compute the buyer-country
+    // rate live.
+    const defaultVatPercent = taxCountries.enabled ? vatPercentForCountry(taxCountries, taxCountries.default) : 0;
 
     return {
       blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard,
@@ -1910,7 +1911,7 @@ export class BillingService {
     logRetentionDays?: number;
     languages?: { main?: string; others?: string[] };
     currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
-    taxCountries?: { default?: string; rates?: Record<string, number> };
+    taxCountries?: { enabled?: boolean; default?: string; rates?: Record<string, number> };
   }) {
     return Promise.all([
       input.languages === undefined ? undefined : this.billing.upsertSettingJson("i18n.languages", sanitizeLanguages(input.languages)),

@@ -50,9 +50,10 @@ test("checkout desktop domain and password action buttons are compact and equal"
   assert.match(checkoutCss, /\.input::placeholder[\s\S]*font-weight: 400/);
 });
 
-test("locale documentation states browser default then saved preference wins everywhere", () => {
+test("locale documentation states the saved preference is used before the browser language everywhere", () => {
   assert.match(localizationDoc, /browser language/i);
-  assert.match(localizationDoc, /saved preference wins/i);
+  assert.match(localizationDoc, /saved preference first/i);
   assert.match(localizationDoc, /dezhost_locale/);
-  assert.match(localizationDoc, /public, client, and admin/i);
+  // Checkout is now an explicit locale surface alongside public/client/admin.
+  assert.match(localizationDoc, /public, client, admin, and checkout/i);
 });

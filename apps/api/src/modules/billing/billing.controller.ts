@@ -373,7 +373,7 @@ export class BillingDevController {
       logRetentionDays?: number;
       languages?: { main?: string; others?: string[] };
       currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
-      taxCountries?: { default?: string; rates?: Record<string, number> };
+      taxCountries?: { enabled?: boolean; default?: string; rates?: Record<string, number> };
     }
   ) {
     return this.billing.updateSettings(body);

@@ -1028,7 +1028,7 @@ export function SettingsForm() {
     termsUrl: "",
     languages: { main: "de", others: ["en"] } as LanguagesValue,
     currencyConfig: { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } } as CurrencyConfigValue,
-    taxCountries: { default: "DE", rates: { DE: 19 } } as TaxCountriesValue
+    taxCountries: { enabled: true, default: "DE", rates: { DE: 19 } } as TaxCountriesValue
   });
 
   useEffect(() => {
@@ -1057,7 +1057,7 @@ export function SettingsForm() {
         termsUrl: p.termsUrl ?? "",
         languages: p.languages?.main ? p.languages : { main: "de", others: ["en"] },
         currencyConfig: p.currencyConfig?.main ? p.currencyConfig : { main: "EUR", others: ["USD"], rates: { USD: { rate: 1, buffer: 0, bufferEnabled: false } } },
-        taxCountries: p.taxCountries?.rates ? p.taxCountries : { default: "DE", rates: { DE: p.vatPercent ?? 19 } }
+        taxCountries: p.taxCountries?.rates ? p.taxCountries : { enabled: true, default: "DE", rates: { DE: p.vatPercent ?? 19 } }
       }))
       .catch(() => undefined);
   }, []);
@@ -1084,9 +1084,9 @@ export function SettingsForm() {
         siteLogoUrl: s.siteLogoUrl,
         siteUrl: String(formData.get("siteUrl") ?? ""),
         termsUrl: String(formData.get("termsUrl") ?? ""),
-        // Keep the legacy flat vatPercent in sync with the default country's rate for any consumer
-        // that still reads it; tax.countries is the source of truth.
-        vatPercent: Number(s.taxCountries.rates[s.taxCountries.default] ?? 19),
+        // Keep the legacy flat vatPercent in sync with the default country's rate (0 when VAT is
+        // switched off) for any consumer that still reads it; tax.countries is the source of truth.
+        vatPercent: s.taxCountries.enabled ? Number(s.taxCountries.rates[s.taxCountries.default] ?? 19) : 0,
         languages: s.languages,
         currencyConfig: s.currencyConfig,
         taxCountries: s.taxCountries

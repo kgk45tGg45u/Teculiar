@@ -11,6 +11,8 @@ export const EU_COUNTRIES = new Set([
 export const DEFAULT_VAT_PERCENT = 19;
 
 export type TaxCountryConfig = {
+  // Global VAT switch. When false, no VAT is charged anywhere regardless of the country rates.
+  enabled: boolean;
   // ISO country code whose rate applies to buyers from any country without its own entry.
   default: string;
   // VAT percentage per uppercase ISO country code.
@@ -18,6 +20,7 @@ export type TaxCountryConfig = {
 };
 
 export const DEFAULT_TAX_COUNTRY_CONFIG: TaxCountryConfig = {
+  enabled: true,
   default: "DE",
   rates: { DE: DEFAULT_VAT_PERCENT }
 };
@@ -44,6 +47,10 @@ export type VatResolution = { rate: number; reverseCharge: boolean; reason: stri
 // and the web checkout estimate alike. Resolves the country rate from `config`, then applies
 // EU reverse-charge and non-EU export rules on top.
 export function resolveVat(context: TaxContext, config: TaxCountryConfig): VatResolution {
+  // Global kill-switch: VAT charging turned off in admin settings.
+  if (!config.enabled) {
+    return { rate: 0, reverseCharge: false, reason: "VAT disabled" };
+  }
   const seller = (context.sellerCountryCode ?? "DE").toUpperCase();
   // Treat a missing buyer country as the default country so checkout never falls through to the
   // non-EU export branch before a country is chosen.
@@ -67,9 +74,12 @@ export function resolveVat(context: TaxContext, config: TaxCountryConfig): VatRe
 // config. Defaults the country to DE and drops non-numeric/negative rates. Always keeps a rate
 // for the default country so `vatPercentForCountry` has a real fallback.
 export function sanitizeTaxCountryConfig(input: {
+  enabled?: unknown;
   default?: unknown;
   rates?: unknown;
 }): TaxCountryConfig {
+  // Default to enabled for legacy configs that predate the global switch.
+  const enabled = input.enabled === undefined ? true : Boolean(input.enabled);
   const def = typeof input.default === "string" && input.default ? input.default.toUpperCase() : "DE";
   const ratesIn = input.rates && typeof input.rates === "object" ? (input.rates as Record<string, unknown>) : {};
   const rates: Record<string, number> = {};
@@ -83,5 +93,5 @@ export function sanitizeTaxCountryConfig(input: {
   if (typeof rates[def] !== "number") {
     rates[def] = DEFAULT_VAT_PERCENT;
   }
-  return { default: def, rates };
+  return { enabled, default: def, rates };
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { countriesForLocale } from "../../lib/countries";
 
-export type TaxCountriesValue = { default: string; rates: Record<string, number> };
+export type TaxCountriesValue = { enabled: boolean; default: string; rates: Record<string, number> };
 
 type Props = {
   value: TaxCountriesValue;
@@ -28,7 +28,7 @@ export function TaxCountrySettings({ value, onChange }: Props) {
     if (typeof rates[code] !== "number") {
       rates[code] = 19;
     }
-    onChange({ default: code, rates });
+    onChange({ ...value, default: code, rates });
   }
   function setRate(code: string, rate: number) {
     onChange({ ...value, rates: { ...value.rates, [code]: rate } });
@@ -52,6 +52,12 @@ export function TaxCountrySettings({ value, onChange }: Props) {
         here falls back to the default country&apos;s rate. EU B2B with a valid VAT ID is reverse-charged (0%) and
         non-EU buyers are zero-rated automatically.
       </p>
+      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })} style={{ width: "auto" }} />
+        Charge VAT
+      </label>
+      {!value.enabled && <p style={muted}>VAT is switched off — no VAT will be charged anywhere.</p>}
+      <fieldset disabled={!value.enabled} style={{ border: "none", padding: 0, margin: 0, display: "grid", gap: 14, opacity: value.enabled ? 1 : 0.5 }}>
       <label>
         Default country
         <select value={value.default} onChange={(e) => setDefault(e.target.value)}>
@@ -83,6 +89,7 @@ export function TaxCountrySettings({ value, onChange }: Props) {
         ))}
         <CountryTypeahead placeholder="Add a country…" options={options} exclude={codes} onPick={addCountry} />
       </div>
+      </fieldset>
     </div>
   );
 }
