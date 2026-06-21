@@ -66,6 +66,16 @@ the user referenced when reordering the deferred items.
    defined fall back to the default country's rate. Keep the existing EU reverse-charge logic (B2B
    cross-border with a valid VAT ID stays 0). Touches: a `tax.countries` SystemSetting (`{ default, rates }`),
    the admin settings UI, `vatPercent()` → country lookup, and the billing engine / checkout / renewal.
+
+   **Known bug to fix here (reported 2026-06-21):** with a 4% VAT set, checkout showed **0 VAT**. VAT is
+   currently computed in **three** unsynced places: the checkout form (`orderSummary`,
+   `subtotal * vatPercent/100`, country-unaware, `vatPercent` from `/storefront/settings` **defaulting to
+   0**), `orders.service.previewOrder` (flat `vatPercent`, country-unaware), and the billing engine
+   `tax.service.resolveVat` (country-aware; zeroes for non-EU / EU B2B reverse-charge; per-line
+   `line.taxRate ?? vat.rate` can be zeroed by a line rate of `0` — the `0 ?? rate` nullish trap). The
+   rewrite must collapse these onto **one country-aware source** (e.g. `vatPercentForCountry(country)`)
+   used by checkout preview, order preview AND invoice creation, pass the buyer country through checkout,
+   and **fall back to the default-country rate, never silently to 0**.
 4. ⏳ **Convert remaining inline `de/en` copy** (do now, per the user) so a 3rd configured language is
    fully covered — marketing page bodies (incl. the IT-Solutions pricing prose), the checkout/login local
    copy maps, and the blog CMS editor. Move each onto the `@dezhost/locales` packs.
