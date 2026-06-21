@@ -2,7 +2,8 @@
 
 import { Bot, Edit2, Plus, Power, PowerOff, Save, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import { ImageUploader } from "../ui/image-uploader";
@@ -21,6 +22,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 // ── BlogPostList ─────────────────────────────────────────────────────────────
 
 export function BlogPostList() {
+  const copy = getDictionary(currentLocale()).admin.blogAdmin;
   const [posts, setPosts] = useState<ApiBlogPost[]>([]);
   const [busy, setBusy] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -46,16 +48,16 @@ export function BlogPostList() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ content: { ...(post.content ?? {}), published: false } })
     });
-    res.ok ? notify.success("Unpublished.") : notify.error("Failed to unpublish.");
+    res.ok ? notify.success(copy.unpublished) : notify.error(copy.unpublishFailed);
     if (res.ok) await refresh();
     setBusy(false);
   }
 
   async function remove(post: ApiBlogPost) {
-    if (!window.confirm(`Delete "${post.title}"?`)) return;
+    if (!window.confirm(copy.confirmDeletePost.replace("{title}", post.title))) return;
     setBusy(true);
     const res = await fetch(`${API_BASE_URL}/cms/pages/${post.id}`, { method: "DELETE", headers: authHeaders() });
-    res.ok ? notify.success("Deleted.") : notify.error("Failed to delete.");
+    res.ok ? notify.success(copy.deleted) : notify.error(copy.deleteFailed);
     if (res.ok) await refresh();
     setBusy(false);
   }
@@ -66,7 +68,7 @@ export function BlogPostList() {
     return (
       <div className={styles.blogTable}>
         <p style={{ padding: "24px 16px", color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          No blog posts yet. <a href="/admin/blog/new">Write the first one →</a>
+          {copy.emptyList} <a href="/admin/blog/new">{copy.writeFirst}</a>
         </p>
       </div>
     );
@@ -75,10 +77,10 @@ export function BlogPostList() {
   return (
     <div className={styles.blogTable}>
       <div className={styles.blogTableHead}>
-        <div className={styles.blogTableCell}>Title</div>
-        <div className={styles.blogTableCell} style={{ textAlign: "center" }}>Lang</div>
-        <div className={styles.blogTableCell} style={{ textAlign: "center" }}>Status</div>
-        <div className={styles.blogTableCell} style={{ textAlign: "right" }}>Actions</div>
+        <div className={styles.blogTableCell}>{copy.colTitle}</div>
+        <div className={styles.blogTableCell} style={{ textAlign: "center" }}>{copy.colLang}</div>
+        <div className={styles.blogTableCell} style={{ textAlign: "center" }}>{copy.colStatus}</div>
+        <div className={styles.blogTableCell} style={{ textAlign: "right" }}>{copy.colActions}</div>
       </div>
       {posts.map((post) => {
         const cats = post.categories ?? (post.category ? [post.category] : []);
@@ -108,7 +110,7 @@ export function BlogPostList() {
             {/* Status */}
             <div className={styles.blogTableCell} style={{ textAlign: "center" }}>
               <span className={`${styles.statusBadge} ${post.publishedAt ? styles.statusPublished : styles.statusDraft}`}>
-                {post.publishedAt ? "Live" : "Draft"}
+                {post.publishedAt ? copy.live : copy.draft}
               </span>
             </div>
             {/* Actions */}
@@ -118,18 +120,18 @@ export function BlogPostList() {
                   type="button"
                   className={styles.rowBtn}
                   onClick={() => setOpenMenu(openMenu === post.id ? null : post.id)}
-                  aria-label="Actions"
+                  aria-label={copy.actions}
                 >
                   ···
                 </button>
                 {openMenu === post.id && (
                   <div className={styles.actionsMenu}>
-                    <a href={`/admin/blog/new?edit=${post.id}`} className={styles.actionsMenuItem}>Edit</a>
-                    <a href={`/${post.locale}/blog/${post.slug}`} target="_blank" rel="noreferrer" className={styles.actionsMenuItem}>View</a>
+                    <a href={`/admin/blog/new?edit=${post.id}`} className={styles.actionsMenuItem}>{copy.edit}</a>
+                    <a href={`/${post.locale}/blog/${post.slug}`} target="_blank" rel="noreferrer" className={styles.actionsMenuItem}>{copy.view}</a>
                     {post.publishedAt && (
-                      <button type="button" className={styles.actionsMenuItem} disabled={busy} onClick={() => { setOpenMenu(null); void unpublish(post); }}>Unpublish</button>
+                      <button type="button" className={styles.actionsMenuItem} disabled={busy} onClick={() => { setOpenMenu(null); void unpublish(post); }}>{copy.unpublish}</button>
                     )}
-                    <button type="button" className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`} disabled={busy} onClick={() => { setOpenMenu(null); void remove(post); }}>Delete</button>
+                    <button type="button" className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`} disabled={busy} onClick={() => { setOpenMenu(null); void remove(post); }}>{copy.delete}</button>
                   </div>
                 )}
               </div>
@@ -144,6 +146,7 @@ export function BlogPostList() {
 // ── BlogPostForm ─────────────────────────────────────────────────────────────
 
 export function BlogPostForm({ editId }: { editId?: string }) {
+  const copy = getDictionary(currentLocale()).admin.blogAdmin;
   const [editing, setEditing] = useState<ApiBlogPost | null>(null);
   const [locale, setLocale] = useState<"de" | "en">("de");
   const [categories, setCategories] = useState<ApiBlogCategory[]>([]);
@@ -280,7 +283,7 @@ export function BlogPostForm({ editId }: { editId?: string }) {
       body: JSON.stringify(payload)
     });
 
-    setMessage(await notifyResponse(res, "Article saved.", "Failed to save article."));
+    setMessage(await notifyResponse(res, copy.articleSaved, copy.articleSaveFailed));
     if (res.ok && !editing) {
       window.location.href = "/admin/blog";
     }
@@ -292,17 +295,17 @@ export function BlogPostForm({ editId }: { editId?: string }) {
     <form action={submit} className={styles.form}>
       {/* ── Core fields ── */}
       <label>
-        Title
-        <input defaultValue={editing?.title ?? ""} name="title" required placeholder="e.g. 10 Tips for Faster Hosting" autoFocus={!editId} />
+        {copy.title}
+        <input defaultValue={editing?.title ?? ""} name="title" required placeholder={copy.titlePlaceholder} autoFocus={!editId} />
       </label>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px", gap: 10 }}>
         <label>
-          Slug
-          <input defaultValue={editing?.slug ?? ""} name="slug" placeholder="auto-generated" />
+          {copy.slug}
+          <input defaultValue={editing?.slug ?? ""} name="slug" placeholder={copy.slugPlaceholder} />
         </label>
         <label>
-          Locale
+          {copy.localeField}
           <select
             name="locale"
             value={locale}
@@ -313,14 +316,14 @@ export function BlogPostForm({ editId }: { editId?: string }) {
           </select>
         </label>
         <label style={{ justifyContent: "flex-end", paddingTop: 20 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4, display: "block" }}>Live</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4, display: "block" }}>{copy.live}</span>
           <input defaultChecked={isPublished} name="published" type="checkbox" style={{ width: 18, height: 18, cursor: "pointer" }} />
         </label>
       </div>
 
       <label>
-        Excerpt
-        <input defaultValue={editing?.excerpt ?? ""} name="excerpt" placeholder="One or two sentences — shown in blog listings" />
+        {copy.excerpt}
+        <input defaultValue={editing?.excerpt ?? ""} name="excerpt" placeholder={copy.excerptPlaceholder} />
       </label>
 
       {/* ── Feature image ── */}
@@ -329,20 +332,20 @@ export function BlogPostForm({ editId }: { editId?: string }) {
           accept="image/png,image/jpeg,image/webp"
           action={`${API_BASE_URL}/cms/admin/dev/blog-assets`}
           headers={authHeaders()}
-          label="Feature image"
+          label={copy.featureImage}
           onUploaded={(payload) => setFeatureImage(String(payload.imageUrl ?? ""))}
           previewUrl={featureImage}
         />
         <label>
-          Image URL
-          <input name="featureImage" value={featureImage} onChange={(e) => setFeatureImage(e.target.value)} placeholder="https://... or upload →" />
+          {copy.imageUrl}
+          <input name="featureImage" value={featureImage} onChange={(e) => setFeatureImage(e.target.value)} placeholder={copy.imageUrlPlaceholder} />
         </label>
       </div>
 
       {/* ── Categories & Tags ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div>
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", display: "block", marginBottom: 6 }}>Categories</span>
+          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", display: "block", marginBottom: 6 }}>{copy.categories}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, minHeight: 28, marginBottom: 7 }}>
             {categories.map((cat) => (
               <button
@@ -354,22 +357,22 @@ export function BlogPostForm({ editId }: { editId?: string }) {
                 {cat.name}
               </button>
             ))}
-            {!categories.length && <span style={{ fontSize: 12, color: "var(--muted)" }}>None yet</span>}
+            {!categories.length && <span style={{ fontSize: 12, color: "var(--muted)" }}>{copy.noneYet}</span>}
           </div>
           <div style={{ display: "flex", gap: 5 }}>
             <input
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addQuickCategory(); } }}
-              placeholder="Add category…"
+              placeholder={copy.addCategoryPlaceholder}
               style={{ flex: 1, fontSize: 12 }}
             />
-            <button type="button" className={styles.rowBtn} onClick={() => void addQuickCategory()}>Add</button>
+            <button type="button" className={styles.rowBtn} onClick={() => void addQuickCategory()}>{copy.add}</button>
           </div>
         </div>
 
         <div>
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", display: "block", marginBottom: 6 }}>Tags</span>
+          <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", display: "block", marginBottom: 6 }}>{copy.tags}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, minHeight: 28, marginBottom: 7 }}>
             {tags.map((tag) => (
               <button
@@ -381,17 +384,17 @@ export function BlogPostForm({ editId }: { editId?: string }) {
                 {tag.name}
               </button>
             ))}
-            {!tags.length && <span style={{ fontSize: 12, color: "var(--muted)" }}>None yet</span>}
+            {!tags.length && <span style={{ fontSize: 12, color: "var(--muted)" }}>{copy.noneYet}</span>}
           </div>
           <div style={{ display: "flex", gap: 5 }}>
             <input
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addQuickTag(); } }}
-              placeholder="Add tag…"
+              placeholder={copy.addTagPlaceholder}
               style={{ flex: 1, fontSize: 12 }}
             />
-            <button type="button" className={styles.rowBtn} onClick={() => void addQuickTag()}>Add</button>
+            <button type="button" className={styles.rowBtn} onClick={() => void addQuickTag()}>{copy.add}</button>
           </div>
         </div>
       </div>
@@ -399,12 +402,12 @@ export function BlogPostForm({ editId }: { editId?: string }) {
       {/* ── SEO (collapsed into small fields) ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <label>
-          SEO Title
-          <input defaultValue={editing?.seoTitle ?? ""} name="seoTitle" placeholder="Defaults to title" />
+          {copy.seoTitle}
+          <input defaultValue={editing?.seoTitle ?? ""} name="seoTitle" placeholder={copy.seoTitlePlaceholder} />
         </label>
         <label>
-          SEO Description
-          <input defaultValue={editing?.seoDescription ?? ""} name="seoDescription" placeholder="150–160 characters" />
+          {copy.seoDescription}
+          <input defaultValue={editing?.seoDescription ?? ""} name="seoDescription" placeholder={copy.seoDescriptionPlaceholder} />
         </label>
       </div>
 
@@ -412,10 +415,10 @@ export function BlogPostForm({ editId }: { editId?: string }) {
       <RichTextEditor initialValue={editing?.content?.body ?? ""} />
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <Button icon={Save} type="submit">{editing ? "Save Changes" : "Publish Article"}</Button>
+        <Button icon={Save} type="submit">{editing ? copy.saveChanges : copy.publishArticle}</Button>
         {editing && (
           <a href="/admin/blog/new" className={styles.rowBtn} style={{ padding: "6px 14px", fontSize: 13 }}>
-            + New Post
+            {copy.newPost}
           </a>
         )}
       </div>
@@ -427,6 +430,7 @@ export function BlogPostForm({ editId }: { editId?: string }) {
 // ── BlogCategoryTagManager ───────────────────────────────────────────────────
 
 export function BlogCategoryTagManager() {
+  const copy = getDictionary(currentLocale()).admin.blogAdmin;
   const [locale, setLocale] = useState<"de" | "en">("de");
   const [categories, setCategories] = useState<ApiBlogCategory[]>([]);
   const [tags, setTags] = useState<ApiBlogTag[]>([]);
@@ -454,7 +458,7 @@ export function BlogCategoryTagManager() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name, locale })
     });
-    res.ok ? notify.success("Category created.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.categoryCreated) : notify.error(copy.failed);
     if (res.ok) { setNewCat(""); await refresh(); }
   }
 
@@ -464,14 +468,14 @@ export function BlogCategoryTagManager() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name })
     });
-    res.ok ? notify.success("Category updated.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.categoryUpdated) : notify.error(copy.failed);
     if (res.ok) { setEditingCat(null); await refresh(); }
   }
 
   async function deleteCategory(id: string) {
-    if (!window.confirm("Delete this category?")) return;
+    if (!window.confirm(copy.confirmDeleteCategory)) return;
     const res = await fetch(`${API_BASE_URL}/cms/admin/dev/blog-categories/${id}`, { method: "DELETE", headers: authHeaders() });
-    res.ok ? notify.success("Deleted.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.deleted) : notify.error(copy.failed);
     if (res.ok) await refresh();
   }
 
@@ -483,7 +487,7 @@ export function BlogCategoryTagManager() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name, locale })
     });
-    res.ok ? notify.success("Tag created.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.tagCreated) : notify.error(copy.failed);
     if (res.ok) { setNewTag(""); await refresh(); }
   }
 
@@ -493,18 +497,18 @@ export function BlogCategoryTagManager() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ name })
     });
-    res.ok ? notify.success("Tag updated.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.tagUpdated) : notify.error(copy.failed);
     if (res.ok) { setEditingTag(null); await refresh(); }
   }
 
   async function deleteTag(id: string) {
-    if (!window.confirm("Delete this tag?")) return;
+    if (!window.confirm(copy.confirmDeleteTag)) return;
     const res = await fetch(`${API_BASE_URL}/cms/admin/dev/blog-tags/${id}`, { method: "DELETE", headers: authHeaders() });
-    res.ok ? notify.success("Deleted.") : notify.error("Failed.");
+    res.ok ? notify.success(copy.deleted) : notify.error(copy.failed);
     if (res.ok) await refresh();
   }
 
-  const localeName = locale === "de" ? "German" : "English";
+  const localeName = locale === "de" ? copy.langGerman : copy.langEnglish;
 
   return (
     <div>
@@ -518,27 +522,27 @@ export function BlogCategoryTagManager() {
             className={locale === loc ? styles.chipBlueActive : styles.chipBlue}
             style={{ fontSize: 13, padding: "4px 14px" }}
           >
-            {loc === "de" ? "🇩🇪 German" : "🇬🇧 English"}
+            {loc === "de" ? copy.chipGerman : copy.chipEnglish}
           </button>
         ))}
         <span style={{ fontSize: 13, color: "var(--muted)", alignSelf: "center", marginLeft: 8 }}>
-          Managing {localeName} categories and tags
+          {copy.managing.replace("{lang}", localeName)}
         </span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "start" }}>
         {/* Categories */}
         <div>
-          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Categories ({localeName})</h3>
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>{copy.categoriesOf.replace("{lang}", localeName)}</h3>
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <input
               value={newCat}
               onChange={(e) => setNewCat(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void createCategory(); } }}
-              placeholder={`New ${localeName} category…`}
+              placeholder={copy.newCategoryPlaceholder.replace("{lang}", localeName)}
               style={{ flex: 1 }}
             />
-            <Button type="button" icon={Plus} size="sm" onClick={() => void createCategory()}>Add</Button>
+            <Button type="button" icon={Plus} size="sm" onClick={() => void createCategory()}>{copy.add}</Button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {categories.map((cat) => (
@@ -554,22 +558,22 @@ export function BlogCategoryTagManager() {
                 )}
               </div>
             ))}
-            {!categories.length && <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>No {localeName} categories yet.</p>}
+            {!categories.length && <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>{copy.noCategories.replace("{lang}", localeName)}</p>}
           </div>
         </div>
 
         {/* Tags */}
         <div>
-          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Tags ({localeName})</h3>
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>{copy.tagsOf.replace("{lang}", localeName)}</h3>
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <input
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void createTag(); } }}
-              placeholder={`New ${localeName} tag…`}
+              placeholder={copy.newTagPlaceholder.replace("{lang}", localeName)}
               style={{ flex: 1 }}
             />
-            <Button type="button" icon={Plus} size="sm" onClick={() => void createTag()}>Add</Button>
+            <Button type="button" icon={Plus} size="sm" onClick={() => void createTag()}>{copy.add}</Button>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {tags.map((tag) => (
@@ -585,7 +589,7 @@ export function BlogCategoryTagManager() {
                 )}
               </div>
             ))}
-            {!tags.length && <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>No {localeName} tags yet.</p>}
+            {!tags.length && <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>{copy.noTags.replace("{lang}", localeName)}</p>}
           </div>
         </div>
       </div>
@@ -627,6 +631,7 @@ type AiSettings = {
 };
 
 export function AiContentManager() {
+  const copy = getDictionary(currentLocale()).admin.blogAdmin;
   const [s, setS] = useState<AiSettings>({
     aiBlogEnabled: false,
     aiBlogTopicsPool: "",
@@ -668,8 +673,8 @@ export function AiContentManager() {
     });
     if (res.ok) setS((prev) => ({ ...prev, aiBlogEnabled: next }));
     res.ok
-      ? notify.success(next ? "AI Content enabled." : "AI Content disabled.")
-      : notify.error("Failed.");
+      ? notify.success(next ? copy.aiEnabled : copy.aiDisabled)
+      : notify.error(copy.failed);
     setToggling(false);
   }
 
@@ -688,7 +693,7 @@ export function AiContentManager() {
         aiBlogLanguage: String(formData.get("aiBlogLanguage") ?? "de")
       })
     });
-    setMessage(await notifyResponse(res, "AI settings saved.", "Failed to save."));
+    setMessage(await notifyResponse(res, copy.aiSettingsSaved, copy.saveFailedShort));
   }
 
   const isOn = Boolean(s.aiBlogEnabled);
@@ -704,14 +709,14 @@ export function AiContentManager() {
     });
     if (res.ok) {
       const data = await res.json() as { id?: string; title?: string };
-      const msg = `Generated: "${data.title ?? data.id}"`;
+      const msg = `${copy.generatedPrefix}"${data.title ?? data.id}"`;
       notify.success(msg);
       setGenerateResult(msg);
     } else {
       const data = await res.json().catch(() => ({})) as { message?: string };
-      const msg = data.message ?? "Generation failed — check API logs";
+      const msg = data.message ?? copy.generationFailed;
       notify.error(msg);
-      setGenerateResult(`Error: ${msg}`);
+      setGenerateResult(`${copy.errorPrefix}${msg}`);
     }
     setGenerating(false);
   }
@@ -721,13 +726,13 @@ export function AiContentManager() {
       {/* On/Off Toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 0", borderBottom: "1px solid var(--border)", marginBottom: 16 }}>
         <div style={{ flex: 1 }}>
-          <strong>AI Content Generation</strong>
+          <strong>{copy.aiContentGeneration}</strong>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: "2px 0 0" }}>
-            {isOn ? "Running — the cron job will generate articles on schedule." : "Paused — turn on to enable the cron-based schedule."}
+            {isOn ? copy.aiRunning : copy.aiPaused}
           </p>
         </div>
         <Button type="button" variant="secondary" size="sm" disabled={generating} onClick={() => void generateNow()}>
-          {generating ? "Generating…" : "Generate Now"}
+          {generating ? copy.generating : copy.generateNow}
         </Button>
         <Button
           type="button"
@@ -736,7 +741,7 @@ export function AiContentManager() {
           disabled={toggling}
           onClick={() => void toggleEnabled()}
         >
-          {isOn ? "ON" : "OFF"}
+          {isOn ? copy.on : copy.off}
         </Button>
       </div>
       {generateResult && (
@@ -748,71 +753,71 @@ export function AiContentManager() {
       <form action={submit} className={styles.form}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <label>
-            Article language
+            {copy.articleLanguage}
             <select name="aiBlogLanguage" value={s.aiBlogLanguage} onChange={(e) => setS((p) => ({ ...p, aiBlogLanguage: e.target.value }))}>
-              <option value="de">German (+ English translation)</option>
-              <option value="en">English (+ German translation)</option>
-              <option value="random">Random (DE or EN per article)</option>
+              <option value="de">{copy.langDeOption}</option>
+              <option value="en">{copy.langEnOption}</option>
+              <option value="random">{copy.langRandomOption}</option>
             </select>
           </label>
           <label>
-            Target word count
+            {copy.targetWordCount}
             <input name="aiBlogWordCount" type="number" min={200} max={5000} step={100} value={s.aiBlogWordCount} onChange={(e) => setS((p) => ({ ...p, aiBlogWordCount: Number(e.target.value) }))} />
           </label>
         </div>
 
         <label>
-          Topics pool
+          {copy.topicsPool}
           <small style={{ color: "var(--muted)", display: "block", marginBottom: 4 }}>
-            One topic per line. The AI picks one randomly and finds a fresh angle for each article.
+            {copy.topicsPoolHint}
           </small>
           <textarea
             name="aiBlogTopicsPool"
             rows={8}
             value={s.aiBlogTopicsPool}
             onChange={(e) => setS((p) => ({ ...p, aiBlogTopicsPool: e.target.value }))}
-            placeholder={"Web hosting security\nManaged WordPress hosting\nEmail hosting tips\nDomain name strategy\nSSL certificates explained\nWebsite speed optimization"}
+            placeholder={copy.topicsPoolPlaceholder}
             style={{ width: "100%", fontFamily: "monospace", fontSize: 13, resize: "vertical" }}
           />
         </label>
 
-        <h4 style={{ margin: "4px 0 0" }}>Prompt customization</h4>
+        <h4 style={{ margin: "4px 0 0" }}>{copy.promptCustomization}</h4>
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "2px 0 8px" }}>
-          Leave blank to use sensible defaults. These instructions are appended to the Deepseek system prompt.
+          {copy.promptCustomizationHint}
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <label>
-            Title guidance
-            <input name="aiBlogTitlePrompt" value={s.aiBlogTitlePrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogTitlePrompt: e.target.value }))} placeholder="e.g. Keep titles under 65 chars, include main keyword" />
+            {copy.titleGuidance}
+            <input name="aiBlogTitlePrompt" value={s.aiBlogTitlePrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogTitlePrompt: e.target.value }))} placeholder={copy.titleGuidancePlaceholder} />
           </label>
           <label>
-            Excerpt guidance
-            <input name="aiBlogExcerptPrompt" value={s.aiBlogExcerptPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogExcerptPrompt: e.target.value }))} placeholder="e.g. 1-2 sentences, conversational tone" />
+            {copy.excerptGuidance}
+            <input name="aiBlogExcerptPrompt" value={s.aiBlogExcerptPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogExcerptPrompt: e.target.value }))} placeholder={copy.excerptGuidancePlaceholder} />
           </label>
           <label>
-            Tags guidance
-            <input name="aiBlogTagsPrompt" value={s.aiBlogTagsPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogTagsPrompt: e.target.value }))} placeholder="e.g. Max 5 tags, lowercase only" />
+            {copy.tagsGuidance}
+            <input name="aiBlogTagsPrompt" value={s.aiBlogTagsPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogTagsPrompt: e.target.value }))} placeholder={copy.tagsGuidancePlaceholder} />
           </label>
           <label>
-            SEO/keywords guidance
-            <input name="aiBlogKeywordsPrompt" value={s.aiBlogKeywordsPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogKeywordsPrompt: e.target.value }))} placeholder="e.g. Target German SME market, include region names" />
+            {copy.keywordsGuidance}
+            <input name="aiBlogKeywordsPrompt" value={s.aiBlogKeywordsPrompt} onChange={(e) => setS((p) => ({ ...p, aiBlogKeywordsPrompt: e.target.value }))} placeholder={copy.keywordsGuidancePlaceholder} />
           </label>
           <label style={{ gridColumn: "1 / -1" }}>
-            Content guidance
+            {copy.contentGuidance}
             <textarea
               name="aiBlogContentPrompt"
               rows={3}
               value={s.aiBlogContentPrompt}
               onChange={(e) => setS((p) => ({ ...p, aiBlogContentPrompt: e.target.value }))}
-              placeholder="e.g. Write for SME owners. Include practical examples. Use subheadings every 300 words. Friendly but professional tone."
+              placeholder={copy.contentGuidancePlaceholder}
               style={{ width: "100%", resize: "vertical" }}
             />
           </label>
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-          <Button icon={Save} type="submit">Save Settings</Button>
+          <Button icon={Save} type="submit">{copy.saveSettings}</Button>
         </div>
         {message && <p style={{ fontSize: 13, margin: 0 }}>{message}</p>}
       </form>
@@ -823,6 +828,7 @@ export function AiContentManager() {
 // ── AiJobSettingsForm ────────────────────────────────────────────────────────
 
 export function AiJobSettingsForm() {
+  const copy = getDictionary(currentLocale()).admin.blogAdmin;
   const [articlesPerDay, setArticlesPerDay] = useState(3);
   const [intervalHours, setIntervalHours] = useState(8);
   const [message, setMessage] = useState("");
@@ -839,9 +845,10 @@ export function AiJobSettingsForm() {
 
   const totalHours = articlesPerDay * intervalHours;
   const isValid = totalHours <= 24;
-  const validationMsg = isValid
-    ? `${articlesPerDay} articles × ${intervalHours}h interval = ${totalHours}h total ✓`
-    : `${articlesPerDay} × ${intervalHours}h = ${totalHours}h — exceeds 24 hours. Reduce articles or interval.`;
+  const validationMsg = (isValid ? copy.validOk : copy.validExceeds)
+    .replace("{a}", String(articlesPerDay))
+    .replace("{i}", String(intervalHours))
+    .replace("{t}", String(totalHours));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -851,18 +858,18 @@ export function AiJobSettingsForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ aiBlogArticlesPerDay: articlesPerDay, aiBlogIntervalHours: intervalHours })
     });
-    setMessage(await notifyResponse(res, "Job settings saved.", "Failed to save."));
+    setMessage(await notifyResponse(res, copy.jobSettingsSaved, copy.saveFailedShort));
   }
 
   return (
     <form onSubmit={(e) => void submit(e)} className={styles.form}>
       <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
-        The AI blog job runs each time the main cron executes. It checks if enough time has passed since the last article and whether the daily limit is reached.
+        {copy.aiJobIntro}
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "end" }}>
         <label>
-          Articles per day
+          {copy.articlesPerDay}
           <input
             type="number"
             min={1}
@@ -872,7 +879,7 @@ export function AiJobSettingsForm() {
           />
         </label>
         <label>
-          Interval between articles (hours)
+          {copy.intervalHours}
           <input
             type="number"
             min={1}
@@ -895,7 +902,7 @@ export function AiJobSettingsForm() {
       </p>
 
       <div style={{ display: "flex", gap: 8 }}>
-        <Button icon={Save} type="submit" disabled={!isValid}>Save Job Settings</Button>
+        <Button icon={Save} type="submit" disabled={!isValid}>{copy.saveJobSettings}</Button>
       </div>
       {message && <p style={{ fontSize: 13, margin: 0 }}>{message}</p>}
     </form>
