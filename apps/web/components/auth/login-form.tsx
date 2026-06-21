@@ -4,6 +4,7 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { API_BASE_URL, storeAuth, type AuthPayload } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import type { Locale } from "../../lib/i18n";
 import { notify } from "../ui/toast-provider";
 import styles from "./login-form.module.css";
@@ -17,7 +18,7 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
   const [forgotMode, setForgotMode] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
   const [resetSent, setResetSent] = useState(false);
-  const copy = loginCopy[locale === "en" ? "en" : "de"];
+  const copy = getDictionary(locale).storefront.login;
 
   async function submit(formData: FormData) {
     setError("");
@@ -199,50 +200,3 @@ function safeNext(next: string | null, fallback: string) {
   }
   return next;
 }
-
-const loginCopy = {
-  de: {
-    adminRequired: "Admin-Zugriff erforderlich.",
-    adminTitle: "Admin-Anmeldung",
-    backToLogin: "Zurück zur Anmeldung",
-    clientTitle: "Anmelden",
-    emailPlaceholder: "deine@email.de",
-    forgotPassword: "Passwort vergessen?",
-    forgotSubtitle: "Gib deine E-Mail-Adresse ein – wir schicken dir einen Link.",
-    forgotTitle: "Passwort zurücksetzen",
-    hidePassword: "Passwort verbergen",
-    loading: "Bitte warten...",
-    loginButton: "Anmelden",
-    loginFailed: "Anmeldung fehlgeschlagen.",
-    loginSuccess: "Anmeldung erfolgreich.",
-    passwordPlaceholder: "••••••••",
-    rememberMe: "Angemeldet bleiben",
-    resetFailed: "Passwort-Zurücksetzen fehlgeschlagen.",
-    resetSent: "Falls das Konto existiert, wurde ein Zurücksetzen-Link verschickt.",
-    sendReset: "Link senden",
-    showPassword: "Passwort anzeigen",
-    subtitle: "Gib deine Anmeldedaten ein, um fortzufahren."
-  },
-  en: {
-    adminRequired: "Admin access required.",
-    adminTitle: "Admin Login",
-    backToLogin: "Back to login",
-    clientTitle: "Login to your account",
-    emailPlaceholder: "you@example.com",
-    forgotPassword: "Forgot password?",
-    forgotSubtitle: "Enter your email and we'll send you a reset link.",
-    forgotTitle: "Reset your password",
-    hidePassword: "Hide password",
-    loading: "Please wait...",
-    loginButton: "Sign in",
-    loginFailed: "Login failed.",
-    loginSuccess: "Login successful.",
-    passwordPlaceholder: "••••••••",
-    rememberMe: "Remember me",
-    resetFailed: "Password reset failed.",
-    resetSent: "If an account exists, a reset link has been sent.",
-    sendReset: "Send reset link",
-    showPassword: "Show password",
-    subtitle: "Enter your credentials to access your account."
-  }
-} satisfies Record<Locale, Record<string, string>>;

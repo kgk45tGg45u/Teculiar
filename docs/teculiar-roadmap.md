@@ -77,9 +77,22 @@ the user referenced when reordering the deferred items.
    unsynced places (checkout `orderSummary` country-unaware with `vatPercent` defaulting to 0,
    `orders.service.previewOrder` flat, and the billing engine) — now collapsed onto the one shared
    country-aware resolver; the buyer country is threaded through checkout.
-4. ⏳ **Convert remaining inline `de/en` copy** (do now, per the user) so a 3rd configured language is
-   fully covered — marketing page bodies (incl. the IT-Solutions pricing prose), the checkout/login local
-   copy maps, and the blog CMS editor. Move each onto the `@dezhost/locales` packs.
+4. ⏳ **Move all user-visible *dashboard/checkout/auth* chrome onto the `@dezhost/locales` packs**
+   (do now, per the user) so a 3rd configured language has **zero untranslated chrome**. Scope clarified
+   2026-06-21:
+   - **IN scope:** every user-visible string in **checkout** (`checkout-form.tsx`), **auth**
+     (`login-form.tsx`, `signup-form.tsx`), and the **admin + client dashboards** — both the bilingual
+     `{de,en}` copy maps / `isDe ? … : …` ternaries *and* the bare English-only (or German-only) literals
+     that were never bilingual (button labels, table headers, toasts, placeholders, `aria-label`s, …).
+     Several admin components don't yet receive a `locale`; thread it in so they can read the packs.
+   - **OUT of scope (handled by later phases — do NOT pack these):**
+     - **Marketing / storefront page content** (home, web-hosting, VPS, reseller, IT-Solutions incl. the
+       pricing prose, web-design, domains, about, contact, legal, blog post bodies). These get
+       per-element translations through the **Phase 3 Customizer** (per-element editing), not packs.
+     - **Product names & descriptions** — these become **per-language input fields in the Admin panel**
+       (authored data, not pack keys), added in a later phase.
+   The blog **admin editor's chrome** (buttons/labels/language chips) IS packed; the blog **post content**
+   it edits is per-locale data, left as-is.
 
 ### Phase 1 — deferred (after the country-VAT step above)
 
@@ -183,6 +196,10 @@ architecture should be designed in a dedicated session before building.
 ### Locale-awareness
 - **Prices, numbers and dates are their own element types** so they update automatically from the system's
   locale/currency settings. The Customizer must render locale-aware previews.
+- **This phase owns the marketing/storefront copy i18n that Phase 1 deliberately left inline.** All
+  home/web-hosting/VPS/reseller/IT-Solutions/web-design/domains/about/contact/legal page text (today's
+  `isDe ? … : …` ternaries) becomes **per-element, per-language content** here — it is NOT moved onto the
+  `@dezhost/locales` packs. (Packs stay for dashboard/checkout/auth chrome + emails/invoices only.)
 
 ### Storage — locked decision
 - Each page is a **versioned JSON layout document**: an ordered **tree of typed nodes** (sections →

@@ -1,3 +1,5 @@
+import { getDictionary } from "./dictionary";
+
 export type BotChallenge = { answer: string; startTime: number; text: string };
 
 export function createChallenge(locale: string): BotChallenge {
@@ -6,6 +8,6 @@ export function createChallenge(locale: string): BotChallenge {
   return {
     answer: String(a + b),
     startTime: Date.now(),
-    text: locale === "de" ? `Was ist ${a} + ${b}?` : `What is ${a} + ${b}?`
+    text: getDictionary(locale).storefront.botCheck.question.replace("{a}", String(a)).replace("{b}", String(b))
   };
 }

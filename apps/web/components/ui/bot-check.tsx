@@ -1,6 +1,7 @@
 "use client";
 
 import type { BotChallenge } from "../../lib/bot-challenge";
+import { getDictionary } from "../../lib/dictionary";
 import styles from "./bot-check.module.css";
 
 export type { BotChallenge };
@@ -46,7 +47,7 @@ export function BotCheck({ challenge, locale = "en" }: { challenge: BotChallenge
           inputMode="numeric"
           maxLength={3}
           name="_bot_response"
-          placeholder={locale === "de" ? "Ihre Antwort" : "Your answer"}
+          placeholder={getDictionary(locale).storefront.botCheck.placeholder}
           required
           type="text"
         />
@@ -57,25 +58,21 @@ export function BotCheck({ challenge, locale = "en" }: { challenge: BotChallenge
 
 /** Call at the top of a form submit handler. Returns null on pass, an error string on fail. */
 export function validateBotCheck(formData: FormData, locale = "en"): string | null {
-  const de = locale === "de";
+  const copy = getDictionary(locale).storefront.botCheck;
 
   if (String(formData.get("_hp_website") ?? "").trim()) {
-    return de ? "Bot erkannt." : "Bot detected.";
+    return copy.botDetected;
   }
 
   const ts = Number(formData.get("_bot_ts") ?? 0);
   if (ts > 0 && Date.now() - ts < 3000) {
-    return de
-      ? "Bitte warten Sie einen Moment, bevor Sie absenden."
-      : "Please wait a moment before submitting.";
+    return copy.tooFast;
   }
 
   const expected = String(formData.get("_bot_answer") ?? "");
   const response = String(formData.get("_bot_response") ?? "").trim();
   if (!expected || expected !== response) {
-    return de
-      ? "Bitte beantworten Sie die Sicherheitsfrage korrekt."
-      : "Please answer the security question correctly.";
+    return copy.wrongAnswer;
   }
 
   return null;

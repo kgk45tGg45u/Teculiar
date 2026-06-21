@@ -5,7 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@dezhost/shared";
 import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "../../lib/api";
 import { countriesForLocale } from "../../lib/countries";
-import { getLocale, type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
 import styles from "./checkout-form.module.css";
@@ -60,6 +60,7 @@ export function CheckoutForm({
   locale,
   product
 }: CheckoutFormProps) {
+  const copy = buildCheckoutCopy(locale);
   const firstPrice = product.type === "DOMAIN"
     ? product.prices.find((price) => price.billingCycle.startsWith("YEAR_")) ?? product.prices[0]
     : product.prices[0];
@@ -82,7 +83,7 @@ export function CheckoutForm({
   const [selectedHostingId, setSelectedHostingId] = useState(hostingProducts[0]?.id ?? "");
   const [selectedHostingPriceId, setSelectedHostingPriceId] = useState(hostingProducts[0]?.prices[0]?.id ?? "");
   const [phoneCountryCode, setPhoneCountryCode] = useState(splitProfilePhone().countryCode);
-  const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(defaultPaymentGateways);
+  const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(() => buildDefaultGateways(copy));
   const [domainPrices, setDomainPrices] = useState<ApiDomainPrice[]>([]);
   const [domainCheck, setDomainCheck] = useState<DomainCheck>({ status: "idle" });
   const [taxCountries, setTaxCountries] = useState<TaxCountryConfig>(DEFAULT_TAX_COUNTRY_CONFIG);
@@ -92,9 +93,7 @@ export function CheckoutForm({
   const [termsUrl, setTermsUrl] = useState("");
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
   const [pendingBankGateway, setPendingBankGateway] = useState<ApiPaymentGateway | undefined>(undefined);
-  const uiLocale = checkoutLocale(locale);
-  const copy = checkoutCopy[uiLocale];
-  const termsHref = termsUrl || `/${checkoutLocale(locale)}/legal/agb`;
+  const termsHref = termsUrl || `/${locale}/legal/agb`;
   const missingProfile = profile ? missingProfileFields(profile) : [];
   const domainPriceAction = domainCheck.status === "ok" ? domainCheck.action : initialDomainAction;
   const selectablePrices = useMemo(
@@ -130,6 +129,7 @@ export function CheckoutForm({
   );
   const summary = orderSummary({
     addHosting,
+    copy,
     domainCheck,
     domainName: domainNameInput,
     domainProduct,
@@ -157,7 +157,7 @@ export function CheckoutForm({
         }),
       getJson<ApiPaymentGateway[]>("/storefront/payment-gateways")
         .then((gateways) => {
-          const next = gateways.length ? gateways : defaultPaymentGateways;
+          const next = gateways.length ? gateways : buildDefaultGateways(copy);
           setPaymentGateways(next);
           setPaymentMethod(next[0]?.method ?? "CREDIT_CARD");
         })
@@ -455,7 +455,7 @@ export function CheckoutForm({
               >
                 {selectablePrices.map((price) => (
                   <option key={priceSelectionKey(price, product.type)} value={priceSelectionKey(price, product.type)}>
-                    {cycleLabel(price.billingCycle, uiLocale)}
+                    {cycleLabel(price.billingCycle, locale)}
                     {product.type === "DOMAIN" && price.amountCents > 0 ? ` — ${money(price.amountCents, price.currency)}` : ""}
                     {product.type === "DOMAIN" ? "" : ` — ${money(price.amountCents, price.currency)}`}
                   </option>
@@ -697,7 +697,7 @@ export function CheckoutForm({
                       </div>
                       <span className={styles.hostingCardDesc}>{hosting.description}</span>
                       <ul className={styles.hostingCardFeatures}>
-                        {productHighlights(hosting).map((highlight) => <li key={highlight}>{highlight}</li>)}
+                        {productHighlights(hosting, copy).map((highlight) => <li key={highlight}>{highlight}</li>)}
                       </ul>
                       <select
                         className={styles.hostingCycleSelect}
@@ -709,7 +709,7 @@ export function CheckoutForm({
                       >
                         {hosting.prices.map((price) => (
                           <option key={price.id} value={price.id}>
-                            {cycleLabel(price.billingCycle, uiLocale)} — {money(price.amountCents, price.currency)}
+                            {cycleLabel(price.billingCycle, locale)} — {money(price.amountCents, price.currency)}
                           </option>
                         ))}
                       </select>
@@ -773,7 +773,7 @@ export function CheckoutForm({
             {paymentMethod === "SEPA" && (
               <div className={styles.formGroup} style={{ marginTop: "12px" }}>
                 <label className={styles.label} htmlFor="sepaIban">
-                  {locale === "de" ? "IBAN" : "IBAN"}
+                  {copy.iban}
                 </label>
                 <input
                   autoComplete="off"
@@ -1185,8 +1185,22 @@ function focusByName(name: string) {
   field?.focus();
 }
 
-function checkoutLocale(locale: string): keyof typeof checkoutCopy {
-  return locale === "en" ? "en" : "de";
+// Checkout copy comes from the shared @dezhost/locales storefront pack (English fallback per key),
+// so any configured language is covered. The four interpolated entries are wrapped back into
+// functions over the pack's `{domain}`/`{action}` templates.
+function buildCheckoutCopy(locale: string) {
+  const c = getDictionary(locale).storefront.checkout;
+  const actionWord = (action: "register" | "transfer") =>
+    action === "transfer" ? c.domainActionTransfer : c.domainActionRegister;
+  return {
+    ...c,
+    domainAvailable: (domain: string) => c.domainAvailable.replace("{domain}", domain),
+    domainUnavailable: (domain: string) => c.domainUnavailable.replace("{domain}", domain),
+    domainCheckResult: (domain: string, action: "register" | "transfer") =>
+      c.domainCheckResult.replace("{domain}", domain).replace("{action}", actionWord(action)),
+    domainCheckSuccess: (domain: string, available: boolean) =>
+      c.domainCheckSuccess.replace("{domain}", domain).replace("{action}", available ? c.domainActionRegister : c.domainActionTransfer)
+  };
 }
 
 function missingProfileFields(profile: ClientProfile): ProfileField[] {
@@ -1268,217 +1282,16 @@ function splitProfilePhone(phone?: string) {
   };
 }
 
-const checkoutCopy = {
-  de: {
-    addHosting: "+ Hosting hinzufügen",
-    bankAccountHolder: "Kontoinhaber",
-    bankNameLabel: "Bank",
-    bankReference: "Verwendungszweck",
-    bankTransferPending: "Ihre Bestellung wurde aufgenommen. Bitte überweisen Sie den Betrag auf unser Konto. Sie erhalten Ihre Zugangsdaten per E-Mail nach Zahlungseingang.",
-    sepaPending: "Ihre Bestellung wurde aufgenommen. Die SEPA-Lastschrift wird innerhalb von 1–3 Werktagen verarbeitet. Sie erhalten Ihre Zugangsdaten per E-Mail nach Bestätigung.",
-    addHostingTitle: "Hosting hinzufügen",
-    addNameServers: "+ Eigene Name-Server hinzufügen",
-    addressTitle: "Adresse",
-    authCode: "Auth-Code",
-    billingCycle: "Abrechnungszeitraum",
-    cancel: "Abbrechen",
-    city: "Stadt",
-    close: "Schließen",
-    company: "Unternehmen",
-    companyName: "Firmenname",
-    companyPlaceholder: "Nur für Geschäftskunden",
-    country: "Land",
-    domain: "Domain",
-    domainActionRegister: "registriert",
-    domainActionTransfer: "transferiert",
-    domainAvailable: (domain: string) => `${domain} ist verfügbar und kann zur Bestellung hinzugefügt werden.`,
-    domainCheck: "Domain prüfen",
-    domainCheckFailed: "Domainprüfung fehlgeschlagen.",
-    domainCheckLoading: "Domainprüfung läuft...",
-    domainCheckResult: (domain: string, action: "register" | "transfer") => `${domain} wird ${action === "register" ? "registriert" : "transferiert"}.`,
-    domainCheckSuccess: (domain: string, available: boolean) => `${domain} wird ${available ? "registriert" : "transferiert"}.`,
-    domainChecking: "Prüfe Domain...",
-    domainMissing: "Domain fehlt.",
-    domainName: "Domain-Name",
-    domainOnly: "Nur Domain",
-    domainOptionalNote: "Eine Domain ist für diesen Dienst optional – leer lassen, um ohne Domain zu bestellen.",
-    domainUnavailable: (domain: string) => `${domain} ist nicht verfügbar.`,
-    editDomain: "Domain bearbeiten",
-    editHosting: "Hosting bearbeiten",
-    email: "E-Mail",
-    existingCustomer: "Bereits Kunde?",
-    freeDomainIncluded: "Diese Domain ist bei dieser Laufzeit kostenlos enthalten.",
-    freeDomainLimit: "Diese Domain kostet mehr als 15 EUR und ist nicht kostenlos enthalten.",
-    generate: "Generieren",
-    hideNameServers: "Eigene Name-Server ausblenden",
-    hidePassword: "Passwort verstecken",
-    hostingActivating: "Hosting account is being activated.",
-    hostingAdded: "Hosting wurde zur Bestellung hinzugefügt.",
-    hostingDomain: "Domain für Hosting",
-    hostingUpsell: "Eine Domain allein zeigt noch keine Website. Buche direkt ein passendes Hosting-Paket dazu.",
-    keepExternal: "Domain extern belassen",
-    loggedInAs: "Eingeloggt als",
-    login: "Einloggen",
-    loginFailed: "Login fehlgeschlagen.",
-    loginRunning: "Login läuft...",
-    loginSuccess: "Login erfolgreich.",
-    name: "Name",
-    nameServers: "Name-Server",
-    noPrice: "Kein Preis für dieses Produkt gefunden.",
-    optional: "optional",
-    orderCreated: "Bestellung erstellt.",
-    orderCreating: "Bestellung wird erstellt...",
-    orderEyebrow: "Ihre Bestellung",
-    orderFailed: "Bestellung fehlgeschlagen.",
-    password: "Passwort",
-    passwordRuleLength: "9-16 Zeichen",
-    passwordRuleLower: "Kleinbuchstaben",
-    passwordRuleNumber: "Zahlen",
-    passwordRuleSpecial: "Sonderzeichen",
-    passwordRuleUpper: "Großbuchstaben",
-    passwordWeak: "Passwort erfüllt die Regeln nicht.",
-    paymentMethod: "Zahlungsmethode",
-    paymentRedirect: "Weiterleitung zum Zahlungsanbieter...",
-    paymentFailed: "Zahlung fehlgeschlagen",
-    paymentRunning: "Sandbox-Zahlung läuft...",
-    paymentSuccess: "Zahlung erfolgreich.",
-    personalData: "Persönliche Daten",
-    phone: "Telefon",
-    phoneCode: "Ländervorwahl",
-    portalLink: "Zum Portal",
-    portalRedirect: "Bezahlt. Weiterleitung ins Kundenportal...",
-    postalCode: "PLZ",
-    profileCompletionHelp: "Ihr Konto ist erkannt. Bitte ergänzen Sie nur die fehlenden Profildaten für diese Bestellung.",
-    profileCompletionTitle: "Fehlende Profildaten",
-    profileConfirm: "Ich bestätige, dass diese Angaben für die Bestellung korrekt sind.",
-    profileConfirmRequired: "Bitte fehlende Profildaten bestätigen.",
-    profileMissingError: "Bitte fehlende Profildaten vollständig ausfüllen.",
-    remove: "entfernen",
-    showPassword: "Passwort anzeigen",
-    state: "Bundesland",
-    street: "Straße & Hausnummer",
-    submit: "Kostenpflichtig bestellen",
-    summary: "Zusammenfassung",
-    termsLink: "AGB",
-    termsPrefix: "Ich akzeptiere die",
-    termsRequired: "Bitte AGB bestätigen.",
-    termsSuffix: ".",
-    total: "Gesamtbetrag",
-    transferDomain: "Domain zu Dezhost transferieren",
-    vat: "MwSt.",
-    vatId: "USt-Id",
-    yearlyFreeDomain: "Jahreslaufzeiten enthalten eine kostenlose Domain bis 15 EUR."
-  },
-  en: {
-    addHosting: "+ Add hosting",
-    bankAccountHolder: "Account holder",
-    bankNameLabel: "Bank",
-    bankReference: "Reference",
-    bankTransferPending: "Your order has been placed. Please transfer the payment to our bank account. You will receive your login details by email once payment is confirmed.",
-    sepaPending: "Your order has been placed. The SEPA direct debit will be processed within 1–3 business days. You will receive your login details by email once confirmed.",
-    addHostingTitle: "Add hosting",
-    addNameServers: "+ Add custom name servers",
-    addressTitle: "Address",
-    authCode: "Auth code",
-    billingCycle: "Billing cycle",
-    cancel: "Cancel",
-    city: "City",
-    close: "Close",
-    company: "Company",
-    companyName: "Company name",
-    companyPlaceholder: "Only for business customers",
-    country: "Country",
-    domain: "Domain",
-    domainActionRegister: "registered",
-    domainActionTransfer: "transferred",
-    domainAvailable: (domain: string) => `${domain} is available and can be added to the order.`,
-    domainCheck: "Check domain",
-    domainCheckFailed: "Domain check failed.",
-    domainCheckLoading: "Checking domain...",
-    domainCheckResult: (domain: string, action: "register" | "transfer") => `${domain} will be ${action === "register" ? "registered" : "transferred"}.`,
-    domainCheckSuccess: (domain: string, available: boolean) => `${domain} will be ${available ? "registered" : "transferred"}.`,
-    domainChecking: "Checking domain...",
-    domainMissing: "Domain missing.",
-    domainName: "Domain name",
-    domainOnly: "Domain only",
-    domainOptionalNote: "A domain is optional for this service — leave blank to order without one.",
-    domainUnavailable: (domain: string) => `${domain} is not available.`,
-    editDomain: "Edit domain",
-    editHosting: "Edit hosting",
-    email: "Email",
-    existingCustomer: "Already a customer?",
-    freeDomainIncluded: "This domain is included free with your selected billing cycle.",
-    freeDomainLimit: "This domain costs more than EUR 15 and is not included free.",
-    generate: "Generate",
-    hideNameServers: "Hide custom name servers",
-    hidePassword: "Hide password",
-    hostingActivating: "Hosting account is being activated.",
-    hostingAdded: "Hosting was added to the order.",
-    hostingDomain: "Domain for hosting",
-    hostingUpsell: "A domain alone does not show a website. Add a matching hosting package now.",
-    keepExternal: "Keep domain external",
-    loggedInAs: "Signed in as",
-    login: "Sign in",
-    loginFailed: "Sign in failed.",
-    loginRunning: "Signing in...",
-    loginSuccess: "Signed in.",
-    name: "Name",
-    nameServers: "Name servers",
-    noPrice: "No price found for this product.",
-    optional: "optional",
-    orderCreated: "Order created.",
-    orderCreating: "Creating order...",
-    orderEyebrow: "Your order",
-    orderFailed: "Order failed.",
-    password: "Password",
-    passwordRuleLength: "9-16 characters",
-    passwordRuleLower: "Lowercase",
-    passwordRuleNumber: "Numbers",
-    passwordRuleSpecial: "Special character",
-    passwordRuleUpper: "Uppercase",
-    passwordWeak: "Password does not meet the rules.",
-    paymentFailed: "Payment failed",
-    paymentMethod: "Payment method",
-    paymentRedirect: "Redirecting to payment provider...",
-    paymentRunning: "Sandbox payment running...",
-    paymentSuccess: "Payment successful.",
-    personalData: "Personal data",
-    phone: "Phone",
-    phoneCode: "Country calling code",
-    portalLink: "Go to portal",
-    portalRedirect: "Paid. Redirecting to client portal...",
-    postalCode: "Postal code",
-    profileCompletionHelp: "Your account is recognized. Please add only the missing profile details for this order.",
-    profileCompletionTitle: "Missing profile details",
-    profileConfirm: "I confirm these details are correct for this order.",
-    profileConfirmRequired: "Please confirm the missing profile details.",
-    profileMissingError: "Please complete the missing profile details.",
-    remove: "remove",
-    showPassword: "Show password",
-    state: "State",
-    street: "Street and house number",
-    submit: "Place paid order",
-    summary: "Summary",
-    termsLink: "terms and conditions",
-    termsPrefix: "I accept the",
-    termsRequired: "Please accept the terms and conditions.",
-    termsSuffix: ".",
-    total: "Total",
-    transferDomain: "Transfer domain to Dezhost",
-    vat: "VAT",
-    vatId: "VAT ID",
-    yearlyFreeDomain: "Yearly billing includes a free domain up to EUR 15."
-  }
-} as const;
+type CheckoutCopy = ReturnType<typeof buildCheckoutCopy>;
 
-type CheckoutCopy = (typeof checkoutCopy)[keyof typeof checkoutCopy];
-
-const defaultPaymentGateways: ApiPaymentGateway[] = [
-  { method: "SANDBOX", title: "Sandbox" },
-  { method: "CREDIT_CARD", title: "Kredit-/Debitkarte" },
-  { method: "PAYPAL", title: "PayPal" },
-  { method: "SEPA", title: "SEPA Lastschrift" }
-];
+function buildDefaultGateways(copy: CheckoutCopy): ApiPaymentGateway[] {
+  return [
+    { method: "SANDBOX", title: "Sandbox" },
+    { method: "CREDIT_CARD", title: copy.gatewayCreditCard },
+    { method: "PAYPAL", title: "PayPal" },
+    { method: "SEPA", title: copy.gatewaySepa }
+  ];
+}
 
 function paymentLogo(method: string, title: string) {
   if (method === "PAYPAL") {
@@ -1540,11 +1353,11 @@ function paymentLogo(method: string, title: string) {
   );
 }
 
-function productHighlights(product: ApiProduct) {
+function productHighlights(product: ApiProduct, copy: CheckoutCopy) {
   const highlights = (product.configs ?? [])
     .filter((config) => !config.key.startsWith("virtualmin_"))
     .map((config) => `${config.label}${config.values[0] ? `: ${String(config.values[0])}` : ""}`);
-  return highlights.length ? highlights.slice(0, 4) : ["Managed hosting", "SSL ready", "Support included"];
+  return highlights.length ? highlights.slice(0, 4) : [copy.highlightManaged, copy.highlightSsl, copy.highlightSupport];
 }
 
 function isStrongPassword(password: string) {
@@ -1560,6 +1373,7 @@ function isStrongPassword(password: string) {
 
 function orderSummary(input: {
   addHosting: boolean;
+  copy: CheckoutCopy;
   domainCheck: DomainCheck;
   domainName: string;
   domainProduct?: ApiProduct;
@@ -1573,6 +1387,9 @@ function orderSummary(input: {
   selectedPrice?: ApiProduct["prices"][number];
   vatPercent: number;
 }) {
+  const { copy } = input;
+  const yearsWord = (years: number) => `${years} ${years === 1 ? copy.year : copy.years}`;
+  const actionWord = (action: string) => (action === "transfer" ? copy.domainActionTransfer : copy.domainActionRegister);
   const lines: Array<{ amountCents: number; detail?: string; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
 
   if (input.needsDomain) {
@@ -1582,8 +1399,8 @@ function orderSummary(input: {
       amountCents: domainYears * domainUnitPrice,
       id: "domain",
       kind: "domain",
-      detail: `${domainYears} Jahr${domainYears === 1 ? "" : "e"} · ${money(domainUnitPrice)} / Jahr`,
-      label: `${input.domainName || "Domain"} ${input.domainCheck.status === "ok" ? input.domainCheck.action : "registration"}`
+      detail: `${yearsWord(domainYears)} · ${money(domainUnitPrice)} / ${copy.year}`,
+      label: `${input.domainName || copy.domain} ${input.domainCheck.status === "ok" ? actionWord(input.domainCheck.action) : copy.registration}`
     });
     if (input.addHosting && input.selectedHosting && input.selectedHostingPrice) {
       lines.push({
@@ -1612,8 +1429,8 @@ function orderSummary(input: {
         amountCents: free ? 0 : domainYears * domainUnitPrice,
         id: "domain-addon",
         kind: "domainAddon",
-        detail: `${domainYears} Jahr${domainYears === 1 ? "" : "e"} · ${money(domainUnitPrice)} / Jahr`,
-        label: `${input.hostingDomain || "Domain"} ${domainUse}${free ? " (kostenlos)" : ""}`,
+        detail: `${yearsWord(domainYears)} · ${money(domainUnitPrice)} / ${copy.year}`,
+        label: `${input.hostingDomain || copy.domain} ${actionWord(domainUse)}${free ? ` (${copy.free})` : ""}`,
         removable: true
       });
     }

@@ -7,11 +7,20 @@ first when resuming. The approved plan is at
 
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`, pushed to origin 2026-06-21)
 - **Status:** Steps 1–8 implemented & committed; Phase 1 verified locally by the user (2026-06-21).
-  Now working a **follow-up batch** (storefront i18n polish + country VAT + scope-aware locale) tracked
-  in [teculiar-roadmap.md → "Phase 1 — follow-up batch"](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21).
+  Now finishing the last **follow-up batch** item: **moving all user-visible dashboard/checkout/auth
+  chrome onto the packs** (tracked in
+  [teculiar-roadmap.md → "Phase 1 — follow-up batch"](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21)).
   **Done:** product-grid currency (`73e7e58`), toggle modal (`a2d34fb`), Apply-button toggle (`d68e0f8`),
   scope-aware admin/client locale (`8988b60`), **country-based VAT + global VAT switch** (`4a7453d`,
-  `82fd3a9`, + checkout commit). **Pending:** inline-`de/en`-copy conversion (incl. IT-Solutions prose).
+  `82fd3a9`, + checkout commit).
+- **Scope clarified 2026-06-21 (the user):** the inline-copy work is **chrome only** — checkout
+  (`checkout-form.tsx`), auth (`login-form.tsx`, `signup-form.tsx`) and the **admin + client dashboards**.
+  ALL user-visible strings there move onto `@dezhost/locales` (the `{de,en}` maps/ternaries **and** the
+  bare English/German-only literals; thread `locale` into admin components that lack it). **NOT in Phase 1
+  (owned by later phases — do not pack):** marketing/storefront **page content** (home, hosting, VPS,
+  reseller, IT-Solutions prose, web-design, domains, about, contact, legal, blog post bodies) → **Phase 3
+  Customizer** per-element translations; **product names/descriptions** → **per-language admin input
+  fields** later.
 
 ### ✅ DONE — Country-based VAT (the "step 3")
 Shipped as designed; also fixes the reported checkout VAT-0 bug. **Single source of truth** lives in
@@ -60,10 +69,12 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
   done. Changing the main currency **does not convert existing price data**.
   → **Approved follow-up:** add an admin **guard/warning** when changing the main currency on a
   store that already has priced data (a LATER step, not Phase 1 core).
-- **Remaining inline i18n is DEFERRED to a later phase:** marketing page bodies
-  (hero/feature copy), checkout/login local copy maps, and the blog CMS editor still use inline
-  `de/en` ternaries. They work in de/en but won't pick up a 3rd language. Phase 1 covers the
-  modular system + chrome/dashboards/invoices/emails only.
+- **Inline i18n split (clarified 2026-06-21):** *dashboard/checkout/auth chrome* IS converted to packs
+  in Phase 1 (this is the final follow-up item — checkout, login, signup, admin + client dashboards,
+  blog-admin chrome). *Marketing/storefront page bodies* (hero/feature copy, IT-Solutions prose, legal,
+  blog post content) stay inline and are migrated to **per-element translations in the Phase 3
+  Customizer** — never onto the packs. *Product names/descriptions* become **per-language admin input
+  fields** in a later phase, not pack keys.
 - **Issued invoices are immutable:** snapshot currency + locale + amounts at creation; render from
   the snapshot, never re-convert/re-translate. (Currency snapshot done; **locale snapshot needs
   `Invoice.locale` from Step 7**.)
@@ -148,8 +159,9 @@ is MariaDB-only). After pulling, run `npm run db:generate` so the client types m
 
 ### Deferred (post-Phase-1)
 Tracked as actionable next steps in **[teculiar-roadmap.md → "Phase 1 — deferred follow-ups"](./teculiar-roadmap.md#phase-1--deferred-follow-ups-do-after-phase-1-ships)**:
-remaining inline `de/en` copy (marketing bodies, checkout/login maps, blog CMS editor), the
-main-currency-change admin guard, and a per-locale email-template editor.
+the main-currency-change admin guard, and a per-locale email-template editor. **Owned by later phases
+(not packs):** marketing/storefront **page content** i18n → Phase 3 Customizer per-element translations;
+**product names/descriptions** → per-language admin input fields.
 
 ## Gotchas / notes for future-me
 - **API unit tests** (`apps/api/test/*.test.mjs`) are `node --test` files importing the **built
