@@ -1,8 +1,9 @@
 import { ArrowRight, Check, HardDrive, Infinity as InfinityIcon, Layers, Lock, MemoryStick, RefreshCw, Server, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
-import { apiGet, money, type ApiProduct } from "../../../lib/api";
+import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
+import { Price } from "../../../components/marketing/price";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./reseller.module.css";
 
@@ -47,7 +48,7 @@ export default async function ResellerPage({ params }: { params: Promise<{ local
         return {
           key: product.id,
           name: product.name,
-          priceLabel: price ? money(price.amountCents, price.currency) : undefined,
+          priceCents: price ? price.amountCents : undefined,
           accounts: configValue(product, "accounts") ?? "—",
           disk: configValue(product, "disk") ?? "—",
           cpu: configValue(product, "cpu") ?? "—",
@@ -61,7 +62,7 @@ export default async function ResellerPage({ params }: { params: Promise<{ local
     : FALLBACK.map((card) => ({
         key: card.name,
         name: card.name,
-        priceLabel: money(card.priceCents, "EUR"),
+        priceCents: card.priceCents,
         accounts: card.accounts,
         disk: card.disk,
         cpu: card.cpu,
@@ -134,9 +135,9 @@ export default async function ResellerPage({ params }: { params: Promise<{ local
                   <Server aria-hidden size={22} className={styles.productIcon} />
                   <h3>{card.name}</h3>
                 </div>
-                {card.priceLabel ? (
+                {card.priceCents != null ? (
                   <div className={styles.productPrice}>
-                    <strong>{card.priceLabel}</strong>
+                    <strong><Price cents={card.priceCents} /></strong>
                     <span>{labels.perMonth}</span>
                   </div>
                 ) : null}

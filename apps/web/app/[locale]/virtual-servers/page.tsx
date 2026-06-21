@@ -1,7 +1,8 @@
 import { ArrowRight, Check, Cpu, HardDrive, Lock, Server, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
-import { apiGet, money, type ApiProduct } from "../../../lib/api";
+import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
+import { Price } from "../../../components/marketing/price";
 import { getLocale } from "../../../lib/i18n";
 import styles from "./virtual-servers.module.css";
 
@@ -9,8 +10,7 @@ const FALLBACK_VPS = {
   name: "Cloud VPS Basic",
   descDe: "Volle Root-Kontrolle, NVMe-Speicher, 20 TB Traffic und deutsche Rechenzentren.",
   descEn: "Full root control, NVMe storage, 20 TB traffic and German data centres.",
-  priceDe: "ab 7,99 €/Monat",
-  priceEn: "from €7.99/month",
+  priceFromCents: 799,
   specs: [
     { label: "vCPU", value: "2" },
     { label: "RAM", value: "4 GB" },
@@ -111,7 +111,7 @@ export default async function VirtualServersPage({ params }: { params: Promise<{
                     </div>
                     {price && (
                       <div className={styles.productPrice}>
-                        <strong>{money(price.amountCents, price.currency)}</strong>
+                        <strong><Price cents={price.amountCents} /></strong>
                         <span>{isDe ? "/ Monat" : "/ month"}</span>
                       </div>
                     )}
@@ -143,7 +143,8 @@ export default async function VirtualServersPage({ params }: { params: Promise<{
                   <h3>{FALLBACK_VPS.name}</h3>
                 </div>
                 <div className={styles.productPrice}>
-                  <strong>{isDe ? FALLBACK_VPS.priceDe : FALLBACK_VPS.priceEn}</strong>
+                  <strong>{isDe ? "ab " : "from "}<Price cents={FALLBACK_VPS.priceFromCents} /></strong>
+                  <span>{isDe ? "/ Monat" : "/ month"}</span>
                 </div>
                 <p className={styles.productDesc}>{isDe ? FALLBACK_VPS.descDe : FALLBACK_VPS.descEn}</p>
                 <ul className={styles.specList}>

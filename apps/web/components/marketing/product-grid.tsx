@@ -1,6 +1,7 @@
 import { ArrowRight, Check, Cloud, Globe, HardDrive } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { Price } from "./price";
 import type { Locale } from "../../lib/i18n";
 import styles from "./product-grid.module.css";
 
@@ -8,8 +9,12 @@ type StaticCard = {
   Icon: typeof Cloud;
   titleDe: string;
   titleEn: string;
-  priceDe: string;
-  priceEn: string;
+  // "Starting from" price in the main currency (cents); rendered currency/locale-aware.
+  priceFromCents: number;
+  pricePrefixDe: string;
+  pricePrefixEn: string;
+  priceSuffixDe: string;
+  priceSuffixEn: string;
   highlightsDe: string[];
   highlightsEn: string[];
   href: string;
@@ -20,8 +25,11 @@ const CARDS: StaticCard[] = [
     Icon: HardDrive,
     titleDe: "Webhosting",
     titleEn: "Web Hosting",
-    priceDe: "ab 3,99 €/Monat",
-    priceEn: "from €3.99/month",
+    priceFromCents: 399,
+    pricePrefixDe: "ab ",
+    pricePrefixEn: "from ",
+    priceSuffixDe: "/Monat",
+    priceSuffixEn: "/month",
     highlightsDe: ["NVMe SSD Speicher", "Tägliche Backups", "SSL inklusive", "DSGVO-konform", "PHP 8.1–8.4"],
     highlightsEn: ["NVMe SSD storage", "Daily backups", "SSL included", "GDPR-compliant", "PHP 8.1–8.4"],
     href: "webhosting"
@@ -30,8 +38,11 @@ const CARDS: StaticCard[] = [
     Icon: Globe,
     titleDe: "Domain-Namen",
     titleEn: "Domain Names",
-    priceDe: "ab 0,99 €/Jahr",
-    priceEn: "from €0.99/year",
+    priceFromCents: 99,
+    pricePrefixDe: "ab ",
+    pricePrefixEn: "from ",
+    priceSuffixDe: "/Jahr",
+    priceSuffixEn: "/year",
     highlightsDe: [".de, .com, .org, .net", "DNS-Verwaltung", "WHOIS-Datenschutz", "Einfache Übertragung"],
     highlightsEn: [".de, .com, .org, .net", "DNS management", "WHOIS privacy", "Easy transfer"],
     href: "domains"
@@ -40,8 +51,11 @@ const CARDS: StaticCard[] = [
     Icon: Cloud,
     titleDe: "Nextcloud Server",
     titleEn: "Nextcloud Server",
-    priceDe: "Einrichtung ab 20 €",
-    priceEn: "Setup from €20",
+    priceFromCents: 2000,
+    pricePrefixDe: "Einrichtung ab ",
+    pricePrefixEn: "Setup from ",
+    priceSuffixDe: "",
+    priceSuffixEn: "",
     highlightsDe: ["Eigene private Cloud", "Kein Google / Dropbox", "DSGVO-konform", "Deutsche Server"],
     highlightsEn: ["Your own private cloud", "No Google / Dropbox", "GDPR-compliant", "German servers"],
     href: "it-losungen"
@@ -59,10 +73,12 @@ export function ProductGrid({ locale }: { locale: Locale }) {
           {isDe ? "Wähle das passende Angebot." : "Choose the right offer for you."}
         </h2>
         <div className="grid three">
-          {CARDS.map(({ Icon, titleDe, titleEn, priceDe, priceEn, highlightsDe, highlightsEn, href }, index) => {
-            const title = isDe ? titleDe : titleEn;
-            const price = isDe ? priceDe : priceEn;
-            const highlights = isDe ? highlightsDe : highlightsEn;
+          {CARDS.map((card, index) => {
+            const { Icon, href, priceFromCents } = card;
+            const title = isDe ? card.titleDe : card.titleEn;
+            const pricePrefix = isDe ? card.pricePrefixDe : card.pricePrefixEn;
+            const priceSuffix = isDe ? card.priceSuffixDe : card.priceSuffixEn;
+            const highlights = isDe ? card.highlightsDe : card.highlightsEn;
             const fullHref = `/${locale}/${href}`;
             return (
               <Card key={title} tone={index === 1 ? "selected" : "default"}>
@@ -73,7 +89,7 @@ export function ProductGrid({ locale }: { locale: Locale }) {
                   <h3>{title}</h3>
                 </div>
                 <div className={styles.price}>
-                  <strong>{price}</strong>
+                  <strong>{pricePrefix}<Price cents={priceFromCents} />{priceSuffix}</strong>
                 </div>
                 <ul className={styles.list}>
                   {highlights.map((h) => (
