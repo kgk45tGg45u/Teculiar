@@ -48,5 +48,12 @@
     "YEAR_2": "2 years",
     "YEAR_3": "3 years",
     "YEAR_4": "4 years"
+  },
+  "preferences": {
+    "title": "Language & currency",
+    "language": "Language",
+    "currency": "Currency",
+    "close": "Close",
+    "open": "Language and currency"
   }
 }

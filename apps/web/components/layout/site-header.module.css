@@ -216,6 +216,59 @@
   font-weight: 760;
 }
 
+/* Language & currency modal — two separate sections */
+.prefsSection {
+  display: grid;
+  gap: 8px;
+}
+
+.prefsSection + .prefsSection {
+  margin-top: 20px;
+}
+
+.prefsSectionLabel {
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.prefsGrid {
+  display: grid;
+  gap: 6px;
+}
+
+.prefsOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 720;
+  text-align: left;
+}
+
+.prefsOption:hover {
+  border-color: color-mix(in srgb, var(--dezhost) 40%, var(--border));
+  color: var(--dezhost);
+}
+
+.prefsOptionActive {
+  border-color: var(--dezhost);
+  color: var(--dezhost);
+  background: color-mix(in srgb, var(--dezhost) 8%, var(--surface));
+}
+
 /* Client login button — circular */
 .clientLogin {
   display: inline-flex;
