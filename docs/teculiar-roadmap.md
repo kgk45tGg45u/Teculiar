@@ -54,12 +54,13 @@ the user referenced when reordering the deferred items.
 2. ✅ **Toggle redesigned as a button + modal** (`a2d34fb`). New reusable `components/ui/modal.tsx`; the
    modal has two separate sections (Language, Currency) so the two axes are obvious. Labels in
    `common.preferences`.
-3a. ⏳ **Scope-aware admin/client locale.** Admin (`/admin/*`) and client/public surfaces currently share
-   the single `dezhost_locale` cookie (read by `requestLocale()` server-side and `currentLocale()`
-   client-side), so an admin who also has a client account can't keep different languages per account.
-   Make the locale **scope-aware** (mirroring the scoped auth cookies): a separate admin-scope locale
-   that `currentLocale()`/`requestLocale()`/`storeLocale()`/`persistClientLocale()` use on `/admin/*`,
-   loaded from each account's `User.locale`.
+3a. ✅ **Scope-aware admin/client locale** (`8988b60`). Locale is now scoped like the auth tokens: the
+   admin panel uses a `dezhost_admin_locale` cookie, everything else keeps `dezhost_locale`.
+   `requestLocale` (via `x-pathname`), `currentLocale`, `storeLocale` and `persistClientLocale` resolve
+   the cookie/account by `currentScope()`, so a language picked in admin only affects the admin account.
+   *Follow-up (minor):* on a fresh browser the saved `User.locale` isn't auto-seeded into the scope
+   cookie until the user picks a language once; same-browser persistence already works via the cookie.
+   Cross-device seeding would add `locale` to the login response and set the scope cookie on `storeAuth`.
 3. ⏳ **Country-based VAT** *(the "step 3")*. Replace the single admin VAT rate with **per-country VAT
    rates + a default country**, defined in the admin panel. VAT for an order/renewal is the buyer's
    country rate (entered at checkout, or the saved country for existing clients); countries with no rate
