@@ -1,6 +1,16 @@
 import { formatCustomerNumber } from "@dezhost/shared";
 import { loadDictionary, getMeta } from "@dezhost/locales";
-import { ADMIN_LOCALE_COOKIE, CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
+import { ADMIN_CURRENCY_COOKIE, ADMIN_LOCALE_COOKIE, CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
+
+// Fired whenever the visitor changes their display language/currency, so live client consumers
+// (the header toggle, every <Price>) re-read the preference instead of showing a stale snapshot.
+export const PREFS_CHANGED_EVENT = "dezhost:prefs";
+
+function notifyPrefsChanged() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(PREFS_CHANGED_EVENT));
+  }
+}
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isLocaleCode } from "./supported-locales";
 
 export { formatCustomerNumber };
@@ -613,6 +623,7 @@ export function storeLocale(locale: Locale) {
   const cookie = localeCookieForScope();
   window.localStorage.setItem(cookie, locale);
   setCookie(cookie, locale);
+  notifyPrefsChanged();
 }
 
 // Persist a signed-in user's effective language to their account (User.locale) so server-rendered
@@ -630,11 +641,19 @@ export function persistClientLocale(locale: Locale) {
   ).catch(() => undefined);
 }
 
+// Currency is scoped like the locale/auth cookies: the admin panel reads/writes its own cookie so its
+// display currency is independent of the client/storefront one (and admin choices never leak to the
+// public site).
+function currencyCookieForScope(scope: AuthScope = currentScope()): string {
+  return scope === "admin" ? ADMIN_CURRENCY_COOKIE : CURRENCY_COOKIE;
+}
+
 export function currentCurrency(): Currency {
   if (typeof window === "undefined") {
     return _currencyConfig.main;
   }
-  const saved = window.localStorage.getItem(CURRENCY_COOKIE) ?? readCookie(CURRENCY_COOKIE);
+  const cookie = currencyCookieForScope();
+  const saved = readCookie(cookie) ?? window.localStorage.getItem(cookie);
   if (saved && _currencyConfig.currencies.includes(saved)) {
     return saved;
   }
@@ -648,8 +667,10 @@ export function storeCurrency(currency: Currency) {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(CURRENCY_COOKIE, currency);
-  setCookie(CURRENCY_COOKIE, currency);
+  const cookie = currencyCookieForScope();
+  window.localStorage.setItem(cookie, currency);
+  setCookie(cookie, currency);
+  notifyPrefsChanged();
 }
 
 export type AuthUser = {

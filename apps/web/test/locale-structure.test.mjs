@@ -5,6 +5,7 @@ import test from "node:test";
 const i18n = readFileSync(new URL("../lib/i18n.ts", import.meta.url), "utf8");
 const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
 const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8");
+const usePrefs = readFileSync(new URL("../lib/use-prefs.ts", import.meta.url), "utf8");
 const header = readFileSync(new URL("../components/layout/site-header.tsx", import.meta.url), "utf8");
 const menuLink = readFileSync(new URL("../components/layout/menu-link.tsx", import.meta.url), "utf8");
 
@@ -16,6 +17,18 @@ test("locale preference is scoped per admin/client like the auth tokens", () => 
   // currentLocale/storeLocale/persistClientLocale resolve the cookie by scope.
   assert.match(api, /localeCookieForScope/);
   assert.match(api, /ADMIN_LOCALE_COOKIE/);
+});
+
+test("currency preference is scoped per admin/client too, and read reactively", () => {
+  // Currency mirrors the locale scoping so changing it in /admin never leaks to the public site.
+  assert.match(i18n, /CURRENCY_COOKIE = "dezhost_currency"/);
+  assert.match(i18n, /ADMIN_CURRENCY_COOKIE = "dezhost_admin_currency"/);
+  assert.match(api, /currencyCookieForScope/);
+  // storeCurrency/storeLocale broadcast a change so live consumers (toggle, <Price>) re-read instead
+  // of showing a stale snapshot; the hook also re-reads on bfcache restore / back-forward.
+  assert.match(api, /PREFS_CHANGED_EVENT/);
+  assert.match(usePrefs, /pageshow/);
+  assert.match(usePrefs, /popstate/);
 });
 
 test("middleware chooses saved locale before browser locale and keeps public prefixes", () => {

@@ -14,6 +14,10 @@ priority: **explicit choice > toggle > browser (if a pack exists) > main languag
 - Supported languages are **configured by an admin** (`i18n.languages` in `SystemSetting`), not
   hard-coded. Routing accepts any well-formed locale code, with English per-key fallback for codes
   without a pack.
+- Language **and currency are scope-aware**: `/admin` uses `dezhost_admin_locale` /
+  `dezhost_admin_currency`, the public/client surfaces use `dezhost_locale` / `dezhost_currency`, so an
+  admin's choice never leaks to the storefront. Client reads are reactive (re-sync on the `dezhost:prefs`
+  event, `pageshow` bfcache restore, and back/forward) — see [i18n-currency.md](./i18n-currency.md).
 
 See [i18n-currency.md](./i18n-currency.md) for the packs, currency model, invoice/email
 localization, and the SystemSetting key registry.

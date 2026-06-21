@@ -3,8 +3,9 @@
 import { Check, Globe } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { currentCurrency, persistClientLocale, storeLocale, storeCurrency } from "../../lib/api";
+import { useCurrency } from "../../lib/use-prefs";
 import { getDictionary } from "../../lib/dictionary";
 import type { Currency, Locale } from "../../lib/i18n";
 import { currencySymbol, languageFlag, languageNativeName } from "../../lib/i18n-catalog";
@@ -22,16 +23,14 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currency, setCurrency] = useState<Currency>(() => currencies[0] ?? "EUR");
+  // Reactive: stays in sync on toggle, browser back/forward and bfcache restore, so the button never
+  // shows a stale currency while the page's <Price>s show another.
+  const currency = useCurrency(currencies[0] ?? "EUR");
   const [open, setOpen] = useState(false);
   // Pending (unsaved) selections — language and currency are picked together and committed on Apply.
   const [draftLocale, setDraftLocale] = useState<Locale>(locale);
   const [draftCurrency, setDraftCurrency] = useState<Currency>(currencies[0] ?? "EUR");
   const copy = getDictionary(locale).common.preferences;
-
-  useEffect(() => {
-    setCurrency(currentCurrency());
-  }, []);
 
   const showLanguages = languages.length > 1;
   const showCurrencies = currencies.length > 1;
@@ -50,8 +49,8 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
     const localeChanged = draftLocale !== locale;
     const currencyChanged = draftCurrency !== currency;
     if (currencyChanged) {
+      // storeCurrency fires the prefs-changed event, so useCurrency() updates the button live.
       storeCurrency(draftCurrency);
-      setCurrency(draftCurrency);
     }
     if (localeChanged) {
       storeLocale(draftLocale);

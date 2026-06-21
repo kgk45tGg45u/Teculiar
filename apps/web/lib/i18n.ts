@@ -28,7 +28,10 @@ export const currencies: Currency[] = ["EUR", "USD"];
 // client/storefront one, so a dual-account admin can run each account in a different language.
 export const LOCALE_COOKIE = "dezhost_locale";
 export const ADMIN_LOCALE_COOKIE = "dezhost_admin_locale";
+// Currency is scoped like the locale/auth cookies: the admin panel keeps its own display currency
+// separate from the client/storefront one, so changing currency in admin never leaks to the public site.
 export const CURRENCY_COOKIE = "dezhost_currency";
+export const ADMIN_CURRENCY_COOKIE = "dezhost_admin_currency";
 
 export const localeNames: Record<string, string> = {
   de: "Deutsch",

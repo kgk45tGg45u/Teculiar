@@ -90,6 +90,21 @@ choice is stored only in the `dezhost_locale` cookie/localStorage until they sig
 The **toggle is hidden** when exactly one language **and** one currency are configured; each selector
 hides on its own when only one option exists.
 
+### Scope-aware preferences (admin vs public/client)
+
+Both language **and** currency are scoped like the auth tokens. The admin panel reads/writes its own
+cookies (`dezhost_admin_locale`, `dezhost_admin_currency`); everything else (public site + client
+portal) uses `dezhost_locale` / `dezhost_currency`. So a dual-account admin can run admin in one
+language/currency and the storefront in another, and **changing currency in `/admin` never leaks to
+the public site**. The active cookie is chosen by `currentScope()` (client) / the `x-pathname` header
+(server, via `requestLocale`).
+
+Client consumers read the preference **reactively**: `storeCurrency`/`storeLocale` fire a
+`dezhost:prefs` event, and `lib/use-prefs.ts` (`useCurrency`) also re-reads on `pageshow` (incl.
+back/forward **bfcache** restores), `popstate`, `focus` and cross-tab `storage`. This keeps the header
+toggle and every `<Price>` in sync instead of showing a stale snapshot after the browser back/forward
+buttons.
+
 ## Invoices — immutable snapshots
 
 Issued invoices freeze their **currency** and **locale** at creation and render from those snapshots —
