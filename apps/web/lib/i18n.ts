@@ -24,7 +24,10 @@ export type CurrencyDef = {
 
 export const locales: Locale[] = SUPPORTED_LOCALES;
 export const currencies: Currency[] = ["EUR", "USD"];
+// Locale is scoped like the auth tokens: the admin panel keeps its own language separate from the
+// client/storefront one, so a dual-account admin can run each account in a different language.
 export const LOCALE_COOKIE = "dezhost_locale";
+export const ADMIN_LOCALE_COOKIE = "dezhost_admin_locale";
 export const CURRENCY_COOKIE = "dezhost_currency";
 
 export const localeNames: Record<string, string> = {

@@ -1,6 +1,6 @@
 import { formatCustomerNumber } from "@dezhost/shared";
 import { loadDictionary, getMeta } from "@dezhost/locales";
-import { CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
+import { ADMIN_LOCALE_COOKIE, CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isLocaleCode } from "./supported-locales";
 
 export { formatCustomerNumber };
@@ -585,6 +585,12 @@ export function dateLabel(value?: string | null, locale: Locale = currentLocale(
   return value ? new Intl.DateTimeFormat(getMeta(locale).dateFormat, options).format(new Date(value)) : "-";
 }
 
+// Locale is scoped like the auth tokens: the admin panel reads/writes its own cookie so its language
+// is independent of the client/storefront one (a dual-account admin can run each in a different one).
+function localeCookieForScope(scope: AuthScope = currentScope()): string {
+  return scope === "admin" ? ADMIN_LOCALE_COOKIE : LOCALE_COOKIE;
+}
+
 export function currentLocale(): Locale {
   if (typeof window === "undefined") {
     return DEFAULT_LOCALE;
@@ -592,7 +598,8 @@ export function currentLocale(): Locale {
   // Prefer the cookie so the client matches the server (requestLocale) and the visible language
   // toggle. localStorage is only a fallback — otherwise a stale localStorage value can override a
   // newer cookie (e.g. set by visiting /de), showing a DE toggle but an EN dashboard.
-  const saved = readCookie(LOCALE_COOKIE) ?? window.localStorage.getItem(LOCALE_COOKIE);
+  const cookie = localeCookieForScope();
+  const saved = readCookie(cookie) ?? window.localStorage.getItem(cookie);
   if (isLocaleCode(saved)) {
     return saved!.toLowerCase();
   }
@@ -603,21 +610,23 @@ export function storeLocale(locale: Locale) {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(LOCALE_COOKIE, locale);
-  setCookie(LOCALE_COOKIE, locale);
+  const cookie = localeCookieForScope();
+  window.localStorage.setItem(cookie, locale);
+  setCookie(cookie, locale);
 }
 
-// Persist a signed-in client's effective language to their account (User.locale) so server-rendered
-// surfaces and transactional emails follow the up-to-date preference. No-op for guests and the admin
-// scope, so the toggle on public pages never fires an API call when nobody is signed in as a client.
+// Persist a signed-in user's effective language to their account (User.locale) so server-rendered
+// surfaces and transactional emails follow the up-to-date preference. Scope-aware: on /admin it
+// updates the admin account, elsewhere the client account; a no-op for guests (no token for the scope).
 export function persistClientLocale(locale: Locale) {
-  if (typeof window === "undefined" || !browserToken("client")) {
+  const scope = currentScope();
+  if (typeof window === "undefined" || !browserToken(scope)) {
     return;
   }
   void authFetch(
     `${API_BASE_URL}/users/me`,
     { body: JSON.stringify({ locale }), headers: { "Content-Type": "application/json" }, method: "PATCH" },
-    "client"
+    scope
   ).catch(() => undefined);
 }
 

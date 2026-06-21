@@ -8,11 +8,14 @@ const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8");
 const header = readFileSync(new URL("../components/layout/site-header.tsx", import.meta.url), "utf8");
 const menuLink = readFileSync(new URL("../components/layout/menu-link.tsx", import.meta.url), "utf8");
 
-test("locale preference has one shared cookie used by public and portals", () => {
-  assert.match(i18n, /LOCALE_COOKIE/);
-  assert.match(i18n, /dezhost_locale/);
-  assert.match(middleware, /LOCALE_COOKIE/);
-  assert.match(api, /LOCALE_COOKIE/);
+test("locale preference is scoped per admin/client like the auth tokens", () => {
+  // The client/public scope keeps dezhost_locale; the admin panel has its own cookie so the two
+  // scopes don't share a language (a dual-account admin can run each account in a different one).
+  assert.match(i18n, /LOCALE_COOKIE = "dezhost_locale"/);
+  assert.match(i18n, /ADMIN_LOCALE_COOKIE = "dezhost_admin_locale"/);
+  // currentLocale/storeLocale/persistClientLocale resolve the cookie by scope.
+  assert.match(api, /localeCookieForScope/);
+  assert.match(api, /ADMIN_LOCALE_COOKIE/);
 });
 
 test("middleware chooses saved locale before browser locale and keeps public prefixes", () => {
@@ -21,10 +24,10 @@ test("middleware chooses saved locale before browser locale and keeps public pre
   assert.match(middleware, /url\.pathname = `\/\$\{locale\}/);
 });
 
-test("format helpers accept locale and use USD display for English", () => {
-  assert.match(api, /export function money\(cents: number, _currency = "EUR", locale/);
-  assert.match(api, /currentCurrency/);
-  assert.match(api, /displayCurrency === "USD" \? convertEurToUsd\(cents\) : cents/);
+test("money() converts the main-currency amount to the chosen display currency for the locale", () => {
+  assert.match(api, /export function money\(cents: number, _currency = _currencyConfig\.main, locale/);
+  assert.match(api, /const target = currentCurrency\(\)/);
+  assert.match(api, /convert\(cents, target\)/);
   assert.match(api, /export function cycleLabel\(cycle: string, locale/);
 });
 
