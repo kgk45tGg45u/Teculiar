@@ -24,6 +24,9 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
   const searchParams = useSearchParams();
   const [currency, setCurrency] = useState<Currency>(() => currencies[0] ?? "EUR");
   const [open, setOpen] = useState(false);
+  // Pending (unsaved) selections — language and currency are picked together and committed on Apply.
+  const [draftLocale, setDraftLocale] = useState<Locale>(locale);
+  const [draftCurrency, setDraftCurrency] = useState<Currency>(currencies[0] ?? "EUR");
   const copy = getDictionary(locale).common.preferences;
 
   useEffect(() => {
@@ -36,28 +39,39 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
     return null;
   }
 
-  function selectLanguage(newLocale: Locale) {
-    storeLocale(newLocale);
-    // Save the explicit choice to the account immediately (no-op for guests/admin).
-    persistClientLocale(newLocale);
-    setOpen(false);
-    if (newLocale === locale) {
-      return;
-    }
-    if (LOCALE_PATH_PREFIX.test(pathname)) {
-      const nextPath = pathname.replace(LOCALE_PATH_PREFIX, `/${newLocale}`);
-      const qs = searchParams.toString();
-      router.push(`${nextPath}${qs ? `?${qs}` : ""}` as Route);
-    } else {
-      window.location.reload();
-    }
+  function openModal() {
+    // Seed the drafts from the live preferences each time the modal opens.
+    setDraftLocale(locale);
+    setDraftCurrency(currentCurrency());
+    setOpen(true);
   }
 
-  function selectCurrency(newCurrency: Currency) {
-    storeCurrency(newCurrency);
-    setCurrency(newCurrency);
+  function apply() {
+    const localeChanged = draftLocale !== locale;
+    const currencyChanged = draftCurrency !== currency;
+    if (currencyChanged) {
+      storeCurrency(draftCurrency);
+      setCurrency(draftCurrency);
+    }
+    if (localeChanged) {
+      storeLocale(draftLocale);
+      // Save the explicit choice to the account (no-op for guests/admin).
+      persistClientLocale(draftLocale);
+    }
     setOpen(false);
-    router.refresh();
+    if (localeChanged) {
+      // A language change navigates to the new locale path, which re-renders with the new
+      // currency cookie too, so it also covers a simultaneous currency change.
+      if (LOCALE_PATH_PREFIX.test(pathname)) {
+        const nextPath = pathname.replace(LOCALE_PATH_PREFIX, `/${draftLocale}`);
+        const qs = searchParams.toString();
+        router.push(`${nextPath}${qs ? `?${qs}` : ""}` as Route);
+      } else {
+        window.location.reload();
+      }
+    } else if (currencyChanged) {
+      router.refresh();
+    }
   }
 
   const summary = [showLanguages ? locale.toUpperCase() : null, showCurrencies ? currencySymbol(currency) : null]
@@ -69,7 +83,7 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
       <button
         aria-haspopup="dialog"
         className={styles.languageToggle}
-        onClick={() => setOpen(true)}
+        onClick={openModal}
         title={copy.open}
         type="button"
       >
@@ -83,13 +97,13 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
             <div className={styles.prefsGrid}>
               {languages.map((code) => (
                 <button
-                  className={`${styles.prefsOption}${locale === code ? ` ${styles.prefsOptionActive}` : ""}`}
+                  className={`${styles.prefsOption}${draftLocale === code ? ` ${styles.prefsOptionActive}` : ""}`}
                   key={`lang:${code}`}
-                  onClick={() => selectLanguage(code)}
+                  onClick={() => setDraftLocale(code)}
                   type="button"
                 >
                   <span>{languageFlag(code)} {languageNativeName(code)}</span>
-                  {locale === code ? <Check aria-hidden size={15} /> : null}
+                  {draftLocale === code ? <Check aria-hidden size={15} /> : null}
                 </button>
               ))}
             </div>
@@ -101,18 +115,23 @@ export function LanguageToggle({ locale, languages = SUPPORTED_LOCALES, currenci
             <div className={styles.prefsGrid}>
               {currencies.map((code) => (
                 <button
-                  className={`${styles.prefsOption}${currency === code ? ` ${styles.prefsOptionActive}` : ""}`}
+                  className={`${styles.prefsOption}${draftCurrency === code ? ` ${styles.prefsOptionActive}` : ""}`}
                   key={`cur:${code}`}
-                  onClick={() => selectCurrency(code)}
+                  onClick={() => setDraftCurrency(code)}
                   type="button"
                 >
                   <span>{currencySymbol(code)} {code}</span>
-                  {currency === code ? <Check aria-hidden size={15} /> : null}
+                  {draftCurrency === code ? <Check aria-hidden size={15} /> : null}
                 </button>
               ))}
             </div>
           </section>
         ) : null}
+        <div className={styles.prefsFooter}>
+          <button className={styles.prefsApply} onClick={apply} type="button">
+            {copy.apply}
+          </button>
+        </div>
       </Modal>
     </>
   );

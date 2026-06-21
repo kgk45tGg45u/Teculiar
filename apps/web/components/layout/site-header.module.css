@@ -269,6 +269,28 @@
   background: color-mix(in srgb, var(--dezhost) 8%, var(--surface));
 }
 
+.prefsFooter {
+  margin-top: 22px;
+}
+
+.prefsApply {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  color: #fff;
+  background: var(--dezhost);
+  border: 1px solid var(--dezhost);
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.prefsApply:hover {
+  background: color-mix(in srgb, var(--dezhost) 88%, #000);
+}
+
 /* Client login button — circular */
 .clientLogin {
   display: inline-flex;
