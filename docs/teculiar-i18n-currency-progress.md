@@ -5,10 +5,13 @@ first when resuming. The approved plan is at
 `/Users/balsamico/.claude/plans/just-plan-don-t-change-typed-token.md`; later phases
 (Theme/Menus/Pages/Customizer) are in [docs/teculiar-roadmap.md](./teculiar-roadmap.md).
 
-- **Branch:** `feat/teculiar-i18n-currency` (off `main`)
-- **Status:** Steps 1–8 implemented & committed (build/typecheck/unit-tests green). **Remaining:
-  runtime verification — `db push` locally + the local matrix, then prod verification on
-  https://www.dezhost.com after deploy.**
+- **Branch:** `feat/teculiar-i18n-currency` (off `main`, pushed to origin 2026-06-21)
+- **Status:** Steps 1–8 implemented & committed; Phase 1 verified locally by the user (2026-06-21).
+  Now working a **follow-up batch** (storefront i18n polish + country VAT + scope-aware locale) tracked
+  in [teculiar-roadmap.md → "Phase 1 — follow-up batch"](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21):
+  product-grid currency (`73e7e58`) and toggle modal (`a2d34fb`) **done**; scope-aware locale,
+  country-VAT, and the inline-`de/en`-copy conversion **pending**.
+- **Note:** prod verification still pending deploy (only `main` deploys; this branch does not).
 - **Cadence:** small reviewable commits, build green between each, stop for review after each major step.
 - **Build/verify:** `npm run typecheck` and `npm run build` (both must be green). API unit tests: see "Testing" below.
 - No self-credit in code/commits (per CLAUDE.md).

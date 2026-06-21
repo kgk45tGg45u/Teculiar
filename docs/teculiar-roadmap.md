@@ -43,23 +43,42 @@ rules: **issued invoices are immutable** (frozen currency+locale+amounts), **cli
 saved `User.locale`** (explicit > toggle > browser-if-pack-exists > main; emails use it), and the **toggle
 is hidden when only one language + one currency** are configured.
 
-### Phase 1 — deferred follow-ups (do after Phase 1 ships)
+### Phase 1 — follow-up batch (in progress, 2026-06-21)
 
-These were intentionally scoped out of Phase 1 (approved 2026-06-20). They are independent of Phases 2–4
-and can be picked up any time after Phase 1 is verified on prod:
+Requested after the user verified Phase 1 locally. Ordered; "step 3" below is the country-VAT work
+the user referenced when reordering the deferred items.
 
-1. **Convert remaining inline `de/en` copy** so a 3rd configured language is fully covered. Today these
-   still use inline `de/en` ternaries and won't pick up an admin-added language:
-   - marketing page bodies (hero/feature copy),
-   - the checkout / login local copy maps,
-   - the blog CMS editor.
-   Move each onto the `@dezhost/locales` packs (storefront/common namespaces), mirroring how the chrome
-   was done in Phase 1.
-2. **Admin guard when changing the main currency** on a store that already has priced data — warn that
-   existing amounts are *not* re-converted (stored amounts stay denominated in the old main currency).
-3. **Per-locale email-template editor** — the admin email editor currently seeds/saves overrides on the
-   **main language** only; add a locale switcher so overrides can be authored per configured language
-   (the dispatch path already resolves DB overrides per-locale).
+1. ✅ **Product-grid prices are currency/locale-aware** (`73e7e58`). The reseller, virtual-servers and
+   home grids were server components, so `money()` fell back to the main currency and never followed the
+   toggle. Amounts now render through a client `components/marketing/price.tsx` (`<Price>`).
+2. ✅ **Toggle redesigned as a button + modal** (`a2d34fb`). New reusable `components/ui/modal.tsx`; the
+   modal has two separate sections (Language, Currency) so the two axes are obvious. Labels in
+   `common.preferences`.
+3a. ⏳ **Scope-aware admin/client locale.** Admin (`/admin/*`) and client/public surfaces currently share
+   the single `dezhost_locale` cookie (read by `requestLocale()` server-side and `currentLocale()`
+   client-side), so an admin who also has a client account can't keep different languages per account.
+   Make the locale **scope-aware** (mirroring the scoped auth cookies): a separate admin-scope locale
+   that `currentLocale()`/`requestLocale()`/`storeLocale()`/`persistClientLocale()` use on `/admin/*`,
+   loaded from each account's `User.locale`.
+3. ⏳ **Country-based VAT** *(the "step 3")*. Replace the single admin VAT rate with **per-country VAT
+   rates + a default country**, defined in the admin panel. VAT for an order/renewal is the buyer's
+   country rate (entered at checkout, or the saved country for existing clients); countries with no rate
+   defined fall back to the default country's rate. Keep the existing EU reverse-charge logic (B2B
+   cross-border with a valid VAT ID stays 0). Touches: a `tax.countries` SystemSetting (`{ default, rates }`),
+   the admin settings UI, `vatPercent()` → country lookup, and the billing engine / checkout / renewal.
+4. ⏳ **Convert remaining inline `de/en` copy** (do now, per the user) so a 3rd configured language is
+   fully covered — marketing page bodies (incl. the IT-Solutions pricing prose), the checkout/login local
+   copy maps, and the blog CMS editor. Move each onto the `@dezhost/locales` packs.
+
+### Phase 1 — deferred (after the country-VAT step above)
+
+Moved here at the user's request — pick up **after step 3 (country VAT)**:
+
+- **Admin guard when changing the main currency** on a store that already has priced data — warn that
+  existing amounts are *not* re-converted (stored amounts stay denominated in the old main currency).
+- **Per-locale email-template editor** — the admin email editor currently seeds/saves overrides on the
+  **main language** only; add a locale switcher so overrides can be authored per configured language
+  (the dispatch path already resolves DB overrides per-locale).
 
 > Everything in Phases 2–4 depends on Phase 1's modular language list: menus, pages, and element
 > content all carry **per-language translations for every language configured in Admin > Settings**, with
