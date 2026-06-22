@@ -6,7 +6,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import type { Locale } from "../../lib/i18n";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
@@ -17,6 +18,7 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  const c = getDictionary(locale).admin.forms;
   return (
     <div className={styles.clientList}>
       {clients.length ? clients.map((client) => (
@@ -26,12 +28,12 @@ export function ClientManager({ clients, locale }: { clients: ApiClient[]; local
             <span>{formatCustomerNumber(client.customerNumber)}</span>
           </div>
           <span>{client.email}</span>
-          <span>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0} active</span>
-          <span>{client.domainRecords?.length ?? 0} domains</span>
-          <span>{client.invoices?.filter((i) => i.status !== "PAID").length ?? 0} unpaid inv.</span>
+          <span>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0} {c.active}</span>
+          <span>{client.domainRecords?.length ?? 0} {c.domains}</span>
+          <span>{client.invoices?.filter((i) => i.status !== "PAID").length ?? 0} {c.unpaidInv}</span>
           <span>{money(client.invoices?.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalCents, 0) ?? 0, "EUR", locale)}</span>
         </a>
-      )) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No clients yet.</p>}
+      )) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>{c.noClients}</p>}
     </div>
   );
 }
@@ -60,6 +62,7 @@ function shuffleChars(values: string[]) {
 }
 
 export function AddClientForm() {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -91,16 +94,16 @@ export function AddClientForm() {
         return;
       }
     }
-    setMessage(await notifyResponse(response, "Client created.", "Client creation failed."));
+    setMessage(await notifyResponse(response, c.clientCreated, c.clientCreateFailed));
   }
 
   return (
     <form action={createClient} className={styles.form}>
       <div className={styles.formGrid}>
-        <label>Name<input name="name" required placeholder="Max Mustermann" /></label>
-        <label>Email<input name="email" required type="email" placeholder="max@example.com" /></label>
+        <label>{c.name}<input name="name" required placeholder={c.namePlaceholder} /></label>
+        <label>{c.email}<input name="email" required type="email" placeholder="max@example.com" /></label>
         <label className={styles.formSpan2}>
-          Password *
+          {c.password} *
           <div className={styles.passwordControl}>
             <div className={styles.passwordInputWrap}>
               <input
@@ -114,7 +117,7 @@ export function AddClientForm() {
                 value={password}
               />
               <button
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? c.hidePassword : c.showPassword}
                 className={styles.passwordToggle}
                 onClick={() => setShowPassword((v) => !v)}
                 type="button"
@@ -127,25 +130,25 @@ export function AddClientForm() {
               onClick={() => { setPassword(generatePassword()); setShowPassword(true); }}
               type="button"
             >
-              Generate
+              {c.generate}
             </button>
           </div>
         </label>
-        <label>Customer type<select name="customerType"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label>
-        <label>Country<input defaultValue="DE" name="countryCode" placeholder="DE" /></label>
-        <label>VAT ID<input name="vatId" placeholder="DE123456789" /></label>
+        <label>{c.customerType}<select name="customerType"><option value="INDIVIDUAL">{c.individual}</option><option value="BUSINESS">{c.business}</option></select></label>
+        <label>{c.country}<input defaultValue="DE" name="countryCode" placeholder="DE" /></label>
+        <label>{c.vatId}<input name="vatId" placeholder="DE123456789" /></label>
         <label>
-          Phone (international format)
+          {c.phoneIntl}
           <input name="phone" type="tel" placeholder="+49 1234567890" />
-          <span className={styles.fieldHint}>Use +CC format (e.g. +49 …). Required for domain registrations.</span>
+          <span className={styles.fieldHint}>{c.phoneHint}</span>
         </label>
-        <label>Address<input name="address" placeholder="Musterstraße 1" /></label>
-        <label>ZIP<input name="postalCode" placeholder="12345" /></label>
-        <label>City<input name="city" placeholder="Berlin" /></label>
-        <label className={styles.formSpan2}>State / Region<input name="state" placeholder="Berlin" /></label>
+        <label>{c.address}<input name="address" placeholder={c.streetPlaceholder} /></label>
+        <label>{c.zip}<input name="postalCode" placeholder="12345" /></label>
+        <label>{c.city}<input name="city" placeholder="Berlin" /></label>
+        <label className={styles.formSpan2}>{c.stateRegion}<input name="state" placeholder="Berlin" /></label>
       </div>
       <div className={styles.formActions}>
-        <Button icon={Save} type="submit">Create Client</Button>
+        <Button icon={Save} type="submit">{c.createClient}</Button>
       </div>
       {message ? <p className={styles.formMessage}>{message}</p> : null}
     </form>
@@ -316,6 +319,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
 }
 
 export function AdminClientEditForm({ client }: { client: ApiClient }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [pwMessage, setPwMessage] = useState("");
   const contact = client.contacts?.[0];
@@ -340,14 +344,14 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "Client profile saved.", "Profile save failed."));
+    setMessage(await notifyResponse(response, c.clientProfileSaved, c.profileSaveFailed));
   }
 
   async function changePassword(formData: FormData) {
     const newPassword = String(formData.get("newPassword") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
     if (newPassword !== confirmPassword) {
-      setPwMessage("Passwords do not match.");
+      setPwMessage(c.passwordsNoMatch);
       return;
     }
     const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
@@ -355,44 +359,44 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setPwMessage(await notifyResponse(response, "Password changed.", "Password change failed."));
+    setPwMessage(await notifyResponse(response, c.passwordChanged, c.passwordChangeFailed));
   }
 
   return (
     <div>
       <form action={saveProfile} className={styles.form}>
-        <h3>Edit Profile</h3>
+        <h3>{c.editProfile}</h3>
         <div className={styles.formGrid}>
-          <label>Name<input defaultValue={client.name} name="name" required /></label>
-          <label>Email<input defaultValue={client.email} name="email" required type="email" /></label>
-          <label>Customer type
+          <label>{c.name}<input defaultValue={client.name} name="name" required /></label>
+          <label>{c.email}<input defaultValue={client.email} name="email" required type="email" /></label>
+          <label>{c.customerType}
             <select defaultValue={client.customerType} name="customerType">
-              <option value="INDIVIDUAL">Individual</option>
-              <option value="BUSINESS">Business</option>
+              <option value="INDIVIDUAL">{c.individual}</option>
+              <option value="BUSINESS">{c.business}</option>
             </select>
           </label>
-          <label>Country<input defaultValue={client.countryCode ?? "DE"} name="countryCode" placeholder="DE" /></label>
-          <label>VAT ID<input defaultValue={client.vatId ?? ""} name="vatId" placeholder="DE123456789" /></label>
-          <label>Phone<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
-          <label>Address<input defaultValue={address.line1 ?? ""} name="address" /></label>
-          <label>ZIP<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
-          <label>City<input defaultValue={address.city ?? ""} name="city" /></label>
-          <label className={styles.formSpan2}>State / Region<input defaultValue={address.state ?? ""} name="state" /></label>
+          <label>{c.country}<input defaultValue={client.countryCode ?? "DE"} name="countryCode" placeholder="DE" /></label>
+          <label>{c.vatId}<input defaultValue={client.vatId ?? ""} name="vatId" placeholder="DE123456789" /></label>
+          <label>{c.phone}<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
+          <label>{c.address}<input defaultValue={address.line1 ?? ""} name="address" /></label>
+          <label>{c.zip}<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
+          <label>{c.city}<input defaultValue={address.city ?? ""} name="city" /></label>
+          <label className={styles.formSpan2}>{c.stateRegion}<input defaultValue={address.state ?? ""} name="state" /></label>
         </div>
         <div className={styles.formActions}>
-          <Button icon={Save} type="submit">Save Profile</Button>
+          <Button icon={Save} type="submit">{c.saveProfile}</Button>
         </div>
         {message ? <p className={styles.formMessage}>{message}</p> : null}
       </form>
       <hr style={{ margin: "0 16px", border: "none", borderTop: "1px solid var(--border)" }} />
       <form action={changePassword} className={styles.form}>
-        <h3>Change Password</h3>
+        <h3>{c.changePassword}</h3>
         <div className={styles.formGrid}>
-          <label>New password<input name="newPassword" required type="password" placeholder="New password" /></label>
-          <label>Confirm password<input name="confirmPassword" required type="password" placeholder="Confirm password" /></label>
+          <label>{c.newPassword}<input name="newPassword" required type="password" placeholder={c.newPassword} /></label>
+          <label>{c.confirmPassword}<input name="confirmPassword" required type="password" placeholder={c.confirmPassword} /></label>
         </div>
         <div className={styles.formActions}>
-          <Button icon={Save} type="submit">Set Password</Button>
+          <Button icon={Save} type="submit">{c.setPassword}</Button>
         </div>
         {pwMessage ? <p className={styles.formMessage}>{pwMessage}</p> : null}
       </form>
@@ -401,19 +405,15 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
 }
 
 export function AdminClientDeleteButton({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function handleDelete() {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete client "${clientName}"?\n\n` +
-      `WARNING: All invoices for this client will also be permanently deleted.\n` +
-      `Please make sure to download and back up any invoice data before proceeding.\n\n` +
-      `This action cannot be undone.`
-    );
+    const confirmed = window.confirm(c.deleteClientConfirm.replace("{name}", clientName));
     if (!confirmed) return;
     const response = await fetch(`${API_BASE_URL}/users/${clientId}`, { headers: authHeaders(), method: "DELETE" });
     const ok = response.ok;
-    setMessage(await notifyResponse(response, "Client deleted.", "Client delete failed."));
+    setMessage(await notifyResponse(response, c.clientDeleted, c.clientDeleteFailed));
     if (ok) {
       window.location.assign("/admin/clients");
     }
@@ -421,13 +421,14 @@ export function AdminClientDeleteButton({ clientId, clientName }: { clientId: st
 
   return (
     <div className={styles.formActions}>
-      <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>Delete Client</Button>
+      <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>{c.deleteClient}</Button>
       {message ? <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>{message}</span> : null}
     </div>
   );
 }
 
 export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
   const address = contact?.address ?? {};
@@ -456,7 +457,7 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
+    setMessage(await notifyResponse(response, c.invoiceCreated, c.invoiceCreateFailed));
   }
 
   return (
@@ -464,23 +465,23 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
       <div className={styles.formGrid}>
         {[0, 1, 2].map((index) => (
           <fieldset className={`${styles.lineEditor} ${styles.formSpan2}`} key={index}>
-            <legend>Line {index + 1}</legend>
-            <label>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" /></label>
-            <label>Billing cycle
+            <legend>{c.line.replace("{n}", String(index + 1))}</legend>
+            <label>{c.description}<input defaultValue={index === 0 ? c.manualService : ""} name="description" /></label>
+            <label>{c.billingCycle}
               <select defaultValue="ONE_TIME" name="billingCycle">
-                <option value="ONE_TIME">One time</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEAR_1">Annually</option>
+                <option value="ONE_TIME">{c.cycleOneTime}</option>
+                <option value="MONTHLY">{c.cycleMonthly}</option>
+                <option value="YEAR_1">{c.cycleAnnually}</option>
               </select>
             </label>
-            <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
-            <label>Amount EUR<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
-            <label>VAT rate %<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
+            <label>{c.quantity}<input defaultValue="1" min="1" name="quantity" type="number" /></label>
+            <label>{c.amountEur}<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
+            <label>{c.vatRatePct}<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
           </fieldset>
         ))}
       </div>
       <div className={styles.formActions}>
-        <Button icon={FileText} type="submit">Create Invoice</Button>
+        <Button icon={FileText} type="submit">{c.createInvoice}</Button>
       </div>
       {message ? <p className={styles.formMessage}>{message}</p> : null}
     </form>
@@ -488,6 +489,7 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
 }
 
 export function ClientDetailModals({ client, products }: { client: ApiClient; products: ApiProduct[] }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [open, setOpen] = useState<"order" | "invoice" | null>(null);
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
@@ -520,7 +522,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Order created.", "Order creation failed."));
+    setMessage(await notifyResponse(response, c.orderCreated, c.orderCreateFailed));
   }
 
   async function createInvoice(formData: FormData) {
@@ -547,48 +549,48 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
+    setMessage(await notifyResponse(response, c.invoiceCreated, c.invoiceCreateFailed));
   }
 
   return (
     <div className={styles.inlineForm}>
-      <Button icon={Package} type="button" onClick={() => setOpen("order")}>Create Order</Button>
-      <Button icon={FileText} type="button" variant="secondary" onClick={() => setOpen("invoice")}>Create Invoice</Button>
+      <Button icon={Package} type="button" onClick={() => setOpen("order")}>{c.createOrder}</Button>
+      <Button icon={FileText} type="button" variant="secondary" onClick={() => setOpen("invoice")}>{c.createInvoice}</Button>
       {message ? <span>{message}</span> : null}
 
       <dialog className={styles.modal} open={open === "order"}>
         <form action={createOrder} className={styles.form}>
-          <h3>Create Order</h3>
-          <label>Product<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-          <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
-          <label>Domain name<input name="domainName" placeholder="example.com" /></label>
-          <label>Domain action<select name="domainAction"><option value="register">Register</option><option value="transfer">Transfer</option></select></label>
-          <label>API module<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
-          <label><span><input name="addDomain" type="checkbox" /> Add domain item too</span></label>
-          <label>Notes<textarea name="notes" rows={2} /></label>
+          <h3>{c.createOrder}</h3>
+          <label>{c.product}<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
+          <label>{c.price}<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
+          <label>{c.domainName}<input name="domainName" placeholder="example.com" /></label>
+          <label>{c.domainAction}<select name="domainAction"><option value="register">{c.register}</option><option value="transfer">{c.transfer}</option></select></label>
+          <label>{c.apiModule}<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
+          <label><span><input name="addDomain" type="checkbox" /> {c.addDomainItem}</span></label>
+          <label>{c.notes}<textarea name="notes" rows={2} /></label>
           <div className={styles.inlineForm}>
-            <Button icon={Plus} type="submit">Create</Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(null)}>Close</Button>
+            <Button icon={Plus} type="submit">{c.create}</Button>
+            <Button type="button" variant="secondary" onClick={() => setOpen(null)}>{c.close}</Button>
           </div>
         </form>
       </dialog>
 
       <dialog className={styles.modal} open={open === "invoice"}>
         <form action={createInvoice} className={styles.form}>
-          <h3>Create Invoice</h3>
+          <h3>{c.createInvoice}</h3>
           {[0, 1, 2].map((index) => (
             <fieldset className={styles.lineEditor} key={index}>
-              <legend>Line {index + 1}</legend>
-              <label>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" /></label>
-              <label>Billing cycle<select defaultValue="ONE_TIME" name="billingCycle"><option value="ONE_TIME">One time</option><option value="MONTHLY">Monthly</option><option value="YEAR_1">Annually</option></select></label>
-              <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
-              <label>Amount EUR<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
-              <label>VAT rate<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
+              <legend>{c.line.replace("{n}", String(index + 1))}</legend>
+              <label>{c.description}<input defaultValue={index === 0 ? c.manualService : ""} name="description" /></label>
+              <label>{c.billingCycle}<select defaultValue="ONE_TIME" name="billingCycle"><option value="ONE_TIME">{c.cycleOneTime}</option><option value="MONTHLY">{c.cycleMonthly}</option><option value="YEAR_1">{c.cycleAnnually}</option></select></label>
+              <label>{c.quantity}<input defaultValue="1" min="1" name="quantity" type="number" /></label>
+              <label>{c.amountEur}<input defaultValue={index === 0 ? "10" : "0"} min="0" name="amount" step="0.01" type="number" /></label>
+              <label>{c.vatRate}<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
             </fieldset>
           ))}
           <div className={styles.inlineForm}>
-            <Button icon={FileText} type="submit">Create</Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(null)}>Close</Button>
+            <Button icon={FileText} type="submit">{c.create}</Button>
+            <Button type="button" variant="secondary" onClick={() => setOpen(null)}>{c.close}</Button>
           </div>
         </form>
       </dialog>
@@ -597,6 +599,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
 }
 
 export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const isPermanent = !!(invoice.finalInvoiceNumber ?? (invoice.status === "PAID" && invoice.invoiceNumber));
@@ -614,7 +617,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Marked paid. Refresh to see changes.", "Mark paid failed."));
+    setMessage(await notifyResponse(response, c.markedPaid, c.markPaidFailed));
     if (response.ok) setShowMarkPaid(false);
   }
 
@@ -624,7 +627,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Marked unpaid. Services were not terminated.", "Mark unpaid failed."));
+    setMessage(await notifyResponse(response, c.markedUnpaid, c.markUnpaidFailed));
   }
 
   async function refundInvoice() {
@@ -633,23 +636,19 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Invoice refunded. Refresh to update status.", "Refund failed."));
+    setMessage(await notifyResponse(response, c.invoiceRefunded, c.refundFailed));
   }
 
   async function deleteInvoice() {
     if (isPermanent) {
-      const confirmed = window.confirm(
-        `Warning: This is a permanent invoice (${invoice.finalInvoiceNumber ?? invoice.invoiceNumber}).\n\n` +
-        `Deleting a permanent invoice is irreversible. All associated data will be lost.\n\n` +
-        `Are you sure you want to permanently delete this invoice?`
-      );
+      const confirmed = window.confirm(c.deleteInvoiceConfirm.replace("{number}", String(invoice.finalInvoiceNumber ?? invoice.invoiceNumber)));
       if (!confirmed) return;
     }
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}`, {
       headers: authHeaders(),
       method: "DELETE"
     });
-    setMessage(await notifyResponse(response, "Invoice deleted.", "Invoice delete failed."));
+    setMessage(await notifyResponse(response, c.invoiceDeleted, c.invoiceDeleteFailed));
   }
 
   return (
@@ -657,31 +656,31 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       <div className={styles.inlineForm}>
         {invoice.status !== "PAID" ? (
           <Button icon={CreditCard} type="button" onClick={() => setShowMarkPaid((v) => !v)}>
-            {showMarkPaid ? "Cancel" : "Mark Paid"}
+            {showMarkPaid ? c.cancel : c.markPaid}
           </Button>
         ) : null}
-        {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={markUnpaid}>Mark Unpaid</Button> : null}
-        {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={refundInvoice}>Refund</Button> : null}
-        <Button icon={Trash2} type="button" variant="ghost" onClick={deleteInvoice}>Delete</Button>
+        {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={markUnpaid}>{c.markUnpaid}</Button> : null}
+        {invoice.status === "PAID" ? <Button icon={CreditCard} type="button" variant="secondary" onClick={refundInvoice}>{c.refund}</Button> : null}
+        <Button icon={Trash2} type="button" variant="ghost" onClick={deleteInvoice}>{c.delete}</Button>
       </div>
 
       {showMarkPaid && invoice.status !== "PAID" ? (
         <form action={handleMarkPaid} className={styles.form} style={{ padding: 0 }}>
           <div className={styles.formGrid}>
             <label>
-              Payment date
+              {c.paymentDate}
               <input defaultValue={datetimeLocal(new Date().toISOString())} name="paidAt" type="datetime-local" />
             </label>
             <label>
-              Transaction ID (optional)
+              {c.transactionId}
               <input name="transactionId" placeholder="e.g. PAY-12345" />
             </label>
             <label className={styles.formSpan2}>
-              <span><input name="skipModules" type="checkbox" /> Skip module provisioning (do not activate services)</span>
+              <span><input name="skipModules" type="checkbox" /> {c.skipModules}</span>
             </label>
           </div>
           <div className={styles.formActions}>
-            <Button icon={CreditCard} type="submit">Confirm Mark Paid</Button>
+            <Button icon={CreditCard} type="submit">{c.confirmMarkPaid}</Button>
           </div>
         </form>
       ) : null}
@@ -692,6 +691,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
 }
 
 export function AdminServiceStatusForm({ serviceId, status }: { serviceId: string; status: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/services/${serviceId}/status`, {
@@ -699,17 +699,17 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "Service status saved.", "Service status failed."));
+    setMessage(await notifyResponse(response, c.serviceStatusSaved, c.serviceStatusFailed));
   }
 
   const statusOptions: Array<[string, string]> = [
-    ["PENDING", "Pending"],
-    ["PROVISIONING", "Provisioning"],
-    ["ACTIVE", "Active"],
-    ["SUSPENDED", "Suspended"],
-    ["CANCELLED", "Cancelled"],
-    ["TERMINATED", "Terminated"],
-    ["FAILED", "Failed"]
+    ["PENDING", c.statusPending],
+    ["PROVISIONING", c.statusProvisioning],
+    ["ACTIVE", c.statusActive],
+    ["SUSPENDED", c.statusSuspended],
+    ["CANCELLED", c.statusCancelled],
+    ["TERMINATED", c.statusTerminated],
+    ["FAILED", c.statusFailed]
   ];
   return (
     <form action={submit} className={styles.inlineForm}>
@@ -718,13 +718,14 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
           <option key={value} value={value}>{label}</option>
         ))}
       </select>
-      <Button icon={Save} type="submit">Save Status</Button>
+      <Button icon={Save} type="submit">{c.saveStatus}</Button>
       {message ? <span>{message}</span> : null}
     </form>
   );
 }
 
 export function AdminServiceDueDateForm({ renewsAt, serviceId }: { renewsAt?: string | null; serviceId: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function submit(formData: FormData) {
@@ -734,16 +735,16 @@ export function AdminServiceDueDateForm({ renewsAt, serviceId }: { renewsAt?: st
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "Due date updated.", "Due date update failed."));
+    setMessage(await notifyResponse(response, c.dueDateUpdated, c.dueDateUpdateFailed));
   }
 
   return (
     <form action={submit} className={styles.inlineForm}>
       <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        Next due
+        {c.nextDue}
         <input defaultValue={dateInputValue(renewsAt)} name="renewsAt" type="date" />
       </label>
-      <Button icon={Save} type="submit">Update Due Date</Button>
+      <Button icon={Save} type="submit">{c.updateDueDate}</Button>
       {message ? <span>{message}</span> : null}
     </form>
   );
@@ -754,6 +755,7 @@ function dateInputValue(value?: string | null) {
 }
 
 export function AnnouncementForm() {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [editing, setEditing] = useState<ApiAnnouncement>();
   const [message, setMessage] = useState("");
@@ -783,7 +785,7 @@ export function AnnouncementForm() {
       method: editing ? "PATCH" : "POST"
     });
 
-    setMessage(await notifyResponse(response, editing ? "Announcement saved." : "Announcement published.", "Announcement failed."));
+    setMessage(await notifyResponse(response, editing ? c.announcementSaved : c.announcementPublished, c.announcementFailed));
     if (response.ok) {
       setEditing(undefined);
       await refresh();
@@ -792,7 +794,7 @@ export function AnnouncementForm() {
 
   async function remove(announcement: ApiAnnouncement) {
     const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements/${announcement.id}`, { headers: authHeaders(), method: "DELETE" });
-    setMessage(await notifyResponse(response, "Announcement deleted.", "Delete failed."));
+    setMessage(await notifyResponse(response, c.announcementDeleted, c.deleteFailed));
     if (response.ok) {
       await refresh();
     }
@@ -807,19 +809,19 @@ export function AnnouncementForm() {
               <strong>{announcement.title}</strong>
               <span>{announcement.locale ?? "de"} / {dateTimeLabel(announcement.publishedAt ?? announcement.createdAt)}</span>
             </div>
-            <Button type="button" variant="secondary" onClick={() => setEditing(announcement)}>Edit</Button>
-            <Button type="button" variant="ghost" onClick={() => remove(announcement)}>Delete</Button>
+            <Button type="button" variant="secondary" onClick={() => setEditing(announcement)}>{c.edit}</Button>
+            <Button type="button" variant="ghost" onClick={() => remove(announcement)}>{c.delete}</Button>
           </article>
         ))}
       </div>
       <form action={submit} className={styles.form} key={editing?.id ?? "new-announcement"}>
-        <label>Title<input defaultValue={editing?.title ?? ""} name="title" placeholder="Maintenance window" required /></label>
-        <label>Locale<select defaultValue={editing?.locale ?? "de"} name="locale"><option value="de">German</option><option value="en">English</option></select></label>
-        <label>Date and time<input defaultValue={datetimeLocal(editing?.publishedAt)} name="publishedAt" type="datetime-local" /></label>
-        <label>Excerpt<input defaultValue={editing?.excerpt ?? ""} name="excerpt" placeholder="Short portal message" /></label>
-        <label>Content<textarea defaultValue={editing?.body ?? ""} name="body" rows={5} placeholder="Short announcement" required /></label>
-        <Button icon={Bell} type="submit">{editing ? "Save Announcement" : "Publish Announcement"}</Button>
-        {editing ? <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>New Announcement</Button> : null}
+        <label>{c.title}<input defaultValue={editing?.title ?? ""} name="title" placeholder={c.titlePlaceholder} required /></label>
+        <label>{c.locale}<select defaultValue={editing?.locale ?? "de"} name="locale"><option value="de">{c.german}</option><option value="en">{c.english}</option></select></label>
+        <label>{c.dateTime}<input defaultValue={datetimeLocal(editing?.publishedAt)} name="publishedAt" type="datetime-local" /></label>
+        <label>{c.excerpt}<input defaultValue={editing?.excerpt ?? ""} name="excerpt" placeholder={c.excerptPlaceholder} /></label>
+        <label>{c.content}<textarea defaultValue={editing?.body ?? ""} name="body" rows={5} placeholder={c.announcementPlaceholder} required /></label>
+        <Button icon={Bell} type="submit">{editing ? c.saveAnnouncement : c.publishAnnouncement}</Button>
+        {editing ? <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>{c.newAnnouncement}</Button> : null}
         {message ? <p>{message}</p> : null}
       </form>
     </div>
@@ -827,6 +829,7 @@ export function AnnouncementForm() {
 }
 
 export function CronSettingsForm() {
+  const c = getDictionary(currentLocale()).admin.settingsForm;
   const [message, setMessage] = useState("");
   const [lastCronRun, setLastCronRun] = useState("");
   const [s, setS] = useState({
@@ -922,56 +925,56 @@ export function CronSettingsForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "Cron settings saved.", "Save failed."));
+    setMessage(await notifyResponse(response, c.cronSettingsSaved, c.saveFailed));
   }
 
   async function runCron() {
-    setLastCronRun("Running cron...");
+    setLastCronRun(c.runningCron);
     const response = await fetch(`${API_BASE_URL}/cron/admin/run`, { headers: authHeaders(), method: "POST" });
     const payload = (await response.json().catch(() => ({}))) as { ran?: unknown[]; skipped?: unknown[] };
     if (!response.ok) {
-      setLastCronRun("Cron run failed.");
-      notify.error("Cron run failed.");
+      setLastCronRun(c.cronRunFailed);
+      notify.error(c.cronRunFailed);
       return;
     }
-    const text = `Cron finished. Ran ${payload.ran?.length ?? 0}; skipped ${payload.skipped?.length ?? 0}.`;
+    const text = c.cronFinished.replace("{ran}", String(payload.ran?.length ?? 0)).replace("{skipped}", String(payload.skipped?.length ?? 0));
     setLastCronRun(text);
     notify.success(text);
   }
 
   return (
     <form action={submit} className={styles.form}>
-      <h3>Cron</h3>
-      <Button icon={RefreshCw} type="button" variant="secondary" onClick={runCron}>Run Cron Now</Button>
+      <h3>{c.cron}</h3>
+      <Button icon={RefreshCw} type="button" variant="secondary" onClick={runCron}>{c.runCronNow}</Button>
       {lastCronRun ? <p>{lastCronRun}</p> : null}
-      <label>Cron secret<input value={s.cronSecret} name="cronSecret" type="password" onChange={(e) => setS({ ...s, cronSecret: e.target.value })} /></label>
-      <label>Update domain prices every (hours)<input min="1" value={s.domainPriceUpdateHours} name="domainPriceUpdateHours" type="number" onChange={(e) => setS({ ...s, domainPriceUpdateHours: Number(e.target.value) })} /></label>
-      <label>Update domain expiration dates every (hours)<input min="1" value={s.domainExpirationUpdateHours} name="domainExpirationUpdateHours" type="number" onChange={(e) => setS({ ...s, domainExpirationUpdateHours: Number(e.target.value) })} /></label>
-      <label>Update domain statuses every (minutes)<input min="1" value={s.domainStatusUpdateMinutes} name="domainStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, domainStatusUpdateMinutes: Number(e.target.value) })} /></label>
-      <label>Update hosting service statuses every (minutes)<input min="1" value={s.hostingStatusUpdateMinutes} name="hostingStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, hostingStatusUpdateMinutes: Number(e.target.value) })} /></label>
-      <label>Generate invoices days before due date<input value={s.invoiceDaysAhead} name="invoiceDaysAhead" type="number" onChange={(e) => setS({ ...s, invoiceDaysAhead: Number(e.target.value) })} /></label>
-      <label>Create invoice reminders days before due date<input min="1" value={s.invoiceReminderDaysBeforeDue} name="invoiceReminderDaysBeforeDue" type="number" onChange={(e) => setS({ ...s, invoiceReminderDaysBeforeDue: Number(e.target.value) })} /></label>
-      <label>Close answered tickets after (hours)<input value={s.ticketAutoCloseHours} name="ticketAutoCloseHours" type="number" onChange={(e) => setS({ ...s, ticketAutoCloseHours: Number(e.target.value) })} /></label>
-      <label>Check mailboxes every (minutes)<input min="1" value={s.mailboxCheckMinutes} name="mailboxCheckMinutes" type="number" onChange={(e) => setS({ ...s, mailboxCheckMinutes: Number(e.target.value) })} /></label>
-      <h3>Support mailbox IMAP</h3>
-      <label><span><input checked={s.supportImapEnabled} name="supportImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, supportImapEnabled: e.target.checked })} /> Enable support mailbox</span></label>
-      <label>Support mailbox address<input value={s.supportMailboxAddress} name="supportMailboxAddress" type="email" onChange={(e) => setS({ ...s, supportMailboxAddress: e.target.value })} /></label>
-      <label>Support IMAP host<input value={s.supportImapHost} name="supportImapHost" onChange={(e) => setS({ ...s, supportImapHost: e.target.value })} /></label>
-      <label>Support IMAP port<input value={s.supportImapPort} name="supportImapPort" type="number" onChange={(e) => setS({ ...s, supportImapPort: Number(e.target.value) })} /></label>
-      <label><span><input checked={s.supportImapSecure} name="supportImapSecure" type="checkbox" onChange={(e) => setS({ ...s, supportImapSecure: e.target.checked })} /> Support IMAP TLS/SSL</span></label>
-      <label>Support IMAP username<input value={s.supportImapUsername} name="supportImapUsername" onChange={(e) => setS({ ...s, supportImapUsername: e.target.value })} /></label>
-      <label>Support IMAP password<input value={s.supportImapPassword} name="supportImapPassword" type="password" onChange={(e) => setS({ ...s, supportImapPassword: e.target.value })} /></label>
-      <label>Support IMAP mailbox<input value={s.supportImapMailbox} name="supportImapMailbox" onChange={(e) => setS({ ...s, supportImapMailbox: e.target.value })} /></label>
-      <h3>Sales mailbox IMAP</h3>
-      <label><span><input checked={s.salesImapEnabled} name="salesImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, salesImapEnabled: e.target.checked })} /> Enable sales mailbox</span></label>
-      <label>Sales mailbox address<input value={s.salesMailboxAddress} name="salesMailboxAddress" type="email" onChange={(e) => setS({ ...s, salesMailboxAddress: e.target.value })} /></label>
-      <label>Sales IMAP host<input value={s.salesImapHost} name="salesImapHost" onChange={(e) => setS({ ...s, salesImapHost: e.target.value })} /></label>
-      <label>Sales IMAP port<input value={s.salesImapPort} name="salesImapPort" type="number" onChange={(e) => setS({ ...s, salesImapPort: Number(e.target.value) })} /></label>
-      <label><span><input checked={s.salesImapSecure} name="salesImapSecure" type="checkbox" onChange={(e) => setS({ ...s, salesImapSecure: e.target.checked })} /> Sales IMAP TLS/SSL</span></label>
-      <label>Sales IMAP username<input value={s.salesImapUsername} name="salesImapUsername" onChange={(e) => setS({ ...s, salesImapUsername: e.target.value })} /></label>
-      <label>Sales IMAP password<input value={s.salesImapPassword} name="salesImapPassword" type="password" onChange={(e) => setS({ ...s, salesImapPassword: e.target.value })} /></label>
-      <label>Sales IMAP mailbox<input value={s.salesImapMailbox} name="salesImapMailbox" onChange={(e) => setS({ ...s, salesImapMailbox: e.target.value })} /></label>
-      <Button icon={Save} type="submit">Save Cron Settings</Button>
+      <label>{c.cronSecret}<input value={s.cronSecret} name="cronSecret" type="password" onChange={(e) => setS({ ...s, cronSecret: e.target.value })} /></label>
+      <label>{c.domainPriceHours}<input min="1" value={s.domainPriceUpdateHours} name="domainPriceUpdateHours" type="number" onChange={(e) => setS({ ...s, domainPriceUpdateHours: Number(e.target.value) })} /></label>
+      <label>{c.domainExpirationHours}<input min="1" value={s.domainExpirationUpdateHours} name="domainExpirationUpdateHours" type="number" onChange={(e) => setS({ ...s, domainExpirationUpdateHours: Number(e.target.value) })} /></label>
+      <label>{c.domainStatusMinutes}<input min="1" value={s.domainStatusUpdateMinutes} name="domainStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, domainStatusUpdateMinutes: Number(e.target.value) })} /></label>
+      <label>{c.hostingStatusMinutes}<input min="1" value={s.hostingStatusUpdateMinutes} name="hostingStatusUpdateMinutes" type="number" onChange={(e) => setS({ ...s, hostingStatusUpdateMinutes: Number(e.target.value) })} /></label>
+      <label>{c.invoiceDaysAhead}<input value={s.invoiceDaysAhead} name="invoiceDaysAhead" type="number" onChange={(e) => setS({ ...s, invoiceDaysAhead: Number(e.target.value) })} /></label>
+      <label>{c.invoiceReminderDays}<input min="1" value={s.invoiceReminderDaysBeforeDue} name="invoiceReminderDaysBeforeDue" type="number" onChange={(e) => setS({ ...s, invoiceReminderDaysBeforeDue: Number(e.target.value) })} /></label>
+      <label>{c.ticketAutoClose}<input value={s.ticketAutoCloseHours} name="ticketAutoCloseHours" type="number" onChange={(e) => setS({ ...s, ticketAutoCloseHours: Number(e.target.value) })} /></label>
+      <label>{c.mailboxCheck}<input min="1" value={s.mailboxCheckMinutes} name="mailboxCheckMinutes" type="number" onChange={(e) => setS({ ...s, mailboxCheckMinutes: Number(e.target.value) })} /></label>
+      <h3>{c.supportImap}</h3>
+      <label><span><input checked={s.supportImapEnabled} name="supportImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, supportImapEnabled: e.target.checked })} /> {c.enableSupportMailbox}</span></label>
+      <label>{c.supportMailboxAddress}<input value={s.supportMailboxAddress} name="supportMailboxAddress" type="email" onChange={(e) => setS({ ...s, supportMailboxAddress: e.target.value })} /></label>
+      <label>{c.supportImapHost}<input value={s.supportImapHost} name="supportImapHost" onChange={(e) => setS({ ...s, supportImapHost: e.target.value })} /></label>
+      <label>{c.supportImapPort}<input value={s.supportImapPort} name="supportImapPort" type="number" onChange={(e) => setS({ ...s, supportImapPort: Number(e.target.value) })} /></label>
+      <label><span><input checked={s.supportImapSecure} name="supportImapSecure" type="checkbox" onChange={(e) => setS({ ...s, supportImapSecure: e.target.checked })} /> {c.supportImapTls}</span></label>
+      <label>{c.supportImapUsername}<input value={s.supportImapUsername} name="supportImapUsername" onChange={(e) => setS({ ...s, supportImapUsername: e.target.value })} /></label>
+      <label>{c.supportImapPassword}<input value={s.supportImapPassword} name="supportImapPassword" type="password" onChange={(e) => setS({ ...s, supportImapPassword: e.target.value })} /></label>
+      <label>{c.supportImapMailbox}<input value={s.supportImapMailbox} name="supportImapMailbox" onChange={(e) => setS({ ...s, supportImapMailbox: e.target.value })} /></label>
+      <h3>{c.salesImap}</h3>
+      <label><span><input checked={s.salesImapEnabled} name="salesImapEnabled" type="checkbox" onChange={(e) => setS({ ...s, salesImapEnabled: e.target.checked })} /> {c.enableSalesMailbox}</span></label>
+      <label>{c.salesMailboxAddress}<input value={s.salesMailboxAddress} name="salesMailboxAddress" type="email" onChange={(e) => setS({ ...s, salesMailboxAddress: e.target.value })} /></label>
+      <label>{c.salesImapHost}<input value={s.salesImapHost} name="salesImapHost" onChange={(e) => setS({ ...s, salesImapHost: e.target.value })} /></label>
+      <label>{c.salesImapPort}<input value={s.salesImapPort} name="salesImapPort" type="number" onChange={(e) => setS({ ...s, salesImapPort: Number(e.target.value) })} /></label>
+      <label><span><input checked={s.salesImapSecure} name="salesImapSecure" type="checkbox" onChange={(e) => setS({ ...s, salesImapSecure: e.target.checked })} /> {c.salesImapTls}</span></label>
+      <label>{c.salesImapUsername}<input value={s.salesImapUsername} name="salesImapUsername" onChange={(e) => setS({ ...s, salesImapUsername: e.target.value })} /></label>
+      <label>{c.salesImapPassword}<input value={s.salesImapPassword} name="salesImapPassword" type="password" onChange={(e) => setS({ ...s, salesImapPassword: e.target.value })} /></label>
+      <label>{c.salesImapMailbox}<input value={s.salesImapMailbox} name="salesImapMailbox" onChange={(e) => setS({ ...s, salesImapMailbox: e.target.value })} /></label>
+      <Button icon={Save} type="submit">{c.saveCronSettings}</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );
@@ -1004,6 +1007,9 @@ const COMMON_TIMEZONES = [
 ];
 
 export function SettingsForm() {
+  const dict = getDictionary(currentLocale()).admin;
+  const c = dict.settingsForm;
+  const f = dict.forms;
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
     adminTimezone: "UTC",
@@ -1094,14 +1100,14 @@ export function SettingsForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "Settings saved.", "Settings failed."));
+    setMessage(await notifyResponse(response, c.settingsSaved, c.settingsFailed));
   }
 
   return (
     <form action={submit} className={styles.form}>
-      <h3>General</h3>
+      <h3>{c.general}</h3>
       <label>
-        Deepseek API Key
+        {c.deepseekApiKey}
         <input
           value={s.deepseekApiKey ?? ""}
           name="deepseekApiKey"
@@ -1112,17 +1118,17 @@ export function SettingsForm() {
         />
       </label>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
-        Used for AI blog content generation. Get your key at <strong>platform.deepseek.com</strong>.
+        {c.deepseekHint}
       </p>
       <label>
-        Admin timezone
+        {c.adminTimezone}
         <select value={s.adminTimezone} name="adminTimezone" onChange={(e) => setS({ ...s, adminTimezone: e.target.value })}>
           {COMMON_TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
           {!COMMON_TIMEZONES.includes(s.adminTimezone) && <option value={s.adminTimezone}>{s.adminTimezone}</option>}
         </select>
       </label>
       <label>
-        Site URL
+        {c.siteUrl}
         <input
           value={s.siteUrl}
           name="siteUrl"
@@ -1132,19 +1138,19 @@ export function SettingsForm() {
         />
       </label>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
-        Used for the XML sitemap and absolute URLs in emails. Include the protocol and no trailing slash (e.g. <code>https://dezhost.com</code>).
+        {c.siteUrlHint}
       </p>
-      <h3>About Us</h3>
+      <h3>{c.aboutUs}</h3>
       <ImageUploader
         accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/founder-photo`}
         headers={authHeaders()}
-        label="Founder / team photo (About Us page)"
+        label={c.founderPhoto}
         onUploaded={(payload) => setS({ ...s, founderPhotoUrl: String(payload.photoUrl ?? "") })}
         previewUrl={s.founderPhotoUrl}
       />
       <label>
-        Founder photo URL (or paste URL manually)
+        {c.founderPhotoUrl}
         <input
           value={s.founderPhotoUrl}
           name="founderPhotoUrl"
@@ -1153,11 +1159,10 @@ export function SettingsForm() {
         />
       </label>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
-        Portrait photo shown on the About Us page. Recommended: vertical format (3:4 ratio). PNG or JPG.
-        You can also upload your photo to <code>/uploads/</code> via the uploader above and the URL will be set automatically.
+        {c.founderPhotoHint}
       </p>
-      <h3>Legal</h3>
-      <label>AGB / Terms URL<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
+      <h3>{c.legal}</h3>
+      <label>{c.termsUrl}<input value={s.termsUrl} name="termsUrl" placeholder="/de/legal/agb" onChange={(e) => setS({ ...s, termsUrl: e.target.value })} /></label>
       <LanguageCurrencySettings
         languages={s.languages}
         currencyConfig={s.currencyConfig}
@@ -1165,11 +1170,11 @@ export function SettingsForm() {
         onCurrencyConfig={(v) => setS({ ...s, currencyConfig: v })}
       />
       <TaxCountrySettings value={s.taxCountries} onChange={(v) => setS({ ...s, taxCountries: v })} />
-      <h3>Invoice branding</h3>
+      <h3>{c.invoiceBranding}</h3>
       <ImageUploader
         action={`${API_BASE_URL}/admin/dev/assets/logo`}
         headers={authHeaders()}
-        label="Website logo"
+        label={c.websiteLogo}
         onUploaded={(payload) => setS({ ...s, siteLogoUrl: String(payload.logoUrl ?? "") })}
         previewUrl={s.siteLogoUrl}
       />
@@ -1177,27 +1182,27 @@ export function SettingsForm() {
         accept="image/png,image/x-icon,image/svg+xml,image/webp"
         action={`${API_BASE_URL}/admin/dev/assets/favicon`}
         headers={authHeaders()}
-        label="Favicon"
+        label={c.favicon}
         onUploaded={(payload) => setS({ ...s, faviconUrl: String(payload.faviconUrl ?? "") })}
         previewUrl={s.faviconUrl}
       />
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-8px 0 0" }}>
-        The favicon appears in browser tabs and bookmarks. Accepted formats: <strong>PNG, ICO, SVG, WebP</strong>. Ideal size: <strong>32×32 px or 64×64 px</strong>. Keep it under 512 KB. A square image works best — it will be displayed at a very small size, so use a simple, bold design (e.g. your logo mark, not the full wordmark).
+        {c.faviconHint}
       </p>
-      <label>Company name<input value={s.invoiceCompanyName} name="invoiceCompanyName" onChange={(e) => setS({ ...s, invoiceCompanyName: e.target.value })} /></label>
-      <label>Company address<input value={s.invoiceCompanyAddress} name="invoiceCompanyAddress" onChange={(e) => setS({ ...s, invoiceCompanyAddress: e.target.value })} /></label>
-      <label>ZIP<input value={s.invoiceCompanyZip} name="invoiceCompanyZip" onChange={(e) => setS({ ...s, invoiceCompanyZip: e.target.value })} /></label>
-      <label>City<input value={s.invoiceCompanyCity} name="invoiceCompanyCity" onChange={(e) => setS({ ...s, invoiceCompanyCity: e.target.value })} /></label>
-      <label>Country<input value={s.invoiceCompanyCountry} name="invoiceCompanyCountry" onChange={(e) => setS({ ...s, invoiceCompanyCountry: e.target.value })} /></label>
-      <label>Email<input value={s.invoiceCompanyEmail} name="invoiceCompanyEmail" type="email" onChange={(e) => setS({ ...s, invoiceCompanyEmail: e.target.value })} /></label>
-      <label>Phone<input value={s.invoiceCompanyPhone} name="invoiceCompanyPhone" onChange={(e) => setS({ ...s, invoiceCompanyPhone: e.target.value })} /></label>
-      <label>USt-IdNr<input value={s.invoiceVatNumber} name="invoiceVatNumber" onChange={(e) => setS({ ...s, invoiceVatNumber: e.target.value })} /></label>
-      <label>Invoice footer line 1<input value={s.invoiceFooterLine1} name="invoiceFooterLine1" onChange={(e) => setS({ ...s, invoiceFooterLine1: e.target.value })} /></label>
-      <label>Invoice footer line 2<input value={s.invoiceFooterLine2} name="invoiceFooterLine2" onChange={(e) => setS({ ...s, invoiceFooterLine2: e.target.value })} /></label>
-      <label>Invoice footer line 3<input value={s.invoiceFooterLine3} name="invoiceFooterLine3" onChange={(e) => setS({ ...s, invoiceFooterLine3: e.target.value })} /></label>
-      <label>Payment instructions<textarea value={s.invoicePaymentInstructions} name="invoicePaymentInstructions" rows={3} onChange={(e) => setS({ ...s, invoicePaymentInstructions: e.target.value })} /></label>
-      <label>Bank details<textarea value={s.invoiceBankDetails} name="invoiceBankDetails" rows={3} onChange={(e) => setS({ ...s, invoiceBankDetails: e.target.value })} /></label>
-      <Button icon={Save} type="submit">Save Settings</Button>
+      <label>{c.companyName}<input value={s.invoiceCompanyName} name="invoiceCompanyName" onChange={(e) => setS({ ...s, invoiceCompanyName: e.target.value })} /></label>
+      <label>{c.companyAddress}<input value={s.invoiceCompanyAddress} name="invoiceCompanyAddress" onChange={(e) => setS({ ...s, invoiceCompanyAddress: e.target.value })} /></label>
+      <label>{f.zip}<input value={s.invoiceCompanyZip} name="invoiceCompanyZip" onChange={(e) => setS({ ...s, invoiceCompanyZip: e.target.value })} /></label>
+      <label>{f.city}<input value={s.invoiceCompanyCity} name="invoiceCompanyCity" onChange={(e) => setS({ ...s, invoiceCompanyCity: e.target.value })} /></label>
+      <label>{f.country}<input value={s.invoiceCompanyCountry} name="invoiceCompanyCountry" onChange={(e) => setS({ ...s, invoiceCompanyCountry: e.target.value })} /></label>
+      <label>{f.email}<input value={s.invoiceCompanyEmail} name="invoiceCompanyEmail" type="email" onChange={(e) => setS({ ...s, invoiceCompanyEmail: e.target.value })} /></label>
+      <label>{f.phone}<input value={s.invoiceCompanyPhone} name="invoiceCompanyPhone" onChange={(e) => setS({ ...s, invoiceCompanyPhone: e.target.value })} /></label>
+      <label>{c.ustId}<input value={s.invoiceVatNumber} name="invoiceVatNumber" onChange={(e) => setS({ ...s, invoiceVatNumber: e.target.value })} /></label>
+      <label>{c.footerLine1}<input value={s.invoiceFooterLine1} name="invoiceFooterLine1" onChange={(e) => setS({ ...s, invoiceFooterLine1: e.target.value })} /></label>
+      <label>{c.footerLine2}<input value={s.invoiceFooterLine2} name="invoiceFooterLine2" onChange={(e) => setS({ ...s, invoiceFooterLine2: e.target.value })} /></label>
+      <label>{c.footerLine3}<input value={s.invoiceFooterLine3} name="invoiceFooterLine3" onChange={(e) => setS({ ...s, invoiceFooterLine3: e.target.value })} /></label>
+      <label>{c.paymentInstructions}<textarea value={s.invoicePaymentInstructions} name="invoicePaymentInstructions" rows={3} onChange={(e) => setS({ ...s, invoicePaymentInstructions: e.target.value })} /></label>
+      <label>{c.bankDetails}<textarea value={s.invoiceBankDetails} name="invoiceBankDetails" rows={3} onChange={(e) => setS({ ...s, invoiceBankDetails: e.target.value })} /></label>
+      <Button icon={Save} type="submit">{c.saveSettings}</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );
@@ -1206,6 +1211,7 @@ export function SettingsForm() {
 type Gateway = { config?: Record<string, unknown>; enabled: boolean; method: string; validation?: { message?: string; ok?: boolean } };
 
 export function PaymentGatewayForm() {
+  const c = getDictionary(currentLocale()).admin.settingsForm;
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [saving, setSaving] = useState(false);
   const [results, setResults] = useState<Record<string, { message?: string; ok?: boolean }>>({});
@@ -1266,19 +1272,19 @@ export function PaymentGatewayForm() {
       setResults(resultMap);
       const allOk = Object.values(resultMap).every((r) => r.ok);
       if (allOk) {
-        notify.success("Payment gateways saved and verified.");
+        notify.success(c.gatewaysSavedVerified);
       } else {
-        notify.error("Some gateways could not be verified — check the details.");
+        notify.error(c.gatewaysVerifyFailed);
       }
       return;
     }
-    notifyResponse(response, "Saved.", "Save failed.").catch(() => undefined);
+    notifyResponse(response, c.saved, c.saveFailed).catch(() => undefined);
   }
 
   return (
     <form action={submit} className={styles.form}>
       <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: 0 }}>
-        Enable and configure payment gateways. Credentials are verified on save. Sandbox mode uses test accounts only.
+        {c.gatewayIntro}
       </p>
 
       {gateways.map((gateway) => {
@@ -1289,7 +1295,7 @@ export function PaymentGatewayForm() {
             <div className={styles.gatewayCardHeader}>
               <label className={styles.gatewayToggle}>
                 <input defaultChecked={gateway.enabled} name={`${gateway.method}_enabled`} type="checkbox" />
-                <strong>{gatewayTitle(gateway.method)}</strong>
+                <strong>{gatewayTitle(gateway.method, c)}</strong>
               </label>
               <span className={styles.gatewayBadge}>{gatewayProvider(gateway.method)}</span>
             </div>
@@ -1297,30 +1303,30 @@ export function PaymentGatewayForm() {
             {gateway.method !== "SANDBOX" ? (
               <div className={styles.gatewayFields}>
                 <label>
-                  Name on invoice
+                  {c.nameOnInvoice}
                   <input
                     defaultValue={String(gateway.config?.displayName ?? "")}
                     name={`${gateway.method}_displayName`}
-                    placeholder={gatewayTitle(gateway.method)}
+                    placeholder={gatewayTitle(gateway.method, c)}
                   />
-                  <span className={styles.gatewayHint}>Shown as the payment method on paid invoices.</span>
+                  <span className={styles.gatewayHint}>{c.nameOnInvoiceHint}</span>
                 </label>
               </div>
             ) : null}
 
             {gateway.method === "SANDBOX" ? (
-              <p className={styles.gatewayHint}>Simulated gateway — no real payments. Use to test the checkout and client portal flow.</p>
+              <p className={styles.gatewayHint}>{c.sandboxHint}</p>
             ) : gateway.method === "PAYPAL" ? (
               <div className={styles.gatewayFields}>
                 <label>
-                  Environment
+                  {c.environment}
                   <select defaultValue={String(gateway.config?.mode ?? "test")} name={`${gateway.method}_mode`}>
-                    <option value="test">Sandbox (test)</option>
-                    <option value="live">Live (production)</option>
+                    <option value="test">{c.envSandbox}</option>
+                    <option value="live">{c.envLive}</option>
                   </select>
                 </label>
                 <label>
-                  Client ID
+                  {c.clientIdLabel}
                   <input
                     autoComplete="off"
                     defaultValue={String(gateway.config?.clientId ?? "")}
@@ -1330,7 +1336,7 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <label>
-                  Client Secret
+                  {c.clientSecretLabel}
                   <input
                     autoComplete="new-password"
                     defaultValue={String(gateway.config?.clientSecret ?? "")}
@@ -1340,13 +1346,13 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <p className={styles.gatewayHint}>
-                  PayPal vault is enabled automatically — customers who pay once are saved for future automatic billing via cron.
+                  {c.paypalHint}
                 </p>
               </div>
             ) : gateway.method === "BANK_TRANSFER" ? (
               <div className={styles.gatewayFields}>
                 <label>
-                  Account holder name
+                  {c.accountHolderName}
                   <input
                     defaultValue={String(gateway.config?.accountHolder ?? "")}
                     name={`${gateway.method}_accountHolder`}
@@ -1354,7 +1360,7 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <label>
-                  Bank name
+                  {c.bankNameLabel}
                   <input
                     defaultValue={String(gateway.config?.bankName ?? "")}
                     name={`${gateway.method}_bankName`}
@@ -1362,7 +1368,7 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <label>
-                  IBAN
+                  {c.ibanLabel}
                   <input
                     defaultValue={String(gateway.config?.iban ?? "")}
                     name={`${gateway.method}_iban`}
@@ -1371,7 +1377,7 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <label>
-                  BIC / SWIFT
+                  {c.bicLabel}
                   <input
                     defaultValue={String(gateway.config?.bic ?? "")}
                     name={`${gateway.method}_bic`}
@@ -1380,21 +1386,21 @@ export function PaymentGatewayForm() {
                   />
                 </label>
                 <label>
-                  Reference instructions (shown to customer)
+                  {c.referenceInstructions}
                   <input
                     defaultValue={String(gateway.config?.referenceNote ?? "")}
                     name={`${gateway.method}_referenceNote`}
-                    placeholder="Please include your invoice number as payment reference."
+                    placeholder={c.referencePlaceholder}
                   />
                 </label>
                 <p className={styles.gatewayHint}>
-                  Manual gateway. The customer sees your bank details, wires the amount, and the admin marks the invoice as paid. A sales ticket is opened if provisioning doesn't complete.
+                  {c.bankTransferHint}
                 </p>
               </div>
             ) : (
               <div className={styles.gatewayFields}>
                 <label>
-                  Mollie API Key
+                  {c.mollieApiKey}
                   <input
                     autoComplete="new-password"
                     defaultValue={String(gateway.config?.apiKey ?? "")}
@@ -1403,25 +1409,25 @@ export function PaymentGatewayForm() {
                     type="password"
                   />
                 </label>
-                <p className={styles.gatewayHint}>Use a <code>test_</code> key for sandbox mode, <code>live_</code> for production. One key covers both Credit Card and SEPA. A Mollie mandate is captured on first payment for automatic future billing.</p>
+                <p className={styles.gatewayHint}>{c.mollieHint}</p>
               </div>
             )}
 
             {result && (
               <div className={result.ok ? styles.gatewayVerified : styles.gatewayError}>
-                {result.ok ? "✓" : "✗"} {result.message ?? (result.ok ? "Verified" : "Verification failed")}
+                {result.ok ? "✓" : "✗"} {result.message ?? (result.ok ? c.verified : c.verificationFailed)}
               </div>
             )}
             {!result && verified ? (
               <div className={styles.gatewayVerified}>
-                ✓ Last verified {new Date(String(verified)).toLocaleDateString("de-DE")}
+                ✓ {c.lastVerified.replace("{date}", new Date(String(verified)).toLocaleDateString("de-DE"))}
               </div>
             ) : null}
           </fieldset>
         );
       })}
 
-      <Button disabled={saving} icon={CreditCard} type="submit">{saving ? "Saving…" : "Save & Verify Gateways"}</Button>
+      <Button disabled={saving} icon={CreditCard} type="submit">{saving ? c.saving : c.saveVerifyGateways}</Button>
     </form>
   );
 }
@@ -1536,6 +1542,7 @@ export function BlogManager() {
 }
 
 export function RichTextEditor({ initialValue }: { initialValue: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [value, setValue] = useState(initialValue);
   const editor = useEditor({
     content: initialValue || "",
@@ -1556,7 +1563,7 @@ export function RichTextEditor({ initialValue }: { initialValue: string }) {
         openOnClick: false
       }),
       Placeholder.configure({
-        placeholder: "Write the blog article here."
+        placeholder: c.editorPlaceholder
       })
     ],
     immediatelyRender: false,
@@ -1575,7 +1582,7 @@ export function RichTextEditor({ initialValue }: { initialValue: string }) {
       return;
     }
     const current = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Link URL", current ?? "https://");
+    const url = window.prompt(c.linkUrlPrompt, current ?? "https://");
     if (url === null) {
       return;
     }
@@ -1588,17 +1595,17 @@ export function RichTextEditor({ initialValue }: { initialValue: string }) {
 
   return (
     <label>
-      Content
+      {c.editorContent}
       <input name="content" type="hidden" value={value} />
       <div className={styles.editorShell}>
         <div className={styles.editorToolbar}>
-          <button aria-label="Heading" className={editor?.isActive("heading", { level: 2 }) ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></button>
-          <button aria-label="Bold" className={editor?.isActive("bold") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
-          <button aria-label="Italic" className={editor?.isActive("italic") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
-          <button aria-label="Bullet list" className={editor?.isActive("bulletList") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
-          <button aria-label="Link" className={editor?.isActive("link") ? styles.activeTool : ""} type="button" onClick={setLink}><LinkIcon size={16} /></button>
-          <button aria-label="Undo" type="button" onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
-          <button aria-label="Redo" type="button" onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
+          <button aria-label={c.toolHeading} className={editor?.isActive("heading", { level: 2 }) ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></button>
+          <button aria-label={c.toolBold} className={editor?.isActive("bold") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBold().run()}><Bold size={16} /></button>
+          <button aria-label={c.toolItalic} className={editor?.isActive("italic") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}><Italic size={16} /></button>
+          <button aria-label={c.toolBulletList} className={editor?.isActive("bulletList") ? styles.activeTool : ""} type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}><List size={16} /></button>
+          <button aria-label={c.toolLink} className={editor?.isActive("link") ? styles.activeTool : ""} type="button" onClick={setLink}><LinkIcon size={16} /></button>
+          <button aria-label={c.toolUndo} type="button" onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={16} /></button>
+          <button aria-label={c.toolRedo} type="button" onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={16} /></button>
         </div>
         <EditorContent dir="ltr" editor={editor} />
       </div>
@@ -1607,6 +1614,7 @@ export function RichTextEditor({ initialValue }: { initialValue: string }) {
 }
 
 export function DomainPriceForm() {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function submit(formData: FormData) {
@@ -1625,30 +1633,31 @@ export function DomainPriceForm() {
       method: "POST"
     });
 
-    setMessage(await notifyResponse(response, "Domain price saved.", "Domain price failed."));
+    setMessage(await notifyResponse(response, c.domainPriceSaved, c.domainPriceFailed));
   }
 
   return (
     <form action={submit} className={styles.form}>
-      <label>TLD<input name="tld" placeholder="de" required /></label>
-      <label>Action
+      <label>{c.tld}<input name="tld" placeholder="de" required /></label>
+      <label>{c.domainAction}
         <select name="action">
-          <option value="register">Register</option>
-          <option value="transfer">Transfer</option>
-          <option value="renew">Renew</option>
+          <option value="register">{c.register}</option>
+          <option value="transfer">{c.transfer}</option>
+          <option value="renew">{c.renew}</option>
         </select>
       </label>
-      <label>Years<input defaultValue="1" min="1" name="years" type="number" /></label>
-      <label>Price EUR<input name="amount" placeholder="blank = Resell.biz price" step="0.01" type="number" /></label>
-      <label><input defaultChecked name="manual" type="checkbox" /> Manual price</label>
-      <label><input name="suggested" type="checkbox" /> Suggested TLD</label>
-      <Button icon={Save} type="submit">Save Price</Button>
+      <label>{c.years}<input defaultValue="1" min="1" name="years" type="number" /></label>
+      <label>{c.priceEur}<input name="amount" placeholder={c.priceResellHint} step="0.01" type="number" /></label>
+      <label><input defaultChecked name="manual" type="checkbox" /> {c.manualPrice}</label>
+      <label><input name="suggested" type="checkbox" /> {c.suggestedTld}</label>
+      <Button icon={Save} type="submit">{c.savePrice}</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );
 }
 
 export function OrderStatusForm({ orderId, status }: { orderId: string; status: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [value, setValue] = useState(statusLabelValue(status));
 
@@ -1659,17 +1668,17 @@ export function OrderStatusForm({ orderId, status }: { orderId: string; status: 
       method: "PATCH"
     });
 
-    setMessage(await notifyResponse(response, "Order status saved.", "Order status failed."));
+    setMessage(await notifyResponse(response, c.orderStatusSaved, c.orderStatusFailed));
   }
 
   return (
     <form action={submit} className={styles.inlineForm}>
       <select name="status" value={value} onChange={(event) => setValue(event.target.value)}>
-        <option value="completed">completed</option>
-        <option value="pending">Pending</option>
-        <option value="canceled">Canceled</option>
+        <option value="completed">{c.statusCompleted}</option>
+        <option value="pending">{c.statusPending}</option>
+        <option value="canceled">{c.statusCanceled}</option>
       </select>
-      <Button type="submit" variant="secondary">Save</Button>
+      <Button type="submit" variant="secondary">{c.save}</Button>
       {message ? <span>{message}</span> : null}
     </form>
   );
@@ -1685,11 +1694,11 @@ function statusLabelValue(status: string) {
   return "pending";
 }
 
-function gatewayTitle(method: string) {
+function gatewayTitle(method: string, c: Dictionary["admin"]["settingsForm"]) {
   return {
-    CREDIT_CARD: "Credit/debit card",
-    PAYPAL: "Paypal",
-    SEPA: "SEPA Lastschrift"
+    CREDIT_CARD: c.gatewayCreditCard,
+    PAYPAL: c.gatewayPaypal,
+    SEPA: c.gatewaySepa
   }[method] ?? method;
 }
 
@@ -1701,6 +1710,7 @@ function gatewayProvider(method: string) {
 }
 
 export function NewOrderForm({ clients, locale, preselectedClientId, products, vatPercent = 19 }: { clients: ApiClient[]; locale: Locale; preselectedClientId?: string; products: ApiProduct[]; vatPercent?: number }) {
+  const c = getDictionary(locale).admin.forms;
   const [message, setMessage] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(products.find((p) => p.type !== "DOMAIN")?.id ?? products[0]?.id ?? "");
   const [selectedPriceId, setSelectedPriceId] = useState(products.find((p) => p.type !== "DOMAIN")?.prices[0]?.id ?? "");
@@ -1791,11 +1801,11 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
       method: "POST"
     });
     if (response.ok) {
-      notify.success("Order created.");
+      notify.success(c.orderCreated);
       window.location.assign("/admin/orders");
       return;
     }
-    setMessage(await notifyResponse(response, "Order created.", "Order creation failed."));
+    setMessage(await notifyResponse(response, c.orderCreated, c.orderCreateFailed));
   }
 
   return (
@@ -1803,16 +1813,16 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
       <div className={styles.newOrderLayout}>
         <div className={styles.formGrid}>
           <label className={styles.formSpan2}>
-            Client
+            {c.client}
             <select defaultValue={preselectedClientId ?? ""} name="userId" required onChange={(e) => setSelectedClientId(e.target.value)}>
-              <option value="">— select client —</option>
+              <option value="">{c.selectClient}</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>{client.name} ({client.email})</option>
               ))}
             </select>
           </label>
           <label className={styles.formSpan2}>
-            Product
+            {c.product}
             <select name="productId" value={selectedProductId} onChange={(e) => {
               setSelectedProductId(e.target.value);
               const p = products.find((prod) => prod.id === e.target.value);
@@ -1825,12 +1835,12 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
           </label>
 
           <label className={styles.formSpan2}>
-            <span><input checked={useCustomPricing} name="useCustomPricing" type="checkbox" onChange={(e) => setUseCustomPricing(e.target.checked)} /> Use custom pricing (override product price)</span>
+            <span><input checked={useCustomPricing} name="useCustomPricing" type="checkbox" onChange={(e) => setUseCustomPricing(e.target.checked)} /> {c.useCustomPricing}</span>
           </label>
 
           {!useCustomPricing ? (
             <label className={styles.formSpan2}>
-              Pricing Plan
+              {c.pricingPlan}
               <select name="productPriceId" value={selectedPriceId} onChange={(e) => setSelectedPriceId(e.target.value)}>
                 {selectedProduct?.prices.map((price) => (
                   <option key={price.id} value={price.id}>
@@ -1842,78 +1852,78 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
           ) : (
             <>
               <label>
-                Custom price (EUR, excl. VAT)
+                {c.customPrice}
                 <input min="0" name="customAmountEur" placeholder="0.00" step="0.01" type="number" value={customAmountEur || ""} onChange={(e) => setCustomAmountEur(Number(e.target.value) || 0)} />
               </label>
               <label>
-                Billing cycle
+                {c.billingCycle}
                 <select name="customBillingCycle" value={customBillingCycle} onChange={(e) => setCustomBillingCycle(e.target.value)}>
-                  {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "ONE_TIME"].map((c) => (
-                    <option key={c} value={c}>{cycleLabel(c, locale)}</option>
+                  {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "ONE_TIME"].map((cyc) => (
+                    <option key={cyc} value={cyc}>{cycleLabel(cyc, locale)}</option>
                   ))}
                 </select>
               </label>
               <label className={styles.formSpan2}>
-                <span><input defaultChecked name="applyToRenewals" type="checkbox" /> Apply custom price to all future renewal invoices</span>
+                <span><input defaultChecked name="applyToRenewals" type="checkbox" /> {c.applyToRenewals}</span>
               </label>
             </>
           )}
 
           <label>
-            Domain Name
+            {c.domainName}
             <input name="domainName" placeholder="example.com" value={domainNameInput} onChange={(e) => setDomainNameInput(e.target.value)} />
           </label>
           <label>
-            Domain Action
+            {c.domainAction}
             <select name="domainAction">
-              <option value="register">Register</option>
-              <option value="transfer">Transfer</option>
+              <option value="register">{c.register}</option>
+              <option value="transfer">{c.transfer}</option>
             </select>
           </label>
 
           <label className={styles.formSpan2}>
-            Order Date
+            {c.orderDateLabel}
             <input defaultValue={datetimeLocal(new Date().toISOString())} name="placedAt" type="datetime-local" />
           </label>
           <label className={styles.formSpan2}>
-            First Invoice Due Date
+            {c.firstDueDate}
             <input name="firstDueAt" type="date" defaultValue={new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)} />
           </label>
 
           <label className={styles.formSpan2}>
-            Discount
+            {c.discount}
             <select name="discountType" value={discountType} onChange={(e) => setDiscountType(e.target.value as "none" | "one-time" | "recurring")}>
-              <option value="none">No discount</option>
-              <option value="one-time">One-time discount (first invoice only)</option>
-              <option value="recurring">Recurring discount (all invoices)</option>
+              <option value="none">{c.discountNone}</option>
+              <option value="one-time">{c.discountOneTime}</option>
+              <option value="recurring">{c.discountRecurring}</option>
             </select>
           </label>
           {discountType !== "none" ? (
             <label className={styles.formSpan2}>
-              Discount amount (EUR)
+              {c.discountAmount}
               <input min="0" name="discountAmountEur" placeholder="0.00" step="0.01" type="number" value={discountAmountEur || ""} onChange={(e) => setDiscountAmountEur(Number(e.target.value) || 0)} />
             </label>
           ) : null}
 
           <label className={styles.formSpan2}>
-            <span><input checked={addDomain} name="addDomain" type="checkbox" onChange={(e) => setAddDomain(e.target.checked)} /> Add domain item to this order</span>
+            <span><input checked={addDomain} name="addDomain" type="checkbox" onChange={(e) => setAddDomain(e.target.checked)} /> {c.addDomainToOrder}</span>
           </label>
           <label className={styles.formSpan2}>
-            Notes (internal)
-            <textarea name="notes" rows={2} placeholder="Admin notes for this order..." />
+            {c.notesInternal}
+            <textarea name="notes" rows={2} placeholder={c.notesPlaceholder} />
           </label>
           <label className={styles.formSpan2}>
-            <span><input name="skipEmail" type="checkbox" /> Disable new order email for this client</span>
+            <span><input name="skipEmail" type="checkbox" /> {c.disableOrderEmail}</span>
           </label>
           <label className={styles.formSpan2}>
-            <span><input name="runModules" type="checkbox" /> Run active modules upon order create (provisions services immediately)</span>
+            <span><input name="runModules" type="checkbox" /> {c.runModulesOnCreate}</span>
           </label>
         </div>
 
         {/* Order preview */}
         <div className={styles.orderPreview}>
-          <h3>Order Preview</h3>
-          {selectedClient ? <p className={styles.orderPreviewClient}>{selectedClient.name}<br /><span>{selectedClient.email}</span></p> : <p className={styles.orderPreviewClient}>No client selected</p>}
+          <h3>{c.orderPreview}</h3>
+          {selectedClient ? <p className={styles.orderPreviewClient}>{selectedClient.name}<br /><span>{selectedClient.email}</span></p> : <p className={styles.orderPreviewClient}>{c.noClientSelected}</p>}
           {selectedProduct ? (
             <div className={styles.orderPreviewLines}>
               <div className={styles.orderPreviewRow}>
@@ -1921,10 +1931,10 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                 <span>{cycleLabel(billingCycle, locale)}</span>
               </div>
               <div className={styles.orderPreviewRow}>
-                <span>Base price</span>
+                <span>{c.basePrice}</span>
                 <strong>{money(baseAmountCents, "EUR", locale)}</strong>
               </div>
-              {vatPercent > 0 ? <div className={styles.orderPreviewRow}><span>VAT ({vatPercent}%)</span><span>{money(vatCents, "EUR", locale)}</span></div> : null}
+              {vatPercent > 0 ? <div className={styles.orderPreviewRow}><span>{c.vat} ({vatPercent}%)</span><span>{money(vatCents, "EUR", locale)}</span></div> : null}
               {addDomain ? (
                 <div className={styles.orderPreviewRow}>
                   <span>Domain (.{domainTld || "?"})</span>
@@ -1933,34 +1943,34 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                   ) : domainPriceCents !== null ? (
                     <strong>{money(domainPriceCents, "EUR", locale)}</strong>
                   ) : (
-                    <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>{domainTld ? "price unknown" : "enter domain"}</span>
+                    <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>{domainTld ? c.domainPriceUnknown : c.enterDomain}</span>
                   )}
                 </div>
               ) : null}
               {discountCents > 0 ? (
                 <div className={styles.orderPreviewRow}>
-                  <span>Discount {discountType === "recurring" ? "(recurring)" : "(once)"}</span>
+                  <span>{c.discount} {discountType === "recurring" ? c.discountRecurringTag : c.discountOnceTag}</span>
                   <span>− {money(discountCents, "EUR", locale)}</span>
                 </div>
               ) : null}
               <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "6px 0" }} />
               <div className={styles.orderPreviewTotal}>
-                <span>First invoice total</span>
+                <span>{c.firstInvoiceTotal}</span>
                 <strong>{money(Math.max(0, totalCents), "EUR", locale)}</strong>
               </div>
               {billingCycle !== "ONE_TIME" ? (
                 <div className={styles.orderPreviewRenewal}>
-                  <span>Next renewal</span>
+                  <span>{c.nextRenewal}</span>
                   <span>{money(subtotalCents + vatCents - (discountType === "recurring" ? discountCents : 0), "EUR", locale)} / {cycleLabel(billingCycle, locale)}</span>
                 </div>
               ) : null}
             </div>
-          ) : <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>Select a product to see preview</p>}
+          ) : <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>{c.selectProductPreview}</p>}
         </div>
       </div>
 
       <div className={styles.formActions}>
-        <Button icon={Package} type="submit">Create Order</Button>
+        <Button icon={Package} type="submit">{c.createOrder}</Button>
       </div>
       {message ? <p className={styles.formMessage}>{message}</p> : null}
     </form>
@@ -1968,10 +1978,11 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
 }
 
 export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId: string; invoiceNumber: string }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   async function download() {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf`, { headers: authHeaders() });
     if (!response.ok) {
-      notify.error("PDF download failed.");
+      notify.error(c.pdfDownloadFailed);
       return;
     }
     const blob = await response.blob();
@@ -1981,14 +1992,15 @@ export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId
     link.download = `invoice-${invoiceNumber}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
-    notify.success("PDF ready.");
+    notify.success(c.pdfReady);
   }
-  return <Button type="button" variant="secondary" onClick={download}>Download PDF</Button>;
+  return <Button type="button" variant="secondary" onClick={download}>{c.downloadPdf}</Button>;
 }
 
 type LineItem = { id: number };
 
 export function AdminClientActions({ client }: { client: ApiClient }) {
+  const c = getDictionary(currentLocale()).admin.forms;
   const [open, setOpen] = useState<"profile" | "password" | "invoice" | "welcome-email" | "send-email" | null>(null);
   const [lines, setLines] = useState<LineItem[]>([{ id: 0 }]);
   const [profileMsg, setProfileMsg] = useState("");
@@ -2027,14 +2039,14 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    const msg = await notifyResponse(response, "Email sent.", "Email send failed.");
+    const msg = await notifyResponse(response, c.emailSent, c.emailSendFailed);
     setEmailMsg(msg);
     if (response.ok) closeModal();
   }
 
   async function sendCustomEmail() {
     if (!customSubject.trim() || !customBody.trim()) {
-      setEmailMsg("Subject and body are required.");
+      setEmailMsg(c.subjectBodyRequired);
       return;
     }
     const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-custom`, {
@@ -2042,7 +2054,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    const msg = await notifyResponse(response, "Email sent.", "Email send failed.");
+    const msg = await notifyResponse(response, c.emailSent, c.emailSendFailed);
     setEmailMsg(msg);
     if (response.ok) closeModal();
   }
@@ -2053,7 +2065,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    const msg = await notifyResponse(response, "Welcome email sent.", "Welcome email failed.");
+    const msg = await notifyResponse(response, c.welcomeEmailSent, c.welcomeEmailFailed);
     setEmailMsg(msg);
     if (response.ok) closeModal();
   }
@@ -2077,7 +2089,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    const msg = await notifyResponse(response, "Profile saved.", "Profile save failed.");
+    const msg = await notifyResponse(response, c.profileSaved, c.profileSaveFailed);
     setProfileMsg(msg);
     if (response.ok) closeModal();
   }
@@ -2086,7 +2098,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
     const newPassword = String(formData.get("newPassword") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
     if (newPassword !== confirmPassword) {
-      setPwMsg("Passwords do not match.");
+      setPwMsg(c.passwordsNoMatch);
       return;
     }
     const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
@@ -2094,7 +2106,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    const msg = await notifyResponse(response, "Password changed.", "Password change failed.");
+    const msg = await notifyResponse(response, c.passwordChanged, c.passwordChangeFailed);
     setPwMsg(msg);
     if (response.ok) closeModal();
   }
@@ -2125,39 +2137,34 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       method: "POST"
     });
     if (response.ok) {
-      notify.success("Invoice created.");
+      notify.success(c.invoiceCreated);
       window.location.reload();
       return;
     }
-    setInvoiceMsg(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
+    setInvoiceMsg(await notifyResponse(response, c.invoiceCreated, c.invoiceCreateFailed));
   }
 
   async function handleDelete() {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete client "${client.name}"?\n\n` +
-      `WARNING: All invoices for this client will also be permanently deleted.\n` +
-      `Please make sure to download and back up any invoice data before proceeding.\n\n` +
-      `This action cannot be undone.`
-    );
+    const confirmed = window.confirm(c.deleteClientConfirm.replace("{name}", client.name));
     if (!confirmed) return;
     const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
     if (response.ok) {
-      notify.success("Client deleted.");
+      notify.success(c.clientDeleted);
       window.location.assign("/admin/clients");
     } else {
-      notify.error("Client delete failed.");
+      notify.error(c.clientDeleteFailed);
     }
   }
 
   return (
     <>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Button type="button" onClick={() => setOpen("profile")}>Edit Profile</Button>
-        <Button type="button" variant="secondary" onClick={() => setOpen("password")}>Change Password</Button>
-        <Button type="button" variant="secondary" onClick={() => setOpen("invoice")}>Create Invoice</Button>
-        <Button type="button" variant="secondary" onClick={sendWelcomeEmail}>Send Welcome Email</Button>
-        <Button type="button" variant="secondary" onClick={openSendEmail}>Send Email</Button>
-        <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>Delete Client</Button>
+        <Button type="button" onClick={() => setOpen("profile")}>{c.editProfile}</Button>
+        <Button type="button" variant="secondary" onClick={() => setOpen("password")}>{c.changePassword}</Button>
+        <Button type="button" variant="secondary" onClick={() => setOpen("invoice")}>{c.createInvoice}</Button>
+        <Button type="button" variant="secondary" onClick={sendWelcomeEmail}>{c.sendWelcomeEmail}</Button>
+        <Button type="button" variant="secondary" onClick={openSendEmail}>{c.sendEmail}</Button>
+        <Button icon={Trash2} type="button" variant="ghost" onClick={handleDelete}>{c.deleteClient}</Button>
       </div>
 
       {open ? (
@@ -2165,7 +2172,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
           <div className={styles.modal}>
             <div className={styles.modalHead}>
               <strong>
-                {open === "profile" ? "Edit Profile" : open === "password" ? "Change Password" : open === "invoice" ? "Create Invoice" : open === "welcome-email" ? "Send Welcome Email" : "Send Email"}
+                {open === "profile" ? c.editProfile : open === "password" ? c.changePassword : open === "invoice" ? c.createInvoice : open === "welcome-email" ? c.sendWelcomeEmail : c.sendEmail}
               </strong>
               <button className={styles.modalClose} type="button" onClick={closeModal}>✕</button>
             </div>
@@ -2173,25 +2180,25 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
             {open === "profile" ? (
               <form action={saveProfile} className={styles.form}>
                 <div className={styles.formGrid}>
-                  <label>Name<input defaultValue={client.name} name="name" required /></label>
-                  <label>Email<input defaultValue={client.email} name="email" required type="email" /></label>
-                  <label>Customer type
+                  <label>{c.name}<input defaultValue={client.name} name="name" required /></label>
+                  <label>{c.email}<input defaultValue={client.email} name="email" required type="email" /></label>
+                  <label>{c.customerType}
                     <select defaultValue={client.customerType} name="customerType">
-                      <option value="INDIVIDUAL">Individual</option>
-                      <option value="BUSINESS">Business</option>
+                      <option value="INDIVIDUAL">{c.individual}</option>
+                      <option value="BUSINESS">{c.business}</option>
                     </select>
                   </label>
-                  <label>Country<input defaultValue={client.countryCode ?? "DE"} name="countryCode" /></label>
-                  <label>VAT ID<input defaultValue={client.vatId ?? ""} name="vatId" /></label>
-                  <label>Phone<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
-                  <label>Address<input defaultValue={address.line1 ?? ""} name="address" /></label>
-                  <label>ZIP<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
-                  <label>City<input defaultValue={address.city ?? ""} name="city" /></label>
-                  <label className={styles.formSpan2}>State / Region<input defaultValue={address.state ?? ""} name="state" /></label>
+                  <label>{c.country}<input defaultValue={client.countryCode ?? "DE"} name="countryCode" /></label>
+                  <label>{c.vatId}<input defaultValue={client.vatId ?? ""} name="vatId" /></label>
+                  <label>{c.phone}<input defaultValue={contact?.phone ?? ""} name="phone" /></label>
+                  <label>{c.address}<input defaultValue={address.line1 ?? ""} name="address" /></label>
+                  <label>{c.zip}<input defaultValue={address.postalCode ?? ""} name="postalCode" /></label>
+                  <label>{c.city}<input defaultValue={address.city ?? ""} name="city" /></label>
+                  <label className={styles.formSpan2}>{c.stateRegion}<input defaultValue={address.state ?? ""} name="state" /></label>
                 </div>
                 <div className={styles.formActions}>
-                  <Button icon={Save} type="submit">Save Profile</Button>
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                  <Button icon={Save} type="submit">{c.saveProfile}</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>{c.cancel}</Button>
                 </div>
                 {profileMsg ? <p className={styles.formMessage}>{profileMsg}</p> : null}
               </form>
@@ -2200,12 +2207,12 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
             {open === "password" ? (
               <form action={changePassword} className={styles.form}>
                 <div className={styles.formGrid}>
-                  <label>New password<input name="newPassword" required type="password" placeholder="New password" /></label>
-                  <label>Confirm password<input name="confirmPassword" required type="password" placeholder="Confirm password" /></label>
+                  <label>{c.newPassword}<input name="newPassword" required type="password" placeholder={c.newPassword} /></label>
+                  <label>{c.confirmPassword}<input name="confirmPassword" required type="password" placeholder={c.confirmPassword} /></label>
                 </div>
                 <div className={styles.formActions}>
-                  <Button icon={Save} type="submit">Set Password</Button>
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                  <Button icon={Save} type="submit">{c.setPassword}</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>{c.cancel}</Button>
                 </div>
                 {pwMsg ? <p className={styles.formMessage}>{pwMsg}</p> : null}
               </form>
@@ -2215,25 +2222,25 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
               <form action={createInvoice} className={styles.form}>
                 <div className={styles.formGrid}>
                   <label className={styles.formSpan2}>
-                    Due date
+                    {c.dueDate}
                     <input name="dueAt" type="date" defaultValue={new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10)} />
                   </label>
                 </div>
                 {lines.map((line, index) => (
                   <fieldset className={`${styles.lineEditor} ${styles.formSpan2}`} key={line.id}>
-                    <legend>Line {index + 1}</legend>
+                    <legend>{c.line.replace("{n}", String(index + 1))}</legend>
                     <div className={styles.formGrid}>
-                      <label className={styles.formSpan2}>Description<input defaultValue={index === 0 ? "Manual service" : ""} name="description" required /></label>
-                      <label>Billing cycle
+                      <label className={styles.formSpan2}>{c.description}<input defaultValue={index === 0 ? c.manualService : ""} name="description" required /></label>
+                      <label>{c.billingCycle}
                         <select defaultValue="ONE_TIME" name="billingCycle">
-                          <option value="ONE_TIME">One time</option>
-                          <option value="MONTHLY">Monthly</option>
-                          <option value="YEAR_1">Annually</option>
+                          <option value="ONE_TIME">{c.cycleOneTime}</option>
+                          <option value="MONTHLY">{c.cycleMonthly}</option>
+                          <option value="YEAR_1">{c.cycleAnnually}</option>
                         </select>
                       </label>
-                      <label>Quantity<input defaultValue="1" min="1" name="quantity" type="number" /></label>
-                      <label>Amount EUR<input defaultValue="0" min="0" name="amount" step="0.01" type="number" /></label>
-                      <label>VAT rate %<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
+                      <label>{c.quantity}<input defaultValue="1" min="1" name="quantity" type="number" /></label>
+                      <label>{c.amountEur}<input defaultValue="0" min="0" name="amount" step="0.01" type="number" /></label>
+                      <label>{c.vatRatePct}<input defaultValue="19" min="0" name="vatRate" step="0.01" type="number" /></label>
                     </div>
                   </fieldset>
                 ))}
@@ -2242,11 +2249,11 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
                   type="button"
                   onClick={() => setLines((prev) => [...prev, { id: Date.now() }])}
                 >
-                  + Add another line
+                  {c.addAnotherLine}
                 </button>
                 <div className={styles.formActions}>
-                  <Button icon={FileText} type="submit">Create Invoice</Button>
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                  <Button icon={FileText} type="submit">{c.createInvoice}</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>{c.cancel}</Button>
                 </div>
                 {invoiceMsg ? <p className={styles.formMessage}>{invoiceMsg}</p> : null}
               </form>
@@ -2256,7 +2263,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
               <div className={styles.form}>
                 <div className={styles.formGrid}>
                   <label className={styles.formSpan2}>
-                    Template
+                    {c.template}
                     <select value={selectedEventKey} onChange={(e) => {
                       const key = e.target.value;
                       setSelectedEventKey(key);
@@ -2264,22 +2271,22 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
                       if (event) setCustomSubject(event.subject);
                     }}>
                       {emailEvents.map((ev) => <option key={ev.key} value={ev.key}>{ev.key} — {ev.subject}</option>)}
-                      {emailEvents.length === 0 && <option value="">Loading…</option>}
+                      {emailEvents.length === 0 && <option value="">{c.loadingEllipsis}</option>}
                     </select>
                   </label>
                   <label className={styles.formSpan2}>
-                    Subject
-                    <input value={customSubject} onChange={(e) => setCustomSubject(e.target.value)} placeholder="Subject line" />
+                    {c.subject}
+                    <input value={customSubject} onChange={(e) => setCustomSubject(e.target.value)} placeholder={c.subjectLine} />
                   </label>
                   <label className={styles.formSpan2}>
-                    Body (HTML allowed)
-                    <textarea value={customBody} onChange={(e) => setCustomBody(e.target.value)} rows={8} placeholder="Write your message here…" />
+                    {c.bodyHtml}
+                    <textarea value={customBody} onChange={(e) => setCustomBody(e.target.value)} rows={8} placeholder={c.bodyPlaceholder} />
                   </label>
                 </div>
                 <div className={styles.formActions}>
-                  <Button type="button" onClick={sendEventEmail}>Send Using Template</Button>
-                  <Button type="button" variant="secondary" onClick={sendCustomEmail}>Send Custom (above subject+body)</Button>
-                  <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                  <Button type="button" onClick={sendEventEmail}>{c.sendUsingTemplate}</Button>
+                  <Button type="button" variant="secondary" onClick={sendCustomEmail}>{c.sendCustom}</Button>
+                  <Button type="button" variant="secondary" onClick={closeModal}>{c.cancel}</Button>
                 </div>
                 {emailMsg ? <p className={styles.formMessage}>{emailMsg}</p> : null}
               </div>
@@ -2322,11 +2329,13 @@ type AdminUser = {
   userRoles: Array<{ role: { slug: string; name: string } }>;
 };
 
-const ADMIN_ROLES = [
-  { slug: "super_admin", name: "Super Admin", description: "Full access including settings" },
-  { slug: "support_agent", name: "Support Agent", description: "Support & abuse tickets, all client data" },
-  { slug: "sales_agent", name: "Sales Agent", description: "Sales tickets, all client data" }
-];
+function adminRoles(c: Dictionary["admin"]["settingsForm"]) {
+  return [
+    { slug: "super_admin", name: c.roleSuperAdmin, description: c.roleDescSuperAdmin },
+    { slug: "support_agent", name: c.roleSupportAgent, description: c.roleDescSupportAgent },
+    { slug: "sales_agent", name: c.roleSalesAgent, description: c.roleDescSalesAgent }
+  ];
+}
 
 function adminRoleLabel(user: AdminUser) {
   const adminSlugs = ["admin", "super_admin", "support_agent", "sales_agent"];
@@ -2335,6 +2344,10 @@ function adminRoleLabel(user: AdminUser) {
 }
 
 export function AdminsPanel() {
+  const dict = getDictionary(currentLocale()).admin;
+  const c = dict.settingsForm;
+  const f = dict.forms;
+  const ADMIN_ROLES = adminRoles(c);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -2366,12 +2379,12 @@ export function AdminsPanel() {
       })
     });
     if (res.ok) {
-      notify.success("Admin account created");
+      notify.success(c.adminCreated);
       setShowAdd(false);
       void reload();
     } else {
       const data = await res.json().catch(() => ({})) as { message?: string };
-      notify.error(data.message ?? "Failed to create admin");
+      notify.error(data.message ?? c.adminCreateFailed);
     }
   }
 
@@ -2382,17 +2395,17 @@ export function AdminsPanel() {
       body: JSON.stringify({ roleSlug: editRole })
     });
     if (res.ok) {
-      notify.success("Role updated");
+      notify.success(c.roleUpdated);
       setEditId(null);
       void reload();
     } else {
-      notify.error("Failed to update role");
+      notify.error(c.roleUpdateFailed);
     }
   }
 
   async function updatePassword(id: string) {
     if (editPassword.length < 12) {
-      notify.error("Password must be at least 12 characters");
+      notify.error(c.pwTooShort);
       return;
     }
     const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}/password`, {
@@ -2401,26 +2414,26 @@ export function AdminsPanel() {
       body: JSON.stringify({ password: editPassword })
     });
     if (res.ok) {
-      notify.success("Password updated");
+      notify.success(c.pwUpdated);
       setEditPassword("");
       void reload();
     } else {
-      notify.error("Failed to update password");
+      notify.error(c.pwUpdateFailed);
     }
   }
 
   async function deleteAdmin(id: string, name: string) {
-    if (!window.confirm(`Delete admin "${name}"? This cannot be undone.`)) return;
+    if (!window.confirm(c.deleteAdminConfirm.replace("{name}", name))) return;
     const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}`, {
       method: "DELETE",
       headers: authHeaders("admin")
     });
     if (res.ok) {
-      notify.success("Admin deleted");
+      notify.success(c.adminDeleted);
       void reload();
     } else {
       const data = await res.json().catch(() => ({})) as { message?: string };
-      notify.error(data.message ?? "Failed to delete admin");
+      notify.error(data.message ?? c.adminDeleteFailed);
     }
   }
 
@@ -2430,37 +2443,37 @@ export function AdminsPanel() {
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
           <div>
-            <span className="eyebrow">Access Control</span>
-            <h2>Admin Roles</h2>
+            <span className="eyebrow">{c.accessControl}</span>
+            <h2>{c.adminRolesHeading}</h2>
           </div>
         </div>
         <table className="table">
           <thead>
             <tr>
-              <th>Role</th>
-              <th>Description</th>
-              <th>Settings access</th>
-              <th>Ticket access</th>
+              <th>{c.colRole}</th>
+              <th>{c.colDescription}</th>
+              <th>{c.colSettingsAccess}</th>
+              <th>{c.colTicketAccess}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>Super Admin</strong></td>
-              <td>Full platform access</td>
-              <td>✓ Yes</td>
-              <td>All departments</td>
+              <td><strong>{c.roleSuperAdmin}</strong></td>
+              <td>{c.roleSuperAdminDesc}</td>
+              <td>✓ {c.accessYes}</td>
+              <td>{c.allDepartments}</td>
             </tr>
             <tr>
-              <td><strong>Support Agent</strong></td>
-              <td>Support operations</td>
-              <td>✕ No</td>
-              <td>Support & Abuse</td>
+              <td><strong>{c.roleSupportAgent}</strong></td>
+              <td>{c.roleSupportAgentDesc}</td>
+              <td>✕ {c.accessNo}</td>
+              <td>{c.supportAbuse}</td>
             </tr>
             <tr>
-              <td><strong>Sales Agent</strong></td>
-              <td>Sales operations</td>
-              <td>✕ No</td>
-              <td>Sales only</td>
+              <td><strong>{c.roleSalesAgent}</strong></td>
+              <td>{c.roleSalesAgentDesc}</td>
+              <td>✕ {c.accessNo}</td>
+              <td>{c.salesOnly}</td>
             </tr>
           </tbody>
         </table>
@@ -2470,11 +2483,11 @@ export function AdminsPanel() {
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
           <div>
-            <span className="eyebrow">Admins</span>
-            <h2>Admin Accounts</h2>
+            <span className="eyebrow">{c.adminAccounts}</span>
+            <h2>{c.adminAccounts}</h2>
           </div>
           <Button onClick={() => setShowAdd((v) => !v)} variant={showAdd ? "secondary" : "primary"}>
-            {showAdd ? "Cancel" : "+ Add Admin"}
+            {showAdd ? c.cancel : c.addAdmin}
           </Button>
         </div>
 
@@ -2482,19 +2495,19 @@ export function AdminsPanel() {
           <form action={createAdmin} style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", background: "var(--surface-2)", borderRadius: "8px", marginBottom: "16px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
-                Name
-                <input className="input" name="name" required placeholder="Full name" />
+                {f.name}
+                <input className="input" name="name" required placeholder={c.fullNamePlaceholder} />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
-                Email
+                {f.email}
                 <input className="input" name="email" required type="email" placeholder="admin@example.com" />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
-                Password (min. 12 chars)
+                {c.pwMin12}
                 <input className="input" name="password" required type="password" minLength={12} />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "0.875rem" }}>
-                Role
+                {c.createAdminRole}
                 <select className="input" name="roleSlug" required>
                   {ADMIN_ROLES.map((r) => (
                     <option key={r.slug} value={r.slug}>{r.name} — {r.description}</option>
@@ -2502,19 +2515,19 @@ export function AdminsPanel() {
                 </select>
               </label>
             </div>
-            <Button type="submit">Create Admin</Button>
+            <Button type="submit">{c.createAdmin}</Button>
           </form>
         ) : null}
 
-        {loading ? <p style={{ padding: "16px", color: "var(--muted)" }}>Loading…</p> : (
+        {loading ? <p style={{ padding: "16px", color: "var(--muted)" }}>{c.loadingEllipsis}</p> : (
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Created</th>
-                <th>Actions</th>
+                <th>{f.name}</th>
+                <th>{f.email}</th>
+                <th>{c.colRole}</th>
+                <th>{c.colCreated}</th>
+                <th>{c.colActions}</th>
               </tr>
             </thead>
             <tbody>
@@ -2540,17 +2553,17 @@ export function AdminsPanel() {
                   <td style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     {editId === admin.id ? (
                       <>
-                        <Button size="sm" onClick={() => updateRole(admin.id)}>Save Role</Button>
+                        <Button size="sm" onClick={() => updateRole(admin.id)}>{c.saveRole}</Button>
                         <input
                           className="input"
                           type="password"
-                          placeholder="New password"
+                          placeholder={c.newPasswordPlaceholder}
                           value={editPassword}
                           onChange={(e) => setEditPassword(e.target.value)}
                           style={{ fontSize: "0.8rem", width: "140px" }}
                         />
-                        <Button size="sm" variant="secondary" onClick={() => updatePassword(admin.id)}>Set PW</Button>
-                        <Button size="sm" variant="secondary" onClick={() => { setEditId(null); setEditPassword(""); }}>Cancel</Button>
+                        <Button size="sm" variant="secondary" onClick={() => updatePassword(admin.id)}>{c.setPw}</Button>
+                        <Button size="sm" variant="secondary" onClick={() => { setEditId(null); setEditPassword(""); }}>{c.cancel}</Button>
                       </>
                     ) : (
                       <>
@@ -2562,10 +2575,10 @@ export function AdminsPanel() {
                             setEditRole(admin.userRoles.find((ur) => ["super_admin","support_agent","sales_agent"].includes(ur.role.slug))?.role.slug ?? "super_admin");
                           }}
                         >
-                          Edit
+                          {c.edit}
                         </Button>
                         <Button size="sm" variant="secondary" onClick={() => deleteAdmin(admin.id, admin.name)}>
-                          Delete
+                          {c.delete}
                         </Button>
                       </>
                     )}
@@ -2581,6 +2594,7 @@ export function AdminsPanel() {
 }
 
 export function SeoSettingsForm() {
+  const c = getDictionary(currentLocale()).admin.settingsForm;
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
     siteName: "Dezhost",
@@ -2621,32 +2635,32 @@ export function SeoSettingsForm() {
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "PATCH"
     });
-    setMessage(await notifyResponse(response, "SEO settings saved.", "Save failed."));
+    setMessage(await notifyResponse(response, c.seoSettingsSaved, c.saveFailed));
   }
 
   return (
     <form action={submit} className={styles.form}>
       <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: 0, lineHeight: 1.6 }}>
-        These settings control how your website appears in search results and when shared on social media (Facebook, Twitter/X, Telegram, Signal, LinkedIn).
+        {c.seoIntro}
       </p>
 
-      <h3>Site Identity</h3>
-      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }}>Used in <code>&lt;title&gt;</code> tags and OG titles across the site.</p>
+      <h3>{c.siteIdentity}</h3>
+      <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }} dangerouslySetInnerHTML={{ __html: c.siteIdentityHint.replace("<title>", "&lt;title&gt;") }} />
       <label>
-        Site name
+        {c.siteName}
         <input value={s.siteName} name="siteName" placeholder="Dezhost" onChange={(e) => setS({ ...s, siteName: e.target.value })} />
       </label>
       <label>
-        Title suffix (appended to page titles)
+        {c.titleSuffix}
         <input value={s.ogTitleSuffix} name="ogTitleSuffix" placeholder="| Dezhost" onChange={(e) => setS({ ...s, ogTitleSuffix: e.target.value })} />
       </label>
 
-      <h3>Meta Descriptions</h3>
+      <h3>{c.metaDescriptions}</h3>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }}>
-        Ideal length: <strong>120–158 characters</strong>. Search engines truncate longer descriptions. Write in plain language, focus on what you offer. Avoid keyword stuffing.
+        {c.metaHint}
       </p>
       <label>
-        Static pages (homepage, hosting, domains, about, etc.)
+        {c.metaStatic}
         <textarea
           value={s.metaDescription}
           name="metaDescription"
@@ -2655,10 +2669,10 @@ export function SeoSettingsForm() {
           placeholder="Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, full GDPR compliance. For associations, NGOs, and small businesses."
           onChange={(e) => setS({ ...s, metaDescription: e.target.value })}
         />
-        <small style={{ color: "var(--muted)" }}>{s.metaDescription.length}/160 characters</small>
+        <small style={{ color: "var(--muted)" }}>{c.charsCount.replace("{n}", String(s.metaDescription.length))}</small>
       </label>
       <label>
-        Blog &amp; blog posts
+        {c.blogPosts}
         <textarea
           value={s.blogMetaDescription}
           name="blogMetaDescription"
@@ -2667,21 +2681,19 @@ export function SeoSettingsForm() {
           placeholder="Articles about web hosting, domains, privacy and digital tools for associations and small organisations. Written clearly, without expertise required."
           onChange={(e) => setS({ ...s, blogMetaDescription: e.target.value })}
         />
-        <small style={{ color: "var(--muted)" }}>{s.blogMetaDescription.length}/160 characters</small>
+        <small style={{ color: "var(--muted)" }}>{c.charsCount.replace("{n}", String(s.blogMetaDescription.length))}</small>
       </label>
 
-      <h3>OG Images for Social Media</h3>
+      <h3>{c.ogImagesHeading}</h3>
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0", lineHeight: 1.6 }}>
-        OG images appear when a link is shared on Telegram, Signal, Facebook, X/Twitter, LinkedIn, etc.
-        Standard size: <strong>1200×630 px</strong>. Accepts PNG, JPG, WebP, or SVG. Keep under 2 MB.
-        Use a simple, bold design with your logo or brand name — it will appear as a thumbnail. The three images below let you use different visuals for different areas of the site.
+        {c.ogIntro}
       </p>
       <ImageUploader
         accept="image/png,image/jpeg,image/webp,image/svg+xml"
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "static" }}
         headers={authHeaders()}
-        label="OG image — Static pages (homepage, hosting, domains, about…)"
+        label={c.ogStatic}
         onUploaded={(payload) => setS({ ...s, ogImageStatic: String(payload.imageUrl ?? "") })}
         previewUrl={s.ogImageStatic}
       />
@@ -2690,7 +2702,7 @@ export function SeoSettingsForm() {
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "dashboard" }}
         headers={authHeaders()}
-        label="OG image — Client &amp; admin dashboards"
+        label={c.ogDashboards}
         onUploaded={(payload) => setS({ ...s, ogImageDashboard: String(payload.imageUrl ?? "") })}
         previewUrl={s.ogImageDashboard}
       />
@@ -2699,12 +2711,12 @@ export function SeoSettingsForm() {
         action={`${API_BASE_URL}/admin/dev/assets/og-image`}
         extraFields={{ type: "blog" }}
         headers={authHeaders()}
-        label="OG image — Blog &amp; blog posts"
+        label={c.ogBlog}
         onUploaded={(payload) => setS({ ...s, ogImageBlog: String(payload.imageUrl ?? "") })}
         previewUrl={s.ogImageBlog}
       />
 
-      <Button icon={Save} type="submit">Save SEO Settings</Button>
+      <Button icon={Save} type="submit">{c.saveSeoSettings}</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );
