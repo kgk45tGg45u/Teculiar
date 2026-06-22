@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { currentLocale } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import { countriesForLocale } from "../../lib/countries";
 
 export type TaxCountriesValue = { enabled: boolean; default: string; rates: Record<string, number> };
@@ -15,6 +17,7 @@ const chipRow: React.CSSProperties = { display: "flex", alignItems: "center", ga
 const removeBtn: React.CSSProperties = { background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: 0 };
 
 export function TaxCountrySettings({ value, onChange }: Props) {
+  const c = getDictionary(currentLocale()).admin.tax;
   const allCountries = useMemo(() => countriesForLocale("en"), []);
   const nameFor = (code: string) => allCountries.find((c) => c.code === code) ?? { code, name: code, flag: "" };
   const codes = Object.keys(value.rates).sort((a, b) => nameFor(a).name.localeCompare(nameFor(b).name));
@@ -46,20 +49,16 @@ export function TaxCountrySettings({ value, onChange }: Props) {
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <h3>VAT by country</h3>
-      <p style={muted}>
-        Each country charges its own VAT. Orders and renewals use the buyer&apos;s country; a country with no rate
-        here falls back to the default country&apos;s rate. EU B2B with a valid VAT ID is reverse-charged (0%) and
-        non-EU buyers are zero-rated automatically.
-      </p>
+      <h3>{c.heading}</h3>
+      <p style={muted}>{c.hint}</p>
       <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input type="checkbox" checked={value.enabled} onChange={(e) => onChange({ ...value, enabled: e.target.checked })} style={{ width: "auto" }} />
-        Charge VAT
+        {c.chargeVat}
       </label>
-      {!value.enabled && <p style={muted}>VAT is switched off — no VAT will be charged anywhere.</p>}
+      {!value.enabled && <p style={muted}>{c.vatOff}</p>}
       <fieldset disabled={!value.enabled} style={{ border: "none", padding: 0, margin: 0, display: "grid", gap: 14, opacity: value.enabled ? 1 : 0.5 }}>
       <label>
-        Default country
+        {c.defaultCountry}
         <select value={value.default} onChange={(e) => setDefault(e.target.value)}>
           {codes.map((code) => (
             <option key={code} value={code}>{nameFor(code).flag} {nameFor(code).name} ({code})</option>
@@ -67,10 +66,10 @@ export function TaxCountrySettings({ value, onChange }: Props) {
         </select>
       </label>
       <div>
-        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>Country rates</div>
+        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>{c.countryRates}</div>
         {codes.map((code) => (
           <div key={code} style={{ ...chipRow, justifyContent: "space-between", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px", marginBottom: 8 }}>
-            <strong>{nameFor(code).flag} {nameFor(code).name} ({code}){code === value.default ? " — default" : ""}</strong>
+            <strong>{nameFor(code).flag} {nameFor(code).name} ({code}){code === value.default ? c.defaultSuffix : ""}</strong>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               <input
                 type="number"
@@ -82,12 +81,12 @@ export function TaxCountrySettings({ value, onChange }: Props) {
               />
               <span style={{ color: "var(--muted)" }}>%</span>
               {code === value.default ? null : (
-                <button type="button" style={removeBtn} aria-label={`Remove ${code}`} onClick={() => removeCountry(code)}>×</button>
+                <button type="button" style={removeBtn} aria-label={c.removeAria.replace("{code}", code)} onClick={() => removeCountry(code)}>×</button>
               )}
             </span>
           </div>
         ))}
-        <CountryTypeahead placeholder="Add a country…" options={options} exclude={codes} onPick={addCountry} />
+        <CountryTypeahead placeholder={c.addCountry} options={options} exclude={codes} onPick={addCountry} />
       </div>
       </fieldset>
     </div>

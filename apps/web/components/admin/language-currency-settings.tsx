@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { currentLocale } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import {
   currencyCatalog,
   currencyName,
@@ -27,6 +29,7 @@ const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center"
 const removeBtn: React.CSSProperties = { background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: 0 };
 
 export function LanguageCurrencySettings({ languages, currencyConfig, onLanguages, onCurrencyConfig }: Props) {
+  const c = getDictionary(currentLocale()).admin.langCur;
   const langCodes = [languages.main, ...languages.others];
   const curCodes = [currencyConfig.main, ...currencyConfig.others];
   const languageOptions = useMemo(() => languageCatalog().map((l) => ({ code: l.code, label: `${l.flag} ${l.name} — ${l.nativeName} (${l.code})` })), []);
@@ -77,63 +80,63 @@ export function LanguageCurrencySettings({ languages, currencyConfig, onLanguage
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <h3>Languages</h3>
-      <p style={muted}>The main language is the default; English always backfills any missing translation. With a single language the visitor toggle hides the language selector.</p>
+      <h3>{c.languages}</h3>
+      <p style={muted}>{c.languagesHint}</p>
       <label>
-        Main language
+        {c.mainLanguage}
         <select value={languages.main} onChange={(e) => setMainLanguage(e.target.value)}>
           {langCodes.map((code) => <option key={code} value={code}>{languageFlag(code)} {languageName(code)} ({code})</option>)}
         </select>
       </label>
       <div>
-        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>Other languages</div>
+        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>{c.otherLanguages}</div>
         <div style={chipRow}>
-          {languages.others.length === 0 && <span style={muted}>None — only the main language is offered.</span>}
+          {languages.others.length === 0 && <span style={muted}>{c.noOtherLanguages}</span>}
           {languages.others.map((code) => (
             <span key={code} style={chip}>
               {languageFlag(code)} {languageName(code)} ({code})
-              <button type="button" style={removeBtn} aria-label={`Remove ${code}`} onClick={() => removeLanguage(code)}>×</button>
+              <button type="button" style={removeBtn} aria-label={c.removeAria.replace("{code}", code)} onClick={() => removeLanguage(code)}>×</button>
             </span>
           ))}
         </div>
         <Typeahead
-          placeholder="Add a language pack…"
+          placeholder={c.addLanguage}
           exclude={langCodes}
           options={languageOptions}
           onPick={addLanguage}
         />
       </div>
 
-      <h3>Currency</h3>
-      <p style={muted}>Prices are stored in the main currency. Other currencies convert at display time using the rate (and optional buffer) below. With a single currency the toggle hides the currency selector.</p>
+      <h3>{c.currency}</h3>
+      <p style={muted}>{c.currencyHint}</p>
       <label>
-        Main currency
+        {c.mainCurrency}
         <select value={currencyConfig.main} onChange={(e) => setMainCurrency(e.target.value)}>
           {curCodes.map((code) => <option key={code} value={code}>{currencySymbol(code)} {code} — {currencyName(code)}</option>)}
         </select>
       </label>
       <div>
-        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>Other currencies &amp; exchange rates</div>
-        {currencyConfig.others.length === 0 && <span style={muted}>None — only the main currency is offered.</span>}
+        <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>{c.otherCurrencies}</div>
+        {currencyConfig.others.length === 0 && <span style={muted}>{c.noOtherCurrencies}</span>}
         {currencyConfig.others.map((code) => {
           const rate = currencyConfig.rates[code] ?? { rate: 1, buffer: 0, bufferEnabled: false };
           return (
             <div key={code} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginBottom: 10, display: "grid", gap: 8 }}>
               <div style={{ ...chipRow, justifyContent: "space-between" }}>
                 <strong>{currencySymbol(code)} {code} — {currencyName(code)}</strong>
-                <button type="button" style={removeBtn} aria-label={`Remove ${code}`} onClick={() => removeCurrency(code)}>×</button>
+                <button type="button" style={removeBtn} aria-label={c.removeAria.replace("{code}", code)} onClick={() => removeCurrency(code)}>×</button>
               </div>
               <label>
-                Exchange rate (1 {currencyConfig.main} = ? {code})
+                {c.exchangeRate.replace("{main}", currencyConfig.main).replace("{code}", code)}
                 <input type="number" min="0.0001" step="0.0001" value={rate.rate} onChange={(e) => setRate(code, { rate: Number(e.target.value) })} />
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <input type="checkbox" checked={rate.bufferEnabled} onChange={(e) => setRate(code, { bufferEnabled: e.target.checked })} style={{ width: "auto" }} />
-                Add an equivalent amount to every converted price
+                {c.addBuffer}
               </label>
               {rate.bufferEnabled && (
                 <label>
-                  Amount to add (in {code})
+                  {c.amountToAdd.replace("{code}", code)}
                   <input type="number" min="0" step="0.01" value={(rate.buffer / 100).toFixed(2)} onChange={(e) => setRate(code, { buffer: Math.round(Number(e.target.value) * 100) })} />
                 </label>
               )}
@@ -141,7 +144,7 @@ export function LanguageCurrencySettings({ languages, currencyConfig, onLanguage
           );
         })}
         <Typeahead
-          placeholder="Add a currency…"
+          placeholder={c.addCurrency}
           exclude={curCodes}
           options={currencyOptions}
           onPick={addCurrency}

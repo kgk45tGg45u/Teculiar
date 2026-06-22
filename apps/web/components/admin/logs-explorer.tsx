@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, dateLabel, type ApiActionLog } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import type { Locale } from "../../lib/i18n";
 import { cronJobSummary, cronLogStatus } from "../../lib/cron-log";
 import { StatusPill } from "../ui/status-pill";
@@ -17,6 +18,8 @@ function timeLabel(value: string, locale: Locale, timezone: string) {
 }
 
 export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: string }) {
+  const a = getDictionary(locale).admin;
+  const c = a.logsExplorer;
   const [tab, setTab] = useState<Tab>("system");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<LogPage>({ items: [], page: 1, pageSize: PAGE_SIZE, total: 0 });
@@ -63,9 +66,9 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
       });
       if (!res.ok) throw new Error("save failed");
       setRetentionSaved(Math.max(0, Math.trunc(retention)));
-      setRetentionMsg("Saved");
+      setRetentionMsg(c.saved);
     } catch {
-      setRetentionMsg("Could not save");
+      setRetentionMsg(c.couldNotSave);
     } finally {
       setSavingRetention(false);
     }
@@ -78,10 +81,10 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">System</span>
-          <h2>Logs</h2>
+          <span className="eyebrow">{a.eyebrow.system}</span>
+          <h2>{a.logs}</h2>
         </div>
-        <StatusPill label={`${data.total} ${tab === "cron" ? "cron events" : "events"}`} tone={data.total ? "good" : "neutral"} />
+        <StatusPill label={`${data.total} ${tab === "cron" ? c.cronEvents : c.events}`} tone={data.total ? "good" : "neutral"} />
       </div>
 
       {/* Tabs */}
@@ -93,7 +96,7 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
           type="button"
           style={tabStyle(tab === "system")}
         >
-          System logs
+          {c.systemLogs}
         </button>
         <button
           aria-selected={tab === "cron"}
@@ -102,13 +105,13 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
           type="button"
           style={tabStyle(tab === "cron")}
         >
-          Cron logs
+          {c.cronLogs}
         </button>
       </div>
 
       {/* Retention control */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "12px 16px", color: "var(--muted)", fontSize: "0.85rem" }}>
-        <label htmlFor="logRetentionDays">Keep logs for</label>
+        <label htmlFor="logRetentionDays">{c.keepLogsFor}</label>
         <input
           id="logRetentionDays"
           type="number"
@@ -117,14 +120,14 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
           onChange={(e) => setRetention(Number(e.target.value))}
           style={{ width: 80, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6 }}
         />
-        <span>day(s) — 0 keeps logs forever. Older logs are deleted on the next cron run.</span>
+        <span>{c.retentionHint}</span>
         <button
           type="button"
           onClick={saveRetention}
           disabled={savingRetention || retention === retentionSaved}
           style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid var(--border)", cursor: "pointer", background: retention === retentionSaved ? "var(--surface)" : "var(--dezhost)", color: retention === retentionSaved ? "var(--muted)" : "white" }}
         >
-          {savingRetention ? "Saving…" : "Save"}
+          {savingRetention ? c.saving : c.save}
         </button>
         {retentionMsg && <span>{retentionMsg}</span>}
       </div>
@@ -132,10 +135,10 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
       {/* Table */}
       {tab === "system" ? (
         <table className="table">
-          <thead><tr><th>Time ({timezone})</th><th>Source</th><th>Action</th><th>Subject</th><th>Actor</th><th>Status</th><th>Message</th></tr></thead>
+          <thead><tr><th>{c.colTime.replace("{tz}", timezone)}</th><th>{c.colSource}</th><th>{c.colAction}</th><th>{c.colSubject}</th><th>{c.colActor}</th><th>{c.colStatus}</th><th>{c.colMessage}</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7}>Loading…</td></tr>
+              <tr><td colSpan={7}>{c.loading}</td></tr>
             ) : data.items.length ? data.items.map((log) => (
               <tr key={`${log.source}-${log.id}`}>
                 <td style={{ whiteSpace: "nowrap" }}>{timeLabel(log.createdAt, locale, timezone)}</td>
@@ -146,15 +149,15 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
                 <td>{log.status}</td>
                 <td>{log.message ?? "-"}</td>
               </tr>
-            )) : <tr><td colSpan={7}>No logs yet.</td></tr>}
+            )) : <tr><td colSpan={7}>{c.noLogs}</td></tr>}
           </tbody>
         </table>
       ) : (
         <table className="table">
-          <thead><tr><th>Time ({timezone})</th><th>Job</th><th>Status</th><th>Details</th></tr></thead>
+          <thead><tr><th>{c.colTime.replace("{tz}", timezone)}</th><th>{c.colJob}</th><th>{c.colStatus}</th><th>{c.colDetails}</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4}>Loading…</td></tr>
+              <tr><td colSpan={4}>{c.loading}</td></tr>
             ) : data.items.length ? data.items.map((log) => {
               const status = cronLogStatus(log);
               return (
@@ -165,7 +168,7 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
                   <td style={{ fontSize: "0.84rem" }}>{cronJobSummary(log.action, log.metadata)}</td>
                 </tr>
               );
-            }) : <tr><td colSpan={4}>No cron activity yet.</td></tr>}
+            }) : <tr><td colSpan={4}>{c.noCronActivity}</td></tr>}
           </tbody>
         </table>
       )}
@@ -173,11 +176,11 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
       {/* Pagination */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, padding: "12px 16px" }}>
         <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={loading || page <= 1} style={pagerStyle(page <= 1)}>
-          ← Previous
+          {c.previous}
         </button>
-        <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>Page {data.page} of {totalPages}</span>
+        <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>{c.pageOf.replace("{page}", String(data.page)).replace("{total}", String(totalPages))}</span>
         <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={loading || page >= totalPages} style={pagerStyle(page >= totalPages)}>
-          Next →
+          {c.next}
         </button>
       </div>
     </section>
