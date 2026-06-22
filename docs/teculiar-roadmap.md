@@ -77,9 +77,20 @@ the user referenced when reordering the deferred items.
    unsynced places (checkout `orderSummary` country-unaware with `vatPercent` defaulting to 0,
    `orders.service.previewOrder` flat, and the billing engine) — now collapsed onto the one shared
    country-aware resolver; the buyer country is threaded through checkout.
-4. ⏳ **Move all user-visible *dashboard/checkout/auth* chrome onto the `@dezhost/locales` packs**
-   (do now, per the user) so a 3rd configured language has **zero untranslated chrome**. Scope clarified
-   2026-06-21:
+4. ✅ **All user-visible *dashboard/checkout/auth* chrome moved onto the `@dezhost/locales` packs**
+   (done 2026-06-22) so a 3rd configured language has **zero untranslated chrome**. Every converted
+   component reads its strings from the shared packs (German authored for all of it); `i18n-sync --check`,
+   `typecheck`, and the production `next build` are green. Converted: checkout-form; login/signup/bot-check;
+   admin-dashboard (incl. cron operator docs); client-dashboard; blog-admin; admin-sidebar + breadcrumbs;
+   admin-forms (settings/cron/payment-gateways/orders/clients/invoices/announcements/admins/SEO + rich-text
+   toolbar); product-manager; modules; email-admin-editor; departments/support/logs-explorer/theme-blue/
+   language-currency/tax-country; client billing/payment (+ return) pages; and the admin client/order/
+   service/invoice detail pages. New pack groups: `storefront.{checkout,login,signup,botCheck}`,
+   `client.{dash,pay}`, `admin.{eyebrow,view,btn,col,card,misc,cron,nav,crumb,blogAdmin,forms,settingsForm,
+   productMgr,modules,emailEditor,dept,support,logsExplorer,theme,langCur,tax,detail}`. **Deliberately left
+   as-is:** dead code (`ClientRow`/`BlogManager` in admin-forms — unused), email-content seeds + rendered
+   email HTML (server-seeded from the `email` pack), and language-neutral tokens (brand names, `IBAN`,
+   `SEPA`, `PayPal`, status enums, format-example placeholders). Scope (clarified 2026-06-21):
    - **IN scope:** every user-visible string in **checkout** (`checkout-form.tsx`), **auth**
      (`login-form.tsx`, `signup-form.tsx`), and the **admin + client dashboards** — both the bilingual
      `{de,en}` copy maps / `isDe ? … : …` ternaries *and* the bare English-only (or German-only) literals

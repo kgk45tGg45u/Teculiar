@@ -7,12 +7,15 @@ first when resuming. The approved plan is at
 
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`, pushed to origin 2026-06-21)
 - **Status:** Steps 1–8 implemented & committed; Phase 1 verified locally by the user (2026-06-21).
-  Now finishing the last **follow-up batch** item: **moving all user-visible dashboard/checkout/auth
-  chrome onto the packs** (tracked in
-  [teculiar-roadmap.md → "Phase 1 — follow-up batch"](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21)).
-  **Done:** product-grid currency (`73e7e58`), toggle modal (`a2d34fb`), Apply-button toggle (`d68e0f8`),
+  **Follow-up batch COMPLETE (2026-06-22):** all user-visible **dashboard/checkout/auth chrome** is now
+  on the `@dezhost/locales` packs with German authored throughout — `typecheck`, `i18n-sync --check`, and
+  the production `next build` are green. See
+  [teculiar-roadmap.md → "Phase 1 — follow-up batch" item 4](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21)
+  for the full converted-component list, new pack groups, and the deliberately-skipped items
+  (dead `ClientRow`/`BlogManager`, email content seeds, language-neutral tokens). Earlier follow-ups:
+  product-grid currency (`73e7e58`), toggle modal (`a2d34fb`), Apply-button toggle (`d68e0f8`),
   scope-aware admin/client locale (`8988b60`), **country-based VAT + global VAT switch** (`4a7453d`,
-  `82fd3a9`, + checkout commit).
+  `82fd3a9`, + checkout commit). Chrome i18n commits: `f33ca8b` → `9d4ce2f`.
 - **Scope clarified 2026-06-21 (the user):** the inline-copy work is **chrome only** — checkout
   (`checkout-form.tsx`), auth (`login-form.tsx`, `signup-form.tsx`) and the **admin + client dashboards**.
   ALL user-visible strings there move onto `@dezhost/locales` (the `{de,en}` maps/ternaries **and** the

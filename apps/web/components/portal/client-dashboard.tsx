@@ -1318,7 +1318,7 @@ function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseAr
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
-        <div><span className="eyebrow">Knowledgebase</span><h2>{copy.knowledgebase}</h2></div>
+        <div><span className="eyebrow">{copy.knowledgebase}</span><h2>{copy.knowledgebase}</h2></div>
         <Button href={`/${locale}/knowledgebase`} icon={BookOpen} variant="secondary">{copy.knowledgebase}</Button>
       </div>
       <div className={styles.articleList}>
