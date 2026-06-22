@@ -3,7 +3,8 @@
 import type { DragEvent } from "react";
 import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notifyResponse } from "../ui/toast-provider";
@@ -44,7 +45,7 @@ const PLACEHOLDER_GROUP_CLASS: Record<string, string | undefined> = {
 };
 
 export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template"; timezone?: string }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const [settings, setSettings] = useState(initial);
   const [message, setMessage] = useState("");
 
@@ -96,7 +97,7 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const formRef = useRef<HTMLFormElement>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -181,7 +182,7 @@ function EmailTemplateEditor({ save, settings }: {
   save: (payload: EmailSettingsPatch) => Promise<boolean>;
   settings: ApiEmailAdminSettings;
 }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const [templateHtml, setTemplateHtml] = useState(settings.templateHtml);
   const [previewKey, setPreviewKey] = useState(settings.events[0]?.key ?? "");
   const sampleEvent = settings.events.find((event) => event.key === previewKey) ?? settings.events[0];
@@ -209,7 +210,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const [events, setEvents] = useState(settings.events);
   const [selectedKey, setSelectedKey] = useState(settings.events[0]?.key ?? "");
   const selected = events.find((event) => event.key === selectedKey) ?? events[0];
@@ -281,7 +282,7 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
   blockLibrary?: ApiEmailAdminSettings["blockLibrary"];
   onAdd: (type: ApiEmailLayoutBlock["type"]) => void;
 }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const library = blockLibrary?.length ? blockLibrary : defaultBlockLibrary(c);
   return (
     <div className={styles.emailBlockPalette}>
@@ -306,7 +307,7 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
 // half = after), which avoids the off-by-one jumps the previous implementation had. Only the
 // grip handle is draggable so editing the fields never starts an accidental drag.
 function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; onChange: (blocks: ApiEmailLayoutBlock[]) => void }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [overPos, setOverPos] = useState<"after" | "before">("before");
@@ -447,7 +448,7 @@ function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; o
 }
 
 function EmailBlockFields({ block, onChange }: { block: ApiEmailLayoutBlock; onChange: (patch: Partial<ApiEmailLayoutBlock>) => void }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   if (block.type === "divider") {
     return <div className={styles.lineEditor} />;
   }
@@ -485,7 +486,7 @@ function EmailBlockFields({ block, onChange }: { block: ApiEmailLayoutBlock; onC
 }
 
 function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   return (
     <div className={styles.placeholderTray}>
       <span className={styles.placeholderHint}>{c.placeholderHint}</span>
@@ -509,7 +510,7 @@ function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] })
 }
 
 function EmailPreviewFrames({ html }: { html: string }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   return (
     <div className={styles.templatePreview}>
       <div>
@@ -525,7 +526,7 @@ function EmailPreviewFrames({ html }: { html: string }) {
 }
 
 function EmailLogsTable({ logs, timezone = "UTC" }: { logs: ApiEmailLog[]; timezone?: string }) {
-  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const c = getDictionary(useLocale()).admin.emailEditor;
   return (
     <div className={styles.form}>
       <table className="table">

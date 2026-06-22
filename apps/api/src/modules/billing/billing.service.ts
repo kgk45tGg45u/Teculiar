@@ -241,9 +241,15 @@ export class BillingService {
     return displayName ?? defaultPaymentMethodLabel(method);
   }
 
-  // Locale an invoice renders in: its own frozen snapshot (added in the Prisma migration) if
-  // present, else the buyer's current language, else the configured main language.
-  private async invoiceLocale(invoice: Record<string, any>): Promise<string> {
+  // Locale an invoice renders in. The viewer's current display language (passed by the portal
+  // when opening the HTML/PDF) wins so the document matches the on-screen invoice, which follows
+  // the language toggle. Otherwise: the invoice's own frozen snapshot, else the buyer's current
+  // language, else the configured main language. Amounts always stay in the frozen currency.
+  private async invoiceLocale(invoice: Record<string, any>, preferred?: string): Promise<string> {
+    const requested = localeCodeFrom(preferred);
+    if (requested) {
+      return requested;
+    }
     const stored = stringFrom(invoice.locale);
     if (stored) {
       return stored;
@@ -255,18 +261,18 @@ export class BillingService {
     return (await this.i18nLanguages()).main;
   }
 
-  async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
+  async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }, locale?: string) {
     const invoice = await this.getInvoice(id, user);
     const { url } = await this.invoiceLogo();
-    const locale = await this.invoiceLocale(invoice);
-    return renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
+    const resolved = await this.invoiceLocale(invoice, locale);
+    return renderInvoiceDocument(invoice, { logoUrl: url, locale: resolved }).html;
   }
 
-  async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
+  async invoicePdf(id: string, user?: { roles?: string[]; sub: string }, locale?: string) {
     const invoice = await this.getInvoice(id, user);
     const { url, image } = await this.invoiceLogo();
-    const locale = await this.invoiceLocale(invoice);
-    const html = renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
+    const resolved = await this.invoiceLocale(invoice, locale);
+    const html = renderInvoiceDocument(invoice, { logoUrl: url, locale: resolved }).html;
     return renderInvoicePdfFromHtml(html, image);
   }
 
@@ -2894,6 +2900,13 @@ function optionalString(value: unknown) {
 
 function stringFrom(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+// Accept only a well-formed locale code (e.g. "de", "en", "pt-br") so a stray query param can't
+// poison the renderer; unknown-but-valid codes simply fall back per-key to English in the packs.
+function localeCodeFrom(value: unknown): string | undefined {
+  const code = stringFrom(value)?.toLowerCase();
+  return code && /^[a-z]{2}(?:-[a-z]{2})?$/.test(code) ? code : undefined;
 }
 
 function asRecord(value: unknown): Record<string, any> {

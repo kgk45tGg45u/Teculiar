@@ -99,7 +99,8 @@ test("admin/client dashboards no longer trigger maintenance or provider refresh 
   const adminDashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
   const adminSidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
   const clientDashboard = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
-  const i18n = await readFile(new URL("../../web/lib/i18n.ts", import.meta.url), "utf8");
+  // The Settings nav label moved from a hardcoded string in lib/i18n.ts into the localized admin pack.
+  const adminPackEn = await readFile(new URL("../../../packages/locales/en/admin.json", import.meta.url), "utf8");
 
   assert.doesNotMatch(adminDashboard, /runMaintenance\(/);
   assert.doesNotMatch(adminDashboard, /billing\/maintenance/);
@@ -108,7 +109,7 @@ test("admin/client dashboards no longer trigger maintenance or provider refresh 
   assert.match(clientDashboard, /function serviceListUrl\(\)[\s\S]*return `\$\{API_BASE_URL\}\/services`/);
   assert.doesNotMatch(clientDashboard, /function serviceListUrl\(\)[\s\S]*services\?refresh=1/);
   assert.match(adminSidebar, /href: "\/admin\/settings"/);
-  assert.match(i18n, /settings: "Settings"/);
+  assert.match(adminPackEn, /"settings": "Settings"/);
 });
 
 test("settings page exposes every cron timing and IMAP mailbox field", async () => {
@@ -142,6 +143,7 @@ test("settings page has a manual cron run button", async () => {
 
   assert.match(adminForms, /runCron/);
   assert.match(adminForms, /\/cron\/admin\/run/);
-  assert.match(adminForms, /Run Cron Now/);
+  // The button label moved into the localized admin pack (c.runCronNow) during the i18n migration.
+  assert.match(adminForms, /c\.runCronNow/);
   assert.match(adminForms, /lastCronRun/);
 });

@@ -62,12 +62,8 @@ test("client table shares overview service list while detail refreshes once", as
   assert.doesNotMatch(source, /loadServiceFresh/);
 });
 
-test("active hosting service is terminated when Virtualmin definitively reports it gone", async () => {
-  // A live (ACTIVE) service is only changed on a DEFINITIVE "does not exist" from the panel (status
-  // FAILED) → TERMINATED for Virtualmin. Inconclusive results (PROVISIONING / QUEUED) must never flip a
-  // working service, so a transient outage can't mass-change every account.
-  const calls = [];
-  const products = {
+const goneVirtualminFactory = (calls) => ({
+  products: {
     findService: async () => ({
       configuration: { domainName: "missing-host.example.com" },
       domainRecords: [],
@@ -81,16 +77,39 @@ test("active hosting service is terminated when Virtualmin definitively reports 
       calls.push([id, status, externalId]);
       return { id, status, externalId };
     }
-  };
-  const external = {
+  },
+  external: {
     hostingProvider: () => ({
       status: async () => ({ externalId: "missing-host.example.com", status: "FAILED" })
     }),
     resellBiz: {}
-  };
+  }
+});
 
+test("an on-demand view never demotes a live service, so the list and detail stay consistent", async () => {
+  // A page view (client/admin getService?refresh / listServicesFresh) must NOT flip a working
+  // ACTIVE service to TERMINATED even when the panel reports it gone. Demotion is owned solely by the
+  // scheduled cron reconcile (allowDemote) so the stored status is the single source of truth and the
+  // dashboard list can't disagree with the service detail.
+  const calls = [];
+  const { products, external } = goneVirtualminFactory(calls);
   const service = new ProductsService(products, external);
+
   const refreshed = await service.refreshService("service-1", "user-1");
+
+  assert.deepEqual(calls, []);
+  assert.equal(refreshed.status, "ACTIVE");
+});
+
+test("the cron reconcile (allowDemote) terminates a service Virtualmin definitively reports gone", async () => {
+  // The DEFINITIVE "does not exist" panel result (status FAILED) → TERMINATED for Virtualmin, but
+  // only via the cron path. Inconclusive results (PROVISIONING / QUEUED) must never flip a working
+  // service, so a transient outage can't mass-change every account.
+  const calls = [];
+  const { products, external } = goneVirtualminFactory(calls);
+  const service = new ProductsService(products, external);
+
+  const refreshed = await service.refreshService("service-1", undefined, { allowDemote: true });
 
   assert.deepEqual(calls, [["service-1", "TERMINATED", "missing-host.example.com"]]);
   assert.equal(refreshed.status, "TERMINATED");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { currentLocale } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import {
   currencyCatalog,
@@ -29,7 +29,7 @@ const chip: React.CSSProperties = { display: "inline-flex", alignItems: "center"
 const removeBtn: React.CSSProperties = { background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: 0 };
 
 export function LanguageCurrencySettings({ languages, currencyConfig, onLanguages, onCurrencyConfig }: Props) {
-  const c = getDictionary(currentLocale()).admin.langCur;
+  const c = getDictionary(useLocale()).admin.langCur;
   const langCodes = [languages.main, ...languages.others];
   const curCodes = [currencyConfig.main, ...currencyConfig.others];
   const languageOptions = useMemo(() => languageCatalog().map((l) => ({ code: l.code, label: `${l.flag} ${l.name} — ${l.nativeName} (${l.code})` })), []);

@@ -2,7 +2,8 @@
 
 import { Bot, Edit2, Plus, Power, PowerOff, Save, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notify, notifyResponse } from "../ui/toast-provider";
@@ -22,7 +23,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 // ── BlogPostList ─────────────────────────────────────────────────────────────
 
 export function BlogPostList() {
-  const copy = getDictionary(currentLocale()).admin.blogAdmin;
+  const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [posts, setPosts] = useState<ApiBlogPost[]>([]);
   const [busy, setBusy] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export function BlogPostList() {
 // ── BlogPostForm ─────────────────────────────────────────────────────────────
 
 export function BlogPostForm({ editId }: { editId?: string }) {
-  const copy = getDictionary(currentLocale()).admin.blogAdmin;
+  const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [editing, setEditing] = useState<ApiBlogPost | null>(null);
   const [locale, setLocale] = useState<"de" | "en">("de");
   const [categories, setCategories] = useState<ApiBlogCategory[]>([]);
@@ -430,7 +431,7 @@ export function BlogPostForm({ editId }: { editId?: string }) {
 // ── BlogCategoryTagManager ───────────────────────────────────────────────────
 
 export function BlogCategoryTagManager() {
-  const copy = getDictionary(currentLocale()).admin.blogAdmin;
+  const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [locale, setLocale] = useState<"de" | "en">("de");
   const [categories, setCategories] = useState<ApiBlogCategory[]>([]);
   const [tags, setTags] = useState<ApiBlogTag[]>([]);
@@ -631,7 +632,7 @@ type AiSettings = {
 };
 
 export function AiContentManager() {
-  const copy = getDictionary(currentLocale()).admin.blogAdmin;
+  const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [s, setS] = useState<AiSettings>({
     aiBlogEnabled: false,
     aiBlogTopicsPool: "",
@@ -828,7 +829,7 @@ export function AiContentManager() {
 // ── AiJobSettingsForm ────────────────────────────────────────────────────────
 
 export function AiJobSettingsForm() {
-  const copy = getDictionary(currentLocale()).admin.blogAdmin;
+  const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [articlesPerDay, setArticlesPerDay] = useState(3);
   const [intervalHours, setIntervalHours] = useState(8);
   const [message, setMessage] = useState("");

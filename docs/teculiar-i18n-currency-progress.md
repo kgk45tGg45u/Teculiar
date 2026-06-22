@@ -166,6 +166,39 @@ the main-currency-change admin guard, and a per-locale email-template editor. **
 (not packs):** marketing/storefront **page content** i18n → Phase 3 Customizer per-element translations;
 **product names/descriptions** → per-language admin input fields.
 
+## Post-Phase-1 fixes (2026-06-22, found checking on local)
+- **Docker build was broken on `main`** (blocked deploy). Both `Dockerfile.api` and `Dockerfile.web`
+  only copied `packages/shared` — never `packages/locales` — so `npm ci` couldn't find the
+  `@dezhost/locales` workspace and the api prebuild (`npm --workspace @dezhost/locales run build`)
+  failed with *"No workspaces found"*. Fix: copy `packages/locales/package.json` before `npm ci`, copy
+  `packages/locales` source before building, build it (api), and copy `packages/locales` into the api
+  production stage (the api `require("@dezhost/locales")`s at runtime through the workspace symlink).
+  The server only **pulls** prebuilt images (`docker-compose.prod.yml` uses `image:`, no `build:`), so
+  no server-side change is needed — a green CI build + `docker compose pull` ships it.
+- **PDF/HTML invoices are now locale-aware.** They previously always rendered in the invoice's frozen
+  `locale` (stamped = main language at creation), so the on-screen invoice followed the language toggle
+  but the downloaded PDF/HTML stayed German. The portal/admin now pass the viewer's display language as
+  `?locale=` to `GET /billing/invoices/:id/{pdf,html}`; `invoiceLocale()` prefers a valid requested
+  code over the frozen snapshot. Amounts still use the frozen `currency`. **Tests:** `invoice-html-pdf.test.mjs`.
+- **Admin hydration mismatch fixed** (`useLocale()` + `LocaleProvider`). Admin client components called
+  `currentLocale()`, which returns the build-time default during SSR but the cookie locale on the
+  client → a hydration mismatch whenever the admin's language ≠ default (first surfaced on the sidebar
+  menu toggle). New `components/layout/locale-provider.tsx` seeds the server-resolved locale (SSR-stable,
+  mirrors `useCurrency(initial)`); the admin layout wraps children in `<LocaleProvider>` and every admin
+  client component (`admin-sidebar`, `admin-breadcrumbs`, `admin-forms`, `email-admin-editor`,
+  `admin-product-manager`, `admin-departments`, `admin-support`, `admin-modules`, `blog-admin`,
+  `language-currency-settings`, `tax-country-settings`, `theme-blue-form`) reads `useLocale()` instead of
+  `currentLocale()`, passing it to `money()`/`cycleLabel()` where they render on first paint. The client
+  portal needs no provider — `ClientDashboard` SSRs to `null` until the auth check runs, so it can't
+  mismatch.
+- **Two non-i18n fixes shipped alongside** (see code comments): (1) service status is now owned by the
+  cron reconcile — `refreshService(..., { allowDemote })` only lets the scheduled
+  `refreshAllHostingStatuses`/`refreshAllServiceStatuses` demote a vanished ACTIVE account to
+  TERMINATED, so a single page view can't flip it and the dashboard list/detail stay consistent;
+  (2) the client portal's back/forward "empty page" — `usePortalNavigationRecovery` no longer does a
+  `window.location.reload()` on a bfcache restore (which blanked the null-SSR portal); it revalidates in
+  place instead.
+
 ## Gotchas / notes for future-me
 - **API unit tests** (`apps/api/test/*.test.mjs`) are `node --test` files importing the **built
   `dist/`** with mocked deps (no DB). Run after building: from `apps/api/`,

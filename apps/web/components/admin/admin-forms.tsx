@@ -6,9 +6,10 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
+import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
 import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import type { Locale } from "../../lib/i18n";
+import { useLocale } from "../layout/locale-provider";
 import { serviceStatusLabel } from "../../lib/status-labels";
 import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
 import { TaxCountrySettings, type TaxCountriesValue } from "./tax-country-settings";
@@ -62,7 +63,7 @@ function shuffleChars(values: string[]) {
 }
 
 export function AddClientForm() {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -156,6 +157,7 @@ export function AddClientForm() {
 }
 
 function ClientRow({ client, products }: { client: ApiClient; products: ApiProduct[] }) {
+  const locale = useLocale();
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
   const address = contact?.address ?? {};
@@ -273,7 +275,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         <span>{client.services?.filter((service) => service.status === "ACTIVE").length ?? 0} active services</span>
         <span>{client.domainRecords?.length ?? 0} domains</span>
         <span>{client.invoices?.filter((invoice) => invoice.status !== "PAID").length ?? 0} unpaid invoices</span>
-        <span>{money(client.invoices?.filter((invoice) => invoice.status === "PAID").reduce((sum, invoice) => sum + invoice.totalCents, 0) ?? 0)}</span>
+        <span>{money(client.invoices?.filter((invoice) => invoice.status === "PAID").reduce((sum, invoice) => sum + invoice.totalCents, 0) ?? 0, undefined, locale)}</span>
       </summary>
       <form action={saveClient} className={styles.form}>
         <h3>Edit Client</h3>
@@ -296,7 +298,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       <form action={createOrder} className={styles.form}>
         <h3>Create Order</h3>
         <label>Product<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-        <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
+        <label>Price<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle, locale)} {money(price.amountCents, price.currency, locale)}</option>))}</select></label>
         <label>Domain name<input name="domainName" placeholder="example.com" /></label>
         <label>Domain action<select name="domainAction"><option value="register">Register</option><option value="transfer">Transfer</option></select></label>
         <label>API module<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
@@ -319,7 +321,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
 }
 
 export function AdminClientEditForm({ client }: { client: ApiClient }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [pwMessage, setPwMessage] = useState("");
   const contact = client.contacts?.[0];
@@ -405,7 +407,7 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
 }
 
 export function AdminClientDeleteButton({ clientId, clientName }: { clientId: string; clientName: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function handleDelete() {
@@ -428,7 +430,7 @@ export function AdminClientDeleteButton({ clientId, clientName }: { clientId: st
 }
 
 export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
   const address = contact?.address ?? {};
@@ -489,7 +491,8 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
 }
 
 export function ClientDetailModals({ client, products }: { client: ApiClient; products: ApiProduct[] }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const locale = useLocale();
+  const c = getDictionary(locale).admin.forms;
   const [open, setOpen] = useState<"order" | "invoice" | null>(null);
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
@@ -562,7 +565,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
         <form action={createOrder} className={styles.form}>
           <h3>{c.createOrder}</h3>
           <label>{c.product}<select name="productId" defaultValue={defaultProduct?.id}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-          <label>{c.price}<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle)} {money(price.amountCents, price.currency)}</option>))}</select></label>
+          <label>{c.price}<select name="productPriceId" defaultValue={defaultProduct?.prices[0]?.id}>{products.flatMap((product) => product.prices.map((price) => <option key={price.id} value={price.id}>{product.name} {cycleLabel(price.billingCycle, locale)} {money(price.amountCents, price.currency, locale)}</option>))}</select></label>
           <label>{c.domainName}<input name="domainName" placeholder="example.com" /></label>
           <label>{c.domainAction}<select name="domainAction"><option value="register">{c.register}</option><option value="transfer">{c.transfer}</option></select></label>
           <label>{c.apiModule}<input defaultValue={defaultProduct?.provisioningModule ?? "virtualmin"} name="apiModule" /></label>
@@ -599,7 +602,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
 }
 
 export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [showMarkPaid, setShowMarkPaid] = useState(false);
   const isPermanent = !!(invoice.finalInvoiceNumber ?? (invoice.status === "PAID" && invoice.invoiceNumber));
@@ -691,7 +694,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
 }
 
 export function AdminServiceStatusForm({ serviceId, status }: { serviceId: string; status: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/services/${serviceId}/status`, {
@@ -725,7 +728,7 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
 }
 
 export function AdminServiceDueDateForm({ renewsAt, serviceId }: { renewsAt?: string | null; serviceId: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function submit(formData: FormData) {
@@ -755,7 +758,7 @@ function dateInputValue(value?: string | null) {
 }
 
 export function AnnouncementForm() {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [editing, setEditing] = useState<ApiAnnouncement>();
   const [message, setMessage] = useState("");
@@ -829,7 +832,7 @@ export function AnnouncementForm() {
 }
 
 export function CronSettingsForm() {
-  const c = getDictionary(currentLocale()).admin.settingsForm;
+  const c = getDictionary(useLocale()).admin.settingsForm;
   const [message, setMessage] = useState("");
   const [lastCronRun, setLastCronRun] = useState("");
   const [s, setS] = useState({
@@ -1007,7 +1010,7 @@ const COMMON_TIMEZONES = [
 ];
 
 export function SettingsForm() {
-  const dict = getDictionary(currentLocale()).admin;
+  const dict = getDictionary(useLocale()).admin;
   const c = dict.settingsForm;
   const f = dict.forms;
   const [message, setMessage] = useState("");
@@ -1211,7 +1214,7 @@ export function SettingsForm() {
 type Gateway = { config?: Record<string, unknown>; enabled: boolean; method: string; validation?: { message?: string; ok?: boolean } };
 
 export function PaymentGatewayForm() {
-  const c = getDictionary(currentLocale()).admin.settingsForm;
+  const c = getDictionary(useLocale()).admin.settingsForm;
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [saving, setSaving] = useState(false);
   const [results, setResults] = useState<Record<string, { message?: string; ok?: boolean }>>({});
@@ -1542,7 +1545,7 @@ export function BlogManager() {
 }
 
 export function RichTextEditor({ initialValue }: { initialValue: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [value, setValue] = useState(initialValue);
   const editor = useEditor({
     content: initialValue || "",
@@ -1614,7 +1617,7 @@ export function RichTextEditor({ initialValue }: { initialValue: string }) {
 }
 
 export function DomainPriceForm() {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
 
   async function submit(formData: FormData) {
@@ -1657,7 +1660,7 @@ export function DomainPriceForm() {
 }
 
 export function OrderStatusForm({ orderId, status }: { orderId: string; status: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   const [value, setValue] = useState(statusLabelValue(status));
 
@@ -1978,9 +1981,11 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
 }
 
 export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId: string; invoiceNumber: string }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const locale = useLocale();
+  const c = getDictionary(locale).admin.forms;
   async function download() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf`, { headers: authHeaders() });
+    // Render the PDF in the admin's display language so it matches the on-screen invoice.
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf?locale=${locale}`, { headers: authHeaders() });
     if (!response.ok) {
       notify.error(c.pdfDownloadFailed);
       return;
@@ -2000,7 +2005,7 @@ export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId
 type LineItem = { id: number };
 
 export function AdminClientActions({ client }: { client: ApiClient }) {
-  const c = getDictionary(currentLocale()).admin.forms;
+  const c = getDictionary(useLocale()).admin.forms;
   const [open, setOpen] = useState<"profile" | "password" | "invoice" | "welcome-email" | "send-email" | null>(null);
   const [lines, setLines] = useState<LineItem[]>([{ id: 0 }]);
   const [profileMsg, setProfileMsg] = useState("");
@@ -2344,7 +2349,7 @@ function adminRoleLabel(user: AdminUser) {
 }
 
 export function AdminsPanel() {
-  const dict = getDictionary(currentLocale()).admin;
+  const dict = getDictionary(useLocale()).admin;
   const c = dict.settingsForm;
   const f = dict.forms;
   const ADMIN_ROLES = adminRoles(c);
@@ -2594,7 +2599,7 @@ export function AdminsPanel() {
 }
 
 export function SeoSettingsForm() {
-  const c = getDictionary(currentLocale()).admin.settingsForm;
+  const c = getDictionary(useLocale()).admin.settingsForm;
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
     siteName: "Dezhost",

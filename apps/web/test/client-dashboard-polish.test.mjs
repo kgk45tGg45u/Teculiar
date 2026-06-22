@@ -73,10 +73,12 @@ test("client dashboard loaders recover from both restored and same-document back
   assert.match(source, /AbortController/);
   assert.match(source, /controller\.abort\(\)/);
   assert.match(source, /function usePortalNavigationRecovery/);
-  assert.match(source, /window\.addEventListener\("pageshow", reloadRestoredPage\)/);
-  assert.match(source, /event\.persisted[\s\S]*window\.location\.reload\(\)/);
-  assert.match(source, /window\.addEventListener\("popstate", revalidateHistoryNavigation\)/);
-  assert.match(source, /setLoading\(allLoaded\)/);
+  // Back/forward (incl. bfcache restore) must revalidate IN PLACE, never window.location.reload():
+  // the portal SSRs to null until the client auth check runs, so a reload blanks the restored page.
+  assert.match(source, /window\.addEventListener\("pageshow", onPageShow\)/);
+  assert.match(source, /window\.addEventListener\("popstate", revalidate\)/);
+  assert.match(source, /event\.persisted[\s\S]*revalidate\(\)/);
+  assert.doesNotMatch(source, /window\.location\.reload\(\)/);
   assert.match(source, /setRefreshVersion\(\(current\) => current \+ 1\)/);
 });
 
