@@ -7,6 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Retained only for blog/announcement content (Announcement.locale, Translation.targetLocale),
+// which is still de/en (deferred to a later phase). User/Invoice/Content/EmailTemplate locales
+// are now free-form String so admin-added languages can be stored; values are validated in app code.
 enum Locale {
   de
   en
@@ -181,7 +184,7 @@ model User {
   email           String           @unique
   passwordHash    String
   name            String
-  locale          Locale           @default(de)
+  locale          String           @default("de")
   customerType    CustomerType     @default(INDIVIDUAL)
   countryCode     String           @default("DE")
   vatId           String?
@@ -560,6 +563,7 @@ model Invoice {
   taxAmountCents  Int           @default(0)
   totalCents      Int
   currency        String        @default("EUR")
+  locale          String        @default("de")
   reverseCharge   Boolean       @default(false)
   taxReason       String?       @db.Text
   customerSnapshot Json         @default("{}")
@@ -920,7 +924,7 @@ model Content {
   id             String        @id @default(cuid())
   type           ContentType
   slug           String
-  locale         Locale
+  locale         String
   title          String
   excerpt        String?        @db.Text
   content        Json
@@ -1033,7 +1037,7 @@ model SystemSetting {
 model EmailTemplate {
   id        String   @id @default(cuid())
   key       String
-  locale    Locale
+  locale    String
   subject   String   @db.Text
   body      String   @db.LongText
   updatedAt DateTime @updatedAt

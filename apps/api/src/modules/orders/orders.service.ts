@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
 import { billingCycles } from "@dezhost/shared";
+import { formatMoney } from "../../common/i18n";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -107,17 +108,22 @@ export class OrdersService implements OnModuleInit {
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
-    const vatPercent = await this.billing.vatPercent();
-    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
+    const vat = await this.billing.vatForBuyer({
+      countryCode: dto.customer?.countryCode,
+      isBusinessCustomer: dto.customer?.customerType === "BUSINESS",
+      vatId: dto.customer?.vatId
+    });
+    const taxAmountCents = Math.round(taxableCents * (vat.rate / 100));
 
     return {
-      currency: "EUR",
+      currency: (await this.billing.mainCurrency?.()) ?? "EUR",
       items,
+      reverseCharge: vat.reverseCharge,
       setupFeeCents,
       subtotalCents,
       taxAmountCents,
       totalCents: taxableCents + taxAmountCents,
-      vatPercent
+      vatPercent: vat.rate
     };
   }
 
@@ -206,8 +212,12 @@ export class OrdersService implements OnModuleInit {
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
     const taxableCents = subtotalCents + setupFeeCents;
-    const vatPercent = await this.billing.vatPercent();
-    const taxAmountCents = Math.round(taxableCents * (vatPercent / 100));
+    const vat = await this.billing.vatForBuyer({
+      countryCode: user.countryCode,
+      isBusinessCustomer: user.customerType === "BUSINESS",
+      vatId: user.vatId
+    });
+    const taxAmountCents = Math.round(taxableCents * (vat.rate / 100));
     const snapshot = customerSnapshotFromUser(user);
     const defaultDueAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
     const invoice = await this.billing.createInvoice({
@@ -492,18 +502,23 @@ export class OrdersService implements OnModuleInit {
     if (!this.emails) {
       return [];
     }
+    // Order-email money uses the invoice's frozen currency; locale = recipient locale → main.
+    const userLocale = stringOrUndefined(invoice.user?.locale) ?? stringOrUndefined(snapshot.locale);
+    const locale = userLocale ?? (await this.billing.i18nLanguages()).main;
+    const currency = stringOrUndefined(invoice.currency) ?? await this.billing.mainCurrency();
     return this.emails.dispatch("order_confirmation", {
       context: {
         customer_email: stringOrUndefined(snapshot.email),
         customer_name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email),
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
-        invoice_total_amount: formatEuro(invoice.totalCents),
+        invoice_total_amount: formatMoney(invoice.totalCents, currency, locale),
         order_number: order.orderNumber,
         service: Array.isArray(order.items) ? order.items.map((item) => item.description).filter(Boolean).join(", ") : ""
       },
       user: {
         email: stringOrUndefined(snapshot.email),
         id: order.userId,
+        locale: userLocale,
         name: stringOrUndefined(snapshot.name) ?? stringOrUndefined(snapshot.email)
       }
     });
@@ -1028,10 +1043,6 @@ function optionalString(value: unknown) {
 
 function stringOrUndefined(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function formatEuro(cents: number) {
-  return `${(cents / 100).toFixed(2)} EUR`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

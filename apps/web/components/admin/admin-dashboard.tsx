@@ -19,7 +19,8 @@ import {
   type ApiTicket,
   type AuthUser
 } from "../../lib/api";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { requestLocale } from "../../lib/server-locale";
 import { LanguageToggle } from "../layout/language-toggle";
 import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
@@ -71,7 +72,7 @@ export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
 export async function AdminDashboard({ blogEditId, emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { blogEditId?: string; emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
   const locale = await requestLocale();
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     await redirectToAdminLogin();
@@ -111,7 +112,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow">Admin</span>
+            <span className="eyebrow">{copy.eyebrow.admin}</span>
             <h1>{adminTitle(view, locale)}</h1>
           </div>
           <div className={styles.globalActions}>
@@ -149,7 +150,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
         {view === "orders-new" ? <NewOrderPanel clients={clients} locale={locale} preselectedClientId={preselectedClientId} products={products} vatPercent={settings.vatPercent ?? 19} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel locale={locale} prices={domainPrices} /> : null}
         {view === "clients" ? <ClientsPanel clients={clients} locale={locale} products={products} /> : null}
-        {view === "clients-new" ? <ClientsNewPanel /> : null}
+        {view === "clients-new" ? <ClientsNewPanel locale={locale} /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
         {view === "logs" ? <LogsExplorer locale={locale} timezone={adminTimezone} /> : null}
@@ -158,20 +159,20 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
         {view === "tickets-new" ? <AdminNewTicketPanel /> : null}
         {view === "tickets-departments" ? <AdminDepartmentsPanel /> : null}
         {view === "knowledgebase" ? <KnowledgebasePanel articles={knowledgebase} /> : null}
-        {view === "blog" ? <BlogListPanel /> : null}
-        {view === "blog-new" ? <BlogNewPanel editId={blogEditId} /> : null}
-        {view === "blog-categories" ? <BlogCategoriesPanel /> : null}
-        {view === "blog-ai-content" ? <BlogAiContentPanel /> : null}
-        {view === "blog-ai-settings" ? <BlogAiSettingsPanel /> : null}
-        {view === "products" ? <ProductsPanel /> : null}
-        {view === "products-categories" ? <ProductCategoriesPanel /> : null}
+        {view === "blog" ? <BlogListPanel locale={locale} /> : null}
+        {view === "blog-new" ? <BlogNewPanel editId={blogEditId} locale={locale} /> : null}
+        {view === "blog-categories" ? <BlogCategoriesPanel locale={locale} /> : null}
+        {view === "blog-ai-content" ? <BlogAiContentPanel locale={locale} /> : null}
+        {view === "blog-ai-settings" ? <BlogAiSettingsPanel locale={locale} /> : null}
+        {view === "products" ? <ProductsPanel locale={locale} /> : null}
+        {view === "products-categories" ? <ProductCategoriesPanel locale={locale} /> : null}
         {view === "modules" ? <ModulesRedirect /> : null}
-        {view === "payment-gateways" ? <PaymentGatewaysPanel /> : null}
-        {view === "emails" ? <EmailsPanel section={emailSection} settings={emailSettings} timezone={adminTimezone} /> : null}
-        {view === "announcements" ? <AnnouncementsPanel /> : null}
-        {view === "settings" ? <SettingsPanel /> : null}
-        {view === "settings-cron" ? <CronSettingsPanel /> : null}
-        {view === "settings-seo" ? <SeoSettingsPanel /> : null}
+        {view === "payment-gateways" ? <PaymentGatewaysPanel locale={locale} /> : null}
+        {view === "emails" ? <EmailsPanel locale={locale} section={emailSection} settings={emailSettings} timezone={adminTimezone} /> : null}
+        {view === "announcements" ? <AnnouncementsPanel locale={locale} /> : null}
+        {view === "settings" ? <SettingsPanel locale={locale} /> : null}
+        {view === "settings-cron" ? <CronSettingsPanel locale={locale} /> : null}
+        {view === "settings-seo" ? <SeoSettingsPanel locale={locale} /> : null}
         {view === "admins" ? <AdminsPanel /> : null}
       </main>
     </div>
@@ -179,26 +180,27 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
 }
 
 function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDomainPrice[] }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Domains</span>
-          <h2>TLD Prices</h2>
+          <span className="eyebrow">{copy.eyebrow.domains}</span>
+          <h2>{copy.view.tldPrices}</h2>
         </div>
-        <StatusPill label={`${prices.length} rows`} tone={prices.length > 0 ? "good" : "warn"} />
+        <StatusPill label={`${prices.length} ${copy.misc.rows}`} tone={prices.length > 0 ? "good" : "warn"} />
       </div>
       <DomainPriceForm />
       <table className="table">
         <thead>
           <tr>
-            <th>TLD</th>
-            <th>Action</th>
-            <th>Years</th>
-            <th>Price</th>
-            <th>Manual</th>
-            <th>Suggested</th>
-            <th>Last update</th>
+            <th>{copy.tld}</th>
+            <th>{copy.action}</th>
+            <th>{copy.years}</th>
+            <th>{copy.price}</th>
+            <th>{copy.manual}</th>
+            <th>{copy.suggested}</th>
+            <th>{copy.lastUpdate}</th>
           </tr>
         </thead>
         <tbody>
@@ -209,14 +211,14 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
                 <td>{price.action}</td>
                 <td>{price.years}</td>
                 <td>{price.amountCents > 0 ? money(price.amountCents, price.currency, locale) : "Resell.biz"}</td>
-                <td>{price.manual ? "yes" : "no"}</td>
-                <td>{price.suggested ? "yes" : "no"}</td>
+                <td>{price.manual ? copy.misc.yes : copy.misc.no}</td>
+                <td>{price.suggested ? copy.misc.yes : copy.misc.no}</td>
                 <td>{shortDateLabel(price.updatedAt, locale)}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={7}>No domain prices synced yet.</td>
+              <td colSpan={7}>{copy.noDomainPrices}</td>
             </tr>
           )}
         </tbody>
@@ -226,18 +228,17 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
 }
 
 function ModuleGrid({ locale }: { locale: Locale }) {
-  const copy = dictionary[locale].admin;
-  const isDE = locale === "de";
+  const copy = getDictionary(locale).admin;
   const modules = [
-    { title: copy.clients, body: isDE ? "Kunden, Kontakte, Segmente und E-Mail Logs." : "Clients, contacts, segments, email logs.", href: "/admin/clients", icon: UsersRound },
-    { title: copy.orders, body: isDE ? "Bestellqueue mit 6-stelligen Bestellnummern." : "Order queue with 6 digit order numbers.", href: "/admin/orders", icon: Package },
-    { title: isDE ? "Abrechnung" : "Billing", body: isDE ? "Rechnungen, Transaktionen, Guthaben und Anbieter." : "Invoices, transactions, add funds, processors.", href: "/admin/invoices", icon: FileText },
-    { title: copy.emails, body: isDE ? "SMTP Einstellungen, Vorlagen und lokaler Ausgang." : "SMTP settings, templates, and local outbox.", href: "/admin/emails", icon: Mail },
-    { title: "Support", body: isDE ? "Tickets, Abteilungen, Status und Antworten." : "Tickets, departments, statuses, replies.", href: "/admin/tickets", icon: Ticket },
-    { title: copy.knowledgebase, body: isDE ? "Öffentliche Hilfeartikel und Ticketbausteine." : "Public help articles and ticket reply inserts.", href: "/admin/knowledgebase", icon: BookOpen },
-    { title: copy.blog, body: isDE ? "Artikel, SEO Keywords, Bilder und KI Briefings." : "Articles, SEO keywords, images, AI briefs.", href: "/admin/blog", icon: FileText },
-    { title: copy.products, body: isDE ? "Produkte, Services und Preiszyklen." : "Products, services, pricing cycles.", href: "/admin/products", icon: Settings },
-    { title: copy.announcements, body: isDE ? "Ankündigungen für den Kundenbereich schreiben." : "Write client portal announcements.", href: "/admin/announcements", icon: Bell }
+    { title: copy.clients, body: copy.card.clientsBody, href: "/admin/clients", icon: UsersRound },
+    { title: copy.orders, body: copy.card.ordersBody, href: "/admin/orders", icon: Package },
+    { title: copy.card.billingTitle, body: copy.card.billingBody, href: "/admin/invoices", icon: FileText },
+    { title: copy.emails, body: copy.card.emailsBody, href: "/admin/emails", icon: Mail },
+    { title: copy.card.supportTitle, body: copy.card.supportBody, href: "/admin/tickets", icon: Ticket },
+    { title: copy.knowledgebase, body: copy.card.knowledgebaseBody, href: "/admin/knowledgebase", icon: BookOpen },
+    { title: copy.blog, body: copy.card.blogBody, href: "/admin/blog", icon: FileText },
+    { title: copy.products, body: copy.card.productsBody, href: "/admin/products", icon: Settings },
+    { title: copy.announcements, body: copy.card.announcementsBody, href: "/admin/announcements", icon: Bell }
   ];
 
   return (
@@ -253,13 +254,14 @@ function ModuleGrid({ locale }: { locale: Locale }) {
   );
 }
 
-function PaymentGatewaysPanel() {
+function PaymentGatewaysPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Billing</span>
-          <h2>Payment Gateways</h2>
+          <span className="eyebrow">{copy.eyebrow.billing}</span>
+          <h2>{copy.paymentGateways}</h2>
         </div>
       </div>
       <PaymentGatewayForm />
@@ -267,18 +269,19 @@ function PaymentGatewaysPanel() {
   );
 }
 
-function EmailsPanel({ section, settings, timezone }: { section: EmailAdminSection; settings: ApiEmailAdminSettings; timezone: string }) {
+function EmailsPanel({ locale, section, settings, timezone }: { locale: Locale; section: EmailAdminSection; settings: ApiEmailAdminSettings; timezone: string }) {
+  const copy = getDictionary(locale).admin;
   const title = {
-    emails: "Emails",
-    logs: "Email Logs",
-    settings: "Email Settings",
-    template: "Email Template"
+    emails: copy.emails,
+    logs: copy.emailLogs,
+    settings: copy.emailSettings,
+    template: copy.emailTemplate
   }[section];
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Messaging</span>
+          <span className="eyebrow">{copy.eyebrow.messaging}</span>
           <h2>{title}</h2>
         </div>
       </div>
@@ -287,43 +290,46 @@ function EmailsPanel({ section, settings, timezone }: { section: EmailAdminSecti
   );
 }
 
-function BlogListPanel() {
+function BlogListPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">CMS</span>
-          <h2>Blog Posts</h2>
+          <span className="eyebrow">{copy.eyebrow.cms}</span>
+          <h2>{copy.view.blogPosts}</h2>
         </div>
-        <Button href="/admin/blog/new" variant="secondary">New Post</Button>
+        <Button href="/admin/blog/new" variant="secondary">{copy.btn.newPost}</Button>
       </div>
       <BlogPostList />
     </section>
   );
 }
 
-function BlogNewPanel({ editId }: { editId?: string }) {
+function BlogNewPanel({ editId, locale }: { editId?: string; locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">CMS</span>
-          <h2>{editId ? "Edit Blog Post" : "New Blog Post"}</h2>
+          <span className="eyebrow">{copy.eyebrow.cms}</span>
+          <h2>{editId ? copy.view.blogPostEdit : copy.view.blogPostNew}</h2>
         </div>
-        <Button href="/admin/blog" variant="secondary">All Posts</Button>
+        <Button href="/admin/blog" variant="secondary">{copy.btn.allPosts}</Button>
       </div>
       <BlogPostForm editId={editId} />
     </section>
   );
 }
 
-function BlogCategoriesPanel() {
+function BlogCategoriesPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">CMS</span>
-          <h2>Categories & Tags</h2>
+          <span className="eyebrow">{copy.eyebrow.cms}</span>
+          <h2>{copy.view.categoriesTags}</h2>
         </div>
       </div>
       <BlogCategoryTagManager />
@@ -331,30 +337,32 @@ function BlogCategoriesPanel() {
   );
 }
 
-function BlogAiContentPanel() {
+function BlogAiContentPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">AI</span>
-          <h2>AI Content</h2>
+          <span className="eyebrow">{copy.eyebrow.ai}</span>
+          <h2>{copy.view.aiContent}</h2>
         </div>
-        <Button href="/admin/blog/ai-settings" variant="secondary">Job Settings</Button>
+        <Button href="/admin/blog/ai-settings" variant="secondary">{copy.btn.jobSettings}</Button>
       </div>
       <AiContentManager />
     </section>
   );
 }
 
-function BlogAiSettingsPanel() {
+function BlogAiSettingsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">AI</span>
-          <h2>AI Job Settings</h2>
+          <span className="eyebrow">{copy.eyebrow.ai}</span>
+          <h2>{copy.view.aiJobSettings}</h2>
         </div>
-        <Button href="/admin/blog/ai-content" variant="secondary">AI Content</Button>
+        <Button href="/admin/blog/ai-content" variant="secondary">{copy.btn.aiContent}</Button>
       </div>
       <AiJobSettingsForm />
     </section>
@@ -362,29 +370,29 @@ function BlogAiSettingsPanel() {
 }
 
 function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const sorted = [...orders].sort((a, b) => new Date(b.placedAt ?? b.createdAt).getTime() - new Date(a.placedAt ?? a.createdAt).getTime());
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Orders</span>
+          <span className="eyebrow">{copy.eyebrow.orders}</span>
           <h2>{copy.orders}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
           <StatusPill label={`${orders.length} ${copy.orders}`} tone={orders.length > 0 ? "good" : "neutral"} />
-          <Button href="/admin/orders/new" variant="secondary">New Order</Button>
+          <Button href="/admin/orders/new" variant="secondary">{copy.btn.newOrder}</Button>
         </div>
       </div>
       <table className="table">
         <thead>
           <tr>
             <th>{copy.order}</th>
-            <th>Date</th>
+            <th>{copy.col.date}</th>
             <th>{copy.client}</th>
             <th>{copy.status}</th>
             <th>{copy.invoices}</th>
-            <th>Items</th>
+            <th>{copy.col.items}</th>
             <th>{copy.total}</th>
           </tr>
         </thead>
@@ -396,7 +404,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                   <details>
                     <summary><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></summary>
                     <div className={styles.orderDetails}>
-                      <p><strong>{copy.invoices}:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? "no invoice"})</p>
+                      <p><strong>{copy.invoices}:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? copy.misc.noInvoice})</p>
                       <p><strong>{copy.status}:</strong> {orderStatusLabel(order.status, locale)}</p>
                       <OrderStatusForm orderId={order.id} status={order.status} />
                       <table className="table">
@@ -414,7 +422,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                   </details>
                 </td>
                 <td>{shortDateLabel(order.placedAt ?? order.createdAt, locale)}</td>
-                <td>{order.user?.email ?? "unknown"}</td>
+                <td>{order.user?.email ?? copy.misc.unknown}</td>
                 <td>
                   <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
                 </td>
@@ -435,12 +443,13 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
 }
 
 function NewOrderPanel({ clients, locale, preselectedClientId, products, vatPercent }: { clients: ApiClient[]; locale: Locale; preselectedClientId?: string; products: ApiProduct[]; vatPercent: number }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Orders</span>
-          <h2>New Order</h2>
+          <span className="eyebrow">{copy.eyebrow.orders}</span>
+          <h2>{copy.view.newOrder}</h2>
         </div>
       </div>
       <NewOrderForm clients={clients} locale={locale} preselectedClientId={preselectedClientId} products={products} vatPercent={vatPercent} />
@@ -449,21 +458,22 @@ function NewOrderPanel({ clients, locale, preselectedClientId, products, vatPerc
 }
 
 function ServicesPanel({ locale, services }: { locale: Locale; services: ApiService[] }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Services</span>
-          <h2>All Services</h2>
+          <span className="eyebrow">{copy.eyebrow.services}</span>
+          <h2>{copy.view.allServices}</h2>
         </div>
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>Service</th>
-            <th>Pricing</th>
-            <th>Next Due</th>
-            <th>Status</th>
+            <th>{copy.col.service}</th>
+            <th>{copy.col.pricing}</th>
+            <th>{copy.col.nextDue}</th>
+            <th>{copy.status}</th>
           </tr>
         </thead>
         <tbody>
@@ -484,16 +494,17 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
 }
 
 function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Clients</span>
-          <h2>Clients</h2>
+          <span className="eyebrow">{copy.eyebrow.clients}</span>
+          <h2>{copy.clients}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <StatusPill label={`${clients.length} clients`} tone={clients.length ? "good" : "neutral"} />
-          <Button href="/admin/clients/new" variant="secondary">Add Client</Button>
+          <StatusPill label={`${clients.length} ${copy.misc.clientsCount}`} tone={clients.length ? "good" : "neutral"} />
+          <Button href="/admin/clients/new" variant="secondary">{copy.btn.addClient}</Button>
         </div>
       </div>
       <ClientManager clients={clients} locale={locale} products={products} />
@@ -501,15 +512,16 @@ function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; loc
   );
 }
 
-function ClientsNewPanel() {
+function ClientsNewPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Clients</span>
-          <h2>Add Client</h2>
+          <span className="eyebrow">{copy.eyebrow.clients}</span>
+          <h2>{copy.view.addClient}</h2>
         </div>
-        <Button href="/admin/clients" variant="secondary">← All Clients</Button>
+        <Button href="/admin/clients" variant="secondary">{copy.btn.allClientsBack}</Button>
       </div>
       <AddClientForm />
     </section>
@@ -517,24 +529,25 @@ function ClientsNewPanel() {
 }
 
 function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Billing</span>
-          <h2>Invoices</h2>
+          <span className="eyebrow">{copy.eyebrow.billing}</span>
+          <h2>{copy.invoices}</h2>
         </div>
         <StatusPill label={`${invoices.length}`} tone="neutral" />
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>Invoice</th>
-            <th>Client</th>
-            <th>Issued</th>
-            <th>Due / Paid</th>
-            <th>Total</th>
-            <th>Status</th>
+            <th>{copy.col.invoice}</th>
+            <th>{copy.client}</th>
+            <th>{copy.col.issued}</th>
+            <th>{copy.col.duePaid}</th>
+            <th>{copy.total}</th>
+            <th>{copy.status}</th>
           </tr>
         </thead>
         <tbody>
@@ -555,7 +568,7 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
               </td>
             </tr>
           ))}
-          {invoices.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)", textAlign: "center" }}>No invoices yet.</td></tr> : null}
+          {invoices.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)", textAlign: "center" }}>{copy.misc.noInvoicesYet}</td></tr> : null}
         </tbody>
       </table>
     </section>
@@ -563,25 +576,26 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
 }
 
 function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[] }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Support</span>
-          <h2>Support Tickets</h2>
+          <span className="eyebrow">{copy.eyebrow.support}</span>
+          <h2>{copy.view.supportTickets}</h2>
         </div>
         <div className={styles.inlineForm}>
-          <Button href="/admin/tickets/departments" variant="secondary">Departments</Button>
-          <Button href="/admin/tickets/new" variant="secondary">New Ticket</Button>
+          <Button href="/admin/tickets/departments" variant="secondary">{copy.btn.departments}</Button>
+          <Button href="/admin/tickets/new" variant="secondary">{copy.btn.newTicket}</Button>
         </div>
       </div>
       <table className="table">
         <thead>
           <tr>
-            <th>Department</th>
-            <th>Subject</th>
-            <th>Status</th>
-            <th>Last Update</th>
+            <th>{copy.department}</th>
+            <th>{copy.subject}</th>
+            <th>{copy.status}</th>
+            <th>{copy.lastUpdate}</th>
           </tr>
         </thead>
         <tbody>
@@ -601,55 +615,46 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
   );
 }
 
-function CronSettingsPanel() {
+function CronSettingsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
+  const cron = copy.cron;
+  const jobNames = ["domainPrices", "domainExpirations", "domainStatuses", "hostingStatuses", "billingMaintenance", "invoiceReminders", "ticketsClose", "mailboxes", "sitemap", "aiBlogPost"] as const;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Automation</span>
-          <h2>Cron Settings</h2>
+          <span className="eyebrow">{copy.eyebrow.automation}</span>
+          <h2>{copy.view.cronSettings}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/logs" variant="secondary">View cron logs →</Button>
-          <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+          <Button href="/admin/logs" variant="secondary">{copy.btn.viewCronLogs}</Button>
+          <Button href="/admin/settings" variant="secondary">{copy.btn.generalSettingsBack}</Button>
         </div>
       </div>
 
       <div style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--border)" }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: "0.95rem" }}>What the Cron Does</h3>
-        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 12px", lineHeight: 1.6 }}>
-          The cron runner is triggered by an external HTTP request. Each call checks which jobs are due and runs them. Jobs are throttled — they only execute after their configured interval has passed.
-        </p>
+        <h3 style={{ margin: "0 0 12px", fontSize: "0.95rem" }}>{cron.whatHeading}</h3>
+        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 12px", lineHeight: 1.6 }}>{cron.intro}</p>
         <table className="table" style={{ fontSize: "0.85rem" }}>
           <thead>
-            <tr><th>Job</th><th>Frequency</th><th>What it does</th></tr>
+            <tr><th>{copy.col.job}</th><th>{copy.col.frequency}</th><th>{copy.col.whatItDoes}</th></tr>
           </thead>
           <tbody>
-            <tr><td>domainPrices</td><td>Every 24 h (configurable)</td><td>Syncs TLD pricing from Resell.biz into the domain price list.</td></tr>
-            <tr><td>domainExpirations</td><td>Every 12 h (configurable)</td><td>Refreshes expiry dates for all registered domains.</td></tr>
-            <tr><td>domainStatuses</td><td>Every 15 min (configurable)</td><td>Checks and updates domain registration statuses.</td></tr>
-            <tr><td>hostingStatuses</td><td>Every 15 min (configurable)</td><td>Checks Virtualmin hosting account statuses.</td></tr>
-            <tr><td>billingMaintenance</td><td>Every cron run</td><td>Generates upcoming invoices, marks overdue invoices, and runs subscription renewals.</td></tr>
-            <tr><td>invoiceReminders</td><td>Once per day</td><td>Sends payment reminder emails to clients with invoices due within the configured days.</td></tr>
-            <tr><td>ticketsClose</td><td>Every cron run</td><td>Auto-closes tickets that have been answered and have had no reply for the configured hours.</td></tr>
-            <tr><td>mailboxes</td><td>Every 5 min (configurable)</td><td>Polls the support &amp; sales IMAP mailboxes. Every fetched email is logged (with subject and matched client) and converted into a ticket; mail from an unknown sender creates a guest contact so nothing is lost. IMAP connection/login errors are recorded in the cron log.</td></tr>
-            <tr><td>sitemap</td><td>Once per day</td><td>Reports the live sitemap shape (URL counts) to the log. <code>/sitemap.xml</code> is served live by the website using the <strong>Site URL</strong> from Settings and the current published posts — no file is written, so it is always up to date.</td></tr>
-            <tr><td>aiBlogPost</td><td>Every 8 h (configurable)</td><td>Generates an AI blog post when AI blogging is enabled and a Deepseek API key is set.</td></tr>
+            {jobNames.map((job) => (
+              <tr key={job}>
+                <td>{job}</td>
+                <td>{cron.freq[job]}</td>
+                <td dangerouslySetInnerHTML={{ __html: cron.desc[job] }} />
+              </tr>
+            ))}
           </tbody>
         </table>
-        <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "10px 0 0", lineHeight: 1.6 }}>
-          Every trigger also writes a <code>cron.started</code> heartbeat and a <code>cron.completed</code> summary (with duration and per-job results), so you can confirm the cron is actually reaching the server. A wrong or missing secret is recorded as <code>cron.unauthorized</code>. See all of these under <a href="/admin/logs">Settings → Logs</a> in the <strong>Cron logs</strong> tab.
-        </p>
+        <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "10px 0 0", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: cron.heartbeatHtml }} />
 
-        <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>How to Activate the Cron on Your Server</h3>
-        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }}>
-          The cron is triggered by a POST (or GET) request to <code>/api/v1/cron?token=YOUR_SECRET</code>. Set up a system cron job on your server to call this endpoint on your preferred interval (e.g. hourly):
-        </p>
+        <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>{cron.activateHeading}</h3>
+        <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: cron.activateIntroHtml }} />
         <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`0 * * * * curl -s -X POST "https://www.dezhost.com/api/v1/cron?token=YOUR_SECRET" > /dev/null`}</pre>
-        <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0, lineHeight: 1.6 }}>
-          Replace <code>YOUR_SECRET</code> with the Cron Secret set below (the optional <code>CRON_SECRET</code> server env var is also accepted) and use your own domain.
-          <strong> Use the www host.</strong> A request to the bare domain (<code>dezhost.com</code>) is redirected to <code>www.dezhost.com</code>; a plain <code>curl</code> does not follow the redirect, so the request is dropped and the cron silently does nothing. You can also trigger it manually using the "Run Cron Now" button below.
-        </p>
+        <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: cron.replaceSecretHtml }} />
       </div>
 
       <CronSettingsForm />
@@ -657,17 +662,18 @@ function CronSettingsPanel() {
   );
 }
 
-function ProductsPanel() {
+function ProductsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Products</span>
-          <h2>Products</h2>
+          <span className="eyebrow">{copy.eyebrow.products}</span>
+          <h2>{copy.view.products}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/products/categories" variant="secondary">Categories</Button>
-          <Button href="/admin/products/modules" variant="secondary">Modules</Button>
+          <Button href="/admin/products/categories" variant="secondary">{copy.btn.categories}</Button>
+          <Button href="/admin/products/modules" variant="secondary">{copy.btn.modules}</Button>
         </div>
       </div>
       <AdminProductManager />
@@ -675,15 +681,16 @@ function ProductsPanel() {
   );
 }
 
-function ProductCategoriesPanel() {
+function ProductCategoriesPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Products</span>
-          <h2>Categories</h2>
+          <span className="eyebrow">{copy.eyebrow.products}</span>
+          <h2>{copy.view.categories}</h2>
         </div>
-        <Button href="/admin/products" variant="secondary">← Back to Products</Button>
+        <Button href="/admin/products" variant="secondary">{copy.btn.backToProducts}</Button>
       </div>
       <AdminCategoryManager />
     </section>
@@ -694,13 +701,14 @@ function ModulesRedirect(): never {
   redirect("/admin/products/modules" as never);
 }
 
-function AnnouncementsPanel() {
+function AnnouncementsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Announcements</span>
-          <h2>Client Announcements</h2>
+          <span className="eyebrow">{copy.eyebrow.announcements}</span>
+          <h2>{copy.view.clientAnnouncements}</h2>
         </div>
       </div>
       <AnnouncementForm />
@@ -708,17 +716,18 @@ function AnnouncementsPanel() {
   );
 }
 
-function SettingsPanel() {
+function SettingsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">System</span>
-          <h2>General Settings</h2>
+          <span className="eyebrow">{copy.eyebrow.system}</span>
+          <h2>{copy.view.generalSettings}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/settings/seo" variant="secondary">SEO Settings →</Button>
-          <Button href="/admin/settings/cron" variant="secondary">Cron Settings →</Button>
+          <Button href="/admin/settings/seo" variant="secondary">{copy.btn.seoSettings}</Button>
+          <Button href="/admin/settings/cron" variant="secondary">{copy.btn.cronSettings}</Button>
         </div>
       </div>
       <SettingsForm />
@@ -726,15 +735,16 @@ function SettingsPanel() {
   );
 }
 
-function SeoSettingsPanel() {
+function SeoSettingsPanel({ locale }: { locale: Locale }) {
+  const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">SEO</span>
-          <h2>SEO &amp; Social Settings</h2>
+          <span className="eyebrow">{copy.eyebrow.seo}</span>
+          <h2>{copy.view.seoSocial}</h2>
         </div>
-        <Button href="/admin/settings" variant="secondary">← General Settings</Button>
+        <Button href="/admin/settings" variant="secondary">{copy.btn.generalSettingsBack}</Button>
       </div>
       <SeoSettingsForm />
     </section>
@@ -742,36 +752,36 @@ function SeoSettingsPanel() {
 }
 
 function adminTitle(view: AdminView, locale: Locale) {
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const titles: Record<AdminView, string> = {
     announcements: copy.announcements,
     blog: copy.blog,
-    "blog-new": "New Blog Post",
-    "blog-categories": "Categories & Tags",
-    "blog-ai-content": "AI Content",
-    "blog-ai-settings": "AI Job Settings",
+    "blog-new": copy.view.blogPostNew,
+    "blog-categories": copy.view.categoriesTags,
+    "blog-ai-content": copy.view.aiContent,
+    "blog-ai-settings": copy.view.aiJobSettings,
     clients: copy.clients,
-    "clients-new": "Add Client",
+    "clients-new": copy.view.addClient,
     "domain-prices": copy.domainPrices,
     emails: copy.emails,
-    home: locale === "de" ? "Betriebskonsole" : "Operations Console",
+    home: copy.view.operationsConsole,
     invoices: copy.invoices,
     knowledgebase: copy.knowledgebase,
     logs: copy.logs,
-    modules: "Modules",
+    modules: copy.view.modules,
     orders: copy.orders,
-    "orders-new": "New Order",
+    "orders-new": copy.view.newOrder,
     products: copy.products,
-    "products-categories": "Categories",
+    "products-categories": copy.view.categories,
     services: copy.services,
     settings: copy.settings,
-    "settings-cron": "Cron Settings",
-    "settings-seo": "SEO & Social Settings",
-    admins: "Admins & Roles",
+    "settings-cron": copy.view.cronSettings,
+    "settings-seo": copy.view.seoSocial,
+    admins: copy.view.admins,
     "payment-gateways": copy.paymentGateways,
     tickets: copy.tickets,
-    "tickets-new": "New Ticket",
-    "tickets-departments": "Departments"
+    "tickets-new": copy.view.newTicket,
+    "tickets-departments": copy.view.departments
   };
   return titles[view];
 }

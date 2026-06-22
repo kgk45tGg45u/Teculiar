@@ -28,10 +28,12 @@ renamed to reflect that name. More themes come later.
 
 ---
 
-## Phase 1 — Modular languages, locale & currency (FULL-STACK) — *in progress*
+## Phase 1 — Modular languages, locale & currency (FULL-STACK) — *implemented; verification pending*
 
-Status: **planned & approved**, not yet started. Branch `feat/teculiar-i18n-currency`. Full detail in the
-plan file above; one-paragraph summary here for context:
+Status: **Steps 1–8 implemented & committed** (2026-06-20) on branch `feat/teculiar-i18n-currency`;
+build/typecheck/unit-tests green. Remaining: runtime verification — `npm run db:push` locally + the local
+matrix, then prod verification after deploy. Working tracker: [teculiar-i18n-currency-progress.md](./teculiar-i18n-currency-progress.md).
+Reference docs: [i18n-currency.md](./i18n-currency.md). One-paragraph summary:
 
 Make languages, locale and currency admin-configurable across **web *and* api**. Language packs become a
 `packages/locales` workspace bundle (namespaced JSON + shared version manifest, English-as-source + per-key
@@ -41,7 +43,79 @@ rules: **issued invoices are immutable** (frozen currency+locale+amounts), **cli
 saved `User.locale`** (explicit > toggle > browser-if-pack-exists > main; emails use it), and the **toggle
 is hidden when only one language + one currency** are configured.
 
-> Everything below (Phases 2–4) depends on Phase 1's modular language list: menus, pages, and element
+### Phase 1 — follow-up batch (in progress, 2026-06-21)
+
+Requested after the user verified Phase 1 locally. Ordered; "step 3" below is the country-VAT work
+the user referenced when reordering the deferred items.
+
+1. ✅ **Product-grid prices are currency/locale-aware** (`73e7e58`). The reseller, virtual-servers and
+   home grids were server components, so `money()` fell back to the main currency and never followed the
+   toggle. Amounts now render through a client `components/marketing/price.tsx` (`<Price>`).
+2. ✅ **Toggle redesigned as a button + modal** (`a2d34fb`). New reusable `components/ui/modal.tsx`; the
+   modal has two separate sections (Language, Currency) so the two axes are obvious. Labels in
+   `common.preferences`.
+3a. ✅ **Scope-aware admin/client locale** (`8988b60`). Locale is now scoped like the auth tokens: the
+   admin panel uses a `dezhost_admin_locale` cookie, everything else keeps `dezhost_locale`.
+   `requestLocale` (via `x-pathname`), `currentLocale`, `storeLocale` and `persistClientLocale` resolve
+   the cookie/account by `currentScope()`, so a language picked in admin only affects the admin account.
+   *Follow-up (minor):* on a fresh browser the saved `User.locale` isn't auto-seeded into the scope
+   cookie until the user picks a language once; same-browser persistence already works via the cookie.
+   Cross-device seeding would add `locale` to the login response and set the scope cookie on `storeAuth`.
+3. ✅ **Country-based VAT** *(the "step 3")* (`4a7453d`, `82fd3a9`, + checkout commit). Per-country VAT
+   rates + a default country, defined in the admin panel; plus a **global "Charge VAT" on/off switch**.
+   VAT for an order/renewal is the buyer's country rate (entered at checkout, or the saved
+   `User.countryCode` for existing clients); countries with no rate fall back to the default country's
+   rate (**never silently 0**). EU reverse-charge (B2B cross-border w/ valid VAT ID → 0) and non-EU
+   export (→ 0) preserved. Single source of truth: [`packages/shared/src/tax.ts`](../packages/shared/src/tax.ts)
+   (`resolveVat`, `vatPercentForCountry`), used by checkout preview, order preview AND invoice creation.
+   New `tax.countries` SystemSetting `{ enabled, default, rates }` (legacy flat `vatPercent` kept in sync
+   with the default-country rate / 0 when off). Admin UI:
+   [`tax-country-settings.tsx`](../apps/web/components/admin/tax-country-settings.tsx). Full reference:
+   [docs/i18n-currency.md → "VAT by country"](./i18n-currency.md#vat-by-country).
+
+   **Fixed here:** the reported "4% VAT set → checkout showed 0 VAT" bug. VAT had been computed in three
+   unsynced places (checkout `orderSummary` country-unaware with `vatPercent` defaulting to 0,
+   `orders.service.previewOrder` flat, and the billing engine) — now collapsed onto the one shared
+   country-aware resolver; the buyer country is threaded through checkout.
+4. ✅ **All user-visible *dashboard/checkout/auth* chrome moved onto the `@dezhost/locales` packs**
+   (done 2026-06-22) so a 3rd configured language has **zero untranslated chrome**. Every converted
+   component reads its strings from the shared packs (German authored for all of it); `i18n-sync --check`,
+   `typecheck`, and the production `next build` are green. Converted: checkout-form; login/signup/bot-check;
+   admin-dashboard (incl. cron operator docs); client-dashboard; blog-admin; admin-sidebar + breadcrumbs;
+   admin-forms (settings/cron/payment-gateways/orders/clients/invoices/announcements/admins/SEO + rich-text
+   toolbar); product-manager; modules; email-admin-editor; departments/support/logs-explorer/theme-blue/
+   language-currency/tax-country; client billing/payment (+ return) pages; and the admin client/order/
+   service/invoice detail pages. New pack groups: `storefront.{checkout,login,signup,botCheck}`,
+   `client.{dash,pay}`, `admin.{eyebrow,view,btn,col,card,misc,cron,nav,crumb,blogAdmin,forms,settingsForm,
+   productMgr,modules,emailEditor,dept,support,logsExplorer,theme,langCur,tax,detail}`. **Deliberately left
+   as-is:** dead code (`ClientRow`/`BlogManager` in admin-forms — unused), email-content seeds + rendered
+   email HTML (server-seeded from the `email` pack), and language-neutral tokens (brand names, `IBAN`,
+   `SEPA`, `PayPal`, status enums, format-example placeholders). Scope (clarified 2026-06-21):
+   - **IN scope:** every user-visible string in **checkout** (`checkout-form.tsx`), **auth**
+     (`login-form.tsx`, `signup-form.tsx`), and the **admin + client dashboards** — both the bilingual
+     `{de,en}` copy maps / `isDe ? … : …` ternaries *and* the bare English-only (or German-only) literals
+     that were never bilingual (button labels, table headers, toasts, placeholders, `aria-label`s, …).
+     Several admin components don't yet receive a `locale`; thread it in so they can read the packs.
+   - **OUT of scope (handled by later phases — do NOT pack these):**
+     - **Marketing / storefront page content** (home, web-hosting, VPS, reseller, IT-Solutions incl. the
+       pricing prose, web-design, domains, about, contact, legal, blog post bodies). These get
+       per-element translations through the **Phase 3 Customizer** (per-element editing), not packs.
+     - **Product names & descriptions** — these become **per-language input fields in the Admin panel**
+       (authored data, not pack keys), added in a later phase.
+   The blog **admin editor's chrome** (buttons/labels/language chips) IS packed; the blog **post content**
+   it edits is per-locale data, left as-is.
+
+### Phase 1 — deferred (after the country-VAT step above)
+
+Moved here at the user's request — pick up **after step 3 (country VAT)**:
+
+- **Admin guard when changing the main currency** on a store that already has priced data — warn that
+  existing amounts are *not* re-converted (stored amounts stay denominated in the old main currency).
+- **Per-locale email-template editor** — the admin email editor currently seeds/saves overrides on the
+  **main language** only; add a locale switcher so overrides can be authored per configured language
+  (the dispatch path already resolves DB overrides per-locale).
+
+> Everything in Phases 2–4 depends on Phase 1's modular language list: menus, pages, and element
 > content all carry **per-language translations for every language configured in Admin > Settings**, with
 > English fallback, and are **locale-aware** for prices/numbers/dates.
 
@@ -133,6 +207,10 @@ architecture should be designed in a dedicated session before building.
 ### Locale-awareness
 - **Prices, numbers and dates are their own element types** so they update automatically from the system's
   locale/currency settings. The Customizer must render locale-aware previews.
+- **This phase owns the marketing/storefront copy i18n that Phase 1 deliberately left inline.** All
+  home/web-hosting/VPS/reseller/IT-Solutions/web-design/domains/about/contact/legal page text (today's
+  `isDe ? … : …` ternaries) becomes **per-element, per-language content** here — it is NOT moved onto the
+  `@dezhost/locales` packs. (Packs stay for dashboard/checkout/auth chrome + emails/invoices only.)
 
 ### Storage — locked decision
 - Each page is a **versioned JSON layout document**: an ordered **tree of typed nodes** (sections →

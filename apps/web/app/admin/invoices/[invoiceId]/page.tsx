@@ -1,6 +1,6 @@
 import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
-import { dictionary } from "../../../../lib/i18n";
+import { getDictionary } from "../../../../lib/dictionary";
 import { invoiceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
@@ -21,16 +21,18 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
     requestLocale()
   ]);
 
+  const dict = getDictionary(locale);
+  const a = dict.admin;
   if (!invoice) {
     return (
       <div className={adminStyles.page}>
         <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
-        <main className={adminStyles.main}><h1>Invoice</h1><p>Not found.</p></main>
+        <main className={adminStyles.main}><h1>{a.detail.invoice}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
   }
 
-  const copy = dictionary[locale].client;
+  const copy = dict.client;
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};
@@ -55,7 +57,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
       <main className={adminStyles.main}>
         <header className={adminStyles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/invoices">← Invoices</a></span>
+            <span className="eyebrow"><a href="/admin/invoices">{a.detail.backInvoices}</a></span>
             <h1>{copy.invoiceTitle} {invoiceDisplayNumber(invoice)}</h1>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -66,7 +68,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
         <div style={{ display: "grid", gap: 16 }}>
           {/* Admin actions */}
           <section className={adminStyles.panel}>
-            <div className={adminStyles.panelHeader}><h2>Admin Actions</h2></div>
+            <div className={adminStyles.panelHeader}><h2>{a.detail.adminActions}</h2></div>
             <AdminInvoiceActions invoice={invoice} />
           </section>
 
@@ -113,7 +115,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
                   <div className={styles.invoiceMetaGroup}>
                     <span>{copy.invoiceDueDate}</span><strong>{dateLabel(invoice.dueAt, locale)}</strong>
                     {invoice.status === "PAID" ? <><span>{copy.invoicePaymentMethod}</span><strong>{paymentGateway(invoice)}</strong></> : null}
-                    <span>E-Mail</span><strong>{customer.email}</strong>
+                    <span>{copy.dash.emailLabel}</span><strong>{customer.email}</strong>
                   </div>
                 </div>
 

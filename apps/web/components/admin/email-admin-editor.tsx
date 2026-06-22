@@ -3,10 +3,13 @@
 import type { DragEvent } from "react";
 import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
+import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
+
+type EmailDict = Dictionary["admin"]["emailEditor"];
 
 type EmailSettingsPatch = {
   events?: Array<{
@@ -41,6 +44,7 @@ const PLACEHOLDER_GROUP_CLASS: Record<string, string | undefined> = {
 };
 
 export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template"; timezone?: string }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   const [settings, setSettings] = useState(initial);
   const [message, setMessage] = useState("");
 
@@ -59,7 +63,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
     if (response.ok && responsePayload?.events) {
       setSettings(responsePayload as ApiEmailAdminSettings);
     }
-    setMessage(await notifyResponse(response, "Email settings saved.", "Email settings failed."));
+    setMessage(await notifyResponse(response, c.settingsSaved, c.settingsFailed));
     return response.ok;
   }
 
@@ -70,7 +74,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
       method: "POST"
     });
     const payload = await response.clone().json().catch(() => []);
-    setMessage(await notifyResponse(response, `Test email logged (${Array.isArray(payload) ? payload.length : 0}).`, "Test email failed."));
+    setMessage(await notifyResponse(response, c.testLogged.replace("{n}", String(Array.isArray(payload) ? payload.length : 0)), c.testFailed));
     if (response.ok) {
       await refresh();
     }
@@ -92,6 +96,7 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   const formRef = useRef<HTMLFormElement>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -122,7 +127,7 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
     const smtp = collectSmtp(formData);
     const saved = await save({ smtp });
     if (!saved) {
-      setTestResult({ ok: false, message: "Settings could not be saved. Check the error above." });
+      setTestResult({ ok: false, message: c.settingsNotSaved });
       setTesting(false);
       return;
     }
@@ -132,10 +137,10 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
         headers: { "Content-Type": "application/json", ...authHeaders() },
         method: "POST"
       });
-      const result = await response.json().catch(() => ({ ok: false, message: "Unexpected response" }));
+      const result = await response.json().catch(() => ({ ok: false, message: c.requestFailed }));
       setTestResult(result as { ok: boolean; message: string });
     } catch {
-      setTestResult({ ok: false, message: "Request failed." });
+      setTestResult({ ok: false, message: c.requestFailed });
     } finally {
       setTesting(false);
     }
@@ -144,17 +149,17 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
   return (
     <form ref={formRef} className={styles.form} onSubmit={(e) => e.preventDefault()}>
       <fieldset className={styles.lineEditor}>
-        <legend>SMTP</legend>
-        <label><span><input defaultChecked={Boolean(settings.smtp.enabled)} name="smtpEnabled" type="checkbox" /> Enable SMTP</span></label>
-        <label>From name<input defaultValue={settings.smtp.fromName ?? "Dezhost"} name="fromName" /></label>
-        <label>From email<input defaultValue={settings.smtp.fromEmail ?? ""} name="fromEmail" type="email" /></label>
-        <label>Reply-to<input defaultValue={settings.smtp.replyTo ?? ""} name="replyTo" type="email" /></label>
-        <label>Admin recipients<input defaultValue={(settings.smtp.adminEmails ?? []).join(", ")} name="adminEmails" placeholder="admin@example.com, billing@example.com" /></label>
-        <label>Host<input defaultValue={settings.smtp.host ?? ""} name="host" placeholder="smtp.example.com" /></label>
-        <label>Port<input defaultValue={settings.smtp.port ?? 587} name="port" type="number" /></label>
-        <label>Username<input defaultValue={settings.smtp.username ?? ""} name="username" /></label>
-        <label>Password<input defaultValue={settings.smtp.password ?? ""} name="password" type="password" /></label>
-        <label><span><input defaultChecked={Boolean(settings.smtp.secure)} name="secure" type="checkbox" /> TLS/SSL</span></label>
+        <legend>{c.smtp}</legend>
+        <label><span><input defaultChecked={Boolean(settings.smtp.enabled)} name="smtpEnabled" type="checkbox" /> {c.enableSmtp}</span></label>
+        <label>{c.fromName}<input defaultValue={settings.smtp.fromName ?? "Dezhost"} name="fromName" /></label>
+        <label>{c.fromEmail}<input defaultValue={settings.smtp.fromEmail ?? ""} name="fromEmail" type="email" /></label>
+        <label>{c.replyTo}<input defaultValue={settings.smtp.replyTo ?? ""} name="replyTo" type="email" /></label>
+        <label>{c.adminRecipients}<input defaultValue={(settings.smtp.adminEmails ?? []).join(", ")} name="adminEmails" placeholder="admin@example.com, billing@example.com" /></label>
+        <label>{c.host}<input defaultValue={settings.smtp.host ?? ""} name="host" placeholder="smtp.example.com" /></label>
+        <label>{c.port}<input defaultValue={settings.smtp.port ?? 587} name="port" type="number" /></label>
+        <label>{c.username}<input defaultValue={settings.smtp.username ?? ""} name="username" /></label>
+        <label>{c.password}<input defaultValue={settings.smtp.password ?? ""} name="password" type="password" /></label>
+        <label><span><input defaultChecked={Boolean(settings.smtp.secure)} name="secure" type="checkbox" /> {c.tlsSsl}</span></label>
       </fieldset>
       {testResult ? (
         <p style={{ color: testResult.ok ? "var(--success, green)" : "var(--danger, red)", fontWeight: 600 }}>
@@ -162,11 +167,11 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
         </p>
       ) : null}
       <div className={styles.inlineForm}>
-        <Button icon={Save} type="button" onClick={() => { if (formRef.current) submit(new FormData(formRef.current)); }}>Save Settings</Button>
+        <Button icon={Save} type="button" onClick={() => { if (formRef.current) submit(new FormData(formRef.current)); }}>{c.saveSettings}</Button>
         <Button icon={Mail} type="button" variant="secondary" disabled={testing} onClick={() => { if (formRef.current) saveAndTest(new FormData(formRef.current)); }}>
-          {testing ? "Testing…" : "Save & Test Connection"}
+          {testing ? c.testing : c.saveTestConnection}
         </Button>
-        <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest("new_invoice")}>Send Test Email</Button>
+        <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest("new_invoice")}>{c.sendTestEmail}</Button>
       </div>
     </form>
   );
@@ -176,6 +181,7 @@ function EmailTemplateEditor({ save, settings }: {
   save: (payload: EmailSettingsPatch) => Promise<boolean>;
   settings: ApiEmailAdminSettings;
 }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   const [templateHtml, setTemplateHtml] = useState(settings.templateHtml);
   const [previewKey, setPreviewKey] = useState(settings.events[0]?.key ?? "");
   const sampleEvent = settings.events.find((event) => event.key === previewKey) ?? settings.events[0];
@@ -188,10 +194,10 @@ function EmailTemplateEditor({ save, settings }: {
   return (
     <div className={styles.emailSplit}>
       <form action={submit} className={styles.form}>
-        <label>Template HTML<textarea value={templateHtml} onChange={(event) => setTemplateHtml(event.target.value)} name="templateHtml" rows={24} /></label>
-        <label>Preview email<select value={previewKey} onChange={(event) => setPreviewKey(event.target.value)}>{settings.events.map((event) => <option key={event.key} value={event.key}>{event.subject}</option>)}</select></label>
+        <label>{c.templateHtml}<textarea value={templateHtml} onChange={(event) => setTemplateHtml(event.target.value)} name="templateHtml" rows={24} /></label>
+        <label>{c.previewEmail}<select value={previewKey} onChange={(event) => setPreviewKey(event.target.value)}>{settings.events.map((event) => <option key={event.key} value={event.key}>{event.subject}</option>)}</select></label>
         <PlaceholderTray placeholders={settings.placeholders} />
-        <Button icon={Save} type="submit">Save Template</Button>
+        <Button icon={Save} type="submit">{c.saveTemplate}</Button>
       </form>
       <EmailPreviewFrames html={previewHtml} />
     </div>
@@ -203,6 +209,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
 }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   const [events, setEvents] = useState(settings.events);
   const [selectedKey, setSelectedKey] = useState(settings.events[0]?.key ?? "");
   const selected = events.find((event) => event.key === selectedKey) ?? events[0];
@@ -250,19 +257,19 @@ function EmailEventsEditor({ save, sendTest, settings }: {
       <form action={submit} className={styles.form}>
         <fieldset className={styles.lineEditor}>
           <legend>{selected.key}</legend>
-          <label><span><input checked={selected.enabled} onChange={(event) => updateSelected({ enabled: event.target.checked })} type="checkbox" /> Enabled</span></label>
-          <label>Subject<input value={selected.subject} onChange={(event) => updateSelected({ subject: event.target.value })} /></label>
+          <label><span><input checked={selected.enabled} onChange={(event) => updateSelected({ enabled: event.target.checked })} type="checkbox" /> {c.enabled}</span></label>
+          <label>{c.subject}<input value={selected.subject} onChange={(event) => updateSelected({ subject: event.target.value })} /></label>
           <div className={styles.inlineForm}>
-            <label><span><input checked={selected.recipients.includes("admin")} onChange={(event) => updateSelected({ recipients: toggleRecipient(selected.recipients, "admin", event.target.checked) })} type="checkbox" /> Admin</span></label>
-            <label><span><input checked={selected.recipients.includes("client")} onChange={(event) => updateSelected({ recipients: toggleRecipient(selected.recipients, "client", event.target.checked) })} type="checkbox" /> Client</span></label>
+            <label><span><input checked={selected.recipients.includes("admin")} onChange={(event) => updateSelected({ recipients: toggleRecipient(selected.recipients, "admin", event.target.checked) })} type="checkbox" /> {c.admin}</span></label>
+            <label><span><input checked={selected.recipients.includes("client")} onChange={(event) => updateSelected({ recipients: toggleRecipient(selected.recipients, "client", event.target.checked) })} type="checkbox" /> {c.client}</span></label>
           </div>
         </fieldset>
         <EmailBlockPalette blockLibrary={settings.blockLibrary} onAdd={(type) => updateBlocks([...selected.layoutBlocks, createBlock(type)])} />
         <EmailBlockList blocks={selected.layoutBlocks} onChange={updateBlocks} />
         <PlaceholderTray placeholders={settings.placeholders} />
         <div className={styles.inlineForm}>
-          <Button icon={Save} type="submit">Save Emails</Button>
-          <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest(selected.key)}>Send Test</Button>
+          <Button icon={Save} type="submit">{c.saveEmails}</Button>
+          <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest(selected.key)}>{c.sendTest}</Button>
         </div>
       </form>
       <EmailPreviewFrames html={previewHtml} />
@@ -274,7 +281,8 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
   blockLibrary?: ApiEmailAdminSettings["blockLibrary"];
   onAdd: (type: ApiEmailLayoutBlock["type"]) => void;
 }) {
-  const library = blockLibrary?.length ? blockLibrary : DEFAULT_BLOCK_LIBRARY;
+  const c = getDictionary(currentLocale()).admin.emailEditor;
+  const library = blockLibrary?.length ? blockLibrary : defaultBlockLibrary(c);
   return (
     <div className={styles.emailBlockPalette}>
       {library.map((block) => (
@@ -298,6 +306,7 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
 // half = after), which avoids the off-by-one jumps the previous implementation had. Only the
 // grip handle is draggable so editing the fields never starts an accidental drag.
 function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; onChange: (blocks: ApiEmailLayoutBlock[]) => void }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [overPos, setOverPos] = useState<"after" | "before">("before");
@@ -410,7 +419,7 @@ function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; o
         >
           <summary onDragOver={(event) => onSummaryDragOver(event, block.id)} onDrop={(event) => onSummaryDrop(event, block.id)}>
             <span
-              aria-label="Drag to reorder"
+              aria-label={c.dragToReorder}
               className={styles.emailBlockGrip}
               draggable
               onDragEnd={clearDrag}
@@ -422,7 +431,7 @@ function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; o
             >
               <GripVertical size={15} />
             </span>
-            <strong>{blockLabel(block.type)}</strong>
+            <strong>{blockLabel(block.type, c)}</strong>
             <span>{block.title || block.content || block.type}</span>
             <button onClick={(event) => {
               event.preventDefault();
@@ -432,52 +441,54 @@ function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; o
           <EmailBlockFields block={block} onChange={(patch) => onChange(blocks.map((item) => item.id === block.id ? { ...item, ...patch } : item))} />
         </details>
       ))}
-      {blocks.length ? null : <p className={styles.emailBlockHint}>Add a block above, or drag one here.</p>}
+      {blocks.length ? null : <p className={styles.emailBlockHint}>{c.addBlockHint}</p>}
     </div>
   );
 }
 
 function EmailBlockFields({ block, onChange }: { block: ApiEmailLayoutBlock; onChange: (patch: Partial<ApiEmailLayoutBlock>) => void }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   if (block.type === "divider") {
     return <div className={styles.lineEditor} />;
   }
   if (block.type === "button" || block.type === "link") {
     return (
       <div className={styles.lineEditor}>
-        <label>{block.type === "link" ? "Link text" : "Label"}<input value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} /></label>
-        <label>URL<input value={block.href ?? ""} onChange={(event) => onChange({ href: event.target.value })} /></label>
+        <label>{block.type === "link" ? c.linkText : c.label}<input value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} /></label>
+        <label>{c.url}<input value={block.href ?? ""} onChange={(event) => onChange({ href: event.target.value })} /></label>
       </div>
     );
   }
   if (block.type === "invoiceTable") {
     return (
       <div className={styles.lineEditor}>
-        <label>Title<input value={block.title ?? ""} onChange={(event) => onChange({ title: event.target.value })} /></label>
-        <label>Columns<input value={(block.columns ?? []).join(", ")} onChange={(event) => onChange({ columns: splitCommaText(event.target.value) })} /></label>
-        <label>Rows<textarea value={rowsToText(block.rows)} onChange={(event) => onChange({ rows: textToCellRows(event.target.value) })} rows={5} /></label>
+        <label>{c.title}<input value={block.title ?? ""} onChange={(event) => onChange({ title: event.target.value })} /></label>
+        <label>{c.columns}<input value={(block.columns ?? []).join(", ")} onChange={(event) => onChange({ columns: splitCommaText(event.target.value) })} /></label>
+        <label>{c.rows}<textarea value={rowsToText(block.rows)} onChange={(event) => onChange({ rows: textToCellRows(event.target.value) })} rows={5} /></label>
       </div>
     );
   }
   if (block.type === "keyValueTable") {
     return (
       <div className={styles.lineEditor}>
-        <label>Title<input value={block.title ?? ""} onChange={(event) => onChange({ title: event.target.value })} /></label>
-        <label>Rows<textarea value={keyRowsToText(block.rows)} onChange={(event) => onChange({ rows: textToKeyRows(event.target.value) })} rows={6} /></label>
+        <label>{c.title}<input value={block.title ?? ""} onChange={(event) => onChange({ title: event.target.value })} /></label>
+        <label>{c.rows}<textarea value={keyRowsToText(block.rows)} onChange={(event) => onChange({ rows: textToKeyRows(event.target.value) })} rows={6} /></label>
       </div>
     );
   }
   return (
     <div className={styles.lineEditor}>
-      {block.type === "notice" ? <label>Tone<select value={block.tone ?? "default"} onChange={(event) => onChange({ tone: event.target.value as ApiEmailLayoutBlock["tone"] })}><option value="default">Default</option><option value="success">Success</option><option value="warning">Warning</option><option value="danger">Danger</option></select></label> : null}
-      <label>Content<textarea value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} rows={6} /></label>
+      {block.type === "notice" ? <label>{c.tone}<select value={block.tone ?? "default"} onChange={(event) => onChange({ tone: event.target.value as ApiEmailLayoutBlock["tone"] })}><option value="default">{c.toneDefault}</option><option value="success">{c.toneSuccess}</option><option value="warning">{c.toneWarning}</option><option value="danger">{c.toneDanger}</option></select></label> : null}
+      <label>{c.content}<textarea value={block.content ?? ""} onChange={(event) => onChange({ content: event.target.value })} rows={6} /></label>
     </div>
   );
 }
 
 function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   return (
     <div className={styles.placeholderTray}>
-      <span className={styles.placeholderHint}>Drag a shortcode into any text field, or click to copy.</span>
+      <span className={styles.placeholderHint}>{c.placeholderHint}</span>
       <div className={styles.placeholderTags}>
         {placeholders.map((placeholder) => (
           <button
@@ -498,25 +509,27 @@ function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] })
 }
 
 function EmailPreviewFrames({ html }: { html: string }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   return (
     <div className={styles.templatePreview}>
       <div>
-        <strong>Desktop</strong>
-        <iframe className={styles.frameDesktop} srcDoc={html} title="Desktop email preview" />
+        <strong>{c.desktop}</strong>
+        <iframe className={styles.frameDesktop} srcDoc={html} title={c.desktopPreview} />
       </div>
       <div>
-        <strong>Mobile</strong>
-        <iframe className={styles.frameMobile} srcDoc={html} title="Mobile email preview" />
+        <strong>{c.mobile}</strong>
+        <iframe className={styles.frameMobile} srcDoc={html} title={c.mobilePreview} />
       </div>
     </div>
   );
 }
 
 function EmailLogsTable({ logs, timezone = "UTC" }: { logs: ApiEmailLog[]; timezone?: string }) {
+  const c = getDictionary(currentLocale()).admin.emailEditor;
   return (
     <div className={styles.form}>
       <table className="table">
-        <thead><tr><th>Time ({timezone})</th><th>Event</th><th>From</th><th>To</th><th>Recipient</th><th>Subject</th><th>Status</th><th>SMTP</th></tr></thead>
+        <thead><tr><th>{c.colTime.replace("{tz}", timezone)}</th><th>{c.colEvent}</th><th>{c.colFrom}</th><th>{c.colTo}</th><th>{c.colRecipient}</th><th>{c.colSubject}</th><th>{c.colStatus}</th><th>{c.colSmtp}</th></tr></thead>
         <tbody>
           {logs.length ? logs.map((log) => (
             <tr key={log.id}>
@@ -529,22 +542,24 @@ function EmailLogsTable({ logs, timezone = "UTC" }: { logs: ApiEmailLog[]; timez
               <td>{log.status}</td>
               <td>{log.payload?.smtpDelivery?.error ?? log.payload?.smtpDelivery?.response ?? log.payload?.smtpDelivery?.mode ?? "-"}</td>
             </tr>
-          )) : <tr><td colSpan={8}>No email logs yet.</td></tr>}
+          )) : <tr><td colSpan={8}>{c.noLogs}</td></tr>}
         </tbody>
       </table>
     </div>
   );
 }
 
-const DEFAULT_BLOCK_LIBRARY: NonNullable<ApiEmailAdminSettings["blockLibrary"]> = [
-  { description: "", label: "Text", type: "text" },
-  { description: "", label: "Key/value table", type: "keyValueTable" },
-  { description: "", label: "Invoice table", type: "invoiceTable" },
-  { description: "", label: "Button", type: "button" },
-  { description: "", label: "Link", type: "link" },
-  { description: "", label: "Notice", type: "notice" },
-  { description: "", label: "Divider", type: "divider" }
-];
+function defaultBlockLibrary(c: EmailDict): NonNullable<ApiEmailAdminSettings["blockLibrary"]> {
+  return [
+    { description: "", label: c.blockText, type: "text" },
+    { description: "", label: c.blockKeyValue, type: "keyValueTable" },
+    { description: "", label: c.blockInvoice, type: "invoiceTable" },
+    { description: "", label: c.blockButton, type: "button" },
+    { description: "", label: c.blockLink, type: "link" },
+    { description: "", label: c.blockNotice, type: "notice" },
+    { description: "", label: c.blockDivider, type: "divider" }
+  ];
+}
 
 function createBlock(type: ApiEmailLayoutBlock["type"]): ApiEmailLayoutBlock {
   const id = `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -623,8 +638,8 @@ function renderInline(value: string, context: Record<string, string>) {
   return value.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => escapeHtml(context[key] ?? "").replace(/\n/g, "<br />"));
 }
 
-function blockLabel(type: ApiEmailLayoutBlock["type"]) {
-  return DEFAULT_BLOCK_LIBRARY.find((item) => item.type === type)?.label ?? type;
+function blockLabel(type: ApiEmailLayoutBlock["type"], c: EmailDict) {
+  return defaultBlockLibrary(c).find((item) => item.type === type)?.label ?? type;
 }
 
 function toggleRecipient(recipients: Array<"admin" | "client">, type: "admin" | "client", checked: boolean) {

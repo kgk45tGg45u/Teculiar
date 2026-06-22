@@ -19,7 +19,7 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
   assert.match(controller, /@Get\(\)/);
   assert.match(controller, /@Patch\(\)/);
   assert.match(controller, /@Post\("test"\)/);
-  assert.match(controller, /@Post\("mailpit-preset"\)/);
+  assert.match(controller, /@Post\("test-connection"\)/);
   assert.match(placeholders, /customer_name/);
   assert.match(placeholders, /invoice_total_amount/);
   assert.match(placeholders, /password_reset_link/);
@@ -120,6 +120,42 @@ test("email dispatch renders modular event layouts inside the main template", as
   assert.match(logs[0].payload.html, /49\.00 EUR/);
 });
 
+test("email dispatch localizes subject and default layout by the recipient's User.locale", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", adminEmails: [] }],
+    ["emailEventConfigs", { welcome: { enabled: true, recipients: ["client"] } }],
+    // Main language is English, but the recipient is German — the email must follow the recipient.
+    ["i18n.languages", { main: "en", others: ["de"] }]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  await email.dispatch("welcome", {
+    user: { email: "client@example.test", id: "user-1", locale: "de", name: "Ada" }
+  });
+
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].subject, "Willkommen"); // German pack subject
+  assert.match(logs[0].payload.html, /willkommen bei/); // German default layout copy
+});
+
+test("email dispatch falls back to the main language when User.locale is unset", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", adminEmails: [] }],
+    ["emailEventConfigs", { welcome: { enabled: true, recipients: ["client"] } }],
+    ["i18n.languages", { main: "de", others: ["en"] }]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  await email.dispatch("welcome", {
+    user: { email: "client@example.test", id: "user-1", name: "Ada" }
+  });
+
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].subject, "Willkommen"); // main language (de) drives the fallback
+});
+
 test("password reset request emits reset link email without revealing missing accounts", async () => {
   const calls = [];
   const users = {
@@ -191,7 +227,9 @@ test("smtp-enabled test emails can be captured by Mailpit-compatible SMTP", asyn
   const logs = [];
   const settings = new Map([
     ["emailSmtp", { adminEmails: [], enabled: true, fromEmail: "support@example.test", host: "127.0.0.1", port }],
-    ["emailEventConfigs", { password_reset: { enabled: true, recipients: ["client"] } }]
+    ["emailEventConfigs", { password_reset: { enabled: true, recipients: ["client"] } }],
+    // Main language English so the captured subject is the English pack default.
+    ["i18n.languages", { main: "en", others: ["de"] }]
   ]);
   const email = new EmailService(fakePrisma(settings, logs));
 

@@ -177,6 +177,7 @@ export class UsersRepository {
     countryCode?: string;
     customerType?: "INDIVIDUAL" | "BUSINESS";
     email?: string;
+    locale?: string;
     name?: string;
     phone?: string;
     vatId?: string;
@@ -187,6 +188,7 @@ export class UsersRepository {
         countryCode: input.countryCode,
         customerType: input.customerType,
         email: input.email,
+        locale: input.locale,
         name: input.name,
         vatId: input.vatId
       },
@@ -407,6 +409,7 @@ const publicUserSelect = {
   customerType: true,
   email: true,
   id: true,
+  locale: true,
   name: true,
   totpSecret: true,
   userRoles: { select: { role: { select: { slug: true } } } },

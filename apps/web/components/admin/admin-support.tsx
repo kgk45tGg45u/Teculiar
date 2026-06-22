@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, FileText, Image as ImageIcon, Send } from "lucide-react";
 import { API_BASE_URL, authHeaders, currentLocale, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import { TICKET_STATUS_VALUES, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
 import { InvoiceModal } from "../tickets/invoice-modal";
 import { TicketConversation } from "../tickets/ticket-conversation";
@@ -12,6 +13,8 @@ import { notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function KnowledgebasePanel({ articles: initialArticles }: { articles: ApiKnowledgebaseArticle[] }) {
+  const a = getDictionary(currentLocale()).admin;
+  const c = a.support;
   const [articles, setArticles] = useState(initialArticles);
   const [editing, setEditing] = useState<ApiKnowledgebaseArticle>();
   const [message, setMessage] = useState("");
@@ -38,7 +41,7 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
       setArticles((items) => id ? items.map((item) => item.id === article.id ? article : item) : [article, ...items]);
       setEditing(undefined);
     }
-    setMessage(await notifyResponse(response, "Article saved.", "Article failed."));
+    setMessage(await notifyResponse(response, c.articleSaved, c.articleFailed));
   }
 
   async function remove(article: ApiKnowledgebaseArticle) {
@@ -52,32 +55,32 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <span className="eyebrow">Knowledgebase</span>
-          <h2>Articles</h2>
+          <span className="eyebrow">{a.knowledgebase}</span>
+          <h2>{c.articles}</h2>
         </div>
-        <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>New Article</Button>
+        <Button type="button" variant="secondary" onClick={() => setEditing(undefined)}>{c.newArticle}</Button>
       </div>
       <form action={save} className={styles.form} key={editing?.id ?? "new-kb"}>
         <input name="id" type="hidden" value={editing?.id ?? ""} />
-        <label>Title<input defaultValue={editing?.title ?? ""} name="title" required /></label>
-        <label>Slug<input defaultValue={editing?.slug ?? ""} name="slug" placeholder="control-panel-login" /></label>
-        <label>Excerpt<textarea defaultValue={editing?.excerpt ?? ""} name="excerpt" rows={2} /></label>
-        <label>Content<textarea defaultValue={editing?.body ?? ""} name="body" required rows={10} /></label>
-        <label>Keywords<input defaultValue={(editing?.keywords ?? []).join(", ")} name="keywords" placeholder="domain, dns, hosting" /></label>
-        <label>SEO title<input defaultValue={editing?.seoTitle ?? ""} name="seoTitle" /></label>
-        <label>SEO description<textarea defaultValue={editing?.seoDescription ?? ""} name="seoDescription" rows={2} /></label>
-        <label className={styles.inlineForm}><input defaultChecked={editing?.published ?? true} name="published" type="checkbox" /> Public</label>
-        <Button icon={BookOpen} type="submit">Save Article</Button>
+        <label>{c.title}<input defaultValue={editing?.title ?? ""} name="title" required /></label>
+        <label>{c.slug}<input defaultValue={editing?.slug ?? ""} name="slug" placeholder="control-panel-login" /></label>
+        <label>{c.excerpt}<textarea defaultValue={editing?.excerpt ?? ""} name="excerpt" rows={2} /></label>
+        <label>{c.content}<textarea defaultValue={editing?.body ?? ""} name="body" required rows={10} /></label>
+        <label>{c.keywords}<input defaultValue={(editing?.keywords ?? []).join(", ")} name="keywords" placeholder="domain, dns, hosting" /></label>
+        <label>{c.seoTitle}<input defaultValue={editing?.seoTitle ?? ""} name="seoTitle" /></label>
+        <label>{c.seoDescription}<textarea defaultValue={editing?.seoDescription ?? ""} name="seoDescription" rows={2} /></label>
+        <label className={styles.inlineForm}><input defaultChecked={editing?.published ?? true} name="published" type="checkbox" /> {c.public}</label>
+        <Button icon={BookOpen} type="submit">{c.saveArticle}</Button>
         {message ? <p>{message}</p> : null}
       </form>
       <table className="table">
-        <thead><tr><th>Title</th><th>Slug</th><th>Public</th><th></th></tr></thead>
+        <thead><tr><th>{c.title}</th><th>{c.slug}</th><th>{c.public}</th><th></th></tr></thead>
         <tbody>{articles.map((article) => (
           <tr key={article.id}>
             <td>{article.title}</td>
             <td>{article.slug}</td>
-            <td>{article.published ? "yes" : "no"}</td>
-            <td className={styles.inlineForm}><Button type="button" variant="secondary" onClick={() => setEditing(article)}>Edit</Button><Button type="button" variant="secondary" onClick={() => void remove(article)}>Delete</Button></td>
+            <td>{article.published ? c.yes : c.no}</td>
+            <td className={styles.inlineForm}><Button type="button" variant="secondary" onClick={() => setEditing(article)}>{c.edit}</Button><Button type="button" variant="secondary" onClick={() => void remove(article)}>{c.delete}</Button></td>
           </tr>
         ))}</tbody>
       </table>
@@ -87,6 +90,7 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
 
 export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKnowledgebaseArticle[]; initialTicket: ApiTicket }) {
   const locale = currentLocale();
+  const c = getDictionary(locale).admin.support;
   const [ticket, setTicket] = useState(initialTicket);
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
@@ -121,7 +125,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
       setFiles([]);
       if (fileInput.current) fileInput.current.value = "";
     }
-    setMessage(await notifyResponse(response, "Reply sent.", "Reply failed."));
+    setMessage(await notifyResponse(response, c.replySent, c.replyFailed));
   }
 
   async function statusChange(status: string) {
@@ -150,7 +154,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
         </div>
         <div className={styles.ticketHeaderControls}>
           <StatusPill label={ticketStatusLabel(ticket.status, locale)} tone={ticketStatusTone(ticket.status)} />
-          <select aria-label="Ticket status" defaultValue={ticket.status} onChange={(event) => void statusChange(event.target.value)}>
+          <select aria-label={c.ticketStatusAria} defaultValue={ticket.status} onChange={(event) => void statusChange(event.target.value)}>
             {TICKET_STATUS_VALUES.map((status) => <option key={status} value={status}>{ticketStatusLabel(status, locale)}</option>)}
           </select>
         </div>
@@ -161,24 +165,24 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
       {ticket.status !== "CLOSED" ? (
         <div className={styles.ticketComposer}>
           <div className={styles.ticketComposerTools}>
-            <select aria-label="Insert article" defaultValue="" onChange={(event) => { insertArticle(event.target.value); event.target.value = ""; }}>
-              <option value="">Insert article…</option>
+            <select aria-label={c.insertArticleAria} defaultValue="" onChange={(event) => { insertArticle(event.target.value); event.target.value = ""; }}>
+              <option value="">{c.insertArticle}</option>
               {articles.map((article) => <option key={article.id} value={article.id}>{article.title}</option>)}
             </select>
-            <button className={styles.ticketToolBtn} onClick={() => fileInput.current?.click()} type="button"><ImageIcon size={15} /> Attach file{files.length ? ` (${files.length})` : ""}</button>
-            <button className={styles.ticketToolBtn} onClick={() => setInvoiceOpen(true)} type="button"><FileText size={15} /> Insert new invoice</button>
+            <button className={styles.ticketToolBtn} onClick={() => fileInput.current?.click()} type="button"><ImageIcon size={15} /> {c.attachFile}{files.length ? ` (${files.length})` : ""}</button>
+            <button className={styles.ticketToolBtn} onClick={() => setInvoiceOpen(true)} type="button"><FileText size={15} /> {c.insertInvoice}</button>
             <input accept="image/png,image/jpeg,image/webp,application/pdf" hidden multiple ref={fileInput} type="file" onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
           </div>
           {files.length ? <div className={styles.ticketFileChips}>{files.map((file) => <span className={styles.ticketFileChip} key={file.name}>{file.name}</span>)}</div> : null}
           <div className={styles.ticketComposerRow}>
-            <textarea className={styles.ticketComposerInput} onChange={(event) => setBody(event.target.value)} placeholder="Type a message…" rows={2} value={body} />
-            <Button icon={Send} type="button" onClick={() => void reply()}>Send</Button>
+            <textarea className={styles.ticketComposerInput} onChange={(event) => setBody(event.target.value)} placeholder={c.messagePlaceholder} rows={2} value={body} />
+            <Button icon={Send} type="button" onClick={() => void reply()}>{c.send}</Button>
           </div>
-          <p className={styles.ticketFileHint}>You can attach images or PDF files (PNG, JPG, WebP, PDF · max 10 MB).</p>
+          <p className={styles.ticketFileHint}>{c.attachHint}</p>
           {message ? <p>{message}</p> : null}
         </div>
       ) : (
-        <p className={styles.ticketClosedNote}>This ticket is closed.</p>
+        <p className={styles.ticketClosedNote}>{c.ticketClosed}</p>
       )}
 
       {invoiceOpen ? <InvoiceModal onClose={() => setInvoiceOpen(false)} onCreated={() => void refresh()} ticket={ticket} /> : null}
@@ -189,6 +193,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
 // Client wrapper so the ticket thread renders inside the admin dashboard layout
 // (with the sidebar) — fetches the ticket + canned articles, then renders the thread.
 export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
+  const c = getDictionary(currentLocale()).admin.support;
   const [ticket, setTicket] = useState<ApiTicket | null>(null);
   const [articles, setArticles] = useState<ApiKnowledgebaseArticle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -208,15 +213,15 @@ export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
   }, [ticketId]);
 
   if (loading) {
-    return <section className={styles.panel}><p className={styles.formMessage}>Loading ticket…</p></section>;
+    return <section className={styles.panel}><p className={styles.formMessage}>{c.loadingTicket}</p></section>;
   }
   if (!ticket) {
-    return <section className={styles.panel}><p className={styles.formMessage}>Ticket not found. <a href="/admin/tickets">Back to tickets</a></p></section>;
+    return <section className={styles.panel}><p className={styles.formMessage}>{c.ticketNotFound} <a href="/admin/tickets">{c.backToTickets}</a></p></section>;
   }
 
   return (
     <>
-      <div className={styles.inlineForm}><a href="/admin/tickets">← Back to tickets</a></div>
+      <div className={styles.inlineForm}><a href="/admin/tickets">{c.backToTicketsArrow}</a></div>
       <AdminTicketThread articles={articles} initialTicket={ticket} />
     </>
   );

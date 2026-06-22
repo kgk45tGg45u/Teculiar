@@ -3,6 +3,7 @@ import { BillingCycle, Prisma, ProductType, ServiceStatus } from "@prisma/client
 import { billingCycles, domainRequirements } from "@dezhost/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
+import { readMainCurrency } from "../../common/currency";
 
 @Injectable()
 export class ProductsRepository {
@@ -56,6 +57,7 @@ export class ProductsRepository {
   }
 
   async createProduct(dto: CreateProductDto) {
+    const currency = await readMainCurrency(this.prisma);
     return this.prisma.product.create({
       data: {
         categoryId: dto.categoryId || null,
@@ -72,7 +74,7 @@ export class ProductsRepository {
             billingCycle: price.billingCycle as BillingCycle,
             amountCents: price.amountCents,
             setupFeeCents: price.setupFeeCents ?? 0,
-            currency: "EUR"
+            currency
           }))
         },
         configs: dto.configurableOptions
@@ -92,6 +94,7 @@ export class ProductsRepository {
 
   async updateProduct(id: string, dto: CreateProductDto) {
     const prices = productPrices(dto);
+    const currency = await readMainCurrency(this.prisma);
     await this.prisma.$transaction(async (tx) => {
       await tx.product.update({
         where: { id },
@@ -126,7 +129,7 @@ export class ProductsRepository {
             billingCycle: price.billingCycle as BillingCycle,
             amountCents: price.amountCents,
             setupFeeCents: price.setupFeeCents ?? 0,
-            currency: "EUR",
+            currency,
             active: true
           },
           update: {

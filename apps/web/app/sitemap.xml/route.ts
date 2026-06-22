@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SUPPORTED_LOCALES } from "../../lib/supported-locales";
 
 const FALLBACK_SITE_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? process.env.SITE_URL ?? "https://dezhost.com").replace(/\/$/, "");
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
@@ -41,10 +42,9 @@ async function fetchSiteUrl(): Promise<string> {
 export async function GET() {
   const SITE_URL = await fetchSiteUrl();
   const now = new Date().toISOString().slice(0, 10);
-  const locales = ["de", "en"];
   const urls: string[] = [];
 
-  for (const locale of locales) {
+  for (const locale of SUPPORTED_LOCALES) {
     for (const path of STATIC_PATHS) {
       urls.push(
         `  <url><loc>${SITE_URL}/${locale}${path}</loc><lastmod>${now}</lastmod>` +
@@ -53,19 +53,13 @@ export async function GET() {
     }
   }
 
-  const [dePosts, enPosts] = await Promise.all([
-    fetchPosts("de"),
-    fetchPosts("en")
-  ]);
-
-  for (const post of dePosts) {
-    const lastmod = post.publishedAt ? String(post.publishedAt).slice(0, 10) : now;
-    urls.push(`  <url><loc>${SITE_URL}/de/blog/${post.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
-  }
-  for (const post of enPosts) {
-    const lastmod = post.publishedAt ? String(post.publishedAt).slice(0, 10) : now;
-    urls.push(`  <url><loc>${SITE_URL}/en/blog/${post.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
-  }
+  const localePosts = await Promise.all(SUPPORTED_LOCALES.map((locale) => fetchPosts(locale)));
+  SUPPORTED_LOCALES.forEach((locale, index) => {
+    for (const post of localePosts[index] ?? []) {
+      const lastmod = post.publishedAt ? String(post.publishedAt).slice(0, 10) : now;
+      urls.push(`  <url><loc>${SITE_URL}/${locale}/blog/${post.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`);
+    }
+  });
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',

@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
+import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@dezhost/shared";
+import { formatDate, formatMoney } from "../../common/i18n";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -35,7 +37,7 @@ export class BillingService {
 
   async createInvoice(dto: CreateInvoiceDto & { suppressNewInvoiceEmail?: boolean }) {
     const coupon = await this.billing.findCoupon(dto.couponCode);
-    const [vatRate, sellerSnapshot, footerLines] = await Promise.all([this.vatPercent(), this.invoiceSellerSnapshot(), this.invoiceFooterLines()]);
+    const [taxConfig, sellerSnapshot, footerLines, currency, languages] = await Promise.all([this.taxCountryConfig(), this.invoiceSellerSnapshot(), this.invoiceFooterLines(), this.mainCurrency(), this.i18nLanguages()]);
     const draft = this.engine.createDraft({
       lines: dto.lines.map((line) => ({ ...line, taxRate: line.vatRate })),
       coupon: coupon
@@ -49,7 +51,7 @@ export class BillingService {
         buyerVatId: dto.buyerVatId,
         isBusinessCustomer: Boolean(dto.isBusinessCustomer)
       },
-      vatRate
+      taxConfig
     });
 
     const invoice = await this.billing.createInvoice({
@@ -64,6 +66,9 @@ export class BillingService {
       totalCents: draft.totalCents,
       reverseCharge: draft.reverseCharge,
       taxReason: draft.taxReason,
+      currency,
+      // Freeze the invoice's language at creation (main language), mirroring `currency`.
+      locale: languages.main,
       customerSnapshot: dto.customerSnapshot,
       sellerSnapshot,
       footerLines,
@@ -236,16 +241,32 @@ export class BillingService {
     return displayName ?? defaultPaymentMethodLabel(method);
   }
 
+  // Locale an invoice renders in: its own frozen snapshot (added in the Prisma migration) if
+  // present, else the buyer's current language, else the configured main language.
+  private async invoiceLocale(invoice: Record<string, any>): Promise<string> {
+    const stored = stringFrom(invoice.locale);
+    if (stored) {
+      return stored;
+    }
+    const userLocale = stringFrom(invoice.user?.locale);
+    if (userLocale) {
+      return userLocale;
+    }
+    return (await this.i18nLanguages()).main;
+  }
+
   async invoiceHtml(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
     const { url } = await this.invoiceLogo();
-    return renderInvoiceDocument(invoice, { logoUrl: url }).html;
+    const locale = await this.invoiceLocale(invoice);
+    return renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
   }
 
   async invoicePdf(id: string, user?: { roles?: string[]; sub: string }) {
     const invoice = await this.getInvoice(id, user);
     const { url, image } = await this.invoiceLogo();
-    const html = renderInvoiceDocument(invoice, { logoUrl: url }).html;
+    const locale = await this.invoiceLocale(invoice);
+    const html = renderInvoiceDocument(invoice, { logoUrl: url, locale }).html;
     return renderInvoicePdfFromHtml(html, image);
   }
 
@@ -293,7 +314,7 @@ export class BillingService {
         method: "BANK_TRANSFER",
         status: "PENDING",
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         providerReference,
         raw: { manual: true }
       });
@@ -326,7 +347,7 @@ export class BillingService {
         method: "ACCOUNT_BALANCE",
         status: "SUCCEEDED",
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         providerReference: `account_balance_${id}_${Date.now()}`,
         raw: { source: "account_balance" }
       });
@@ -346,7 +367,7 @@ export class BillingService {
       result = await processor.charge({
         invoiceId: id,
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         description: `Invoice ${invoice.invoiceNumber}`,
         iban: dto.iban ? validateAndNormalizeIban(dto.iban) : undefined,
         paymentMethodId: dto.paymentMethodId,
@@ -369,7 +390,7 @@ export class BillingService {
       method: dto.method,
       status: result.status,
       amountCents: externalAmountCents,
-      currency: "EUR",
+      currency: invoice.currency,
       providerReference: result.providerReference,
       raw: { ...(result.raw ?? {}), ...(appliedBalanceCents > 0 ? { balanceCents: appliedBalanceCents } : {}) }
     });
@@ -1246,7 +1267,7 @@ export class BillingService {
 
       await this.billing.createTransaction({
         amountCents: invoice.totalCents,
-        currency: "EUR",
+        currency: invoice.currency,
         invoiceId: invoice.id,
         method: "ACCOUNT_BALANCE",
         providerReference: `account_balance_${invoice.id}_${Date.now()}`,
@@ -1283,7 +1304,7 @@ export class BillingService {
         }
         await this.billing.createTransaction({
           amountCents: invoice.totalCents,
-          currency: "EUR",
+          currency: invoice.currency,
           invoiceId: invoice.id,
           method: "ACCOUNT_BALANCE",
           providerReference: `account_balance_${invoice.id}_${Date.now()}`,
@@ -1303,7 +1324,7 @@ export class BillingService {
       const externalAmountCents = invoice.totalCents - balanceCents;
       const result = await this.payments.chargeSavedPayment({
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         customerId: paymentMethod.providerCustomerId,
         description: `Invoice ${invoice.invoiceNumber}`,
         invoiceId: invoice.id,
@@ -1314,7 +1335,7 @@ export class BillingService {
       const raw = { ...(result.raw ?? {}), automaticPayment: true, balanceCents, paymentMethodId: paymentMethod.id };
       await this.billing.createTransaction({
         amountCents: externalAmountCents,
-        currency: "EUR",
+        currency: invoice.currency,
         invoiceId: invoice.id,
         method: paymentMethod.type,
         providerReference: result.providerReference,
@@ -1388,7 +1409,7 @@ export class BillingService {
     }
     await this.billing.createTransaction({
       amountCents: balanceCents,
-      currency: "EUR",
+      currency: invoice.currency,
       invoiceId: invoice.id,
       method: "ACCOUNT_BALANCE",
       providerReference,
@@ -1401,20 +1422,72 @@ export class BillingService {
     return this.billing.settingNumber("vatPercent", 19);
   }
 
+  // Per-country VAT config (the single source of truth for tax rates). Falls back to the legacy
+  // flat `vatPercent` setting as the default country's rate so installs that never saved the new
+  // table keep charging the same VAT.
+  async taxCountryConfig(): Promise<TaxCountryConfig> {
+    const stored = await this.billing.settingJson<{ default?: unknown; rates?: unknown } | null>("tax.countries", null);
+    if (stored && stored.rates && typeof stored.rates === "object") {
+      return sanitizeTaxCountryConfig(stored);
+    }
+    const legacy = await this.vatPercent();
+    return sanitizeTaxCountryConfig({ enabled: true, default: "DE", rates: { DE: legacy } });
+  }
+
+  // Resolves the VAT a specific buyer pays (country rate + reverse-charge / export rules) using
+  // the shared resolver. Used by the order preview and admin order creation.
+  async vatForBuyer(context: { countryCode?: string | null; isBusinessCustomer?: boolean; vatId?: string | null }) {
+    const config = await this.taxCountryConfig();
+    const taxContext: TaxContext = {
+      sellerCountryCode: "DE",
+      buyerCountryCode: context.countryCode ?? "",
+      buyerVatId: context.vatId ?? undefined,
+      isBusinessCustomer: Boolean(context.isBusinessCustomer)
+    };
+    return resolveVat(taxContext, config);
+  }
+
   siteUrl() {
     return this.billing.settingString("siteUrl");
   }
 
+  // Configured languages (main + others). Defaults to German main / English secondary.
+  async i18nLanguages(): Promise<StoredLanguages> {
+    const stored = await this.billing.settingJson<Partial<StoredLanguages> | null>("i18n.languages", null);
+    if (!stored || typeof stored.main !== "string" || !stored.main) {
+      return { main: "de", others: ["en"] };
+    }
+    return sanitizeLanguages(stored);
+  }
+
+  // Configured currencies + rates. Falls back to the legacy usdExchangeRate/usdBufferCents
+  // settings (migrated into a USD entry) when currency.config has never been saved.
+  async currencyConfig(): Promise<StoredCurrencyConfig> {
+    const stored = await this.billing.settingJson<Partial<StoredCurrencyConfig> | null>("currency.config", null);
+    if (stored && typeof stored.main === "string" && stored.main) {
+      return sanitizeCurrencyConfig(stored);
+    }
+    const [rate, buffer] = await Promise.all([
+      this.billing.settingNumber("usdExchangeRate", 1.0),
+      this.billing.settingNumber("usdBufferCents", 0)
+    ]);
+    return { main: "EUR", others: ["USD"], rates: { USD: { rate, buffer, bufferEnabled: buffer > 0 } } };
+  }
+
+  // The configured main/base currency stamped on new invoices/orders.
+  async mainCurrency(): Promise<string> {
+    return (await this.currencyConfig()).main;
+  }
+
   async publicSettings() {
     const [
-      vatPercent, siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
+      siteLogoUrl, faviconUrl, founderPhotoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
       siteName, metaDescription, blogMetaDescription, ogTitleSuffix, ogImageStatic, ogImageDashboard, ogImageBlog,
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
       themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
       themeBlueeBlogHeroImageUrl, themeBlueKnowledgebaseHeroImageUrl
     ] = await Promise.all([
-      this.vatPercent(),
       this.billing.settingString("siteLogoUrl"),
       this.billing.settingString("faviconUrl"),
       this.billing.settingString("founderPhotoUrl"),
@@ -1441,9 +1514,17 @@ export class BillingService {
       this.billing.settingString("theme.blue.knowledgebaseHeroImageUrl")
     ]);
 
+    const [currencyConfig, languages, taxCountries] = await Promise.all([this.currencyConfig(), this.i18nLanguages(), this.taxCountryConfig()]);
+    // Headline VAT (used where a single number is enough) is the default country's rate, or 0 when
+    // VAT charging is switched off; the checkout uses `taxCountries` to compute the buyer-country
+    // rate live.
+    const defaultVatPercent = taxCountries.enabled ? vatPercentForCountry(taxCountries, taxCountries.default) : 0;
+
     return {
       blogMetaDescription, faviconUrl, founderPhotoUrl, metaDescription, ogImageBlog, ogImageDashboard,
-      ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents, vatPercent,
+      ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
+      vatPercent: defaultVatPercent, taxCountries,
+      currencyConfig, languages,
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
       themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
@@ -1581,8 +1662,13 @@ export class BillingService {
       this.billing.settingNumber("logRetentionDays", 0)
     ]);
 
+    const [currencyConfig, languages, taxCountries] = await Promise.all([this.currencyConfig(), this.i18nLanguages(), this.taxCountryConfig()]);
+
     return {
       adminTimezone,
+      currencyConfig,
+      languages,
+      taxCountries,
       logRetentionDays,
       cronSecret: maskSecrets && cronSecret ? "********" : cronSecret,
       deepseekApiKey: maskSecrets && deepseekApiKey ? "********" : deepseekApiKey,
@@ -1823,8 +1909,14 @@ export class BillingService {
     aiBlogTagsPrompt?: string;
     aiBlogKeywordsPrompt?: string;
     logRetentionDays?: number;
+    languages?: { main?: string; others?: string[] };
+    currencyConfig?: { main?: string; others?: string[]; rates?: Record<string, { rate?: number; buffer?: number; bufferEnabled?: boolean }> };
+    taxCountries?: { enabled?: boolean; default?: string; rates?: Record<string, number> };
   }) {
     return Promise.all([
+      input.languages === undefined ? undefined : this.billing.upsertSettingJson("i18n.languages", sanitizeLanguages(input.languages)),
+      input.currencyConfig === undefined ? undefined : this.billing.upsertSettingJson("currency.config", sanitizeCurrencyConfig(input.currencyConfig)),
+      input.taxCountries === undefined ? undefined : this.billing.upsertSettingJson("tax.countries", sanitizeTaxCountryConfig(input.taxCountries)),
       input.logRetentionDays === undefined
         ? undefined
         : this.billing.upsertSettingNumber("logRetentionDays", Math.max(0, Math.trunc(input.logRetentionDays))),
@@ -2169,14 +2261,17 @@ export class BillingService {
     const user = asRecord(invoice.user);
     const itemNames = (invoice.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
     const orderItemNames = (invoice.order?.items ?? []).map((item: Record<string, any>) => item.description).filter(Boolean);
+    // Email money uses the invoice's frozen currency; locale = up-to-date recipient locale → main.
+    const locale = stringFrom(user.locale) ?? (await this.i18nLanguages()).main;
+    const currency = stringFrom(invoice.currency) ?? await this.mainCurrency();
     return this.emails.dispatch(eventKey, {
       context: {
         customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
         customer_name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email),
-        invoice_due_date: invoice.dueAt ? formatDateLabel(invoice.dueAt) : "",
+        invoice_due_date: invoice.dueAt ? formatDate(invoice.dueAt, locale) : "",
         invoice_link: `${publicWebUrl()}/client/invoices/${invoice.id}`,
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
-        invoice_total_amount: formatEuro(invoice.totalCents),
+        invoice_total_amount: formatMoney(invoice.totalCents, currency, locale),
         order_number: stringFrom(invoice.order?.orderNumber),
         payment_gateway: paymentGatewayLabel(invoice.transactions),
         service: (itemNames.length ? itemNames : orderItemNames).join(", ")
@@ -2451,13 +2546,46 @@ export class BillingService {
   }
 }
 
-function formatEuro(cents: number) {
-  return `${(cents / 100).toFixed(2)} EUR`;
-}
-
 function positiveSetting(value: unknown, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+// ── Modular i18n / currency config (stored as JSON in SystemSetting) ──
+type StoredLanguages = { main: string; others: string[] };
+type StoredCurrencyRate = { rate: number; buffer: number; bufferEnabled: boolean };
+type StoredCurrencyConfig = { main: string; others: string[]; rates: Record<string, StoredCurrencyRate> };
+
+function sanitizeLanguages(input: { main?: string; others?: unknown }): StoredLanguages {
+  const main = typeof input.main === "string" && input.main ? input.main : "de";
+  const others = Array.isArray(input.others)
+    ? Array.from(new Set(input.others.filter((code): code is string => typeof code === "string" && Boolean(code) && code !== main)))
+    : [];
+  return { main, others };
+}
+
+function sanitizeCurrencyConfig(input: {
+  main?: string;
+  others?: unknown;
+  rates?: Record<string, { rate?: unknown; buffer?: unknown; bufferEnabled?: unknown }> | unknown;
+}): StoredCurrencyConfig {
+  const main = typeof input.main === "string" && input.main ? input.main : "EUR";
+  const others = Array.isArray(input.others)
+    ? Array.from(new Set(input.others.filter((code): code is string => typeof code === "string" && Boolean(code) && code !== main)))
+    : [];
+  const ratesIn = input.rates && typeof input.rates === "object" ? (input.rates as Record<string, { rate?: unknown; buffer?: unknown; bufferEnabled?: unknown }>) : {};
+  const rates: Record<string, StoredCurrencyRate> = {};
+  for (const code of others) {
+    const raw = ratesIn[code] ?? {};
+    const rate = Number(raw.rate);
+    const buffer = Number(raw.buffer);
+    rates[code] = {
+      rate: Number.isFinite(rate) && rate > 0 ? rate : 1,
+      buffer: Number.isFinite(buffer) && buffer >= 0 ? Math.round(buffer) : 0,
+      bufferEnabled: Boolean(raw.bufferEnabled)
+    };
+  }
+  return { main, others, rates };
 }
 
 function paymentMethodLabel(method: string) {
@@ -2770,10 +2898,6 @@ function stringFrom(value: unknown) {
 
 function asRecord(value: unknown): Record<string, any> {
   return isRecord(value) ? value : {};
-}
-
-function formatDateLabel(value: Date | string) {
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

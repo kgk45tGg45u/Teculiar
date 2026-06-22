@@ -1,378 +1,66 @@
-export type Locale = "de" | "en";
-export type Currency = "EUR" | "USD";
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE, isLocaleCode } from "./supported-locales";
 
-export const locales: Locale[] = ["de", "en"];
+// Widened from literal unions to plain strings so buyers can add arbitrary language packs
+// and currencies. Allowed values are validated at runtime against the configured packs
+// (SUPPORTED_LOCALES) / currency config rather than at the type level.
+export type Locale = string;
+export type Currency = string;
+
+// Typed config shapes for the modular language/currency settings (Admin > Settings).
+export type Language = {
+  code: string;
+  name: string;
+  nativeName: string;
+  flag: string;
+  bcp47: string;
+  isMain: boolean;
+};
+
+export type CurrencyDef = {
+  code: string;
+  symbol: string;
+  decimals: number;
+};
+
+export const locales: Locale[] = SUPPORTED_LOCALES;
 export const currencies: Currency[] = ["EUR", "USD"];
+// Locale is scoped like the auth tokens: the admin panel keeps its own language separate from the
+// client/storefront one, so a dual-account admin can run each account in a different language.
 export const LOCALE_COOKIE = "dezhost_locale";
+export const ADMIN_LOCALE_COOKIE = "dezhost_admin_locale";
+// Currency is scoped like the locale/auth cookies: the admin panel keeps its own display currency
+// separate from the client/storefront one, so changing currency in admin never leaks to the public site.
 export const CURRENCY_COOKIE = "dezhost_currency";
+export const ADMIN_CURRENCY_COOKIE = "dezhost_admin_currency";
 
-export const localeNames: Record<Locale, string> = {
+export const localeNames: Record<string, string> = {
   de: "Deutsch",
   en: "English"
 };
 
-export const localeFlags: Record<Locale, string> = {
+export const localeFlags: Record<string, string> = {
   de: "🇩🇪",
   en: "🇺🇸"
 };
 
-export const currencySymbols: Record<Currency, string> = {
+export const currencySymbols: Record<string, string> = {
   EUR: "€",
   USD: "$"
 };
 
+// Resolve a saved/cookie/path locale, accepting any well-formed code (incl. admin-added
+// languages) and defaulting to the main language. Unknown codes render with English fallback.
 export function getLocale(value?: string | null): Locale {
-  return value === "en" ? "en" : "de";
+  return isLocaleCode(value) ? value!.toLowerCase() : DEFAULT_LOCALE;
 }
 
+// Map a browser language tag (e.g. "en-US") to the best supported locale, else the default.
 export function browserLocale(value?: string | null): Locale {
-  return value?.toLowerCase().startsWith("en") ? "en" : "de";
+  const lower = value?.toLowerCase() ?? "";
+  return SUPPORTED_LOCALES.find((locale) => lower.startsWith(locale)) ?? DEFAULT_LOCALE;
 }
 
 export function localeFromAcceptLanguage(value?: string | null): Locale {
   const first = value?.split(",").map((part) => part.trim()).filter(Boolean)[0];
   return browserLocale(first);
 }
-
-export const dictionary = {
-  de: {
-    nav: {
-      hosting: "Webhosting",
-      cloud: "Cloud",
-      virtualServers: "Virtuelle Server",
-      reseller: "Reseller-Hosting",
-      itSolutions: "IT-Lösungen",
-      domains: "Domains",
-      pricing: "Preisliste",
-      blog: "Blog",
-      contact: "Kontakt",
-      about: "Über uns",
-      webdesign: "Webdesign",
-      client: "Mein Konto"
-    },
-    cta: "Kostenlos beraten lassen",
-    client: {
-      accountBalance: "Kontostand",
-      addFunds: "Guthaben aufladen",
-      clientPortal: "Kundenbereich",
-      domains: "Domains",
-      invoices: "Rechnungen",
-      knowledgebase: "Wissensdatenbank",
-      newService: "Neuer Service",
-      newTicket: "Neues Ticket",
-      openInvoices: "Offene Rechnungen",
-      openTickets: "Offene Tickets",
-      overview: "Übersicht",
-      payments: "Zahlungen",
-      profile: "Profil",
-      services: "Services",
-      tickets: "Support Tickets",
-      noServices: "Noch keine Services.",
-      noDomains: "Noch keine Domains.",
-      noTickets: "Keine offenen Tickets.",
-      noInvoices: "Keine Rechnungen.",
-      noArticles: "Aktuell keine Artikel.",
-      loadingServices: "Services werden geladen...",
-      loadingDomains: "Domains werden geladen...",
-      loadingTickets: "Tickets werden geladen...",
-      loadingInvoices: "Rechnungen werden geladen...",
-      loadingArticles: "Artikel werden geladen...",
-      product: "Produkt/Service",
-      pricing: "Preis",
-      nextDueDate: "Nächstes Fälligkeitsdatum",
-      status: "Status",
-      domain: "Domain",
-      invoiceNumber: "Rechnungsnummer",
-      issuedAt: "Ausgestellt am",
-      dueAt: "Fällig am",
-      paidAt: "Bezahlt am",
-      total: "Gesamt",
-      department: "Abteilung",
-      subject: "Betreff",
-      lastUpdate: "Letzte Aktualisierung",
-      open: "Öffnen",
-      announcementsAndArticles: "Ankündigungen und Wissensdatenbank-Artikel",
-      noActiveServices: "Keine aktiven Services",
-      newOrder: "Neuer Service",
-      logout: "Abmelden",
-      profile_name: "Name",
-      profile_email: "E-Mail",
-      profile_phone: "Telefon",
-      profile_country: "Land",
-      profile_vatId: "USt-IdNr.",
-      profile_save: "Profil speichern",
-      profile_changePassword: "Passwort ändern",
-      profile_currentPassword: "Aktuelles Passwort",
-      profile_newPassword: "Neues Passwort",
-      planChange: "Paket wechseln",
-      renew: "Verlängern",
-      controlPanel: "Control Panel",
-      webmail: "Webmail",
-      mailboxes: "Postfächer",
-      databases: "Datenbanken",
-      subdomains: "Subdomains",
-      ftpUsers: "FTP-Benutzer",
-      adminPassword: "Admin-Passwort",
-      emailClients: "E-Mail-Clients",
-      diskSpace: "Festplattenplatz",
-      bandwidth: "Bandbreite",
-      paymentMethod: "Zahlungsmethode",
-      addPaymentMethod: "Zahlungsmethode hinzufügen",
-      noPaymentMethods: "Keine Zahlungsmethoden gespeichert.",
-      searchArticles: "Artikel suchen...",
-      ticketReply: "Antworten",
-      ticketClose: "Ticket schließen",
-      attachments: "Anhänge",
-      newTicketSubject: "Betreff",
-      newTicketDepartment: "Abteilung",
-      newTicketService: "Zugehöriger Service",
-      newTicketMessage: "Nachricht",
-      newTicketSubmit: "Ticket erstellen",
-      selectService: "Service wählen (optional)",
-      amount: "Betrag",
-      addFundsSubmit: "Guthaben hinzufügen",
-      serviceDetail: "Service Details",
-      invoiceDetail: "Rechnung",
-      website: "Website",
-      customerNumber: "Kundennummer",
-      invoiceDescription: "Beschreibung",
-      invoicePeriod: "Zeitraum",
-      invoiceQty: "Menge",
-      invoiceUnitPrice: "Einzelpreis",
-      invoiceVat: "USt.",
-      invoiceLineTotal: "Summe",
-      invoiceSubtotal: "Zwischensumme",
-      invoiceGrandTotal: "Gesamt",
-      invoiceDate: "Rechnungsdatum",
-      invoiceDueDate: "Fällig am",
-      invoicePaidDate: "Bezahlt am",
-      invoicePaymentMethod: "Zahlungsart",
-      invoiceIntro: "Vielen Dank für Ihren Auftrag. Wir berechnen folgende Leistungen gemäß Bestellung.",
-      invoiceTitle: "Rechnung"
-    },
-    admin: {
-      activeServices: "Aktive Services",
-      announcements: "Ankündigungen",
-      clients: "Kunden",
-      domainPrices: "Domainpreise",
-      emailLogs: "E-Mail Logs",
-      emailSettings: "E-Mail Einstellungen",
-      emailTemplate: "E-Mail Vorlage",
-      emails: "E-Mails",
-      failedPayments: "Fehlgeschlagene Zahlungen",
-      home: "Home",
-      invoices: "Rechnungen",
-      knowledgebase: "Wissensdatenbank",
-      logs: "Logs",
-      openTickets: "Offene Tickets",
-      orders: "Bestellungen",
-      paymentGateways: "Zahlungsanbieter",
-      products: "Produkte/Services",
-      services: "Services",
-      settings: "Einstellungen",
-      summary: "Kunden, Bestellungen, Abrechnung, Support, Produkte, Ankündigungen und Automatisierung.",
-      tickets: "Support Tickets",
-      website: "Website",
-      logout: "Abmelden",
-      blog: "Blog",
-      noOrders: "Noch keine Bestellungen oder API nicht erreichbar.",
-      noLogs: "Noch keine Log-Einträge.",
-      noTickets: "Noch keine Tickets.",
-      noDomainPrices: "Noch keine Domainpreise synchronisiert.",
-      noServices: "Noch keine Services.",
-      order: "Bestellung",
-      client: "Kunde",
-      product: "Produkt",
-      status: "Status",
-      total: "Gesamt",
-      date: "Datum",
-      action: "Aktion",
-      department: "Abteilung",
-      subject: "Betreff",
-      lastUpdate: "Letzte Aktualisierung",
-      pricing: "Preis",
-      nextDue: "Nächstes Fälligkeitsdatum",
-      tld: "TLD",
-      years: "Jahre",
-      price: "Preis",
-      manual: "Manuell",
-      suggested: "Vorgeschlagen",
-      lastUpdated: "Zuletzt aktualisiert",
-      source: "Quelle",
-      actor: "Akteur",
-      message: "Nachricht",
-      time: "Zeitpunkt",
-      module: "Modul"
-    }
-  },
-  en: {
-    nav: {
-      hosting: "Web Hosting",
-      cloud: "Cloud",
-      virtualServers: "Virtual Servers",
-      reseller: "Reseller Hosting",
-      itSolutions: "IT Solutions",
-      domains: "Domains",
-      pricing: "Pricing",
-      blog: "Blog",
-      contact: "Contact",
-      about: "About",
-      webdesign: "Web Design",
-      client: "My Account"
-    },
-    cta: "Get free consultation",
-    client: {
-      accountBalance: "Account Balance",
-      addFunds: "Add Funds",
-      clientPortal: "Client Portal",
-      domains: "Domains",
-      invoices: "Invoices",
-      knowledgebase: "Knowledgebase",
-      newService: "New Service",
-      newTicket: "New Ticket",
-      openInvoices: "Open Invoices",
-      openTickets: "Open Tickets",
-      overview: "Overview",
-      payments: "Payments",
-      profile: "Profile",
-      services: "Services",
-      tickets: "Support Tickets",
-      noServices: "No services yet.",
-      noDomains: "No domains yet.",
-      noTickets: "No open tickets.",
-      noInvoices: "No invoices.",
-      noArticles: "No articles right now.",
-      loadingServices: "Loading services...",
-      loadingDomains: "Loading domains...",
-      loadingTickets: "Loading tickets...",
-      loadingInvoices: "Loading invoices...",
-      loadingArticles: "Loading articles...",
-      product: "Product/Service",
-      pricing: "Pricing",
-      nextDueDate: "Next Due Date",
-      status: "Status",
-      domain: "Domain",
-      invoiceNumber: "Invoice Number",
-      issuedAt: "Issued",
-      dueAt: "Due",
-      paidAt: "Paid",
-      total: "Total",
-      department: "Department",
-      subject: "Subject",
-      lastUpdate: "Last Update",
-      open: "Open",
-      announcementsAndArticles: "Announcements and Knowledgebase Articles",
-      noActiveServices: "No active services",
-      newOrder: "New Service",
-      logout: "Log out",
-      profile_name: "Name",
-      profile_email: "Email",
-      profile_phone: "Phone",
-      profile_country: "Country",
-      profile_vatId: "VAT ID",
-      profile_save: "Save Profile",
-      profile_changePassword: "Change Password",
-      profile_currentPassword: "Current Password",
-      profile_newPassword: "New Password",
-      planChange: "Change Plan",
-      renew: "Renew",
-      controlPanel: "Control Panel",
-      webmail: "Webmail",
-      mailboxes: "Mailboxes",
-      databases: "Databases",
-      subdomains: "Subdomains",
-      ftpUsers: "FTP Users",
-      adminPassword: "Admin Password",
-      emailClients: "Email Clients",
-      diskSpace: "Disk Space",
-      bandwidth: "Bandwidth",
-      paymentMethod: "Payment Method",
-      addPaymentMethod: "Add Payment Method",
-      noPaymentMethods: "No payment methods saved.",
-      searchArticles: "Search articles...",
-      ticketReply: "Reply",
-      ticketClose: "Close Ticket",
-      attachments: "Attachments",
-      newTicketSubject: "Subject",
-      newTicketDepartment: "Department",
-      newTicketService: "Related Service",
-      newTicketMessage: "Message",
-      newTicketSubmit: "Submit Ticket",
-      selectService: "Select service (optional)",
-      amount: "Amount",
-      addFundsSubmit: "Add Funds",
-      serviceDetail: "Service Details",
-      invoiceDetail: "Invoice",
-      website: "Website",
-      customerNumber: "Customer No.",
-      invoiceDescription: "Description",
-      invoicePeriod: "Period",
-      invoiceQty: "Qty",
-      invoiceUnitPrice: "Unit Price",
-      invoiceVat: "VAT",
-      invoiceLineTotal: "Total",
-      invoiceSubtotal: "Subtotal",
-      invoiceGrandTotal: "Total",
-      invoiceDate: "Invoice Date",
-      invoiceDueDate: "Due Date",
-      invoicePaidDate: "Paid On",
-      invoicePaymentMethod: "Payment Method",
-      invoiceIntro: "Thank you for your order. We are charging the following services as per your order.",
-      invoiceTitle: "Invoice"
-    },
-    admin: {
-      activeServices: "Active services",
-      announcements: "Announcements",
-      clients: "Clients",
-      domainPrices: "Domain Prices",
-      emailLogs: "Email Logs",
-      emailSettings: "Email Settings",
-      emailTemplate: "Email Template",
-      emails: "Emails",
-      failedPayments: "Failed payments",
-      home: "Home",
-      invoices: "Invoices",
-      knowledgebase: "Knowledgebase",
-      logs: "Logs",
-      openTickets: "Open tickets",
-      orders: "Orders",
-      paymentGateways: "Payment Gateways",
-      products: "Products/Services",
-      services: "Services",
-      settings: "Settings",
-      summary: "Clients, orders, billing, support, products, announcements, and automation.",
-      tickets: "Support Tickets",
-      website: "Website",
-      logout: "Log out",
-      blog: "Blog",
-      noOrders: "No orders yet or API unreachable.",
-      noLogs: "No log entries yet.",
-      noTickets: "No tickets yet.",
-      noDomainPrices: "No domain prices synced yet.",
-      noServices: "No services yet.",
-      order: "Order",
-      client: "Client",
-      product: "Product",
-      status: "Status",
-      total: "Total",
-      date: "Date",
-      action: "Action",
-      department: "Department",
-      subject: "Subject",
-      lastUpdate: "Last Update",
-      pricing: "Pricing",
-      nextDue: "Next Due Date",
-      tld: "TLD",
-      years: "Years",
-      price: "Price",
-      manual: "Manual",
-      suggested: "Suggested",
-      lastUpdated: "Last Updated",
-      source: "Source",
-      actor: "Actor",
-      message: "Message",
-      time: "Time",
-      module: "Module"
-    }
-  }
-} as const;

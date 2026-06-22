@@ -32,6 +32,8 @@ export class BillingRepository {
     orderSnapshot?: Record<string, unknown>;
     adminNotes?: string;
     couponId?: string;
+    currency?: string;
+    locale?: string;
     lines: Array<{
       billingCycle?: string;
       description: string;
@@ -75,6 +77,8 @@ export class BillingRepository {
         orderSnapshot: (input.orderSnapshot ?? {}) as Prisma.InputJsonValue,
         adminNotes: input.adminNotes,
         couponId: input.couponId,
+        currency: input.currency,
+        locale: input.locale,
         items: {
           create: input.lines.map((line) => ({
             billingCycle: line.billingCycle ? (line.billingCycle as BillingCycle) : undefined,
@@ -295,6 +299,7 @@ export class BillingRepository {
           adminNotes: invoice.adminNotes,
           couponId: invoice.couponId,
           currency: invoice.currency,
+          locale: invoice.locale,
           customerSnapshot: invoice.customerSnapshot as Prisma.InputJsonValue,
           discountCents: invoice.discountCents,
           dueAt: invoice.dueAt,
@@ -669,6 +674,26 @@ export class BillingRepository {
       create: { key, value },
       update: { value }
     });
+  }
+
+  async settingJson<T>(key: string, fallback: T): Promise<T> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key } });
+    const value = setting?.value;
+    return value !== null && value !== undefined && typeof value === "object" ? (value as T) : fallback;
+  }
+
+  upsertSettingJson(key: string, value: Prisma.InputJsonValue) {
+    return this.prisma.systemSetting.upsert({
+      where: { key },
+      create: { key, value },
+      update: { value }
+    });
+  }
+
+  // The configured main/base currency (the currency stored amounts are denominated in).
+  async mainCurrency(): Promise<string> {
+    const config = await this.settingJson<{ main?: string } | null>("currency.config", null);
+    return config && typeof config.main === "string" && config.main ? config.main : "EUR";
   }
 
   listPaymentGateways() {

@@ -1,9 +1,23 @@
 # Localization Rules
 
-Dezhost chooses locale from the browser language on first visit.
+> Superseded by **[i18n-currency.md](./i18n-currency.md)** — the authoritative reference for the
+> modular language/currency system. This file is kept for backwards links and the core routing rule.
 
-Saved preference wins everywhere. When a user chooses a language, store it as `dezhost_locale` in cookie and local storage. Public, client, and admin pages, plus checkout, must use that saved value before checking browser language.
+Dezhost chooses locale from the saved preference first, then the browser language. Resolution
+priority: **explicit choice > toggle > browser (if a pack exists) > main language**.
 
-Server-rendered routing reads `dezhost_locale` before `Accept-Language`. Client helpers read local storage/cookie before `navigator.language`.
+- The saved preference is `User.locale` (for signed-in clients) plus the `dezhost_locale`
+  cookie/localStorage. Public, client, admin, and checkout surfaces all use the saved value before
+  checking the browser language.
+- Server-rendered routing reads `dezhost_locale` before `Accept-Language`; client helpers read
+  local storage/cookie before `navigator.language`.
+- Supported languages are **configured by an admin** (`i18n.languages` in `SystemSetting`), not
+  hard-coded. Routing accepts any well-formed locale code, with English per-key fallback for codes
+  without a pack.
+- Language **and currency are scope-aware**: `/admin` uses `dezhost_admin_locale` /
+  `dezhost_admin_currency`, the public/client surfaces use `dezhost_locale` / `dezhost_currency`, so an
+  admin's choice never leaks to the storefront. Client reads are reactive (re-sync on the `dezhost:prefs`
+  event, `pageshow` bfcache restore, and back/forward) — see [i18n-currency.md](./i18n-currency.md).
 
-Current supported locales: `de`, `en`.
+See [i18n-currency.md](./i18n-currency.md) for the packs, currency model, invoice/email
+localization, and the SystemSetting key registry.

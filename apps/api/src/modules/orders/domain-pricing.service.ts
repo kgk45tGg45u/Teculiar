@@ -7,6 +7,7 @@ import {
 } from "../resellbiz-client/resellbiz-api";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { readMainCurrency } from "../../common/currency";
 
 type PriceResult = {
   amountCents: number;
@@ -102,11 +103,12 @@ export class DomainPricingService {
     const tld = normalizeTld(input.tld);
     const years = normalizeYears(input.years);
     const amountCents = normalizeAmountCents(input.amountCents);
+    const currency = await readMainCurrency(this.prisma);
 
     if (amountCents === undefined && input.suggested) {
       await this.prisma.domainTldPrice.upsert({
         where: { tld_action_years: { action: input.action, tld, years } },
-        create: { action: input.action, amountCents: 0, currency: "EUR", manual: false, suggested: true, tld, years },
+        create: { action: input.action, amountCents: 0, currency, manual: false, suggested: true, tld, years },
         update: { suggested: true }
       });
 
@@ -122,7 +124,7 @@ export class DomainPricingService {
       create: {
         action: input.action,
         amountCents,
-        currency: "EUR",
+        currency,
         manual: Boolean(input.manual),
         suggested: Boolean(input.suggested),
         tld,
@@ -197,6 +199,7 @@ export class DomainPricingService {
     }
 
     await this.prisma.domainTldPrice.deleteMany({ where: { manual: false, suggested: false, tld: { not: "de" } } });
+    const currency = await readMainCurrency(this.prisma);
     const syncedPrices = prices.filter((price) => price.tld !== "de");
     for (let index = 0; index < syncedPrices.length; index += 400) {
       const batch = syncedPrices.slice(index, index + 400);
@@ -204,7 +207,7 @@ export class DomainPricingService {
         data: batch.map((price) => ({
           action: price.action,
           amountCents: price.amountCents,
-          currency: "EUR",
+          currency,
           manual: false,
           suggested: false,
           tld: price.tld,

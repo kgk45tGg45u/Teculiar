@@ -40,7 +40,7 @@ export class AbstractPaymentService {
 
   async chargePayPalVault(input: {
     amountCents: number;
-    currency: "EUR";
+    currency: string;
     description: string;
     invoiceId: string;
     vaultId: string;
@@ -147,6 +147,7 @@ export class AbstractPaymentService {
       };
     }
     return createMollieFirstPayment(config, {
+      currency: await this.billing.mainCurrency(),
       customerId: input.customerId,
       method: input.method,
       redirectUrl: input.redirectUrl,
@@ -183,7 +184,7 @@ export class AbstractPaymentService {
 
   async chargeSavedPayment(input: {
     amountCents: number;
-    currency: "EUR";
+    currency: string;
     customerId?: string | null;
     description: string;
     invoiceId: string;
@@ -471,6 +472,7 @@ async function createMolliePayment(
 }
 
 async function createMollieFirstPayment(config: Record<string, unknown>, input: {
+  currency: string;
   customerId: string;
   method: string;
   redirectUrl: string;
@@ -479,7 +481,7 @@ async function createMollieFirstPayment(config: Record<string, unknown>, input: 
   const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
   const response = await fetch("https://api.mollie.com/v2/payments", {
     body: JSON.stringify({
-      amount: { currency: "EUR", value: "0.00" },
+      amount: { currency: input.currency, value: "0.00" },
       customerId: input.customerId,
       description: "Dezhost automatic payment authorization",
       method: mollieMethod(input.method),
@@ -529,7 +531,7 @@ async function createMollieDirectDebitMandate(config: Record<string, unknown>, i
 
 async function createMollieRecurringPayment(config: Record<string, unknown>, input: {
   amountCents: number;
-  currency: "EUR";
+  currency: string;
   customerId?: string | null;
   description: string;
   invoiceId: string;

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ExchangeRateInit } from "../../components/layout/exchange-rate-init";
+import { CurrencyConfigInit } from "../../components/layout/currency-config-init";
 import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
-import { apiGet } from "../../lib/api";
+import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
 import { getLocale } from "../../lib/i18n";
 
 type SiteSettings = {
@@ -11,6 +11,8 @@ type SiteSettings = {
   siteUrl?: string;
   usdExchangeRate?: number;
   usdBufferCents?: number;
+  currencyConfig?: StoredCurrencyConfig;
+  languages?: { main?: string; others?: string[] };
   siteName?: string;
   metaDescription?: string;
   ogImageStatic?: string;
@@ -58,13 +60,13 @@ export default async function PublicLayout({
   const locale = getLocale(rawLocale);
   const settings = await apiGet<SiteSettings>("/storefront/settings");
   const brandLogo = settings?.siteLogoUrl;
-  const exchangeRate = settings?.usdExchangeRate ?? 1.0;
-  const bufferCents = settings?.usdBufferCents ?? 0;
+  const currencyConfig = currencyConfigFromSettings(settings);
+  const i18nConfig = i18nConfigFromSettings(settings);
 
   return (
     <div className="shell">
-      <SiteHeader brandLogo={brandLogo} locale={locale} />
-      <ExchangeRateInit rate={exchangeRate} bufferCents={bufferCents} />
+      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
+      <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
       <SiteFooter brandLogo={brandLogo} locale={locale} />
     </div>

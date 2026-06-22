@@ -129,8 +129,32 @@ test("billing controller exposes protected HTML before PDF download", async () =
   assert.match(controller, /@Get\("invoices\/:id\/html"\)/);
   assert.match(controller, /this\.billing\.invoiceHtml\(id, request\.user\)/);
   assert.match(service, /invoiceHtml\(id: string, user\?: \{ roles\?: string\[\]; sub: string \}\)/);
-  assert.match(service, /renderInvoiceDocument\(invoice, \{ logoUrl: url \}\)\.html/);
+  assert.match(service, /renderInvoiceDocument\(invoice, \{ logoUrl: url, locale \}\)\.html/);
   assert.match(service, /renderInvoicePdfFromHtml\(html, image\)/);
+});
+
+test("invoice localizes labels by the resolved locale (English)", () => {
+  const en = renderInvoiceDocument(invoice, { locale: "en" });
+
+  assert.match(en.html, /<html lang="en">/);
+  assert.match(en.html, /<h1>Invoice 100001<\/h1>/);
+  assert.match(en.html, /<span>Invoice Date<\/span>/);
+  assert.match(en.html, /<span>Due Date<\/span>/);
+  assert.match(en.html, /<span>Customer No\.<\/span>/);
+  assert.match(en.html, /VAT ID DE123456789/);
+  assert.match(en.html, /Total Amount/);
+  // English never shows the German labels.
+  assert.doesNotMatch(en.html, /Rechnung 100001/);
+  assert.doesNotMatch(en.html, /USt-IdNr\./);
+});
+
+test("invoice money formats use the invoice's stored currency, not the live toggle", () => {
+  const usd = renderInvoiceDocument({ ...invoice, currency: "USD", totalCents: 11900, subtotalCents: 11900 }, { locale: "en" });
+  assert.match(usd.html, /\$119\.00/);
+
+  const eur = renderInvoiceDocument({ ...invoice, currency: "EUR", totalCents: 11900, subtotalCents: 11900 }, { locale: "de" });
+  assert.match(eur.html, /119,00/);
+  assert.match(eur.html, /€/);
 });
 
 test("users have stored customer numbers selected for profiles and invoices", async () => {

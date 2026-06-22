@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "react-toastify/dist/ReactToastify.css";
 import { ToastProvider } from "../components/ui/toast-provider";
 import { apiGet } from "../lib/api";
+import { DEFAULT_LOCALE } from "../lib/supported-locales";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,7 +33,7 @@ function ThemeBootstrap() {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="de" suppressHydrationWarning>
+    <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
       <body>
         <ThemeBootstrap />
         <ToastProvider />

@@ -94,11 +94,13 @@ export class UsersService {
     countryCode?: string;
     customerType?: "INDIVIDUAL" | "BUSINESS";
     email?: string;
+    locale?: string;
     name?: string;
     phone?: string;
     vatId?: string;
   }) {
-    const user = await this.users.updateProfile(userId, input);
+    // Only persist a well-formed locale code; the column is validated in app code, not the DB.
+    const user = await this.users.updateProfile(userId, { ...input, locale: wellFormedLocale(input.locale) });
     return user ? publicUser(user) : null;
   }
 
@@ -126,6 +128,7 @@ function publicUser(user: {
   customerType?: string;
   email: string;
   id: string;
+  locale?: string;
   name: string;
   balanceCents?: number;
   userRoles?: Array<{ role: { slug: string } }>;
@@ -139,10 +142,21 @@ function publicUser(user: {
     customerType: user.customerType,
     email: user.email,
     id: user.id,
+    locale: user.locale,
     name: user.name,
     balanceCents: user.balanceCents ?? 0,
     phone: contact?.phone,
     vatId: user.vatId,
     roles: user.userRoles?.map((userRole) => userRole.role.slug) ?? []
   };
+}
+
+// Accepts a trimmed, well-formed BCP-47-ish code (e.g. "de", "en", "pt-BR"); anything else
+// (empty, garbage, over-long) is ignored so a stray client write can't corrupt the column.
+function wellFormedLocale(value?: string): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const code = value.trim();
+  return /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/.test(code) ? code : undefined;
 }

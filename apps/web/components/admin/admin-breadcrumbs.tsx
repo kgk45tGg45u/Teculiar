@@ -3,47 +3,55 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { currentLocale } from "../../lib/api";
+import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import styles from "./admin-breadcrumbs.module.css";
 
-// Friendly labels for known admin path segments. Anything not listed falls back to a
-// title-cased version of the slug.
-const SEGMENT_LABELS: Record<string, string> = {
-  admin: "Admin",
-  clients: "Clients",
-  orders: "Orders",
-  services: "Domains & Services",
-  products: "Products",
-  categories: "Categories",
-  modules: "Modules",
-  invoices: "Invoices",
-  emails: "Emails",
-  settings: "Settings",
-  seo: "SEO & Social",
-  cron: "Cron Settings",
-  admins: "Admins & Roles",
-  logs: "Logs",
-  tickets: "Tickets",
-  departments: "Departments",
-  knowledgebase: "Knowledgebase",
-  blog: "Blog",
-  "ai-content": "AI Content",
-  "ai-settings": "AI Job Settings",
-  announcements: "Announcements",
-  "domain-prices": "Domain Prices",
-  "payment-gateways": "Payment Gateways",
-  theme: "Theme",
-  template: "Templates",
-  new: "New"
-};
+type AdminDict = Dictionary["admin"];
+
+// Friendly labels for known admin path segments (sourced from the shared admin pack so they
+// follow the configured language). Anything not listed falls back to a title-cased slug.
+function segmentLabels(c: AdminDict): Record<string, string> {
+  return {
+    admin: c.eyebrow.admin,
+    clients: c.clients,
+    orders: c.orders,
+    services: c.nav.domainsServices,
+    products: c.view.products,
+    categories: c.view.categories,
+    modules: c.view.modules,
+    invoices: c.invoices,
+    emails: c.emails,
+    settings: c.settings,
+    seo: c.crumb.seo,
+    cron: c.view.cronSettings,
+    admins: c.view.admins,
+    logs: c.logs,
+    tickets: c.crumb.tickets,
+    departments: c.view.departments,
+    knowledgebase: c.knowledgebase,
+    blog: c.blog,
+    "ai-content": c.view.aiContent,
+    "ai-settings": c.view.aiJobSettings,
+    announcements: c.announcements,
+    "domain-prices": c.domainPrices,
+    "payment-gateways": c.paymentGateways,
+    theme: c.nav.theme,
+    template: c.nav.templates,
+    new: c.crumb.new
+  };
+}
 
 // When a segment is a record id (cuid-like), label it by the section it belongs to.
-const ENTITY_BY_PARENT: Record<string, string> = {
-  clients: "Client",
-  orders: "Order",
-  services: "Service",
-  invoices: "Invoice",
-  tickets: "Ticket"
-};
+function entityByParent(c: AdminDict): Record<string, string> {
+  return {
+    clients: c.client,
+    orders: c.order,
+    services: c.col.service,
+    invoices: c.col.invoice,
+    tickets: c.crumb.ticket
+  };
+}
 
 function isRecordId(segment: string) {
   return /^c[a-z0-9]{20,}$/i.test(segment) || /^[a-f0-9]{16,}$/i.test(segment);
@@ -56,6 +64,7 @@ function titleCase(segment: string) {
 // "bar" = full-width bar under the header (desktop). "sidebar" = rendered inside the admin
 // sidebar's sticky mobile header (mobile). CSS shows exactly one of them per breakpoint.
 export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sidebar" }) {
+  const copy = getDictionary(currentLocale()).admin;
   const pathname = usePathname() ?? "/admin";
   if (!pathname.startsWith("/admin")) {
     return null;
@@ -66,19 +75,21 @@ export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sideb
     return null;
   }
 
+  const SEGMENT_LABELS = segmentLabels(copy);
+  const ENTITY_BY_PARENT = entityByParent(copy);
   const crumbs: Array<{ href: string; label: string }> = [];
   let href = "";
   segments.forEach((segment, index) => {
     href += `/${segment}`;
     const parent = index > 0 ? segments[index - 1] : undefined;
     const label = isRecordId(segment)
-      ? (parent ? ENTITY_BY_PARENT[parent] : undefined) ?? "Detail"
+      ? (parent ? ENTITY_BY_PARENT[parent] : undefined) ?? copy.crumb.detail
       : SEGMENT_LABELS[segment] ?? titleCase(segment);
     crumbs.push({ href, label });
   });
 
   return (
-    <nav aria-label="Breadcrumb" className={`${styles.breadcrumbs} ${variant === "sidebar" ? styles.sidebarVariant : styles.barVariant}`}>
+    <nav aria-label={copy.crumb.breadcrumb} className={`${styles.breadcrumbs} ${variant === "sidebar" ? styles.sidebarVariant : styles.barVariant}`}>
       <ol className={styles.list}>
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;

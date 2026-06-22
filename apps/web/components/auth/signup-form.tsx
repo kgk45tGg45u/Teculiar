@@ -4,6 +4,7 @@ import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { API_BASE_URL, storeAuth, type AuthPayload } from "../../lib/api";
 import { createChallenge, type BotChallenge } from "../../lib/bot-challenge";
+import { getDictionary } from "../../lib/dictionary";
 import { BotCheck, validateBotCheck } from "../ui/bot-check";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
@@ -73,14 +74,14 @@ export function SignupForm({
   const [challenge, setChallenge] = useState<BotChallenge>(initialChallenge);
   const [challengeKey, setChallengeKey] = useState(0);
 
-  const de = locale === "de";
+  const t = getDictionary(locale).storefront.signup;
 
   const passwordRules = [
-    { label: de ? "9–16 Zeichen" : "9–16 characters", passed: password.length >= 9 && password.length <= 16 },
-    { label: de ? "Großbuchstaben" : "Uppercase letter", passed: /[A-Z]/.test(password) },
-    { label: de ? "Kleinbuchstaben" : "Lowercase letter", passed: /[a-z]/.test(password) },
-    { label: de ? "Zahl" : "Number", passed: /\d/.test(password) },
-    { label: de ? "Sonderzeichen (~*!@$#%_+.?:,{})" : "Special character (~*!@$#%_+.?:,{})", passed: /[~*!@$#%_+.?:,{}]/.test(password) }
+    { label: t.ruleLength, passed: password.length >= 9 && password.length <= 16 },
+    { label: t.ruleUpper, passed: /[A-Z]/.test(password) },
+    { label: t.ruleLower, passed: /[a-z]/.test(password) },
+    { label: t.ruleNumber, passed: /\d/.test(password) },
+    { label: t.ruleSpecial, passed: /[~*!@$#%_+.?:,{}]/.test(password) }
   ];
 
   async function submit(formData: FormData) {
@@ -95,13 +96,11 @@ export function SignupForm({
 
     const pw = String(formData.get("password") ?? "");
     if (!isStrongPassword(pw)) {
-      setError(de
-        ? "Passwort erfüllt die Anforderungen nicht."
-        : "Password does not meet requirements. Must be 9–16 characters with uppercase, lowercase, number, and special character.");
+      setError(t.passwordWeak);
       return;
     }
     if (!formData.get("acceptedTerms")) {
-      setError(de ? "Bitte akzeptieren Sie die AGB." : "You must accept the terms and conditions.");
+      setError(t.termsRequired);
       return;
     }
 
@@ -135,7 +134,7 @@ export function SignupForm({
     if (!response.ok || !payload.accessToken || !payload.user) {
       const message = typeof payload.message === "string"
         ? payload.message
-        : (de ? "Registrierung fehlgeschlagen." : "Registration failed. Please try again.");
+        : t.registrationFailed;
       setError(message);
       notify.error(message);
       // Fresh challenge after API failure: new question, timestamp=0 bypasses the
@@ -146,7 +145,7 @@ export function SignupForm({
     }
 
     storeAuth(payload as AuthPayload, "client");
-    notify.success(de ? "Konto erstellt! Willkommen." : "Account created! Welcome.");
+    notify.success(t.accountCreated);
     window.location.assign("/client");
   }
 
@@ -154,9 +153,9 @@ export function SignupForm({
     <main className={styles.shell}>
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <span className="eyebrow">{de ? "Konto erstellen" : "Create Account"}</span>
-          <h1>{de ? "Registrieren" : "Sign Up"}</h1>
-          <p>{de ? "Bereits Kunde?" : "Already a customer?"} <a href="/login">{de ? "Anmelden" : "Log in"}</a></p>
+          <span className="eyebrow">{t.eyebrow}</span>
+          <h1>{t.title}</h1>
+          <p>{t.alreadyCustomer} <a href="/login">{t.logIn}</a></p>
         </div>
 
         <form
@@ -167,19 +166,19 @@ export function SignupForm({
           }}
         >
           <fieldset className={styles.fieldset}>
-            <legend>{de ? "Persönliche Daten" : "Personal Details"}</legend>
+            <legend>{t.personalDetails}</legend>
             <div className={styles.row}>
               <label>
-                {de ? "Vollständiger Name" : "Full Name"} *
-                <input className={styles.input} name="name" required placeholder="Max Mustermann" />
+                {t.fullName} *
+                <input className={styles.input} name="name" required placeholder={t.namePlaceholder} />
               </label>
               <label>
-                E-Mail *
+                {t.email} *
                 <input autoComplete="email" className={styles.input} name="email" required type="email" placeholder="mail@example.com" />
               </label>
             </div>
             <label>
-              {de ? "Passwort" : "Password"} *
+              {t.password} *
               <div className={styles.passwordControl}>
                 <div className={styles.passwordInputWrap}>
                   <input
@@ -193,7 +192,7 @@ export function SignupForm({
                   />
                   <div className={styles.passwordIcons}>
                     <button
-                      aria-label={de ? "Passwort kopieren" : "Copy password"}
+                      aria-label={t.copyPassword}
                       className={`${styles.passwordIconBtn}${copied ? ` ${styles.passwordIconBtnActive}` : ""}`}
                       disabled={!password}
                       onClick={() => {
@@ -208,7 +207,7 @@ export function SignupForm({
                       {copied ? <Check aria-hidden size={15} /> : <Copy aria-hidden size={15} />}
                     </button>
                     <button
-                      aria-label={showPassword ? (de ? "Passwort verbergen" : "Hide password") : (de ? "Passwort anzeigen" : "Show password")}
+                      aria-label={showPassword ? t.hidePassword : t.showPassword}
                       className={styles.passwordIconBtn}
                       onClick={() => setShowPassword((v) => !v)}
                       type="button"
@@ -222,7 +221,7 @@ export function SignupForm({
                   onClick={() => { setPassword(generatePassword()); setShowPassword(true); }}
                   type="button"
                 >
-                  {de ? "Generieren" : "Generate"}
+                  {t.generate}
                 </button>
               </div>
             </label>
@@ -236,53 +235,51 @@ export function SignupForm({
               </div>
             )}
             <label>
-              {de ? "Telefon" : "Phone"}
+              {t.phone}
               <input className={styles.input} name="phone" type="tel" placeholder="+49 1234567890" />
               <span className={styles.fieldHint}>
-                {de
-                  ? "Internationales Format: +49 … (für Domain-Registrierungen erforderlich)"
-                  : "International format: +49 … (required for domain registrations)"}
+                {t.phoneHint}
               </span>
             </label>
           </fieldset>
 
           <fieldset className={styles.fieldset}>
-            <legend>{de ? "Unternehmen (optional)" : "Company (optional)"}</legend>
+            <legend>{t.companyOptional}</legend>
             <div className={styles.row}>
               <label>
-                {de ? "Firmenname" : "Company Name"}
+                {t.companyName}
                 <input className={styles.input} name="companyName" />
               </label>
               <label>
-                {de ? "USt-IdNr." : "VAT ID"}
+                {t.vatId}
                 <input className={styles.input} name="vatId" placeholder="DE123456789" />
               </label>
             </div>
           </fieldset>
 
           <fieldset className={styles.fieldset}>
-            <legend>{de ? "Adresse" : "Address"}</legend>
+            <legend>{t.address}</legend>
             <label>
-              {de ? "Straße und Hausnummer" : "Street Address"} *
-              <input className={styles.input} name="address" required placeholder={de ? "Musterstraße 1" : "123 Main St"} />
+              {t.street} *
+              <input className={styles.input} name="address" required placeholder={t.streetPlaceholder} />
             </label>
             <div className={styles.row}>
               <label>
-                {de ? "PLZ" : "Postal Code"} *
+                {t.postalCode} *
                 <input className={styles.input} name="postalCode" required placeholder="12345" />
               </label>
               <label>
-                {de ? "Stadt" : "City"} *
-                <input className={styles.input} name="city" required placeholder={de ? "Berlin" : "Munich"} />
+                {t.city} *
+                <input className={styles.input} name="city" required placeholder={t.cityPlaceholder} />
               </label>
             </div>
             <div className={styles.row}>
               <label>
-                {de ? "Bundesland / Region" : "State / Region"}
+                {t.state}
                 <input className={styles.input} name="state" />
               </label>
               <label>
-                {de ? "Land" : "Country"} *
+                {t.country} *
                 <select className={styles.input} name="countryCode" defaultValue="DE" required>
                   {countries.map((c) => (
                     <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
@@ -293,7 +290,7 @@ export function SignupForm({
           </fieldset>
 
           <fieldset className={styles.fieldset}>
-            <legend>{de ? "Sicherheit" : "Security"}</legend>
+            <legend>{t.security}</legend>
             {/* key={challengeKey} remounts BotCheck whenever the challenge refreshes,
                 which clears the _bot_response input so the user types a fresh answer */}
             <BotCheck key={challengeKey} challenge={challenge} locale={locale} />
@@ -302,17 +299,17 @@ export function SignupForm({
           <label className={styles.checkboxLabel}>
             <input name="acceptedTerms" type="checkbox" value="1" required />
             <span>
-              {de ? "Ich akzeptiere die " : "I accept the "}
-              <a href={`/${locale}/legal/agb`} target="_blank" rel="noreferrer">{de ? "AGB" : "Terms of Service"}</a>
-              {de ? " und " : " and "}
-              <a href={`/${locale}/legal/datenschutz`} target="_blank" rel="noreferrer">{de ? "Datenschutzerklärung" : "Privacy Policy"}</a>.
+              {t.termsPrefix}
+              <a href={`/${locale}/legal/agb`} target="_blank" rel="noreferrer">{t.termsLink}</a>
+              {t.termsAnd}
+              <a href={`/${locale}/legal/datenschutz`} target="_blank" rel="noreferrer">{t.privacyLink}</a>.
             </span>
           </label>
 
           {error ? <p className={styles.error} data-testid="form-error">{error}</p> : null}
 
           <Button type="submit">
-            {loading ? (de ? "Bitte warten…" : "Please wait…") : (de ? "Konto erstellen" : "Create Account")}
+            {loading ? t.pleaseWait : t.createAccount}
           </Button>
         </form>
       </section>

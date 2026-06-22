@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ExchangeRateInit } from "../../components/layout/exchange-rate-init";
+import { CurrencyConfigInit } from "../../components/layout/currency-config-init";
 import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
-import { apiGet } from "../../lib/api";
+import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
 import { requestLocale } from "../../lib/server-locale";
 
 export const metadata: Metadata = {
@@ -12,16 +12,16 @@ export const metadata: Metadata = {
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
-  const settings = await apiGet<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number }>("/storefront/settings");
+  const settings = await apiGet<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings");
   const brandLogo = settings?.siteLogoUrl;
-  const exchangeRate = settings?.usdExchangeRate ?? 1.0;
-  const bufferCents = settings?.usdBufferCents ?? 0;
+  const currencyConfig = currencyConfigFromSettings(settings);
+  const i18nConfig = i18nConfigFromSettings(settings);
   return (
     <>
       <Suspense>
-        <SiteHeader brandHref="/client" brandLogo={brandLogo} locale={locale} variant="admin" />
+        <SiteHeader brandHref="/client" brandLogo={brandLogo} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
       </Suspense>
-      <ExchangeRateInit rate={exchangeRate} bufferCents={bufferCents} />
+      <CurrencyConfigInit config={currencyConfig} />
       {children}
       <SiteFooter locale={locale} brandLogo={brandLogo} variant="admin" />
     </>

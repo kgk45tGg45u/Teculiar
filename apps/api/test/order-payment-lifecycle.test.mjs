@@ -32,7 +32,8 @@ test("new storefront checkout stores order under pending checkout user, not clie
       calls.push(["createInvoice", input.userId, input.orderSnapshot.pendingCheckout?.email]);
       return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
     },
-    vatPercent: async () => 0
+    vatPercent: async () => 0,
+    vatForBuyer: async () => ({ rate: 0, reverseCharge: false })
   };
   const users = {
     findByEmail: async () => null,
@@ -72,7 +73,8 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
       calls.push(["createInvoice", input.userId, input.orderSnapshot.pendingCheckout?.email]);
       return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
     },
-    vatPercent: async () => 0
+    vatPercent: async () => 0,
+    vatForBuyer: async () => ({ rate: 0, reverseCharge: false })
   };
   const users = {
     findByEmail: async (email) => {
@@ -112,7 +114,8 @@ test("logged-in storefront checkout can reuse the account email without password
       calls.push(["createInvoice", input.userId, input.orderSnapshot.pendingCheckout]);
       return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
     },
-    vatPercent: async () => 0
+    vatPercent: async () => 0,
+    vatForBuyer: async () => ({ rate: 0, reverseCharge: false })
   };
   const users = {
     findById: async (id) => {
@@ -153,7 +156,8 @@ test("logged-in storefront checkout does not require a password", async () => {
   };
   const billing = {
     createInvoice: async () => ({ id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 }),
-    vatPercent: async () => 0
+    vatPercent: async () => 0,
+    vatForBuyer: async () => ({ rate: 0, reverseCharge: false })
   };
   const users = {
     findById: async () => existingUser,
@@ -195,7 +199,8 @@ test("logged-in storefront checkout uses token account over autofilled email", a
       calls.push(["createInvoice", input.userId, input.customerSnapshot.email, input.customerSnapshot.customerNumber]);
       return { id: "invoice-1", subtotalCents: 1200, taxAmountCents: 0, totalCents: 1200 };
     },
-    vatPercent: async () => 0
+    vatPercent: async () => 0,
+    vatForBuyer: async () => ({ rate: 0, reverseCharge: false })
   };
   const users = {
     findById: async (id) => {
@@ -225,7 +230,7 @@ test("logged-in storefront checkout uses token account over autofilled email", a
 
 test("domain checkout requires registrant contact data before payment", async () => {
   const users = { findByEmail: async () => null };
-  const service = new OrdersService({}, { vatPercent: async () => 0 }, {}, users, domainPricing());
+  const service = new OrdersService({}, { vatPercent: async () => 0, vatForBuyer: async () => ({ rate: 0, reverseCharge: false }) }, {}, users, domainPricing());
   service.priceItems = async () => [{ ...pricedHostingItem(), type: "DOMAIN", domainName: "bijans-test.com" }];
 
   await assert.rejects(
@@ -445,7 +450,7 @@ test("domain prices use matching year row as yearly unit and multiply by years",
       return { amountCents: 1100, source: "live", tld: "com" };
     }
   };
-  const service = new OrdersService(orders, { vatPercent: async () => 0 }, {}, {}, domainPricing);
+  const service = new OrdersService(orders, { vatPercent: async () => 0, vatForBuyer: async () => ({ rate: 0, reverseCharge: false }) }, {}, {}, domainPricing);
 
   const preview = await service.previewOrder({
     items: [{
@@ -483,7 +488,7 @@ test("domain pricing honors requested billing cycle when product price id is onl
       return { amountCents: 1200, source: "live", tld: "com" };
     }
   };
-  const service = new OrdersService(orders, { vatPercent: async () => 0 }, {}, {}, domainPricing);
+  const service = new OrdersService(orders, { vatPercent: async () => 0, vatForBuyer: async () => ({ rate: 0, reverseCharge: false }) }, {}, {}, domainPricing);
 
   const preview = await service.previewOrder({
     items: [{

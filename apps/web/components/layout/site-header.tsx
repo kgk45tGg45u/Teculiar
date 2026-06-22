@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Suspense } from "react";
 import { ChevronDown, Globe } from "lucide-react";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
+import { SUPPORTED_LOCALES } from "../../lib/supported-locales";
 import { AccountMenu } from "./account-menu";
 import { DetailsAutoClose } from "./details-auto-close";
 import { LanguageToggle } from "./language-toggle";
@@ -15,27 +17,29 @@ type SiteHeaderProps = {
   brandHref?: string;
   locale: Locale;
   variant?: "site" | "admin";
+  languages?: string[];
+  currencies?: string[];
 };
 
-export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: SiteHeaderProps) {
-  const copy = dictionary[locale];
+export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"] }: SiteHeaderProps) {
+  const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
   const brandLabel = isPanel ? "Teculiar" : "Dezhost";
 
   const navLinks = [
-    { href: `${base}/domains`, label: copy.nav.domains },
-    { href: `${base}/it-losungen`, label: copy.nav.itSolutions },
-    { href: `${base}/webdesign`, label: copy.nav.webdesign },
-    { href: `${base}/blog`, label: copy.nav.blog },
-    { href: `${base}/uber-uns`, label: copy.nav.about },
-    { href: `${base}/kontakt`, label: copy.nav.contact }
+    { href: `${base}/domains`, label: copy.common.nav.domains },
+    { href: `${base}/it-losungen`, label: copy.common.nav.itSolutions },
+    { href: `${base}/webdesign`, label: copy.common.nav.webdesign },
+    { href: `${base}/blog`, label: copy.common.nav.blog },
+    { href: `${base}/uber-uns`, label: copy.common.nav.about },
+    { href: `${base}/kontakt`, label: copy.common.nav.contact }
   ];
 
   const cloudChildren = [
-    { href: `${base}/webhosting`, label: copy.nav.hosting },
-    { href: `${base}/virtual-servers`, label: copy.nav.virtualServers },
-    { href: `${base}/reseller`, label: copy.nav.reseller }
+    { href: `${base}/webhosting`, label: copy.common.nav.hosting },
+    { href: `${base}/virtual-servers`, label: copy.common.nav.virtualServers },
+    { href: `${base}/reseller`, label: copy.common.nav.reseller }
   ];
 
   return (
@@ -49,7 +53,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
         <nav className={styles.nav} aria-label="Primary">
           <details className={styles.navDropdown}>
             <summary className={styles.navDropdownToggle}>
-              {copy.nav.cloud}
+              {copy.common.nav.cloud}
               <ChevronDown aria-hidden size={14} className={styles.navChevron} />
             </summary>
             <div className={styles.navDropdownMenu}>
@@ -65,11 +69,11 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site" }: S
 
         <div className={styles.actions}>
           <Suspense>
-            <LanguageToggle locale={locale} />
+            <LanguageToggle locale={locale} languages={languages} currencies={currencies} />
           </Suspense>
           <AccountMenu />
           <MobileMenu
-            cloudLabel={copy.nav.cloud}
+            cloudLabel={copy.common.nav.cloud}
             cloudChildren={cloudChildren}
             navLinks={navLinks}
           />

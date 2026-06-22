@@ -1,7 +1,7 @@
 export type PaymentRequest = {
   invoiceId: string;
   amountCents: number;
-  currency: "EUR";
+  currency: string;
   paymentMethodId: string;
   description?: string;
   iban?: string;

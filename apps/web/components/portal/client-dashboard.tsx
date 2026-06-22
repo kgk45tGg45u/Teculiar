@@ -14,6 +14,7 @@ import {
   frozenMoney,
   invoiceDisplayNumber,
   money,
+  persistClientLocale,
   serviceUnitPriceCents,
   type ApiAnnouncement,
   type ApiDepartmentRef,
@@ -23,7 +24,8 @@ import {
   type ApiTicket
 } from "../../lib/api";
 import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
-import { dictionary, type Locale } from "../../lib/i18n";
+import { type Locale } from "../../lib/i18n";
+import { getDictionary } from "../../lib/dictionary";
 import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
 import { Button } from "../ui/button";
@@ -72,6 +74,7 @@ type ClientProfile = {
   customerNumber?: number | null;
   customerType?: string;
   email?: string;
+  locale?: string;
   name?: string;
   phone?: string;
   vatId?: string | null;
@@ -132,7 +135,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   const [authChecked, setAuthChecked] = useState(false);
   const [profile, setProfile] = useState<ClientProfile>();
   const [services, setServices] = useState<ApiService[]>([]);
@@ -157,6 +160,14 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       setAuthChecked(true);
     }
   }, []);
+
+  // Persist the effective (browser-derived or chosen) locale to the account when it drifts from the
+  // stored value, so transactional emails follow it even without an explicit toggle this visit.
+  useEffect(() => {
+    if (profile && profile.locale !== locale) {
+      persistClientLocale(locale);
+    }
+  }, [profile, locale]);
 
   usePortalLoadingFallback(setLoading);
   usePortalNavigationRecovery(setLoading, setRefreshVersion);
@@ -313,7 +324,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   return (
     <div className={styles.page}>
       <aside className={styles.sidebar}>
-        <nav aria-label="Client">
+        <nav aria-label={copy.dash.navAria}>
           <a aria-current={clientNavCurrent(view, "dashboard")} href="/client">{copy.overview}</a>
           <a aria-current={clientNavCurrent(view, "services")} href="/client/services">{copy.services}</a>
           <a aria-current={clientNavCurrent(view, "domains")} href="/client/domains">{copy.domains}</a>
@@ -347,7 +358,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
           </div>
         </header>
 
-        <section className={styles.overviewGrid} aria-label="Overview">
+        <section className={styles.overviewGrid} aria-label={copy.dash.overviewAria}>
           <DashboardSummaryCard empty={copy.noActiveServices} href="/client/services" icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel={copy.loadingServices} value={serviceRows.length} />
           <DashboardSummaryCard empty={copy.noDomains} href="/client/domains" icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel={copy.loadingDomains} value={domainRows.length} />
           <DashboardSummaryCard empty={copy.noTickets} href="/client/tickets" icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel={copy.loadingTickets} value={openTickets} />
@@ -513,13 +524,14 @@ function LoadingSpinner({ label }: { label: string }) {
 }
 
 function LoadingBlock({ title }: { title: string }) {
+  const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.module}>
       <div className={styles.loadingBlock}>
-        <LoadingSpinner label={`Loading ${title.toLowerCase()}`} />
+        <LoadingSpinner label={copy.dash.loadingItem.replace("{item}", title.toLowerCase())} />
         <div>
           <h2>{title}</h2>
-          <p>Loading data.</p>
+          <p>{copy.dash.loadingData}</p>
         </div>
       </div>
     </section>
@@ -527,7 +539,8 @@ function LoadingBlock({ title }: { title: string }) {
 }
 
 function LoadingTableRow({ colSpan, label }: { colSpan: number; label: string }) {
-  return <tr><td colSpan={colSpan}><span className={styles.loadingInline}><LoadingSpinner label={label} />Loading...</span></td></tr>;
+  const copy = getDictionary(currentLocale()).client;
+  return <tr><td colSpan={colSpan}><span className={styles.loadingInline}><LoadingSpinner label={label} />{copy.dash.loadingShort}</span></td></tr>;
 }
 
 function DashboardKnowledgeFeed({
@@ -541,12 +554,12 @@ function DashboardKnowledgeFeed({
 }) {
   const items = dashboardFeedItems(announcements, knowledgebase);
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.dashboardFeed}>
       <div className={styles.blockHeader}>
         <div>
-          <span className="eyebrow">Portal</span>
+          <span className="eyebrow">{copy.clientPortal}</span>
           <h2>{copy.announcementsAndArticles}</h2>
         </div>
       </div>
@@ -593,12 +606,12 @@ function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowl
 
 function ServicesTable({ loading, services }: { loading: boolean; services: ApiService[] }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block} id="services">
           <div className={styles.blockHeader}>
             <div>
-              <span className="eyebrow">Services</span>
+              <span className="eyebrow">{copy.services}</span>
               <h2>{copy.services}</h2>
             </div>
           </div>
@@ -644,12 +657,12 @@ type DomainRow = {
 
 function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boolean }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block} id="domains">
       <div className={styles.blockHeader}>
         <div>
-          <span className="eyebrow">Domains</span>
+          <span className="eyebrow">{copy.domains}</span>
           <h2>{copy.domains}</h2>
         </div>
       </div>
@@ -693,15 +706,16 @@ function ServiceDetail({ loading, service }: { loading: boolean; service?: ApiSe
     loadHostingPanel(service.id, setPanel);
   }, [isActiveHosting, service]);
 
+  const copy = getDictionary(currentLocale()).client;
   if (!service) {
-    return loading ? <LoadingBlock title="Service" /> : <section className={styles.module}><h2>Service</h2><p>Service not found.</p></section>;
+    return loading ? <LoadingBlock title={copy.dash.service} /> : <section className={styles.module}><h2>{copy.dash.service}</h2><p>{copy.dash.serviceNotFound}</p></section>;
   }
 
   return (
     <section className={styles.module}>
       <div className={styles.detailHeader}>
         <div>
-          <span className="eyebrow">Service</span>
+          <span className="eyebrow">{copy.dash.service}</span>
           <h2>{serviceName(service)}</h2>
         </div>
         <StatusPill label={serviceStatusLabel(service.status, currentLocale())} tone={statusTone[service.status] ?? "neutral"} />
@@ -709,19 +723,19 @@ function ServiceDetail({ loading, service }: { loading: boolean; service?: ApiSe
       <p>{serviceKind(service)}</p>
       <div className={styles.detailGrid}>
         <div>
-          <span>Pricing</span>
+          <span>{copy.pricing}</span>
           <strong>{money(serviceUnitPriceCents(service), service.productPrice.currency)} / {cycleLabel(service.productPrice.billingCycle)}</strong>
         </div>
         <div>
-          <span>Domain</span>
+          <span>{copy.domain}</span>
           <strong>{serviceDomainLabel(service)}</strong>
         </div>
         <div>
-          <span>Next Due Date</span>
+          <span>{copy.nextDueDate}</span>
           <strong>{dateLabel(service.renewsAt)}</strong>
         </div>
         <div>
-          <span>Status</span>
+          <span>{copy.status}</span>
           <strong>{serviceStatusLabel(service.status, currentLocale())}</strong>
         </div>
       </div>
@@ -744,31 +758,32 @@ function HostingControlPanel({
   service: ApiService;
   setModal: (modal?: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains") => void;
 }) {
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div className={styles.controlPanel}>
       <div className={styles.hostingShell}>
         <div className={styles.panelTitle}>
           <div>
-            <span className="eyebrow">Hosting Control Panel</span>
+            <span className="eyebrow">{copy.dash.hostingControlPanel}</span>
             <h3>{panel?.domain ?? serviceName(service)}</h3>
           </div>
         </div>
         <div className={styles.hostingSection}>
           <div className={styles.usageGrid}>
-            <UsageGraph icon="disk" label="Disk space" usage={panel?.diskUsage} />
-            <UsageGraph icon="bandwidth" label="Bandwidth" usage={panel?.bandwidthUsage} />
+            <UsageGraph icon="disk" label={copy.diskSpace} usage={panel?.diskUsage} />
+            <UsageGraph icon="bandwidth" label={copy.bandwidth} usage={panel?.bandwidthUsage} />
           </div>
         </div>
         <div className={styles.hostingSection}>
           <div className={styles.controlGrid}>
-            <a href={panel?.controlPanelUrl || "#"} target="_blank" rel="noreferrer"><ExternalLink aria-hidden />Control panel</a>
-            <a href={panel?.webmailUrl || "#"} target="_blank" rel="noreferrer"><Mail aria-hidden />Webmail</a>
-            <button type="button" onClick={() => setModal("email")}><Mail aria-hidden />Mail boxes</button>
-            <button type="button" onClick={() => setModal("databases")}><Database aria-hidden />Databases</button>
-            <button type="button" onClick={() => setModal("subdomains")}><Globe aria-hidden />Subdomains</button>
-            <button type="button" onClick={() => setModal("ftp")}><UsersRound aria-hidden />FTP users</button>
-            <button type="button" onClick={() => setModal("admin")}><KeyRound aria-hidden />Admin password</button>
-            <button type="button" onClick={() => setModal("instructions")}><FileText aria-hidden />Email clients</button>
+            <a href={panel?.controlPanelUrl || "#"} target="_blank" rel="noreferrer"><ExternalLink aria-hidden />{copy.controlPanel}</a>
+            <a href={panel?.webmailUrl || "#"} target="_blank" rel="noreferrer"><Mail aria-hidden />{copy.webmail}</a>
+            <button type="button" onClick={() => setModal("email")}><Mail aria-hidden />{copy.mailboxes}</button>
+            <button type="button" onClick={() => setModal("databases")}><Database aria-hidden />{copy.databases}</button>
+            <button type="button" onClick={() => setModal("subdomains")}><Globe aria-hidden />{copy.subdomains}</button>
+            <button type="button" onClick={() => setModal("ftp")}><UsersRound aria-hidden />{copy.ftpUsers}</button>
+            <button type="button" onClick={() => setModal("admin")}><KeyRound aria-hidden />{copy.adminPassword}</button>
+            <button type="button" onClick={() => setModal("instructions")}><FileText aria-hidden />{copy.emailClients}</button>
           </div>
         </div>
         {panel?.errors.length ? <p className={styles.warn}>{panel.errors.join(" ")}</p> : null}
@@ -780,11 +795,12 @@ function HostingControlPanel({
 
 function UsageGraph({ icon, label, usage }: { icon: "bandwidth" | "disk"; label: string; usage?: Usage }) {
   const Icon = icon === "disk" ? HardDrive : BarChart3;
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div>
       <Icon aria-hidden />
       <span>{label}</span>
-      <strong>{usage ? `${usage.used} / ${usage.limit}` : <LoadingSpinner label={`Loading ${label.toLowerCase()}`} />}</strong>
+      <strong>{usage ? `${usage.used} / ${usage.limit}` : <LoadingSpinner label={copy.dash.loadingItem.replace("{item}", label.toLowerCase())} />}</strong>
       <div className={styles.usageTrack}><span style={{ width: `${usage?.percent ?? 0}%` }} /></div>
     </div>
   );
@@ -804,14 +820,15 @@ function HostingModal({
   setModal: (modal?: "admin" | "databases" | "email" | "ftp" | "instructions" | "subdomains") => void;
 }) {
   const domain = panel?.domain ?? serviceName(service);
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div className={styles.modalBackdrop}>
       <section className={styles.modal}>
-        <button className={styles.closeButton} type="button" onClick={() => setModal(undefined)}>Close</button>
-        {modal === "email" ? <EntryManager entries={panel?.mailboxes ?? []} refresh={refresh} service={service} title="Mail boxes" addIntent="add-email" removeIntent="remove-email" changeIntent="change-email-password" quotaIntent="edit-email-quota" nameField="mailUser" passField="mailPassword" quotaField="mailQuotaMb" suffix={`@${domain}`} /> : null}
-        {modal === "databases" ? <EntryManager entries={panel?.databases ?? []} refresh={refresh} service={service} title="Databases" addIntent="add-database" removeIntent="remove-database" changeIntent="change-database-password" nameField="databaseName" passField="databasePassword" extraField={["databaseType", "mysql"]} /> : null}
-        {modal === "ftp" ? <EntryManager entries={panel?.ftpUsers ?? []} refresh={refresh} service={service} title="FTP users" addIntent="add-ftp" removeIntent="remove-ftp" changeIntent="change-ftp-password" quotaIntent="edit-ftp-quota" nameField="ftpUser" passField="ftpPassword" quotaField="ftpQuotaMb" suffix={`@${domain}`} /> : null}
-        {modal === "subdomains" ? <EntryManager entries={(panel?.subdomains ?? []).map((entry) => ({ ...entry, address: entry.name }))} refresh={refresh} service={service} title="Subdomains" addIntent="add-subdomain" removeIntent="remove-subdomain" nameField="subdomain" suffix={`.${domain}`} /> : null}
+        <button className={styles.closeButton} type="button" onClick={() => setModal(undefined)}>{copy.dash.close}</button>
+        {modal === "email" ? <EntryManager entries={panel?.mailboxes ?? []} refresh={refresh} service={service} title={copy.mailboxes} addLabel={copy.dash.addMailbox} addIntent="add-email" removeIntent="remove-email" changeIntent="change-email-password" quotaIntent="edit-email-quota" nameField="mailUser" passField="mailPassword" quotaField="mailQuotaMb" suffix={`@${domain}`} /> : null}
+        {modal === "databases" ? <EntryManager entries={panel?.databases ?? []} refresh={refresh} service={service} title={copy.databases} addLabel={copy.dash.addDatabase} addIntent="add-database" removeIntent="remove-database" changeIntent="change-database-password" nameField="databaseName" passField="databasePassword" extraField={["databaseType", "mysql"]} /> : null}
+        {modal === "ftp" ? <EntryManager entries={panel?.ftpUsers ?? []} refresh={refresh} service={service} title={copy.ftpUsers} addLabel={copy.dash.addFtpUser} addIntent="add-ftp" removeIntent="remove-ftp" changeIntent="change-ftp-password" quotaIntent="edit-ftp-quota" nameField="ftpUser" passField="ftpPassword" quotaField="ftpQuotaMb" suffix={`@${domain}`} /> : null}
+        {modal === "subdomains" ? <EntryManager entries={(panel?.subdomains ?? []).map((entry) => ({ ...entry, address: entry.name }))} refresh={refresh} service={service} title={copy.subdomains} addLabel={copy.dash.addSubdomain} addIntent="add-subdomain" removeIntent="remove-subdomain" nameField="subdomain" suffix={`.${domain}`} /> : null}
         {modal === "admin" ? <PasswordAction refresh={refresh} service={service} /> : null}
         {modal === "instructions" && panel ? <EmailInstructions panel={panel} /> : null}
       </section>
@@ -821,6 +838,7 @@ function HostingModal({
 
 function EntryManager({
   addIntent,
+  addLabel,
   changeIntent,
   entries,
   extraField,
@@ -835,6 +853,7 @@ function EntryManager({
   title
 }: {
   addIntent: string;
+  addLabel: string;
   changeIntent?: string;
   entries: PanelEntry[];
   extraField?: [string, string];
@@ -848,55 +867,58 @@ function EntryManager({
   suffix?: string;
   title: string;
 }) {
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div className={styles.hostingSection}>
       <div className={styles.modalHeader}><h3>{title}</h3></div>
       <details className={styles.actionDetails}>
-        <summary>Add {title.toLowerCase().replace(/s$/, "")}</summary>
-        <ActionForm intent={addIntent} refresh={refresh} service={service} fields={[[nameField, "Name"], ...(passField ? [[passField, "Password"] as [string, string]] : []), ...(extraField ? [extraField] : [])]} suffixFor={nameField} suffix={suffix} button="Add" />
+        <summary>{addLabel}</summary>
+        <ActionForm intent={addIntent} refresh={refresh} service={service} fields={[[nameField, copy.dash.fieldName], ...(passField ? [[passField, copy.dash.fieldPassword] as [string, string]] : []), ...(extraField ? [extraField] : [])]} suffixFor={nameField} suffix={suffix} button={copy.dash.add} />
       </details>
       <div className={styles.rowList}>
         {entries.map((entry) => (
           <article className={styles.entryRow} key={entry.name}>
             <div>
               <strong>{entry.address ?? entry.name}</strong>
-              {entry.usage ? <UsageGraph icon="disk" label="Usage" usage={entry.usage} /> : <span>{entry.fields["Size"] ?? ""}</span>}
+              {entry.usage ? <UsageGraph icon="disk" label={copy.dash.usage} usage={entry.usage} /> : <span>{entry.fields["Size"] ?? ""}</span>}
             </div>
             <div className={styles.entryActions}>
               {changeIntent && passField ? <details>
-                <summary>Change password</summary>
-                <ActionForm intent={changeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[passField, "New password"]]} button="Save" />
+                <summary>{copy.dash.changePassword}</summary>
+                <ActionForm intent={changeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[passField, copy.dash.fieldNewPassword]]} button={copy.dash.save} />
               </details> : null}
               {quotaIntent && quotaField ? (
                 <details>
-                  <summary>Edit quota</summary>
-                  <ActionForm intent={quotaIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[quotaField, "Quota MB"]]} button="Save quota" />
+                  <summary>{copy.dash.editQuota}</summary>
+                  <ActionForm intent={quotaIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[[quotaField, copy.dash.fieldQuotaMb]]} button={copy.dash.saveQuota} />
                 </details>
               ) : null}
-              <div className={styles.entryDelete}><ActionForm intent={removeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[]} button="Delete" /></div>
+              <div className={styles.entryDelete}><ActionForm intent={removeIntent} refresh={refresh} service={service} hiddenFields={[[nameField, localPart(entry.name, suffix)]]} fields={[]} button={copy.dash.delete} /></div>
             </div>
           </article>
         ))}
-        {!entries.length ? <span>No items found.</span> : null}
+        {!entries.length ? <span>{copy.dash.noItems}</span> : null}
       </div>
     </div>
   );
 }
 
 function PasswordAction({ refresh, service }: { refresh: () => void; service: ApiService }) {
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div className={styles.subdomainBox}>
-      <h3><KeyRound aria-hidden size={18} /> Admin password</h3>
-      <p>This is different from the client dashboard password.</p>
-      <ActionForm intent="change-admin-password" refresh={refresh} service={service} fields={[["adminPassword", "New hosting admin password"]]} button="Change admin password" />
+      <h3><KeyRound aria-hidden size={18} /> {copy.adminPassword}</h3>
+      <p>{copy.dash.adminPasswordHint}</p>
+      <ActionForm intent="change-admin-password" refresh={refresh} service={service} fields={[["adminPassword", copy.dash.fieldNewHostingAdminPassword]]} button={copy.dash.changeAdminPassword} />
     </div>
   );
 }
 
 function EmailInstructions({ panel }: { panel: HostingPanel }) {
+  const copy = getDictionary(currentLocale()).client;
   return (
     <>
-      <h3>Email client settings</h3>
+      <h3>{copy.dash.emailClientSettings}</h3>
       <table className="table">
         <tbody>
           <tr><td>IMAP</td><td>{panel.emailInstructions.imap.server}:{panel.emailInstructions.imap.port}</td><td>{panel.emailInstructions.imap.encryption}</td></tr>
@@ -929,6 +951,7 @@ function ActionForm({
   suffixFor?: string;
 }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   async function submit(formData: FormData) {
     const body = Object.fromEntries([...hiddenFields, ...fields.map(([name]) => [name, String(formData.get(name) ?? "")] as [string, string])]);
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/hosting-panel`, {
@@ -936,7 +959,7 @@ function ActionForm({
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Sent.", "Failed."));
+    setMessage(await notifyResponse(response, copy.dash.sent, copy.dash.failed));
     if (response.ok) {
       refresh();
     }
@@ -964,7 +987,7 @@ function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => 
 }
 
 function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading: boolean }) {
-  const copy = dictionary[currentLocale()].client;
+  const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.invoiceCards}>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingInvoices} />{copy.loadingInvoices}</span></section> : null}
@@ -982,7 +1005,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
             <div className={styles.invoiceCardTotal}><span>{copy.total}</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
             <div className={styles.invoiceListAction}>
               {invoiceStatusVisible(invoice.status) ? <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} /> : null}
-              {payable ? <a className={styles.invoicePayLink} href={`/client/billing/payment?invoice=${invoice.id}`}><CreditCard size={13} />Pay now</a> : null}
+              {payable ? <a className={styles.invoicePayLink} href={`/client/billing/payment?invoice=${invoice.id}`}><CreditCard size={13} />{copy.dash.payNow}</a> : null}
             </div>
           </article>
         );
@@ -994,10 +1017,11 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
 
 function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: boolean }) {
   if (!invoice) {
-    return loading ? <LoadingBlock title="Invoice" /> : <section className={styles.module}><h2>Invoice</h2><p>Invoice not found.</p></section>;
+    const c = getDictionary(currentLocale()).client;
+    return loading ? <LoadingBlock title={c.dash.invoice} /> : <section className={styles.module}><h2>{c.dash.invoice}</h2><p>{c.dash.invoiceNotFound}</p></section>;
   }
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   const customer = invoice.customerSnapshot ?? {};
   const address = customer.address ?? {};
   const seller = invoice.sellerSnapshot ?? {};
@@ -1012,12 +1036,12 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
     <section className={styles.invoicePaper}>
       <div className={styles.invoiceActionBar}>
         <div>
-          <span>{payable ? (locale === "de" ? "Zahlung fällig" : "Payment due") : (locale === "de" ? "Rechnung bereit" : "Invoice ready")}</span>
+          <span>{payable ? copy.dash.paymentDue : copy.dash.invoiceReady}</span>
           <strong>{fmt(invoice.totalCents)}</strong>
           <small>{copy.dueAt} {dateLabel(invoice.dueAt)}</small>
         </div>
         <div className={styles.invoiceActions}>
-          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>{locale === "de" ? "Rechnung bezahlen" : "Pay invoice"}</Button> : null}
+          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>{copy.dash.payInvoice}</Button> : null}
           <InvoiceHtmlButton invoice={invoice} />
           <PdfDownloadButton invoice={invoice} />
         </div>
@@ -1060,7 +1084,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
           <div className={styles.invoiceMetaGroup}>
             <span>{copy.invoiceDueDate}</span><strong>{dateLabel(invoice.dueAt)}</strong>
             {invoice.status === "PAID" ? <><span>{copy.invoicePaymentMethod}</span><strong>{paymentGateway(invoice)}</strong></> : null}
-            <span>E-Mail</span><strong>{customer.email}</strong>
+            <span>{copy.dash.emailLabel}</span><strong>{customer.email}</strong>
           </div>
         </div>
 
@@ -1107,11 +1131,12 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
 
 function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   async function download() {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders("client") });
     if (!response.ok) {
-      setMessage("PDF failed.");
-      notify.error("PDF failed.");
+      setMessage(copy.dash.pdfFailed);
+      notify.error(copy.dash.pdfFailed);
       return;
     }
     const blob = await response.blob();
@@ -1122,18 +1147,19 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
     link.click();
     URL.revokeObjectURL(url);
     setMessage("");
-    notify.success("PDF ready.");
+    notify.success(copy.dash.pdfReady);
   }
-  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={download}>Download PDF</Button>{message ? <span>{message}</span> : null}</div>;
+  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={download}>{copy.dash.downloadPdf}</Button>{message ? <span>{message}</span> : null}</div>;
 }
 
 function InvoiceHtmlButton({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   async function openHtml() {
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/html`, { headers: authHeaders("client") });
     if (!response.ok) {
-      setMessage("HTML failed.");
-      notify.error("HTML failed.");
+      setMessage(copy.dash.htmlFailed);
+      notify.error(copy.dash.htmlFailed);
       return;
     }
     const blob = new Blob([await response.text()], { type: "text/html" });
@@ -1142,41 +1168,43 @@ function InvoiceHtmlButton({ invoice }: { invoice: ApiInvoice }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     setMessage("");
   }
-  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={openHtml}>HTML ansehen</Button>{message ? <span>{message}</span> : null}</div>;
+  return <div className={styles.pdfAction}><Button type="button" variant="secondary" onClick={openHtml}>{copy.dash.viewHtml}</Button>{message ? <span>{message}</span> : null}</div>;
 }
 
 function DomainRenewal({ service }: { service: ApiService }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/renew-domain`, {
       body: JSON.stringify({ years: Number(formData.get("years") ?? 1) }),
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Renewal sent.", "Renewal failed."));
+    setMessage(await notifyResponse(response, copy.dash.renewalSent, copy.dash.renewalFailed));
   }
-  return <form action={submit} className={styles.inlineForm}><label>Renew for years<select name="years"><option>1</option><option>2</option><option>3</option><option>5</option></select></label><Button type="submit">Renew domain</Button>{message ? <p>{message}</p> : null}</form>;
+  return <form action={submit} className={styles.inlineForm}><label>{copy.dash.renewForYears}<select name="years"><option>1</option><option>2</option><option>3</option><option>5</option></select></label><Button type="submit">{copy.dash.renewDomain}</Button>{message ? <p>{message}</p> : null}</form>;
 }
 
 function PlanChange({ service }: { service: ApiService }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   async function submit() {
     const response = await fetch(`${API_BASE_URL}/services/${service.id}/change-plan`, {
       body: JSON.stringify({}),
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Upgrade/downgrade request sent.", "Request failed."));
+    setMessage(await notifyResponse(response, copy.dash.upgradeDowngradeSent, copy.dash.requestFailed));
   }
-  return <div className={styles.inlineForm}><Button type="button" onClick={submit}>Upgrade/Downgrade</Button>{message ? <p>{message}</p> : null}</div>;
+  return <div className={styles.inlineForm}><Button type="button" onClick={submit}>{copy.dash.upgradeDowngrade}</Button>{message ? <p>{message}</p> : null}</div>;
 }
 
 function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTicket[] }) {
-  const copy = dictionary[currentLocale()].client;
+  const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
-        <div><span className="eyebrow">Support Tickets</span><h2>{copy.tickets}</h2></div>
+        <div><span className="eyebrow">{copy.tickets}</span><h2>{copy.tickets}</h2></div>
         <Button href="/client/tickets/new" icon={Send}>{copy.newTicket}</Button>
       </div>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingTickets} />{copy.loadingTickets}</span></section> : null}
@@ -1187,7 +1215,7 @@ function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTick
               <div>
                 <span>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
                 <strong>{ticket.subject}</strong>
-                <small>{ticket.department?.name ?? ""} · {ticket.service?.product?.name ?? "No related service"}</small>
+                <small>{ticket.department?.name ?? ""} · {ticket.service?.product?.name ?? copy.dash.noRelatedService}</small>
               </div>
               <div>
                 <StatusPill label={ticketStatusLabel(ticket.status, currentLocale())} tone={ticketStatusTone(ticket.status)} />
@@ -1203,6 +1231,7 @@ function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTick
 }
 
 function NewTicket({ services }: { services: ApiService[] }) {
+  const copy = getDictionary(currentLocale()).client;
   const [message, setMessage] = useState("");
   const [suggestions, setSuggestions] = useState<ApiKnowledgebaseArticle[]>([]);
   const [departments, setDepartments] = useState<ApiDepartmentRef[]>([]);
@@ -1245,21 +1274,21 @@ function NewTicket({ services }: { services: ApiService[] }) {
       window.location.assign(`/client/tickets/${ticket.id}`);
       return;
     }
-    setMessage(await notifyResponse(response, "Ticket opened.", "Ticket failed."));
+    setMessage(await notifyResponse(response, copy.dash.ticketOpened, copy.dash.ticketFailed));
   }
 
   return (
     <form action={submit} className={styles.module}>
       <LifeBuoy aria-hidden />
-      <h2>New Ticket</h2>
-      <label>Department<select className="input" name="departmentId" required>{departments.map((department) => department ? <option key={department.id} value={department.id}>{department.name}</option> : null)}</select></label>
-      <label>Related service<select className="input" name="serviceId"><option value="">No related service</option>{services.map((service) => <option key={service.id} value={service.id}>{serviceListTitle(service)}</option>)}</select></label>
-      <label>Priority<select className="input" name="priority"><option value="NORMAL">Normal</option><option value="LOW">Low</option><option value="HIGH">High</option></select></label>
-      <label>Subject<input className="input" name="subject" onChange={(event) => setText((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" required /></label>
-      <label>Message<textarea className="input" name="body" onChange={(event) => setText((current) => ({ ...current, body: event.target.value }))} required rows={6} /></label>
+      <h2>{copy.newTicket}</h2>
+      <label>{copy.newTicketDepartment}<select className="input" name="departmentId" required>{departments.map((department) => department ? <option key={department.id} value={department.id}>{department.name}</option> : null)}</select></label>
+      <label>{copy.newTicketService}<select className="input" name="serviceId"><option value="">{copy.dash.noRelatedService}</option>{services.map((service) => <option key={service.id} value={service.id}>{serviceListTitle(service)}</option>)}</select></label>
+      <label>{copy.dash.priority}<select className="input" name="priority"><option value="NORMAL">{copy.dash.priorityNormal}</option><option value="LOW">{copy.dash.priorityLow}</option><option value="HIGH">{copy.dash.priorityHigh}</option></select></label>
+      <label>{copy.newTicketSubject}<input className="input" name="subject" onChange={(event) => setText((current) => ({ ...current, subject: event.target.value }))} placeholder={copy.dash.subjectPlaceholder} required /></label>
+      <label>{copy.newTicketMessage}<textarea className="input" name="body" onChange={(event) => setText((current) => ({ ...current, body: event.target.value }))} required rows={6} /></label>
       <KnowledgebaseSuggestions articles={suggestions} />
-      <label>Files<input accept="image/png,image/jpeg,image/webp,application/pdf" className="input" multiple name="files" type="file" /></label>
-      <Button icon={Send} type="submit">Open Ticket</Button>
+      <label>{copy.dash.files}<input accept="image/png,image/jpeg,image/webp,application/pdf" className="input" multiple name="files" type="file" /></label>
+      <Button icon={Send} type="submit">{copy.dash.openTicket}</Button>
       {message ? <p>{message}</p> : null}
     </form>
   );
@@ -1269,9 +1298,10 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
   if (articles.length === 0) {
     return null;
   }
+  const copy = getDictionary(currentLocale()).client;
   return (
     <div className={styles.suggestions}>
-      <span className="eyebrow">Related articles</span>
+      <span className="eyebrow">{copy.dash.relatedArticles}</span>
       {articles.map((article) => (
         <a href={`/${currentLocale()}/knowledgebase/${article.slug}`} key={article.id} target="_blank">
           <strong>{article.title}</strong>
@@ -1284,11 +1314,11 @@ function KnowledgebaseSuggestions({ articles }: { articles: ApiKnowledgebaseArti
 
 function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseArticle[]; loading: boolean }) {
   const locale = currentLocale();
-  const copy = dictionary[locale].client;
+  const copy = getDictionary(locale).client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
-        <div><span className="eyebrow">Knowledgebase</span><h2>{copy.knowledgebase}</h2></div>
+        <div><span className="eyebrow">{copy.knowledgebase}</span><h2>{copy.knowledgebase}</h2></div>
         <Button href={`/${locale}/knowledgebase`} icon={BookOpen} variant="secondary">{copy.knowledgebase}</Button>
       </div>
       <div className={styles.articleList}>
@@ -1310,8 +1340,9 @@ function KnowledgebaseList({ articles, loading }: { articles: ApiKnowledgebaseAr
 
 function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; onTicketChange: (ticket: ApiTicket) => void; ticket?: ApiTicket }) {
   const [message, setMessage] = useState("");
+  const copy = getDictionary(currentLocale()).client;
   if (!ticket) {
-    return loading ? <LoadingBlock title="Ticket" /> : <section className={styles.module}><h2>Ticket</h2><p>Ticket not found.</p></section>;
+    return loading ? <LoadingBlock title={copy.dash.ticket} /> : <section className={styles.module}><h2>{copy.dash.ticket}</h2><p>{copy.dash.ticketNotFound}</p></section>;
   }
   const currentTicket = ticket;
 
@@ -1329,7 +1360,7 @@ function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; o
         onTicketChange(refreshed);
       }
     }
-    setMessage(await notifyResponse(response, "Reply sent.", "Reply failed."));
+    setMessage(await notifyResponse(response, copy.dash.replySent, copy.dash.replyFailed));
   }
 
   async function close() {
@@ -1338,7 +1369,7 @@ function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; o
     if (response.ok && refreshed) {
       onTicketChange(refreshed);
     }
-    setMessage(await notifyResponse(response, "Ticket closed.", "Close failed."));
+    setMessage(await notifyResponse(response, copy.dash.ticketClosed, copy.dash.closeFailed));
   }
 
   return (
@@ -1352,21 +1383,21 @@ function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; o
       </div>
       <div className={styles.ticketMeta}>
         <span>{ticket.department?.name ?? ""}</span>
-        <span>{ticket.service?.product?.name ?? "No related service"}</span>
+        <span>{ticket.service?.product?.name ?? copy.dash.noRelatedService}</span>
         <span>{dateLabel(ticket.updatedAt)}</span>
       </div>
       <TicketConversation invoiceHref={(id) => `/client/invoices/${id}`} perspective="client" ticket={ticket} />
       {ticket.status !== "CLOSED" ? (
         <form action={reply}>
           <div className={convo.composer}>
-            <textarea className={convo.composerInput} name="body" placeholder="Type a message…" required rows={2} />
-            <Button icon={Send} type="submit">Send</Button>
+            <textarea className={convo.composerInput} name="body" placeholder={copy.dash.messagePlaceholder} required rows={2} />
+            <Button icon={Send} type="submit">{copy.dash.send}</Button>
           </div>
           <div className={styles.ticketComposerExtras}>
-            <label className={styles.ticketAttachLabel}><Paperclip aria-hidden size={15} /> Attach file<input accept="image/png,image/jpeg,image/webp,application/pdf" hidden multiple name="files" type="file" /></label>
-            <Button type="button" variant="secondary" onClick={close}>Close ticket</Button>
+            <label className={styles.ticketAttachLabel}><Paperclip aria-hidden size={15} /> {copy.dash.attachFile}<input accept="image/png,image/jpeg,image/webp,application/pdf" hidden multiple name="files" type="file" /></label>
+            <Button type="button" variant="secondary" onClick={close}>{copy.ticketClose}</Button>
           </div>
-          <p className={styles.ticketHint}>You can attach images or PDF files (PNG, JPG, WebP, PDF · max 10 MB).</p>
+          <p className={styles.ticketHint}>{copy.dash.attachHint}</p>
         </form>
       ) : null}
       {message ? <p>{message}</p> : null}
@@ -1377,6 +1408,7 @@ function TicketThread({ loading, onTicketChange, ticket }: { loading: boolean; o
 type AddFundsGateway = { config?: Record<string, string | undefined>; method: string; title: string };
 
 function AddFunds() {
+  const copy = getDictionary(currentLocale()).client;
   const [message, setMessage] = useState("");
   const [gateways, setGateways] = useState<AddFundsGateway[]>([]);
   const [selectedMethod, setSelectedMethod] = useState("");
@@ -1422,29 +1454,29 @@ function AddFunds() {
         }
         if (payload?.status === "PENDING") {
           if (selectedMethod === "BANK_TRANSFER") {
-            const bankGateway = gateways.find((g) => g.method === "BANK_TRANSFER") ?? { method: "BANK_TRANSFER", title: "Bank Transfer" };
+            const bankGateway = gateways.find((g) => g.method === "BANK_TRANSFER") ?? { method: "BANK_TRANSFER", title: copy.dash.methodBankTransfer };
             setBankWireInfo({ gateway: bankGateway, invoiceNumber: String(payload.invoiceNumber ?? payload.invoiceId ?? "") });
             return;
           }
-          setMessage("Your SEPA debit has been initiated. It may take 1–3 business days to process.");
+          setMessage(copy.dash.sepaInitiated);
           setTimeout(() => window.location.assign(`/client/invoices/${payload.invoiceId}`), 3000);
           return;
         }
         window.location.assign("/client");
         return;
       }
-      setMessage((payload as { message?: string } | undefined)?.message ?? "Add funds failed. Please try again.");
+      setMessage((payload as { message?: string } | undefined)?.message ?? copy.dash.addFundsFailed);
     } finally {
       setSubmitting(false);
     }
   }
 
   const methodLabels: Record<string, string> = {
-    BANK_TRANSFER: "Bank Wire Transfer",
-    CREDIT_CARD: "Credit / Debit Card",
+    BANK_TRANSFER: copy.dash.methodBankTransfer,
+    CREDIT_CARD: copy.dash.methodCreditCard,
     PAYPAL: "PayPal",
-    SANDBOX: "Sandbox (test)",
-    SEPA: "SEPA Direct Debit"
+    SANDBOX: copy.dash.methodSandbox,
+    SEPA: copy.dash.methodSepa
   };
 
   if (bankWireInfo) {
@@ -1452,17 +1484,17 @@ function AddFunds() {
     return (
       <div className={styles.module}>
         <Landmark aria-hidden />
-        <h2>Bank Transfer Details</h2>
-        <p>Transfer the exact amount using the reference below. Your funds will be credited once we confirm receipt.</p>
+        <h2>{copy.dash.bankTransferDetails}</h2>
+        <p>{copy.dash.bankTransferIntro}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", margin: "12px 0", fontSize: "14px" }}>
-          {cfg.accountHolder && <div><strong>Account holder:</strong> {cfg.accountHolder}</div>}
-          {cfg.bankName && <div><strong>Bank:</strong> {cfg.bankName}</div>}
-          {cfg.iban && <div><strong>IBAN:</strong> <code>{cfg.iban}</code></div>}
-          {cfg.bic && <div><strong>BIC / SWIFT:</strong> <code>{cfg.bic}</code></div>}
-          <div><strong>Reference:</strong> <code>{bankWireInfo.invoiceNumber}</code></div>
+          {cfg.accountHolder && <div><strong>{copy.dash.bankAccountHolder}</strong> {cfg.accountHolder}</div>}
+          {cfg.bankName && <div><strong>{copy.dash.bankName}</strong> {cfg.bankName}</div>}
+          {cfg.iban && <div><strong>{copy.dash.bankIban}</strong> <code>{cfg.iban}</code></div>}
+          {cfg.bic && <div><strong>{copy.dash.bankBic}</strong> <code>{cfg.bic}</code></div>}
+          <div><strong>{copy.dash.bankReference}</strong> <code>{bankWireInfo.invoiceNumber}</code></div>
         </div>
         {cfg.referenceNote && <p style={{ fontSize: "13px", color: "#6b7280" }}>{cfg.referenceNote}</p>}
-        <Button icon={FileText} type="button" onClick={() => window.location.assign("/client/invoices")}>View Invoices</Button>
+        <Button icon={FileText} type="button" onClick={() => window.location.assign("/client/invoices")}>{copy.dash.viewInvoices}</Button>
       </div>
     );
   }
@@ -1470,13 +1502,13 @@ function AddFunds() {
   return (
     <form action={submit} className={styles.module}>
       <Wallet aria-hidden />
-      <h2>Add Funds</h2>
-      <p>Funds pay invoices automatically on due date. If credit is too low, saved payment info pays the rest.</p>
-      <label>Amount
+      <h2>{copy.addFunds}</h2>
+      <p>{copy.dash.addFundsIntro}</p>
+      <label>{copy.amount}
         <input className="input" min="1" name="amount" placeholder="50.00" required step="0.01" type="number" />
       </label>
       {gateways.length > 0 && (
-        <label>Payment method
+        <label>{copy.paymentMethod}
           <select className="input" value={selectedMethod} onChange={(e) => { setSelectedMethod(e.target.value); setSepaIban(""); }}>
             {gateways.map((g) => (
               <option key={g.method} value={g.method}>{methodLabels[g.method] ?? g.title}</option>
@@ -1485,7 +1517,7 @@ function AddFunds() {
         </label>
       )}
       {selectedMethod === "SEPA" && (
-        <label>IBAN
+        <label>{copy.dash.iban}
           <input
             autoComplete="off"
             className="input"
@@ -1500,7 +1532,7 @@ function AddFunds() {
         </label>
       )}
       <Button disabled={submitting || (selectedMethod === "SEPA" && !sepaIban.replace(/\s/g, ""))} icon={CreditCard} type="submit">
-        {submitting ? "Processing…" : "Add Funds"}
+        {submitting ? copy.dash.processing : copy.addFundsSubmit}
       </Button>
       {message ? <p>{message}</p> : null}
     </form>
@@ -1508,6 +1540,7 @@ function AddFunds() {
 }
 
 function PaymentInfo() {
+  const copy = getDictionary(currentLocale()).client;
   const [methods, setMethods] = useState<ApiPaymentMethod[]>([]);
   const [message, setMessage] = useState("");
   const [settingDefault, setSettingDefault] = useState<string | null>(null);
@@ -1527,7 +1560,7 @@ function PaymentInfo() {
       method: "DELETE"
     });
     if (response.ok) setMethods((items) => items.filter((item) => item.id !== id));
-    else setMessage("Remove failed. Please try again.");
+    else setMessage(copy.dash.removeFailed);
   }
 
   async function setDefault(id: string) {
@@ -1539,9 +1572,9 @@ function PaymentInfo() {
     setSettingDefault(null);
     if (response.ok) {
       setMethods((items) => items.map((item) => ({ ...item, default: item.id === id })));
-      notify.success("Default payment method updated.");
+      notify.success(copy.dash.defaultUpdated);
     } else {
-      setMessage("Could not update default. Please try again.");
+      setMessage(copy.dash.defaultUpdateFailed);
     }
   }
 
@@ -1550,16 +1583,16 @@ function PaymentInfo() {
   return (
     <section className={styles.module}>
       <CreditCard aria-hidden />
-      <h2>Saved Payment Methods</h2>
+      <h2>{copy.dash.savedPaymentMethods}</h2>
       <p>
         {methods.length
-          ? "Your saved payment methods are used for automatic invoice billing. Set one as default to control which method is charged automatically."
-          : "Pay your first invoice with PayPal, credit/debit card, or SEPA to automatically save it here for future billing."}
+          ? copy.dash.paymentMethodsIntro
+          : copy.dash.paymentMethodsEmpty}
       </p>
 
       {defaultMethod && (
         <div className={styles.defaultBanner}>
-          <strong>Active:</strong> {defaultMethod.label} — used for automatic billing on due date
+          <strong>{copy.dash.activeLabel}</strong> {defaultMethod.label} — {copy.dash.activeBillingNote}
         </div>
       )}
 
@@ -1568,9 +1601,9 @@ function PaymentInfo() {
           <table className="table">
             <thead>
               <tr>
-                <th>Method</th>
-                <th>Status</th>
-                <th>Auto billing</th>
+                <th>{copy.dash.colMethod}</th>
+                <th>{copy.status}</th>
+                <th>{copy.dash.colAutoBilling}</th>
                 <th></th>
               </tr>
             </thead>
@@ -1579,10 +1612,10 @@ function PaymentInfo() {
                 <tr key={item.id} data-default={item.default || undefined}>
                   <td>
                     {item.label}
-                    {item.default ? <span className={styles.defaultTag}>default</span> : null}
+                    {item.default ? <span className={styles.defaultTag}>{copy.dash.defaultTag}</span> : null}
                   </td>
                   <td><StatusPill label={item.status.toLowerCase()} tone={item.status === "VALID" ? "good" : "warn"} /></td>
-                  <td>{item.automatic ? "Enabled" : "Disabled"}</td>
+                  <td>{item.automatic ? copy.dash.enabled : copy.dash.disabled}</td>
                   <td className={styles.methodActions}>
                     {!item.default && (
                       <Button
@@ -1591,10 +1624,10 @@ function PaymentInfo() {
                         variant="secondary"
                         onClick={() => void setDefault(item.id)}
                       >
-                        {settingDefault === item.id ? "…" : "Set default"}
+                        {settingDefault === item.id ? "…" : copy.dash.setDefault}
                       </Button>
                     )}
-                    <Button type="button" variant="ghost" onClick={() => void remove(item.id)}>Remove</Button>
+                    <Button type="button" variant="ghost" onClick={() => void remove(item.id)}>{copy.dash.remove}</Button>
                   </td>
                 </tr>
               ))}
@@ -1634,6 +1667,7 @@ function ProfileForm({
   };
   setProfile: (profile: any) => void;
 }) {
+  const copy = getDictionary(currentLocale()).client;
   const [message, setMessage] = useState("");
   const [pwMessage, setPwMessage] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -1660,7 +1694,7 @@ function ProfileForm({
     if (response.ok && payload) {
       setProfile(payload);
     }
-    setMessage(await notifyResponse(response, "Profile saved.", "Profile failed."));
+    setMessage(await notifyResponse(response, copy.dash.profileSaved, copy.dash.profileFailed));
   }
 
   async function changePassword(formData: FormData) {
@@ -1668,13 +1702,13 @@ function ProfileForm({
     const newPw = String(formData.get("newPassword") ?? "");
     const confirmPw = String(formData.get("confirmPassword") ?? "");
     if (newPw !== confirmPw) {
-      setPwMessage("New passwords do not match.");
-      notify.error("New passwords do not match.");
+      setPwMessage(copy.dash.passwordsNoMatch);
+      notify.error(copy.dash.passwordsNoMatch);
       return;
     }
     if (!isStrongPassword(newPw)) {
-      setPwMessage("Password must be 9-16 characters with uppercase, lowercase, number, and special character (~*!@$#%_+.?:,{}).");
-      notify.error("Password does not meet requirements.");
+      setPwMessage(copy.dash.passwordRequirements);
+      notify.error(copy.dash.passwordWeak);
       return;
     }
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
@@ -1682,46 +1716,46 @@ function ProfileForm({
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
       method: "POST"
     });
-    setPwMessage(await notifyResponse(response, "Password changed successfully.", "Password change failed."));
+    setPwMessage(await notifyResponse(response, copy.dash.passwordChanged, copy.dash.passwordChangeFailed));
     if (response.ok) {
       setNewPassword("");
     }
   }
 
   const passwordRules = [
-    { label: "9–16 characters", passed: newPassword.length >= 9 && newPassword.length <= 16 },
-    { label: "Uppercase letter", passed: /[A-Z]/.test(newPassword) },
-    { label: "Lowercase letter", passed: /[a-z]/.test(newPassword) },
-    { label: "Number", passed: /\d/.test(newPassword) },
-    { label: "Special character (~*!@$#%_+.?:,{})", passed: /[~*!@$#%_+.?:,{}]/.test(newPassword) }
+    { label: copy.dash.ruleLength, passed: newPassword.length >= 9 && newPassword.length <= 16 },
+    { label: copy.dash.ruleUpper, passed: /[A-Z]/.test(newPassword) },
+    { label: copy.dash.ruleLower, passed: /[a-z]/.test(newPassword) },
+    { label: copy.dash.ruleNumber, passed: /\d/.test(newPassword) },
+    { label: copy.dash.ruleSpecial, passed: /[~*!@$#%_+.?:,{}]/.test(newPassword) }
   ];
 
   return (
     <div className={styles.module}>
       <UserRound aria-hidden />
-      <h2>Profile</h2>
-      <p>Kundennummer: <strong>{formatCustomerNumber(profile?.customerNumber)}</strong></p>
-      <p>Changing profile information here does not change registered domain contact details. Open a support ticket for domain contact changes.</p>
+      <h2>{copy.profile}</h2>
+      <p>{copy.dash.customerNumberLabel} <strong>{formatCustomerNumber(profile?.customerNumber)}</strong></p>
+      <p>{copy.dash.profileDomainNote}</p>
       <form action={submit} key={profile?.email ?? "profile"} className={styles.inlineForm}>
-        <label className={styles.fullField}>Name<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label>
-        <label className={styles.fullField}>Email<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label>
-        <label className={styles.fullField}>Address<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label>
-        <label>Postal code<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label>
-        <label>City<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label>
-        <label>State<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label>
-        <label>Country<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label>
-        <label>Phone<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label>
-        <label>VAT ID<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label>
-        <Button icon={FileText} type="submit">Save Profile</Button>
+        <label className={styles.fullField}>{copy.profile_name}<input className="input" defaultValue={profile?.name ?? ""} name="name" /></label>
+        <label className={styles.fullField}>{copy.profile_email}<input className="input" defaultValue={profile?.email ?? ""} name="email" type="email" /></label>
+        <label className={styles.fullField}>{copy.dash.address}<input className="input" defaultValue={profile?.address?.line1 ?? ""} name="address" /></label>
+        <label>{copy.dash.postalCode}<input className="input" defaultValue={profile?.address?.postalCode ?? ""} name="postalCode" /></label>
+        <label>{copy.dash.city}<input className="input" defaultValue={profile?.address?.city ?? ""} name="city" /></label>
+        <label>{copy.dash.state}<input className="input" defaultValue={profile?.address?.state ?? ""} name="state" /></label>
+        <label>{copy.profile_country}<input className="input" defaultValue={profile?.countryCode ?? "DE"} name="countryCode" /></label>
+        <label>{copy.profile_phone}<input className="input" defaultValue={profile?.phone ?? ""} name="phone" /></label>
+        <label>{copy.profile_vatId}<input className="input" defaultValue={profile?.vatId ?? ""} name="vatId" /></label>
+        <Button icon={FileText} type="submit">{copy.profile_save}</Button>
         {message ? <p>{message}</p> : null}
       </form>
 
       <hr className={styles.sectionDivider} />
-      <h3>Change Password</h3>
-      <p className={styles.passwordNote}>Must be 9–16 characters with uppercase, lowercase, a number, and a special character.</p>
+      <h3>{copy.profile_changePassword}</h3>
+      <p className={styles.passwordNote}>{copy.dash.passwordNote}</p>
       <form action={changePassword} className={styles.inlineForm}>
-        <label className={styles.fullField}>Current Password<input autoComplete="current-password" className="input" name="currentPassword" required type="password" /></label>
-        <label className={styles.fullField}>New Password
+        <label className={styles.fullField}>{copy.profile_currentPassword}<input autoComplete="current-password" className="input" name="currentPassword" required type="password" /></label>
+        <label className={styles.fullField}>{copy.profile_newPassword}
           <input
             autoComplete="new-password"
             className="input"
@@ -1741,8 +1775,8 @@ function ProfileForm({
             ))}
           </div>
         )}
-        <label className={styles.fullField}>Confirm New Password<input autoComplete="new-password" className="input" name="confirmPassword" required type="password" /></label>
-        <Button type="submit" variant="secondary">Change Password</Button>
+        <label className={styles.fullField}>{copy.dash.confirmNewPassword}<input autoComplete="new-password" className="input" name="confirmPassword" required type="password" /></label>
+        <Button type="submit" variant="secondary">{copy.profile_changePassword}</Button>
         {pwMessage ? <p>{pwMessage}</p> : null}
       </form>
     </div>
@@ -1750,33 +1784,20 @@ function ProfileForm({
 }
 
 function titleFor(view: ClientView, locale: Locale = currentLocale()) {
-  const labels = {
-    de: {
-      "add-funds": "Guthaben aufladen",
-      dashboard: "Dashboard",
-      domains: "Domains",
-      invoices: "Meine Rechnungen",
-      knowledgebase: "Wissensdatenbank",
-      "new-ticket": "Ticket eroeffnen",
-      payment: "Zahlungen",
-      profile: "Profil",
-      services: "Services",
-      tickets: "Meine Support Tickets"
-    },
-    en: {
-      "add-funds": "Add Funds",
-      dashboard: "Dashboard",
-      domains: "Domains",
-      invoices: "My Invoices",
-      knowledgebase: "Knowledgebase",
-      "new-ticket": "Open Ticket",
-      payment: "Payments",
-      profile: "Profile",
-      services: "Services",
-      tickets: "My Support Tickets"
-    }
-  } as const;
-  return labels[locale][view];
+  const t = getDictionary(locale).client.dash.title;
+  const map: Record<ClientView, string> = {
+    "add-funds": t.addFunds,
+    dashboard: t.dashboard,
+    domains: t.domains,
+    invoices: t.invoices,
+    knowledgebase: t.knowledgebase,
+    "new-ticket": t.newTicket,
+    payment: t.payment,
+    profile: t.profile,
+    services: t.services,
+    tickets: t.tickets
+  };
+  return map[view];
 }
 
 function dateLabel(value?: string | null) {

@@ -1,0 +1,26 @@
+{
+  "title": "Invoice",
+  "intro": "Thank you for your order. We are charging the following services as per your order.",
+  "vatId": "VAT ID",
+  "meta": {
+    "invoiceDate": "Invoice Date",
+    "dueDate": "Due Date",
+    "paidDate": "Paid On",
+    "paymentMethod": "Payment Method",
+    "customerNumber": "Customer No."
+  },
+  "table": {
+    "position": "Pos.",
+    "description": "Description",
+    "period": "Period",
+    "quantity": "Qty",
+    "unitPrice": "Unit Price",
+    "total": "Total"
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "vat": "VAT",
+    "grandTotal": "Total Amount"
+  }
+}

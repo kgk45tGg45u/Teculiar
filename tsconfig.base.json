@@ -15,7 +15,9 @@
     "baseUrl": ".",
     "paths": {
       "@dezhost/shared": ["packages/shared/src/index.ts"],
-      "@dezhost/shared/*": ["packages/shared/src/*"]
+      "@dezhost/shared/*": ["packages/shared/src/*"],
+      "@dezhost/locales": ["packages/locales/index.ts"],
+      "@dezhost/locales/*": ["packages/locales/*"]
     }
   }
 }

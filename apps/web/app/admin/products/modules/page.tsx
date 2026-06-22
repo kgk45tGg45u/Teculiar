@@ -5,14 +5,14 @@ import { LanguageToggle } from "../../../../components/layout/language-toggle";
 import { Button } from "../../../../components/ui/button";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { requestLocale } from "../../../../lib/server-locale";
-import { dictionary } from "../../../../lib/i18n";
+import { getDictionary } from "../../../../lib/dictionary";
 import type { AuthUser, ApiDomainPrice } from "../../../../lib/api";
 import { Suspense } from "react";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 
 export default async function AdminModulesPage() {
   const locale = await requestLocale();
-  const copy = dictionary[locale].admin;
+  const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
     await redirectToAdminLogin();

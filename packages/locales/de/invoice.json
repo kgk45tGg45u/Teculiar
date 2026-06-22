@@ -1,0 +1,26 @@
+{
+  "title": "Rechnung",
+  "intro": "Vielen Dank für Ihren Auftrag. Wir berechnen die folgenden Leistungen gemäß Ihrer Bestellung.",
+  "vatId": "USt-IdNr.",
+  "meta": {
+    "invoiceDate": "Rechnungsdatum",
+    "dueDate": "Fällig am",
+    "paidDate": "Bezahlt am",
+    "paymentMethod": "Zahlungsart",
+    "customerNumber": "Kundennummer"
+  },
+  "table": {
+    "position": "Pos.",
+    "description": "Beschreibung",
+    "period": "Zeitraum",
+    "quantity": "Menge",
+    "unitPrice": "Einzelpreis",
+    "total": "Gesamt"
+  },
+  "totals": {
+    "subtotal": "Zwischensumme",
+    "discount": "Rabatt",
+    "vat": "Umsatzsteuer",
+    "grandTotal": "Rechnungsbetrag"
+  }
+}
