@@ -2,13 +2,15 @@
 
 import { Eye, EyeOff, RefreshCw, Save, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, money, type ApiDomainPrice, type ApiModule } from "../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, money, type ApiDomainPrice, type ApiModule } from "../../lib/api";
+import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
 import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPrice[] }) {
+  const c = getDictionary(currentLocale()).admin.modules;
   const [modules, setModules] = useState<ApiModule[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,14 +34,14 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
     if (response.ok) {
       const data = await response.json().catch(() => null);
       if (Array.isArray(data)) setModules(data);
-      notify.success(`${mod.label} ${mod.active ? "disabled" : "enabled"}.`);
+      notify.success((mod.active ? c.moduleDisabled : c.moduleEnabled).replace("{label}", mod.label));
     } else {
-      notify.error("Failed to update module.");
+      notify.error(c.moduleUpdateFailed);
     }
   }
 
   if (loading) {
-    return <div style={{ padding: 16, color: "var(--muted)", fontSize: "0.9rem" }}>Loading modules…</div>;
+    return <div style={{ padding: 16, color: "var(--muted)", fontSize: "0.9rem" }}>{c.loadingModules}</div>;
   }
 
   const selectedModule = modules.find((m) => m.name === selected);
@@ -58,14 +60,14 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
                 <p className={styles.moduleDesc}>{mod.description}</p>
               </div>
               <div className={styles.moduleCardActions}>
-                <StatusPill label={mod.active ? "Active" : "Inactive"} tone={mod.active ? "good" : "neutral"} />
+                <StatusPill label={mod.active ? c.active : c.inactive} tone={mod.active ? "good" : "neutral"} />
                 <Button
                   icon={mod.active ? EyeOff : Eye}
                   type="button"
                   variant="secondary"
                   onClick={() => toggleActive(mod)}
                 >
-                  {mod.active ? "Disable" : "Enable"}
+                  {mod.active ? c.disable : c.enable}
                 </Button>
                 <Button
                   icon={Settings}
@@ -73,7 +75,7 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
                   variant={selected === mod.name ? "secondary" : "ghost"}
                   onClick={() => setSelected(selected === mod.name ? null : mod.name)}
                 >
-                  Configure
+                  {c.configure}
                 </Button>
               </div>
             </div>
@@ -100,6 +102,7 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
 }
 
 function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: ApiDomainPrice[]; module: ApiModule; onSaved: (updated: ApiModule) => void }) {
+  const c = getDictionary(currentLocale()).admin.modules;
   const [prices, setPrices] = useState<ApiDomainPrice[]>(initialPrices);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
@@ -142,9 +145,9 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
           });
         }
       }
-      notify.success("Resell.biz credentials saved.");
+      notify.success(c.resellbizSaved);
     } else {
-      notify.error("Failed to save Resell.biz config.");
+      notify.error(c.resellbizSaveFailed);
     }
   }
 
@@ -157,11 +160,11 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
     });
     setSyncing(false);
     if (response.ok) {
-      notify.success("Domain prices synced.");
+      notify.success(c.domainPricesSynced);
       const updated = await fetch(`${API_BASE_URL}/orders/admin/domain-prices`, { headers: authHeaders() }).then((r) => r.json().catch(() => []));
       if (Array.isArray(updated)) setPrices(updated);
     } else {
-      notify.error("Sync failed.");
+      notify.error(c.syncFailed);
     }
   }
 
@@ -178,29 +181,26 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
       headers: { "Content-Type": "application/json", ...authHeaders() },
       method: "POST"
     });
-    setMessage(await notifyResponse(response, "Price saved.", "Price save failed."));
+    setMessage(await notifyResponse(response, c.priceSaved, c.priceSaveFailed));
   }
 
   return (
     <div className={styles.moduleConfig}>
       <div className={styles.moduleConfigHeader}>
-        <h3>Resell.biz — API Credentials</h3>
+        <h3>{c.resellbizCreds}</h3>
       </div>
-      <p style={{ padding: "0 16px 12px", margin: 0, fontSize: "0.88rem", color: "var(--muted)" }}>
-        Credentials are stored in the database and used for domain registration, transfer, renewal and
-        price sync. The server <code>.env</code> is only a fallback. Leave the API key blank to keep the stored one.
-      </p>
+      <p style={{ padding: "0 16px 12px", margin: 0, fontSize: "0.88rem", color: "var(--muted)" }} dangerouslySetInnerHTML={{ __html: c.resellbizCredsHintHtml }} />
       <form className={styles.form} onSubmit={saveConfig}>
         <div className={styles.formGrid}>
           <label>
-            API mode
+            {c.apiMode}
             <select value={config.mode} onChange={(e) => setConfig({ ...config, mode: e.target.value })}>
-              <option value="test">Test (test.httpapi.com)</option>
-              <option value="live">Live (httpapi.com)</option>
+              <option value="test">{c.modeTest}</option>
+              <option value="live">{c.modeLive}</option>
             </select>
           </label>
           <label>
-            Reseller ID
+            {c.resellerId}
             <input
               placeholder="auth-userid"
               value={config.resellerId}
@@ -208,55 +208,55 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
             />
           </label>
           <label>
-            API key
+            {c.apiKey}
             <input
               autoComplete="off"
-              placeholder={config.apiKey === "********" ? "••••••••" : "Enter API key"}
+              placeholder={config.apiKey === "********" ? "••••••••" : c.enterApiKey}
               type="password"
               value={config.apiKey === "********" ? "" : config.apiKey}
               onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
             />
           </label>
           <label className={styles.formSpan2}>
-            Default name servers
+            {c.defaultNameServers}
             <input
               placeholder="ns5.dezhost.com, ns6.dezhost.com"
               value={config.defaultNs}
               onChange={(e) => setConfig({ ...config, defaultNs: e.target.value })}
             />
             <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-              Used when the customer leaves name servers blank at checkout. Falls back to ns5.dezhost.com, ns6.dezhost.com.
+              {c.defaultNsHint}
             </span>
           </label>
         </div>
         <div className={styles.formActions}>
-          <Button icon={Save} type="submit">{savingConfig ? "Saving…" : "Save Credentials"}</Button>
+          <Button icon={Save} type="submit">{savingConfig ? c.saving : c.saveCredentials}</Button>
         </div>
       </form>
 
       <div className={styles.moduleConfigHeader}>
-        <h3>Resell.biz — Domain Prices</h3>
+        <h3>{c.resellbizPrices}</h3>
         {module.active ? (
           <Button icon={RefreshCw} type="button" variant="secondary" onClick={sync}>
-            {syncing ? "Syncing…" : "Sync from Resell.biz"}
+            {syncing ? c.syncing : c.syncFromResellbiz}
           </Button>
         ) : (
-          <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Module disabled — prices are managed manually below.</span>
+          <span style={{ fontSize: "0.82rem", color: "var(--muted)" }}>{c.moduleDisabledManual}</span>
         )}
       </div>
 
       <form action={upsertPrice} className={styles.form}>
-        <h4 style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "var(--muted)" }}>Add / Update Price</h4>
+        <h4 style={{ margin: "0 0 4px", fontSize: "0.85rem", color: "var(--muted)" }}>{c.addUpdatePrice}</h4>
         <div className={styles.formGrid}>
-          <label>TLD<input name="tld" placeholder=".de" /></label>
-          <label>Action<select name="action"><option value="register">Register</option><option value="transfer">Transfer</option><option value="renew">Renew</option></select></label>
-          <label>Years<input defaultValue="1" min="1" max="10" name="years" type="number" /></label>
-          <label>Price (EUR)<input min="0" name="amountCents" placeholder="Leave blank for Resell.biz price" step="0.01" type="number" /></label>
-          <label><span><input name="manual" type="checkbox" /> Manual override</span></label>
-          <label><span><input name="suggested" type="checkbox" /> Show as suggestion</span></label>
+          <label>{c.tld}<input name="tld" placeholder=".de" /></label>
+          <label>{c.action}<select name="action"><option value="register">{c.register}</option><option value="transfer">{c.transfer}</option><option value="renew">{c.renew}</option></select></label>
+          <label>{c.years}<input defaultValue="1" min="1" max="10" name="years" type="number" /></label>
+          <label>{c.priceEur}<input min="0" name="amountCents" placeholder={c.leaveBlankResellbiz} step="0.01" type="number" /></label>
+          <label><span><input name="manual" type="checkbox" /> {c.manualOverride}</span></label>
+          <label><span><input name="suggested" type="checkbox" /> {c.showAsSuggestion}</span></label>
         </div>
         <div className={styles.formActions}>
-          <Button icon={Save} type="submit">Save Price</Button>
+          <Button icon={Save} type="submit">{c.savePrice}</Button>
           {message ? <span style={{ fontSize: "0.85rem", color: "var(--muted)", alignSelf: "center" }}>{message}</span> : null}
         </div>
       </form>
@@ -264,13 +264,13 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
       <table className="table">
         <thead>
           <tr>
-            <th>TLD</th>
-            <th>Action</th>
-            <th>Years</th>
-            <th>Price</th>
-            <th>Manual</th>
-            <th>Suggested</th>
-            <th>Last update</th>
+            <th>{c.tld}</th>
+            <th>{c.action}</th>
+            <th>{c.years}</th>
+            <th>{c.colPrice}</th>
+            <th>{c.colManual}</th>
+            <th>{c.colSuggested}</th>
+            <th>{c.colLastUpdate}</th>
           </tr>
         </thead>
         <tbody>
@@ -279,13 +279,13 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
               <td>.{price.tld}</td>
               <td>{price.action}</td>
               <td>{price.years}</td>
-              <td>{price.amountCents > 0 ? money(price.amountCents, price.currency) : "Resell.biz live"}</td>
-              <td>{price.manual ? "yes" : "—"}</td>
-              <td>{price.suggested ? "yes" : "—"}</td>
+              <td>{price.amountCents > 0 ? money(price.amountCents, price.currency) : c.resellbizLive}</td>
+              <td>{price.manual ? c.yes : "—"}</td>
+              <td>{price.suggested ? c.yes : "—"}</td>
               <td>{price.updatedAt ? new Date(price.updatedAt).toLocaleDateString("de-DE") : "—"}</td>
             </tr>
           )) : (
-            <tr><td colSpan={7} style={{ color: "var(--muted)" }}>No prices synced yet. Click "Sync from Resell.biz" to import.</td></tr>
+            <tr><td colSpan={7} style={{ color: "var(--muted)" }}>{c.noPricesSynced}</td></tr>
           )}
         </tbody>
       </table>
@@ -294,6 +294,7 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
 }
 
 function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknown>; onSaved: (updated: ApiModule) => void }) {
+  const c = getDictionary(currentLocale()).admin.modules;
   const [config, setConfig] = useState({
     allowSelfSigned: Boolean(initial.allowSelfSigned),
     endpoint: String(initial.endpoint ?? ""),
@@ -326,27 +327,26 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
         const vm = data.find((m: ApiModule) => m.name === "virtualmin");
         if (vm) onSaved(vm);
       }
-      notify.success("Virtualmin credentials saved.");
-      setMessage("Saved.");
+      notify.success(c.virtualminSaved);
+      setMessage(c.saved);
     } else {
-      notify.error("Failed to save Virtualmin config.");
-      setMessage("Save failed.");
+      notify.error(c.virtualminSaveFailed);
+      setMessage(c.saveFailedShort);
     }
   }
 
   return (
     <div className={styles.moduleConfig}>
       <div className={styles.moduleConfigHeader}>
-        <h3>Virtualmin — Server Configuration</h3>
+        <h3>{c.virtualminConfig}</h3>
       </div>
       <p style={{ padding: "0 16px 12px", margin: 0, fontSize: "0.88rem", color: "var(--muted)" }}>
-        These credentials are used for automated hosting account provisioning.
-        Changes are stored in the database and take effect immediately.
+        {c.virtualminHint}
       </p>
       <form className={styles.form} onSubmit={submit}>
         <div className={styles.formGrid}>
           <label className={styles.formSpan2}>
-            Virtualmin Server URL
+            {c.vmServerUrl}
             <input
               placeholder="https://hosting.example.com:10000"
               value={config.endpoint}
@@ -354,7 +354,7 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
             />
           </label>
           <label>
-            Admin Username
+            {c.adminUsername}
             <input
               autoComplete="username"
               placeholder="root"
@@ -363,17 +363,17 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
             />
           </label>
           <label>
-            Admin Password
+            {c.adminPassword}
             <input
               autoComplete="current-password"
-              placeholder={initial.password ? "••••••••" : "Enter password"}
+              placeholder={initial.password ? "••••••••" : c.enterPassword}
               type="password"
               value={config.password}
               onChange={(e) => setConfig({ ...config, password: e.target.value })}
             />
           </label>
           <label>
-            Minutes between server jobs
+            {c.minutesBetweenJobs}
             <input
               min="0"
               step="1"
@@ -382,7 +382,7 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
               onChange={(e) => setConfig({ ...config, jobDelayMinutes: e.target.value })}
             />
             <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-              Minimum delay enforced between create / suspend / delete jobs so Virtualmin never gets simultaneous changes. 0 disables it.
+              {c.minutesBetweenJobsHint}
             </span>
           </label>
           <label className={styles.formSpan2}>
@@ -392,15 +392,15 @@ function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknow
                 type="checkbox"
                 onChange={(e) => setConfig({ ...config, allowSelfSigned: e.target.checked })}
               />{" "}
-              Allow Self-Signed SSL Certificate
+              {c.allowSelfSigned}
             </span>
             <span style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-              Enable only if your Virtualmin server uses a self-signed certificate (not from a trusted CA).
+              {c.allowSelfSignedHint}
             </span>
           </label>
         </div>
         <div className={styles.formActions}>
-          <Button icon={Save} type="submit">Save Virtualmin Config</Button>
+          <Button icon={Save} type="submit">{c.saveVirtualminConfig}</Button>
           {message ? <span style={{ fontSize: "0.85rem", color: "var(--muted)", alignSelf: "center" }}>{message}</span> : null}
         </div>
       </form>

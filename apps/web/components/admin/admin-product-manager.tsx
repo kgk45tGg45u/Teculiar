@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, type ApiProduct, type ApiProductCategory } from "../../lib/api";
+import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
 import styles from "./admin-product-manager.module.css";
+
+type ProductsDict = Dictionary["admin"]["productMgr"];
 
 type FormState = { kind: "idle" | "loading" | "ok" | "error"; message?: string };
 type VirtualminOption = {
@@ -15,6 +18,7 @@ type VirtualminOption = {
 };
 
 export function AdminCategoryManager() {
+  const c = getDictionary(currentLocale()).admin.productMgr;
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
@@ -30,7 +34,7 @@ export function AdminCategoryManager() {
   }
 
   async function saveCategory(formData: FormData) {
-    setState({ kind: "loading", message: "Saving category…" });
+    setState({ kind: "loading", message: c.savingCategory });
     const categoryId = String(formData.get("categoryId") ?? "");
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
       body: JSON.stringify({
@@ -45,27 +49,27 @@ export function AdminCategoryManager() {
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      const message = typeof payload.message === "string" ? payload.message : "Category could not be saved.";
+      const message = typeof payload.message === "string" ? payload.message : c.categorySaveFailed;
       setState({ kind: "error", message });
       notify.error(message);
       return;
     }
-    setState({ kind: "ok", message: "Category saved." });
-    notify.success("Category saved.");
+    setState({ kind: "ok", message: c.categorySaved });
+    notify.success(c.categorySaved);
     setEditingCategory(undefined);
     await refreshCategories();
   }
 
   async function removeCategory(category: ApiProductCategory) {
-    setState({ kind: "loading", message: "Removing category…" });
+    setState({ kind: "loading", message: c.removingCategory });
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories/${category.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
-      setState({ kind: "error", message: "Category could not be removed." });
-      notify.error("Category could not be removed.");
+      setState({ kind: "error", message: c.categoryRemoveFailed });
+      notify.error(c.categoryRemoveFailed);
       return;
     }
-    setState({ kind: "ok", message: "Category removed." });
-    notify.success("Category removed.");
+    setState({ kind: "ok", message: c.categoryRemoved });
+    notify.success(c.categoryRemoved);
     await refreshCategories();
   }
 
@@ -73,44 +77,44 @@ export function AdminCategoryManager() {
     <div className={styles.stack}>
       <section className={styles.card}>
         <div className={styles.cardHeader}>
-          <h2>{editingCategory ? `Edit: ${editingCategory.name}` : "New Category"}</h2>
+          <h2>{editingCategory ? `${c.editPrefix} ${editingCategory.name}` : c.newCategory}</h2>
         </div>
         <form action={saveCategory} className={styles.form} key={editingCategory?.id ?? "new-category"}>
           <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
           <div className={styles.grid}>
-            <label>Name<input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Web Hosting" /></label>
-            <label>Slug<input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" /></label>
+            <label>{c.name}<input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Web Hosting" /></label>
+            <label>{c.slug}<input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" /></label>
             <label>
-              Module
+              {c.module}
               <select defaultValue={editingCategory?.provisioningModule ?? "none"} name="categoryModule">
-                <option value="virtualmin">Virtualmin</option>
-                <option value="resellbiz">ResellBiz</option>
-                <option value="hetzner">Hetzner</option>
-                <option value="none">Manual</option>
+                <option value="virtualmin">{c.virtualmin}</option>
+                <option value="resellbiz">{c.resellbiz}</option>
+                <option value="hetzner">{c.hetzner}</option>
+                <option value="none">{c.manual}</option>
               </select>
             </label>
-            <label>Sort Order<input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" min="0" /></label>
+            <label>{c.sortOrder}<input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" min="0" /></label>
           </div>
-          <label>Description<textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} /></label>
+          <label>{c.description}<textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} /></label>
           <div className={styles.formActions}>
-            <Button size="sm" type="submit">Save Category</Button>
-            {editingCategory ? <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>+ New Category</Button> : null}
+            <Button size="sm" type="submit">{c.saveCategory}</Button>
+            {editingCategory ? <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>{c.newCategory}</Button> : null}
             {state.message ? <span className={styles[state.kind]}>{state.message}</span> : null}
           </div>
         </form>
       </section>
 
       <section className={styles.card}>
-        <div className={styles.cardHeader}><h2>Categories</h2></div>
+        <div className={styles.cardHeader}><h2>{c.categories}</h2></div>
         <div className={styles.tableWrap}>
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Module</th>
-                <th>Products</th>
+                <th>{c.name}</th>
+                <th>{c.slug}</th>
+                <th>{c.module}</th>
+                <th>{c.colProducts}</th>
                 <th></th>
               </tr>
             </thead>
@@ -120,15 +124,15 @@ export function AdminCategoryManager() {
                   <td className={styles.muted}>{category.sortOrder ?? 0}</td>
                   <td>{category.name}</td>
                   <td className={styles.mono}>{category.slug}</td>
-                  <td>{moduleLabel(category.provisioningModule)}</td>
+                  <td>{moduleLabel(category.provisioningModule, c)}</td>
                   <td>{category.products?.length ?? 0}</td>
                   <td className={styles.rowActions}>
-                    <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(category)}>Edit</Button>
-                    <Button size="sm" type="button" variant="ghost" onClick={() => removeCategory(category)}>Remove</Button>
+                    <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(category)}>{c.edit}</Button>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => removeCategory(category)}>{c.remove}</Button>
                   </td>
                 </tr>
               ))}
-              {categories.length === 0 && <tr><td colSpan={6} className={styles.empty}>No categories yet.</td></tr>}
+              {categories.length === 0 && <tr><td colSpan={6} className={styles.empty}>{c.noCategories}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -138,6 +142,7 @@ export function AdminCategoryManager() {
 }
 
 export function AdminProductManager() {
+  const c = getDictionary(currentLocale()).admin.productMgr;
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
@@ -157,8 +162,8 @@ export function AdminProductManager() {
   }, []);
 
   async function submit(formData: FormData) {
-    setState({ kind: "loading", message: "Saving product…" });
-    notify.info("Saving product…");
+    setState({ kind: "loading", message: c.savingProduct });
+    notify.info(c.savingProduct);
     const setupFeeCents = cents(formData.get("setupFee"));
     const prices = ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"]
       .map((billingCycle) => {
@@ -192,32 +197,32 @@ export function AdminProductManager() {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(typeof payload.message === "string" ? payload.message : "Product could not be saved.");
+        throw new Error(typeof payload.message === "string" ? payload.message : c.productSaveFailed);
       }
 
-      setState({ kind: "ok", message: "Product saved." });
-      notify.success("Product saved.");
+      setState({ kind: "ok", message: c.productSaved });
+      notify.success(c.productSaved);
       setEditing(undefined);
       setCategoryId("");
       await refreshProducts();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Product save failed.";
+      const message = error instanceof Error ? error.message : c.productSaveFailedShort;
       setState({ kind: "error", message });
       notify.error(message);
     }
   }
 
   async function removeProduct(product: ApiProduct) {
-    if (!confirm(`Remove product "${product.name}"? This cannot be undone.`)) return;
-    setState({ kind: "loading", message: "Removing product…" });
+    if (!confirm(c.removeProductConfirm.replace("{name}", product.name))) return;
+    setState({ kind: "loading", message: c.removingProduct });
     const response = await fetch(`${API_BASE_URL}/admin/dev/products/${product.id}`, { headers: authHeaders(), method: "DELETE" });
     if (!response.ok) {
-      setState({ kind: "error", message: "Product could not be removed." });
-      notify.error("Product could not be removed.");
+      setState({ kind: "error", message: c.productRemoveFailed });
+      notify.error(c.productRemoveFailed);
       return;
     }
-    setState({ kind: "ok", message: "Product removed." });
-    notify.success("Product removed.");
+    setState({ kind: "ok", message: c.productRemoved });
+    notify.success(c.productRemoved);
     await refreshProducts();
   }
 
@@ -250,9 +255,9 @@ export function AdminProductManager() {
     setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
     setDetectedPlans(payload.plans ?? []);
     if (response.ok) {
-      notify.success("Virtualmin plans detected.");
+      notify.success(c.vmDetected);
     } else {
-      notify.error("Virtualmin plan detection failed.");
+      notify.error(c.vmDetectFailed);
     }
   }
 
@@ -266,9 +271,9 @@ export function AdminProductManager() {
     setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
     setDetectedPlans(payload.plans ?? []);
     if (response.ok) {
-      notify.success("Virtualmin plans saved.");
+      notify.success(c.vmSaved);
     } else {
-      notify.error("Virtualmin plan sync failed.");
+      notify.error(c.vmSyncFailed);
     }
     await refreshProducts();
   }
@@ -285,10 +290,10 @@ export function AdminProductManager() {
     <div className={styles.stack}>
       <section className={styles.card}>
         <div className={styles.cardHeader}>
-          <h2>{editing ? `Edit: ${editing.name}` : "New Product"}</h2>
+          <h2>{editing ? `${c.editPrefix} ${editing.name}` : c.newProduct}</h2>
           {editing ? (
             <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); }}>
-              + New Product
+              {c.newProduct}
             </Button>
           ) : null}
         </div>
@@ -300,61 +305,61 @@ export function AdminProductManager() {
           <input name="freeDomainBillingCycle" type="hidden" value={canOrderWithDomain ? freeDomainCycle : ""} />
 
           <fieldset className={styles.fieldset}>
-            <legend>Basic Info</legend>
+            <legend>{c.basicInfo}</legend>
             <div className={styles.grid}>
-              <label>Name<input defaultValue={editing?.name ?? ""} name="name" required placeholder="Web Hosting Basic" /></label>
-              <label>Slug<input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="web-hosting-basic" /></label>
+              <label>{c.name}<input defaultValue={editing?.name ?? ""} name="name" required placeholder="Web Hosting Basic" /></label>
+              <label>{c.slug}<input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="web-hosting-basic" /></label>
               <label>
-                Type
+                {c.type}
                 <select defaultValue={editing?.type ?? "DOMAIN"} name="type" onChange={(e) => setType(e.target.value)}>
-                  <option value="DOMAIN">Domain</option>
-                  <option value="SHARED_HOSTING">Web Hosting</option>
-                  <option value="VPS">VPS</option>
+                  <option value="DOMAIN">{c.typeDomain}</option>
+                  <option value="SHARED_HOSTING">{c.typeWebHosting}</option>
+                  <option value="VPS">{c.typeVps}</option>
                 </select>
               </label>
               <label>
-                Category
+                {c.category}
                 <select defaultValue={editing?.categoryId ?? editing?.category?.id ?? ""} name="categoryId" onChange={(e) => {
-                  const nextCategory = categories.find((c) => c.id === e.target.value);
+                  const nextCategory = categories.find((cat) => cat.id === e.target.value);
                   setCategoryId(e.target.value);
                   setModule(nextCategory?.provisioningModule ?? "none");
                 }}>
-                  <option value="">No Category</option>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="">{c.noCategory}</option>
+                  {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                 </select>
               </label>
-              <label>Sort Order<input defaultValue={editing?.sortOrder ?? 0} name="sortOrder" type="number" min="0" placeholder="0" /></label>
-              <label>Custom Fields<input defaultValue={customFieldsValue(editing)} name="customFields" placeholder="Hostname, PHP Version" /></label>
+              <label>{c.sortOrder}<input defaultValue={editing?.sortOrder ?? 0} name="sortOrder" type="number" min="0" placeholder="0" /></label>
+              <label>{c.customFields}<input defaultValue={customFieldsValue(editing)} name="customFields" placeholder="Hostname, PHP Version" /></label>
             </div>
-            <label>Description<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
+            <label>{c.description}<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
           </fieldset>
 
           {isDomainProduct ? null : (
             <fieldset className={styles.fieldset}>
-              <legend>Domain</legend>
+              <legend>{c.domain}</legend>
               <label className={styles.checkboxRow}>
                 <input
                   checked={canOrderWithDomain}
                   onChange={(e) => setDomainRequirement(e.target.checked ? "NECESSARY" : "NOT_NEEDED")}
                   type="checkbox"
                 />
-                Can be ordered with a domain
+                {c.canOrderWithDomain}
               </label>
               {canOrderWithDomain ? (
                 <div className={styles.grid}>
                   <label>
-                    Domain requirement
+                    {c.domainRequirement}
                     <select value={domainRequirement} onChange={(e) => setDomainRequirement(e.target.value)}>
-                      <option value="NECESSARY">Necessary — domain required</option>
-                      <option value="OPTIONAL">Optional — domain can be skipped</option>
+                      <option value="NECESSARY">{c.reqNecessary}</option>
+                      <option value="OPTIONAL">{c.reqOptional}</option>
                     </select>
                   </label>
                   <label>
-                    Free domain included
+                    {c.freeDomainIncluded}
                     <select value={freeDomainCycle} onChange={(e) => setFreeDomainCycle(e.target.value)}>
-                      <option value="">No free domain</option>
+                      <option value="">{c.noFreeDomain}</option>
                       {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
-                        <option key={cycle} value={cycle}>{cycleLabel(cycle)} and longer</option>
+                        <option key={cycle} value={cycle}>{c.andLonger.replace("{cycle}", cycleLabel(cycle, c))}</option>
                       ))}
                     </select>
                   </label>
@@ -364,19 +369,19 @@ export function AdminProductManager() {
           )}
 
           {type === "DOMAIN" ? (
-            <p className={styles.note}>Domain pricing comes from Admin / Domain Prices. The product price shows "from" the cheapest TLD.</p>
+            <p className={styles.note}>{c.domainPricingNote}</p>
           ) : (
             <fieldset className={styles.fieldset}>
-              <legend>Pricing (EUR)</legend>
+              <legend>{c.pricingEur}</legend>
               <div className={styles.priceGrid}>
                 {["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "YEAR_1", "YEAR_2", "YEAR_3", "YEAR_4"].map((cycle) => (
                   <label key={cycle}>
-                    <span className={styles.cycleLabel}>{cycleLabel(cycle)}</span>
+                    <span className={styles.cycleLabel}>{cycleLabel(cycle, c)}</span>
                     <input defaultValue={priceValue(editing, cycle)} name={`price_${cycle}`} placeholder="—" />
                   </label>
                 ))}
                 <label>
-                  <span className={styles.cycleLabel}>Setup Fee</span>
+                  <span className={styles.cycleLabel}>{c.setupFee}</span>
                   <input name="setupFee" placeholder="0" />
                 </label>
               </div>
@@ -385,31 +390,31 @@ export function AdminProductManager() {
 
           {effectiveModule === "virtualmin" ? (
             <fieldset className={styles.fieldset}>
-              <legend>Virtualmin</legend>
+              <legend>{c.virtualmin}</legend>
               <div className={styles.virtualminRow}>
                 <label className={styles.flexGrow}>
-                  Plan
-                  <select defaultValue={String(editing?.configs?.find((c) => c.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(e) => setSelectedPlan(e.target.value)}>
-                    <option value="">Select plan</option>
+                  {c.plan}
+                  <select defaultValue={String(editing?.configs?.find((cfg) => cfg.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(e) => setSelectedPlan(e.target.value)}>
+                    <option value="">{c.selectPlan}</option>
                     {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
                   </select>
                 </label>
-                <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect plans</Button>
+                <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>{c.detectPlans}</Button>
               </div>
               {plan ? (
                 <div className={styles.limits}>
-                  <span>Disk: {plan.limits?.disk ?? "?"}</span>
-                  <span>Bandwidth: {plan.limits?.bandwidth ?? "?"}</span>
-                  <span>Email: {plan.limits?.mailboxes ?? "?"}</span>
-                  <span>Databases: {plan.limits?.databases ?? "?"}</span>
-                  <span>Subdomains: {plan.limits?.subServers ?? "?"}</span>
+                  <span>{c.disk}: {plan.limits?.disk ?? "?"}</span>
+                  <span>{c.bandwidth}: {plan.limits?.bandwidth ?? "?"}</span>
+                  <span>{c.email}: {plan.limits?.mailboxes ?? "?"}</span>
+                  <span>{c.databases}: {plan.limits?.databases ?? "?"}</span>
+                  <span>{c.subdomains}: {plan.limits?.subServers ?? "?"}</span>
                 </div>
               ) : null}
             </fieldset>
           ) : null}
 
           <div className={styles.formActions}>
-            <Button size="sm" type="submit">Save Product</Button>
+            <Button size="sm" type="submit">{c.saveProduct}</Button>
             {state.message ? <span className={styles[state.kind]}>{state.message}</span> : null}
           </div>
         </form>
@@ -418,14 +423,14 @@ export function AdminProductManager() {
       {detectedPlans.length > 0 ? (
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>Detected Virtualmin Plans</h2>
-            <Button size="sm" type="button" onClick={syncVirtualminPlans}>Confirm &amp; Save</Button>
+            <h2>{c.detectedPlans}</h2>
+            <Button size="sm" type="button" onClick={syncVirtualminPlans}>{c.confirmSave}</Button>
           </div>
           <div className={styles.planReview}>
             {detectedPlans.map((p) => (
               <article key={p.id}>
                 <strong>{p.name}</strong>
-                <span className={styles.muted}>ID: {p.id}</span>
+                <span className={styles.muted}>{c.idLabel} {p.id}</span>
                 <ul>
                   {(p.differences ?? []).map((item) => <li key={item.key}>{item.label}: {item.value}</li>)}
                 </ul>
@@ -435,22 +440,22 @@ export function AdminProductManager() {
         </section>
       ) : (
         <div className={styles.vmRow}>
-          <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>Detect Virtualmin plans</Button>
+          <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>{c.detectVmPlans}</Button>
         </div>
       )}
 
       <section className={styles.card}>
-        <div className={styles.cardHeader}><h2>Products</h2></div>
+        <div className={styles.cardHeader}><h2>{c.products}</h2></div>
         <div className={styles.tableWrap}>
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Category</th>
-                <th>Module</th>
-                <th>Domain</th>
+                <th>{c.name}</th>
+                <th>{c.colType}</th>
+                <th>{c.colCategory}</th>
+                <th>{c.module}</th>
+                <th>{c.colDomain}</th>
                 <th></th>
               </tr>
             </thead>
@@ -459,17 +464,17 @@ export function AdminProductManager() {
                 <tr key={product.id}>
                   <td className={styles.muted}>{product.sortOrder ?? 0}</td>
                   <td>{product.name}</td>
-                  <td>{typeLabel(product.type)}</td>
+                  <td>{typeLabel(product.type, c)}</td>
                   <td>{product.category?.name ?? <span className={styles.muted}>—</span>}</td>
-                  <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule)}</td>
-                  <td>{product.type === "DOMAIN" ? <span className={styles.muted}>—</span> : domainRequirementLabel(product.domainRequirement)}</td>
+                  <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule, c)}</td>
+                  <td>{product.type === "DOMAIN" ? <span className={styles.muted}>—</span> : domainRequirementLabel(product.domainRequirement, c)}</td>
                   <td className={styles.rowActions}>
-                    <Button size="sm" type="button" variant="secondary" onClick={() => editProduct(product)}>Edit</Button>
-                    <Button size="sm" type="button" variant="ghost" onClick={() => removeProduct(product)}>Remove</Button>
+                    <Button size="sm" type="button" variant="secondary" onClick={() => editProduct(product)}>{c.edit}</Button>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => removeProduct(product)}>{c.remove}</Button>
                   </td>
                 </tr>
               ))}
-              {products.length === 0 && <tr><td colSpan={7} className={styles.empty}>No products yet.</td></tr>}
+              {products.length === 0 && <tr><td colSpan={7} className={styles.empty}>{c.noProducts}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -520,36 +525,36 @@ function priceValue(product: ApiProduct | undefined, cycle: string) {
   return price ? String(price.amountCents / 100).replace(".", ",") : "";
 }
 
-function cycleLabel(cycle: string) {
+function cycleLabel(cycle: string, c: ProductsDict) {
   const map: Record<string, string> = {
-    MONTHLY: "Monthly",
-    QUARTERLY: "Quarterly",
-    SEMI_ANNUAL: "Semi-annual",
-    YEAR_1: "1 Year",
-    YEAR_2: "2 Years",
-    YEAR_3: "3 Years",
-    YEAR_4: "4 Years"
+    MONTHLY: c.cycleMonthly,
+    QUARTERLY: c.cycleQuarterly,
+    SEMI_ANNUAL: c.cycleSemiAnnual,
+    YEAR_1: c.cycleYear1,
+    YEAR_2: c.cycleYear2,
+    YEAR_3: c.cycleYear3,
+    YEAR_4: c.cycleYear4
   };
   return map[cycle] ?? cycle;
 }
 
-function typeLabel(type: string) {
+function typeLabel(type: string, c: ProductsDict) {
   return {
-    DOMAIN: "Domain",
-    SHARED_HOSTING: "Web Hosting",
-    VPS: "VPS"
+    DOMAIN: c.typeDomain,
+    SHARED_HOSTING: c.typeWebHosting,
+    VPS: c.typeVps
   }[type] ?? type.toLowerCase().replace(/_/g, " ");
 }
 
-function domainRequirementLabel(requirement?: string | null) {
+function domainRequirementLabel(requirement: string | null | undefined, c: ProductsDict) {
   return {
-    NECESSARY: "Necessary",
-    OPTIONAL: "Optional",
-    NOT_NEEDED: "Not needed"
-  }[requirement ?? "NOT_NEEDED"] ?? "Not needed";
+    NECESSARY: c.reqNecessaryShort,
+    OPTIONAL: c.reqOptionalShort,
+    NOT_NEEDED: c.reqNotNeeded
+  }[requirement ?? "NOT_NEEDED"] ?? c.reqNotNeeded;
 }
 
-function moduleLabel(moduleName?: string | null) {
-  if (!moduleName || moduleName === "none") return "Manual";
-  return moduleName === "resellbiz" ? "ResellBiz" : moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+function moduleLabel(moduleName: string | null | undefined, c: ProductsDict) {
+  if (!moduleName || moduleName === "none") return c.manual;
+  return moduleName === "resellbiz" ? c.resellbiz : moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
 }
