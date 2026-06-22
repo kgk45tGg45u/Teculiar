@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale } from "../../lib/api";
+import { API_BASE_URL, authHeaders } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { ImageUploader } from "../ui/image-uploader";
 import styles from "./admin-dashboard.module.css";
@@ -20,7 +21,7 @@ type BlueThemeImages = {
 };
 
 export function ThemeBlueForm({ initialImages }: { initialImages: BlueThemeImages }) {
-  const c = getDictionary(currentLocale()).admin.theme;
+  const c = getDictionary(useLocale()).admin.theme;
   const pages: { field: keyof BlueThemeImages; label: string; hint: string }[] = [
     { field: "homeHeroImageUrl", label: c.pageHome, hint: c.hintHome },
     { field: "webhostingHeroImageUrl", label: c.pageWebhosting, hint: c.hintWebhosting },

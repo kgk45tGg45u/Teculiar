@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Plus, Send, Trash2, UploadCloud } from "lucide-react";
-import { API_BASE_URL, authFetch, currentLocale, type ApiAdminUser, type ApiDepartment } from "../../lib/api";
+import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notifyResponse } from "../ui/toast-provider";
@@ -11,7 +12,7 @@ import styles from "./admin-dashboard.module.css";
 // ── Departments management ─────────────────────────────────────────────────────
 
 export function AdminDepartmentsPanel() {
-  const a = getDictionary(currentLocale()).admin;
+  const a = getDictionary(useLocale()).admin;
   const c = a.dept;
   const [departments, setDepartments] = useState<ApiDepartment[]>([]);
   const [admins, setAdmins] = useState<ApiAdminUser[]>([]);
@@ -167,7 +168,7 @@ export function AdminDepartmentsPanel() {
 }
 
 function StaffAvatarsPanel({ admins, onChange }: { admins: ApiAdminUser[]; onChange: () => void }) {
-  const a = getDictionary(currentLocale()).admin;
+  const a = getDictionary(useLocale()).admin;
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}><div><span className="eyebrow">{a.eyebrow.support}</span><h2>{a.dept.staffAvatars}</h2></div></div>
@@ -180,7 +181,7 @@ function StaffAvatarsPanel({ admins, onChange }: { admins: ApiAdminUser[]; onCha
 }
 
 function StaffAvatarRow({ admin, onChange }: { admin: ApiAdminUser; onChange: () => void }) {
-  const c = getDictionary(currentLocale()).admin.dept;
+  const c = getDictionary(useLocale()).admin.dept;
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -213,7 +214,7 @@ function MemberAvatar({ name, url }: { name: string; url?: string | null }) {
 // ── Admin new ticket ───────────────────────────────────────────────────────────
 
 export function AdminNewTicketPanel() {
-  const a = getDictionary(currentLocale()).admin;
+  const a = getDictionary(useLocale()).admin;
   const c = a.dept;
   const [clients, setClients] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);

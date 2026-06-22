@@ -35,9 +35,10 @@ export class BillingController {
   async invoiceHtml(
     @Param("id") id: string,
     @Req() request: Request & { user: { sub: string; roles?: string[] } },
-    @Res() response: Response
+    @Res() response: Response,
+    @Query("locale") locale?: string
   ) {
-    const html = await this.billing.invoiceHtml(id, request.user);
+    const html = await this.billing.invoiceHtml(id, request.user, locale);
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.setHeader("Content-Disposition", `inline; filename="invoice-${id}.html"`);
     response.send(html);
@@ -47,9 +48,10 @@ export class BillingController {
   async invoicePdf(
     @Param("id") id: string,
     @Req() request: Request & { user: { sub: string; roles?: string[] } },
-    @Res() response: Response
+    @Res() response: Response,
+    @Query("locale") locale?: string
   ) {
-    const pdf = await this.billing.invoicePdf(id, request.user);
+    const pdf = await this.billing.invoicePdf(id, request.user, locale);
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `attachment; filename="invoice-${id}.pdf"`);
     response.send(pdf);

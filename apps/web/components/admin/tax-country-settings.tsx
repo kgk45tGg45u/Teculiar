@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { currentLocale } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { countriesForLocale } from "../../lib/countries";
 
@@ -17,7 +17,7 @@ const chipRow: React.CSSProperties = { display: "flex", alignItems: "center", ga
 const removeBtn: React.CSSProperties = { background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: 0 };
 
 export function TaxCountrySettings({ value, onChange }: Props) {
-  const c = getDictionary(currentLocale()).admin.tax;
+  const c = getDictionary(useLocale()).admin.tax;
   const allCountries = useMemo(() => countriesForLocale("en"), []);
   const nameFor = (code: string) => allCountries.find((c) => c.code === code) ?? { code, name: code, flag: "" };
   const codes = Object.keys(value.rates).sort((a, b) => nameFor(a).name.localeCompare(nameFor(b).name));

@@ -4,18 +4,23 @@ WORKDIR /app
 
 # Copy workspace manifests first — lets Docker cache the install layer
 COPY package.json package-lock.json ./
-COPY packages/shared/package.json ./packages/shared/
+COPY packages/shared/package.json  ./packages/shared/
+COPY packages/locales/package.json ./packages/locales/
 COPY apps/api/package.json         ./apps/api/
 RUN npm ci
 
 # Copy source code
 COPY tsconfig.base.json  ./
 COPY packages/shared     ./packages/shared
+COPY packages/locales    ./packages/locales
 COPY apps/api            ./apps/api
 COPY prisma              ./prisma
 
-# Build shared lib → generate Prisma client → compile API
+# Build shared lib → locales pack → generate Prisma client → compile API
+# (the api prebuild also builds shared + locales; building here first keeps the
+#  layers cacheable and surfaces pack errors before the slower nest build.)
 RUN npm run build --workspace @dezhost/shared
+RUN npm run build --workspace @dezhost/locales
 RUN node_modules/.bin/prisma generate --schema prisma/schema.prisma
 RUN npm run build --workspace @dezhost/api
 
@@ -36,6 +41,9 @@ COPY --from=builder /app/node_modules         ./node_modules
 # Compiled shared package — must include package.json so Node can resolve
 # the workspace symlink node_modules/@dezhost/shared → packages/shared
 COPY --from=builder /app/packages/shared ./packages/shared
+# Compiled locales package — the API requires("@dezhost/locales") at runtime,
+# which resolves through the same workspace symlink to packages/locales/dist.
+COPY --from=builder /app/packages/locales ./packages/locales
 COPY --from=builder /app/apps/api/dist        ./apps/api/dist
 # Prisma schema + migration files (needed by migrate deploy)
 COPY --from=builder /app/prisma               ./prisma

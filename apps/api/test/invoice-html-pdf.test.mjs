@@ -122,14 +122,18 @@ test("invoice PDF renderer consumes invoice HTML and returns a PDF buffer", asyn
   assert.doesNotMatch(pdf.toString("latin1"), /BT \/F1 10 Tf 44 790 Td/);
 });
 
-test("billing controller exposes protected HTML before PDF download", async () => {
+test("billing controller exposes protected HTML before PDF download and forwards the viewer locale", async () => {
   const controller = await readFile(new URL("../src/modules/billing/billing.controller.ts", import.meta.url), "utf8");
   const service = await readFile(new URL("../src/modules/billing/billing.service.ts", import.meta.url), "utf8");
 
   assert.match(controller, /@Get\("invoices\/:id\/html"\)/);
-  assert.match(controller, /this\.billing\.invoiceHtml\(id, request\.user\)/);
-  assert.match(service, /invoiceHtml\(id: string, user\?: \{ roles\?: string\[\]; sub: string \}\)/);
-  assert.match(service, /renderInvoiceDocument\(invoice, \{ logoUrl: url, locale \}\)\.html/);
+  // The viewer's display language flows from the query param into the renderer so the PDF/HTML
+  // matches the on-screen invoice (which follows the language toggle).
+  assert.match(controller, /@Query\("locale"\) locale\?: string/);
+  assert.match(controller, /this\.billing\.invoiceHtml\(id, request\.user, locale\)/);
+  assert.match(controller, /this\.billing\.invoicePdf\(id, request\.user, locale\)/);
+  assert.match(service, /invoiceHtml\(id: string, user\?: \{ roles\?: string\[\]; sub: string \}, locale\?: string\)/);
+  assert.match(service, /renderInvoiceDocument\(invoice, \{ logoUrl: url, locale: resolved \}\)\.html/);
   assert.match(service, /renderInvoicePdfFromHtml\(html, image\)/);
 });
 

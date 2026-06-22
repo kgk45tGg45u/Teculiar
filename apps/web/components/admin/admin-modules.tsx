@@ -2,7 +2,8 @@
 
 import { Eye, EyeOff, RefreshCw, Save, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, money, type ApiDomainPrice, type ApiModule } from "../../lib/api";
+import { API_BASE_URL, authHeaders, money, type ApiDomainPrice, type ApiModule } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { StatusPill } from "../ui/status-pill";
@@ -10,7 +11,7 @@ import { notify, notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPrice[] }) {
-  const c = getDictionary(currentLocale()).admin.modules;
+  const c = getDictionary(useLocale()).admin.modules;
   const [modules, setModules] = useState<ApiModule[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,7 +103,8 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
 }
 
 function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: ApiDomainPrice[]; module: ApiModule; onSaved: (updated: ApiModule) => void }) {
-  const c = getDictionary(currentLocale()).admin.modules;
+  const locale = useLocale();
+  const c = getDictionary(locale).admin.modules;
   const [prices, setPrices] = useState<ApiDomainPrice[]>(initialPrices);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
@@ -279,7 +281,7 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
               <td>.{price.tld}</td>
               <td>{price.action}</td>
               <td>{price.years}</td>
-              <td>{price.amountCents > 0 ? money(price.amountCents, price.currency) : c.resellbizLive}</td>
+              <td>{price.amountCents > 0 ? money(price.amountCents, price.currency, locale) : c.resellbizLive}</td>
               <td>{price.manual ? c.yes : "—"}</td>
               <td>{price.suggested ? c.yes : "—"}</td>
               <td>{price.updatedAt ? new Date(price.updatedAt).toLocaleDateString("de-DE") : "—"}</td>
@@ -294,7 +296,7 @@ function ResellbizConfig({ initialPrices, module, onSaved }: { initialPrices: Ap
 }
 
 function VirtualminConfig({ initial, onSaved }: { initial: Record<string, unknown>; onSaved: (updated: ApiModule) => void }) {
-  const c = getDictionary(currentLocale()).admin.modules;
+  const c = getDictionary(useLocale()).admin.modules;
   const [config, setConfig] = useState({
     allowSelfSigned: Boolean(initial.allowSelfSigned),
     endpoint: String(initial.endpoint ?? ""),

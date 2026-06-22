@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, type ApiProduct, type ApiProductCategory } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary, type Dictionary } from "../../lib/dictionary";
 import { Button } from "../ui/button";
 import { notify } from "../ui/toast-provider";
@@ -18,7 +19,7 @@ type VirtualminOption = {
 };
 
 export function AdminCategoryManager() {
-  const c = getDictionary(currentLocale()).admin.productMgr;
+  const c = getDictionary(useLocale()).admin.productMgr;
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
@@ -142,7 +143,7 @@ export function AdminCategoryManager() {
 }
 
 export function AdminProductManager() {
-  const c = getDictionary(currentLocale()).admin.productMgr;
+  const c = getDictionary(useLocale()).admin.productMgr;
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);

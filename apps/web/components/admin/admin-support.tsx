@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, FileText, Image as ImageIcon, Send } from "lucide-react";
-import { API_BASE_URL, authHeaders, currentLocale, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
+import { API_BASE_URL, authHeaders, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
+import { useLocale } from "../layout/locale-provider";
 import { getDictionary } from "../../lib/dictionary";
 import { TICKET_STATUS_VALUES, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
 import { InvoiceModal } from "../tickets/invoice-modal";
@@ -13,7 +14,7 @@ import { notifyResponse } from "../ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function KnowledgebasePanel({ articles: initialArticles }: { articles: ApiKnowledgebaseArticle[] }) {
-  const a = getDictionary(currentLocale()).admin;
+  const a = getDictionary(useLocale()).admin;
   const c = a.support;
   const [articles, setArticles] = useState(initialArticles);
   const [editing, setEditing] = useState<ApiKnowledgebaseArticle>();
@@ -89,7 +90,7 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
 }
 
 export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKnowledgebaseArticle[]; initialTicket: ApiTicket }) {
-  const locale = currentLocale();
+  const locale = useLocale();
   const c = getDictionary(locale).admin.support;
   const [ticket, setTicket] = useState(initialTicket);
   const [body, setBody] = useState("");
@@ -193,7 +194,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
 // Client wrapper so the ticket thread renders inside the admin dashboard layout
 // (with the sidebar) — fetches the ticket + canned articles, then renders the thread.
 export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
-  const c = getDictionary(currentLocale()).admin.support;
+  const c = getDictionary(useLocale()).admin.support;
   const [ticket, setTicket] = useState<ApiTicket | null>(null);
   const [articles, setArticles] = useState<ApiKnowledgebaseArticle[]>([]);
   const [loading, setLoading] = useState(true);

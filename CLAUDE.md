@@ -5,6 +5,7 @@
 - Prefer focused tests that cover different code paths.
 - Document temporary endpoints and integration notes clearly.
 - Don't write credits to yourself inside the code or on commit messages.
+- With every change in admin dashboard, client dashboard, API, backend, common, meta or storefront, check all the locale packages and make sure they work with the new changes. If you add features or remove features or text, make sure the locale packages are aware of them and provide translation if needed.
 
 
 ## Testing — always test on production

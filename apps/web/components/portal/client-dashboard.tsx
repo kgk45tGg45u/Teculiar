@@ -170,7 +170,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   }, [profile, locale]);
 
   usePortalLoadingFallback(setLoading);
-  usePortalNavigationRecovery(setLoading, setRefreshVersion);
+  usePortalNavigationRecovery(setRefreshVersion);
 
   useEffect(() => {
     applyPortalCache(locale, {
@@ -403,26 +403,28 @@ function usePortalLoadingFallback(setLoading: (loading: Record<LoadingKey, boole
 }
 
 function usePortalNavigationRecovery(
-  setLoading: (loading: Record<LoadingKey, boolean>) => void,
   setRefreshVersion: (update: (current: number) => number) => void
 ) {
   useEffect(() => {
-    const reloadRestoredPage = (event: PageTransitionEvent) => {
+    // Browser back/forward (including a bfcache restore) keeps the already-rendered page on screen;
+    // we just re-fetch in the background so the data is fresh. We must NOT force a full page reload
+    // on a bfcache restore: the portal SSRs to null until the client auth check runs, so reloading
+    // blanks the restored content to an empty page until JS re-hydrates — the "empty page on
+    // back/forward" bug. Bumping refreshVersion re-runs the data effects in place instead, leaving
+    // the restored content visible while it refreshes.
+    const revalidate = () => setRefreshVersion((current) => current + 1);
+    const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
-        window.location.reload();
+        revalidate();
       }
     };
-    const revalidateHistoryNavigation = () => {
-      setLoading(allLoaded);
-      setRefreshVersion((current) => current + 1);
-    };
-    window.addEventListener("pageshow", reloadRestoredPage);
-    window.addEventListener("popstate", revalidateHistoryNavigation);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("popstate", revalidate);
     return () => {
-      window.removeEventListener("pageshow", reloadRestoredPage);
-      window.removeEventListener("popstate", revalidateHistoryNavigation);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("popstate", revalidate);
     };
-  }, [setLoading, setRefreshVersion]);
+  }, [setRefreshVersion]);
 }
 
 function applyPortalCache(
@@ -1131,9 +1133,11 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
 
 function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
-  const copy = getDictionary(currentLocale()).client;
+  const locale = currentLocale();
+  const copy = getDictionary(locale).client;
   async function download() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`, { headers: authHeaders("client") });
+    // Pass the viewer's display language so the PDF matches the on-screen invoice (see invoiceLocale).
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/pdf?locale=${locale}`, { headers: authHeaders("client") });
     if (!response.ok) {
       setMessage(copy.dash.pdfFailed);
       notify.error(copy.dash.pdfFailed);
@@ -1154,9 +1158,11 @@ function PdfDownloadButton({ invoice }: { invoice: ApiInvoice }) {
 
 function InvoiceHtmlButton({ invoice }: { invoice: ApiInvoice }) {
   const [message, setMessage] = useState("");
-  const copy = getDictionary(currentLocale()).client;
+  const locale = currentLocale();
+  const copy = getDictionary(locale).client;
   async function openHtml() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/html`, { headers: authHeaders("client") });
+    // Pass the viewer's display language so the HTML view matches the on-screen invoice (see invoiceLocale).
+    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/html?locale=${locale}`, { headers: authHeaders("client") });
     if (!response.ok) {
       setMessage(copy.dash.htmlFailed);
       notify.error(copy.dash.htmlFailed);

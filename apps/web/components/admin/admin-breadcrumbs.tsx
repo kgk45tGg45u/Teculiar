@@ -3,8 +3,8 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { currentLocale } from "../../lib/api";
 import { getDictionary, type Dictionary } from "../../lib/dictionary";
+import { useLocale } from "../layout/locale-provider";
 import styles from "./admin-breadcrumbs.module.css";
 
 type AdminDict = Dictionary["admin"];
@@ -64,7 +64,7 @@ function titleCase(segment: string) {
 // "bar" = full-width bar under the header (desktop). "sidebar" = rendered inside the admin
 // sidebar's sticky mobile header (mobile). CSS shows exactly one of them per breakpoint.
 export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sidebar" }) {
-  const copy = getDictionary(currentLocale()).admin;
+  const copy = getDictionary(useLocale()).admin;
   const pathname = usePathname() ?? "/admin";
   if (!pathname.startsWith("/admin")) {
     return null;

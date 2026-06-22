@@ -120,7 +120,8 @@ export class ProductsService {
     const services = await this.products.listServices();
     let refreshed = 0;
     for (const service of services) {
-      await this.refreshService(service.id).catch(() => undefined);
+      // Scheduled/admin reconcile — the authority that may demote a vanished account.
+      await this.refreshService(service.id, undefined, { allowDemote: true }).catch(() => undefined);
       refreshed += 1;
     }
     return { checked: services.length, refreshed };
@@ -209,7 +210,8 @@ export class ProductsService {
     const changed: Array<{ domain: string; from: string; id: string; to: string }> = [];
     for (const service of services) {
       const before = service.status;
-      const updated = await this.refreshService(service.id).catch(() => undefined);
+      // Scheduled cron reconcile — the authority that may demote a vanished account.
+      const updated = await this.refreshService(service.id, undefined, { allowDemote: true }).catch(() => undefined);
       refreshed += 1;
       const after = updated?.status ?? before;
       if (updated && after !== before) {
@@ -275,7 +277,11 @@ export class ProductsService {
     return this.external.virtualmin.hostingControlAction(domainName, body);
   }
 
-  async refreshService(id: string, userId?: string) {
+  // `allowDemote` gates the one risky transition: marking a live ACTIVE hosting account
+  // TERMINATED/SUSPENDED. Only the scheduled cron reconcile passes it, so the stored status is
+  // owned by the cron and a single client/admin page view can never flip a working service — the
+  // dashboard list and the service detail always read the same safely-stored value.
+  async refreshService(id: string, userId?: string, options: { allowDemote?: boolean } = {}) {
     const service = await this.products.findService(id);
     if (!service) {
       return null;
@@ -349,7 +355,12 @@ export class ProductsService {
       // gone). We NEVER issue an automatic delete-domain — Virtualmin must not terminate accounts on
       // its own; this only reflects a deletion the admin already made on the panel. Suspension (for
       // non-payment) is handled separately in billing maintenance, not here.
-      if (status.status === "FAILED") {
+      //
+      // This demotion is reserved for the scheduled cron reconcile (`allowDemote`). On-demand client
+      // and admin page views never demote, so the stored status is the single source of truth and a
+      // working service can't appear ACTIVE in the list yet flip to TERMINATED the moment its detail
+      // page is opened. The cron keeps the stored value accurate within its interval.
+      if (status.status === "FAILED" && options.allowDemote) {
         const terminated = moduleName === "virtualmin";
         return this.products.updateServiceStatus(service.id, terminated ? "TERMINATED" : "SUSPENDED", status.externalId);
       }

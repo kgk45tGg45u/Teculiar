@@ -3,8 +3,9 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ADMIN_AUTH_COOKIE, clearAuth, currentLocale } from "../../lib/api";
+import { ADMIN_AUTH_COOKIE, clearAuth } from "../../lib/api";
 import { getDictionary, type Dictionary } from "../../lib/dictionary";
+import { useLocale } from "../layout/locale-provider";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 
@@ -122,7 +123,7 @@ function groupContainsPath(group: NavGroup, path: string) {
 }
 
 export function AdminSidebar(_props: { brandLogo?: string }) {
-  const copy = getDictionary(currentLocale()).admin;
+  const copy = getDictionary(useLocale()).admin;
   const baseNav = buildBaseNav(copy);
   const settingsNav = buildSettingsNav(copy);
   const pathname = usePathname();
