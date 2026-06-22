@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders } from "../../../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale } from "../../../../lib/api";
+import { getDictionary } from "../../../../lib/dictionary";
 
 export default function PaymentMethodReturnPage() {
-  const [message, setMessage] = useState("Confirming payment authorization...");
+  const c = getDictionary(currentLocale()).client.pay;
+  const [message, setMessage] = useState(c.confirmingAuth);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/billing/payment-methods`, { headers: authHeaders("client") })
@@ -28,10 +30,10 @@ export default function PaymentMethodReturnPage() {
           window.location.assign("/client/payments");
           return;
         }
-        setMessage("Payment authorization could not be confirmed.");
+        setMessage(c.authNotConfirmed);
       })
-      .catch(() => setMessage("Payment authorization failed."));
+      .catch(() => setMessage(c.authFailed));
   }, []);
 
-  return <main className="container"><h1>Payments</h1><p>{message}</p></main>;
+  return <main className="container"><h1>{c.paymentsHeading}</h1><p>{message}</p></main>;
 }

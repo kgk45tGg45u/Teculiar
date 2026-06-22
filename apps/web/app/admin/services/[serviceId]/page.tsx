@@ -1,5 +1,6 @@
 import { cycleLabel, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "../../../../lib/api";
 import { requestLocale } from "../../../../lib/server-locale";
+import { getDictionary } from "../../../../lib/dictionary";
 import { serviceStatusLabel } from "../../../../lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminServiceDueDateForm, AdminServiceStatusForm } from "../../../../components/admin/admin-forms";
@@ -18,11 +19,12 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
     apiGetAuth<{ siteLogoUrl?: string }>("/admin/dev/billing/settings").then((r) => r ?? {}),
     requestLocale()
   ]);
+  const a = getDictionary(locale).admin;
   if (!service) {
     return (
       <div className={styles.page}>
         <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
-        <main className={styles.main}><h1>Service</h1><p>Not found.</p></main>
+        <main className={styles.main}><h1>{a.col.service}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
   }
@@ -34,30 +36,30 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/services">← Services</a></span>
+            <span className="eyebrow"><a href="/admin/services">{a.detail.backServices}</a></span>
             <h1>{domain ? `${service.product.name} — ${domain}` : service.product.name}</h1>
           </div>
-          <StatusPill label={serviceStatusLabel(service.status)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
+          <StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
         </header>
 
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
-            <h2>Details</h2>
+            <h2>{a.detail.details}</h2>
             <AdminServiceStatusForm serviceId={service.id} status={service.status} />
           </div>
           <table className="table"><tbody>
-            <tr><th>ID</th><td>{service.id}</td></tr>
-            <tr><th>Product</th><td>{service.product.name}</td></tr>
-            <tr><th>Type</th><td>{serviceType(service.product.type)}</td></tr>
-            <tr><th>Domain</th><td>{domain ?? "—"}</td></tr>
-            <tr><th>Billing</th><td>{cycleLabel(service.productPrice.billingCycle, locale)} / {money(serviceUnitPriceCents(service), service.productPrice.currency, locale)}</td></tr>
-            <tr><th>Next due</th><td>{dateLabel(service.renewsAt)}</td></tr>
-            <tr><th>Provider ref</th><td>{service.externalId ?? "—"}</td></tr>
+            <tr><th>{a.detail.id}</th><td>{service.id}</td></tr>
+            <tr><th>{a.detail.product}</th><td>{service.product.name}</td></tr>
+            <tr><th>{a.detail.type}</th><td>{serviceType(service.product.type, a)}</td></tr>
+            <tr><th>{a.detail.domain}</th><td>{domain ?? "—"}</td></tr>
+            <tr><th>{a.detail.billing}</th><td>{cycleLabel(service.productPrice.billingCycle, locale)} / {money(serviceUnitPriceCents(service), service.productPrice.currency, locale)}</td></tr>
+            <tr><th>{a.detail.nextDue}</th><td>{dateLabel(service.renewsAt)}</td></tr>
+            <tr><th>{a.detail.providerRef}</th><td>{service.externalId ?? "—"}</td></tr>
           </tbody></table>
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><h2>Change Due Date</h2></div>
+          <div className={styles.panelHeader}><h2>{a.detail.changeDueDate}</h2></div>
           <div style={{ padding: "16px" }}>
             <AdminServiceDueDateForm renewsAt={service.renewsAt} serviceId={service.id} />
           </div>
@@ -65,13 +67,13 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
 
         {(service.domainRecords ?? []).length > 0 ? (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><h2>Domains</h2></div>
+            <div className={styles.panelHeader}><h2>{a.eyebrow.domains}</h2></div>
             <table className="table">
-              <thead><tr><th>Domain</th><th>Status</th><th>Provider ref</th></tr></thead>
+              <thead><tr><th>{a.detail.domain}</th><th>{a.status}</th><th>{a.detail.providerRef}</th></tr></thead>
               <tbody>{service.domainRecords!.map((record) => (
                 <tr key={record.id ?? record.domain}>
                   <td>{record.domain}</td>
-                  <td>{serviceStatusLabel(record.status)}</td>
+                  <td>{serviceStatusLabel(record.status, locale)}</td>
                   <td>{record.externalId ?? "—"}</td>
                 </tr>
               ))}</tbody>
@@ -87,9 +89,9 @@ function dateLabel(value?: string | null) {
   return value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value)) : "—";
 }
 
-function serviceType(type: string) {
-  if (type === "DOMAIN") return "Domain";
-  if (type === "SHARED_HOSTING") return "Shared hosting";
+function serviceType(type: string, a: ReturnType<typeof getDictionary>["admin"]) {
+  if (type === "DOMAIN") return a.detail.typeDomain;
+  if (type === "SHARED_HOSTING") return a.detail.typeSharedHosting;
   return type.replaceAll("_", " ").toLowerCase();
 }
 

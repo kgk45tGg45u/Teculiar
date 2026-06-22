@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Building2, CheckCircle, AlertCircle, CreditCard, Landmark, Loader, Wallet } from "lucide-react";
-import { API_BASE_URL, authHeaders, invoiceDisplayNumber, money, type ApiInvoice } from "../../../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, invoiceDisplayNumber, money, type ApiInvoice } from "../../../../lib/api";
+import { getDictionary } from "../../../../lib/dictionary";
 import styles from "./payment.module.css";
 
 type GatewayEntry = { config?: Record<string, string | undefined>; method: string; title: string };
@@ -23,15 +24,19 @@ declare global {
 type Method = "PAYPAL" | "CREDIT_CARD" | "SEPA" | "BANK_TRANSFER" | "SANDBOX";
 type Status = "loading" | "ready" | "processing" | "paid" | "error";
 
-const METHOD_LABELS: Record<string, string> = {
-  PAYPAL: "PayPal",
-  CREDIT_CARD: "Credit/Debit Card",
-  SEPA: "SEPA Direct Debit",
-  BANK_TRANSFER: "Bank Wire Transfer",
-  SANDBOX: "Sandbox (test)"
-};
+function methodLabels(c: ReturnType<typeof getDictionary>["client"]["pay"]): Record<string, string> {
+  return {
+    PAYPAL: "PayPal",
+    CREDIT_CARD: c.methodCreditCard,
+    SEPA: c.methodSepa,
+    BANK_TRANSFER: c.methodBankTransfer,
+    SANDBOX: c.methodSandbox
+  };
+}
 
 export default function InvoicePaymentPage() {
+  const c = getDictionary(currentLocale()).client.pay;
+  const METHOD_LABELS = methodLabels(c);
   const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
   const [gateways, setGateways] = useState<GatewayEntry[]>([]);
   const [selected, setSelected] = useState<Method | null>(null);
@@ -51,13 +56,13 @@ export default function InvoicePaymentPage() {
   const invoiceId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invoice") ?? "" : "";
 
   useEffect(() => {
-    if (!invoiceId) { setStatus("error"); setMessage("No invoice specified."); return; }
+    if (!invoiceId) { setStatus("error"); setMessage(c.noInvoiceSpecified); return; }
     Promise.all([
       fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}`, { headers: authHeaders("client") }).then((r) => r.ok ? r.json() : null),
       fetch(`${API_BASE_URL}/storefront/payment-gateways`).then((r) => r.json()).catch(() => []),
       fetch(`${API_BASE_URL}/users/me`, { headers: authHeaders("client") }).then((r) => r.ok ? r.json() : null).catch(() => null)
     ]).then(([inv, gws, profile]) => {
-      if (!inv) { setStatus("error"); setMessage("Invoice not found."); return; }
+      if (!inv) { setStatus("error"); setMessage(c.invoiceNotFound); return; }
       setInvoice(inv as ApiInvoice);
       const list = (Array.isArray(gws) ? gws : []) as GatewayEntry[];
       setGateways(list);
@@ -90,7 +95,7 @@ export default function InvoicePaymentPage() {
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=EUR&intent=capture&vault=true&disable-funding=credit,card`;
     script.crossOrigin = "anonymous";
     script.onload = doRender;
-    script.onerror = () => { setStatus("error"); setMessage("PayPal could not be loaded. Try again later."); };
+    script.onerror = () => { setStatus("error"); setMessage(c.paypalLoadFailed); };
     document.head.appendChild(script);
   }, [selected, status, gateways, invoiceId]);
 
@@ -104,7 +109,7 @@ export default function InvoicePaymentPage() {
 
   async function payWithMollie(method: "CREDIT_CARD" | "SEPA" | "SANDBOX", iban?: string) {
     setStatus("processing");
-    setMessage("Processing payment…");
+    setMessage(c.processingPayment);
     const body: Record<string, string | boolean> = { method, paymentMethodId: "mollie", useAccountBalance: useBalance };
     if (method === "SEPA" && iban) body.iban = iban.replace(/\s/g, "");
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
@@ -113,37 +118,37 @@ export default function InvoicePaymentPage() {
       method: "POST"
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) { setStatus("error"); setMessage(payload?.message ?? "Payment failed."); return; }
+    if (!response.ok) { setStatus("error"); setMessage(payload?.message ?? c.paymentFailed); return; }
     if (payload?.paymentRedirectUrl) { window.location.assign(payload.paymentRedirectUrl); return; }
     if (payload?.invoice?.status === "PENDING" || payload?.status === "PENDING") {
       setStatus("paid");
-      setMessage("Your SEPA debit has been initiated. It may take 1–3 business days to process.");
+      setMessage(c.sepaInitiated);
       setTimeout(() => window.location.assign(`/client/invoices/${invoiceId}`), 3000);
       return;
     }
     if (payload?.status === "PAID") { window.location.assign(`/client/invoices/${invoiceId}`); return; }
     setStatus("error");
-    setMessage("Payment could not be started. Please try again.");
+    setMessage(c.paymentNotStarted);
   }
 
   if (status === "loading") return (
-    <main className={styles.page}><div className={styles.card}><Loader className={styles.spinner} size={28} /><p>Loading…</p></div></main>
+    <main className={styles.page}><div className={styles.card}><Loader className={styles.spinner} size={28} /><p>{c.loading}</p></div></main>
   );
 
   if (status === "paid") return (
     <main className={styles.page}><div className={styles.card}>
       <CheckCircle size={40} className={styles.iconSuccess} />
-      <h1>Payment Successful</h1>
-      <p>Your invoice has been paid. Redirecting…</p>
+      <h1>{c.paymentSuccessful}</h1>
+      <p>{c.invoicePaidRedirect}</p>
     </div></main>
   );
 
   if (status === "error" && !invoice) return (
     <main className={styles.page}><div className={styles.card}>
       <AlertCircle size={32} className={styles.iconError} />
-      <h1>Error</h1>
-      <p>{message || "Something went wrong."}</p>
-      <a className={styles.back} href="/client/invoices">Back to invoices</a>
+      <h1>{c.error}</h1>
+      <p>{message || c.somethingWrong}</p>
+      <a className={styles.back} href="/client/invoices">{c.backToInvoices}</a>
     </div></main>
   );
 
@@ -161,7 +166,7 @@ export default function InvoicePaymentPage() {
 
   async function payFullyFromBalance() {
     setStatus("processing");
-    setMessage("Paying with account balance…");
+    setMessage(c.payingWithBalance);
     const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
       body: JSON.stringify({ method: "CREDIT_CARD", paymentMethodId: "balance", useAccountBalance: true }),
       headers: { "Content-Type": "application/json", ...authHeaders("client") },
@@ -174,7 +179,7 @@ export default function InvoicePaymentPage() {
       return;
     }
     setStatus("error");
-    setMessage(payload?.message ?? "Could not pay with account balance. Please try again.");
+    setMessage(payload?.message ?? c.balancePayFailed);
   }
 
   return (
@@ -182,13 +187,13 @@ export default function InvoicePaymentPage() {
       <div className={styles.card}>
         <div className={styles.header}>
           <CreditCard size={22} />
-          <h1>Pay Invoice</h1>
+          <h1>{c.payInvoice}</h1>
         </div>
 
         {invoice && (
           <div className={styles.invoiceSummary}>
-            <div className={styles.invoiceRow}><span>Invoice</span><strong>{displayNumber}</strong></div>
-            <div className={styles.invoiceRow}><span>Invoice total</span><strong>{amount}</strong></div>
+            <div className={styles.invoiceRow}><span>{c.invoice}</span><strong>{displayNumber}</strong></div>
+            <div className={styles.invoiceRow}><span>{c.invoiceTotal}</span><strong>{amount}</strong></div>
             {hasBalance && (
               <label className={styles.invoiceRow} style={{ cursor: "pointer", gap: "8px" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -199,17 +204,17 @@ export default function InvoicePaymentPage() {
                     onChange={(e) => { setUseBalance(e.target.checked); setStatus("ready"); setMessage(""); }}
                   />
                   <Wallet size={13} aria-hidden />
-                  Use my account balance ({money(balanceCents, invoice.currency ?? "EUR")})
+                  {c.useBalance.replace("{amount}", money(balanceCents, invoice.currency ?? "EUR"))}
                 </span>
               </label>
             )}
             {appliedBalanceCents > 0 && (
               <div className={styles.invoiceRow} style={{ color: "#16a34a" }}>
-                <span><Wallet size={13} aria-hidden style={{ display: "inline", marginRight: "4px" }} />Account balance applied</span>
+                <span><Wallet size={13} aria-hidden style={{ display: "inline", marginRight: "4px" }} />{c.balanceApplied}</span>
                 <strong>-{money(appliedBalanceCents, invoice.currency ?? "EUR")}</strong>
               </div>
             )}
-            <div className={styles.invoiceRow}><span>Amount due</span><strong className={styles.amount}>{netAmount}</strong></div>
+            <div className={styles.invoiceRow}><span>{c.amountDue}</span><strong className={styles.amount}>{netAmount}</strong></div>
           </div>
         )}
 
@@ -218,13 +223,13 @@ export default function InvoicePaymentPage() {
             {status === "error" && message && (
               <div className={styles.errorBanner}><AlertCircle size={16} /><span>{message}</span></div>
             )}
-            <p className={styles.hint}>Your account balance covers this invoice in full. No card or PayPal payment is needed.</p>
+            <p className={styles.hint}>{c.balanceCoversAll}</p>
             <button className={styles.payBtn} disabled={isProcessing} type="button" onClick={payFullyFromBalance}>
-              <Wallet size={17} /> {isProcessing ? "Processing…" : "Pay with account balance"}
+              <Wallet size={17} /> {isProcessing ? c.processing : c.payWithBalance}
             </button>
           </div>
         ) : gateways.length === 0 ? (
-          <p className={styles.noGateway}>No payment methods are currently available. Please contact support.</p>
+          <p className={styles.noGateway}>{c.noGateways}</p>
         ) : (
           <>
             {/* Method tabs */}
@@ -251,13 +256,13 @@ export default function InvoicePaymentPage() {
                 <div className={styles.errorBanner}><AlertCircle size={16} /><span>{message}</span></div>
               )}
               {isProcessing && (
-                <div className={styles.processing}><Loader className={styles.spinner} size={16} /><span>{message || "Processing…"}</span></div>
+                <div className={styles.processing}><Loader className={styles.spinner} size={16} /><span>{message || c.processing}</span></div>
               )}
 
               {/* PayPal */}
               {selected === "PAYPAL" && !isProcessing && (
                 <div className={styles.paypalSection}>
-                  <p className={styles.hint}>Log in to PayPal to complete payment. Your PayPal will be saved for automatic future invoices.</p>
+                  <p className={styles.hint}>{c.paypalHint}</p>
                   <div id="paypal-button-container" ref={paypalRef} className={styles.paypalContainer} />
                 </div>
               )}
@@ -265,9 +270,9 @@ export default function InvoicePaymentPage() {
               {/* Credit Card */}
               {selected === "CREDIT_CARD" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Pay securely by credit or debit card. Your card will be saved for automatic future invoices.</p>
+                  <p className={styles.hint}>{c.creditHint}</p>
                   <button className={styles.payBtn} type="button" onClick={() => payWithMollie("CREDIT_CARD")}>
-                    <CreditCard size={17} /> Pay with Credit/Debit Card
+                    <CreditCard size={17} /> {c.payCreditCard}
                   </button>
                 </div>
               )}
@@ -275,9 +280,9 @@ export default function InvoicePaymentPage() {
               {/* SEPA */}
               {selected === "SEPA" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Pay via SEPA Direct Debit. Enter your IBAN and we will initiate the debit. It may take 1–3 business days to clear.</p>
+                  <p className={styles.hint}>{c.sepaHint}</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
-                    <label htmlFor="sepaIban" style={{ fontSize: "14px", fontWeight: 500 }}>IBAN</label>
+                    <label htmlFor="sepaIban" style={{ fontSize: "14px", fontWeight: 500 }}>{c.iban}</label>
                     <input
                       autoComplete="off"
                       id="sepaIban"
@@ -290,7 +295,7 @@ export default function InvoicePaymentPage() {
                     />
                   </div>
                   <button className={styles.payBtn} disabled={!sepaIban.replace(/\s/g, "")} type="button" onClick={() => payWithMollie("SEPA", sepaIban)}>
-                    <Building2 size={17} /> Pay with SEPA Direct Debit
+                    <Building2 size={17} /> {c.paySepa}
                   </button>
                 </div>
               )}
@@ -298,9 +303,9 @@ export default function InvoicePaymentPage() {
               {/* Sandbox */}
               {selected === "SANDBOX" && !isProcessing && (
                 <div className={styles.mollieSection}>
-                  <p className={styles.hint}>Test payment — no real money is charged.</p>
+                  <p className={styles.hint}>{c.sandboxHint}</p>
                   <button className={styles.payBtn} type="button" onClick={() => payWithMollie("SANDBOX")}>
-                    <CreditCard size={17} /> Complete Test Payment
+                    <CreditCard size={17} /> {c.completeTestPayment}
                   </button>
                 </div>
               )}
@@ -311,7 +316,7 @@ export default function InvoicePaymentPage() {
               )}
             </div>
 
-            <a className={styles.back} href={`/client/invoices/${invoiceId}`}>Cancel and go back</a>
+            <a className={styles.back} href={`/client/invoices/${invoiceId}`}>{c.cancelGoBack}</a>
           </>
         )}
       </div>
@@ -320,6 +325,7 @@ export default function InvoicePaymentPage() {
 }
 
 function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, setMessage: (m: string) => void, getUseBalance: () => boolean = () => false) {
+  const c = getDictionary(currentLocale()).client.pay;
   if (!window.paypal) return;
   const container = document.getElementById("paypal-button-container");
   if (!container) return;
@@ -328,7 +334,7 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
     style: { layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 45 },
     createOrder: async () => {
       setStatus("processing");
-      setMessage("Starting PayPal checkout…");
+      setMessage(c.startingPaypal);
       const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pay`, {
         body: JSON.stringify({ method: "PAYPAL", paymentMethodId: "paypal", useAccountBalance: getUseBalance() }),
         headers: { "Content-Type": "application/json", ...authHeaders("client") },
@@ -337,14 +343,14 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         setStatus("error");
-        setMessage(payload?.message ?? "Payment initiation failed.");
-        throw new Error(payload?.message ?? "Payment initiation failed.");
+        setMessage(payload?.message ?? c.paymentInitFailed);
+        throw new Error(payload?.message ?? c.paymentInitFailed);
       }
       setStatus("processing");
       return String(payload.providerReference);
     },
     onApprove: async () => {
-      setMessage("Confirming payment…");
+      setMessage(c.confirmingPayment);
       const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/confirm-payment`, {
         headers: authHeaders("client"),
         method: "POST"
@@ -355,11 +361,11 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
         setTimeout(() => { window.location.assign(`/client/invoices/${payload.invoice?.id ?? invoiceId}`); }, 1500);
       } else {
         setStatus("error");
-        setMessage(payload?.message ?? `Payment status: ${payload?.status ?? "pending"}`);
+        setMessage(payload?.message ?? c.paymentStatus.replace("{status}", String(payload?.status ?? "pending")));
       }
     },
     onCancel: () => { setStatus("ready"); setMessage(""); renderPayPalButtons(invoiceId, setStatus, setMessage, getUseBalance); },
-    onError: (err: unknown) => { setStatus("error"); setMessage(err instanceof Error ? err.message : "PayPal encountered an error."); }
+    onError: (err: unknown) => { setStatus("error"); setMessage(err instanceof Error ? err.message : c.paypalError); }
   }).render("#paypal-button-container");
 }
 
@@ -370,6 +376,7 @@ function MethodIcon({ method }: { method: string }) {
 }
 
 function BankWirePanel({ bankWire, invoiceNumber, amount, invoiceId }: { amount: string; bankWire?: GatewayEntry; invoiceNumber: string; invoiceId: string }) {
+  const c = getDictionary(currentLocale()).client.pay;
   const cfg = bankWire?.config ?? {};
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -393,28 +400,28 @@ function BankWirePanel({ bankWire, invoiceNumber, amount, invoiceId }: { amount:
     return (
       <div className={styles.bankWirePanel}>
         <CheckCircle size={32} className={styles.iconSuccess} />
-        <p style={{ fontWeight: 700, margin: "8px 0 4px" }}>Thank you — payment noted!</p>
-        <p className={styles.hint}>Our team has been notified and will verify your transfer. Your service will be activated once we confirm receipt.</p>
-        <a className={styles.back} href="/client/invoices">Back to invoices</a>
+        <p style={{ fontWeight: 700, margin: "8px 0 4px" }}>{c.thankYouNoted}</p>
+        <p className={styles.hint}>{c.teamNotified}</p>
+        <a className={styles.back} href="/client/invoices">{c.backToInvoices}</a>
       </div>
     );
   }
 
   return (
     <div className={styles.bankWirePanel}>
-      <p className={styles.hint}>Please transfer the exact amount to the bank account below. Use your invoice number as the payment reference.</p>
+      <p className={styles.hint}>{c.bankTransferIntro}</p>
       <div className={styles.bankDetails}>
-        {cfg.accountHolder && <div className={styles.bankRow}><span>Account holder</span><strong>{cfg.accountHolder}</strong></div>}
-        {cfg.bankName && <div className={styles.bankRow}><span>Bank</span><strong>{cfg.bankName}</strong></div>}
-        {cfg.iban && <div className={styles.bankRow}><span>IBAN</span><strong className={styles.mono}>{cfg.iban}</strong></div>}
-        {cfg.bic && <div className={styles.bankRow}><span>BIC / SWIFT</span><strong className={styles.mono}>{cfg.bic}</strong></div>}
-        <div className={styles.bankRow}><span>Amount</span><strong>{amount}</strong></div>
-        <div className={styles.bankRow}><span>Reference</span><strong className={styles.mono}>{invoiceNumber}</strong></div>
+        {cfg.accountHolder && <div className={styles.bankRow}><span>{c.accountHolder}</span><strong>{cfg.accountHolder}</strong></div>}
+        {cfg.bankName && <div className={styles.bankRow}><span>{c.bank}</span><strong>{cfg.bankName}</strong></div>}
+        {cfg.iban && <div className={styles.bankRow}><span>{c.iban}</span><strong className={styles.mono}>{cfg.iban}</strong></div>}
+        {cfg.bic && <div className={styles.bankRow}><span>{c.bicSwift}</span><strong className={styles.mono}>{cfg.bic}</strong></div>}
+        <div className={styles.bankRow}><span>{c.amount}</span><strong>{amount}</strong></div>
+        <div className={styles.bankRow}><span>{c.reference}</span><strong className={styles.mono}>{invoiceNumber}</strong></div>
       </div>
       {cfg.referenceNote && <p className={styles.referenceNote}>{cfg.referenceNote}</p>}
-      <p className={styles.bankNote}>Your service will be activated once we confirm receipt of your payment. After you have transferred the amount, click the button below.</p>
+      <p className={styles.bankNote}>{c.bankNote}</p>
       <button className={styles.payBtn} disabled={claiming} style={{ marginTop: 8 }} type="button" onClick={handleClaimed}>
-        <Landmark size={17} /> {claiming ? "Notifying…" : "I have paid — notify the team"}
+        <Landmark size={17} /> {claiming ? c.notifying : c.iHavePaid}
       </button>
     </div>
   );

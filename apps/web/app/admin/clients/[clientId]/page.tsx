@@ -22,16 +22,17 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
     requestLocale()
   ]);
 
+  const copy = getDictionary(locale);
+  const a = copy.admin;
   if (!client) {
     return (
       <div className={styles.page}>
         <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
-        <main className={styles.main}><h1>Client</h1><p>Not found.</p></main>
+        <main className={styles.main}><h1>{a.client}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
   }
 
-  const copy = getDictionary(locale);
   const paidRevenue = client.invoices?.filter((inv) => inv.status === "PAID").reduce((sum, inv) => sum + inv.totalCents, 0) ?? 0;
 
   return (
@@ -40,19 +41,19 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/clients">← Clients</a></span>
+            <span className="eyebrow"><a href="/admin/clients">{a.detail.backClients}</a></span>
             <h1>{client.name}</h1>
             <p style={{ margin: "2px 0 0", color: "var(--muted)", fontSize: "0.9rem" }}>
               {client.email} · {copy.client.customerNumber} {formatCustomerNumber(client.customerNumber)}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Button href={`/admin/orders/new?clientId=${client.id}`} variant="secondary">New Order</Button>
+            <Button href={`/admin/orders/new?clientId=${client.id}`} variant="secondary">{a.view.newOrder}</Button>
           </div>
         </header>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><h2>Actions</h2></div>
+          <div className={styles.panelHeader}><h2>{a.detail.actions}</h2></div>
           <div style={{ padding: "16px" }}>
             <AdminClientActions client={client} />
           </div>
@@ -61,58 +62,58 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
         <section className={styles.metrics}>
           <div className="metric">
             <strong>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0}</strong>
-            <span>Active services</span>
+            <span>{a.activeServices}</span>
           </div>
           <div className="metric">
             <strong>{client.domainRecords?.length ?? 0}</strong>
-            <span>Domains</span>
+            <span>{a.eyebrow.domains}</span>
           </div>
           <div className="metric">
             <strong>{client.invoices?.filter((inv) => inv.status !== "PAID").length ?? 0}</strong>
-            <span>Unpaid invoices</span>
+            <span>{a.detail.unpaidInvoices}</span>
           </div>
           <div className="metric">
             <strong>{money(paidRevenue, "EUR", locale)}</strong>
-            <span>Total revenue</span>
+            <span>{a.detail.totalRevenue}</span>
           </div>
         </section>
 
-        <Panel title="Client Information" actions={null}>
+        <Panel title={a.detail.clientInfo} actions={null}>
           <table className="table"><tbody>
-            <tr><th>Customer type</th><td>{client.customerType}</td></tr>
+            <tr><th>{a.forms.customerType}</th><td>{client.customerType}</td></tr>
             <tr><th>{copy.client.customerNumber}</th><td>{formatCustomerNumber(client.customerNumber)}</td></tr>
-            <tr><th>Country</th><td>{client.countryCode}</td></tr>
-            <tr><th>VAT ID</th><td>{client.vatId ?? "—"}</td></tr>
-            <tr><th>Phone</th><td>{client.contacts?.[0]?.phone ?? "—"}</td></tr>
-            <tr><th>Address</th><td>{addressLabel(client)}</td></tr>
+            <tr><th>{a.forms.country}</th><td>{client.countryCode}</td></tr>
+            <tr><th>{a.forms.vatId}</th><td>{client.vatId ?? "—"}</td></tr>
+            <tr><th>{a.forms.phone}</th><td>{client.contacts?.[0]?.phone ?? "—"}</td></tr>
+            <tr><th>{a.forms.address}</th><td>{addressLabel(client)}</td></tr>
           </tbody></table>
         </Panel>
 
         <Panel
-          title="Services"
+          title={a.services}
           actions={client.services?.length ? <StatusPill label={`${client.services.length}`} tone="neutral" /> : null}
         >
           {client.services?.length ? (
             <table className="table">
               <thead>
-                <tr><th>Service</th><th>Domain</th><th>Status</th><th>Next due</th></tr>
+                <tr><th>{a.col.service}</th><th>{a.detail.domain}</th><th>{a.status}</th><th>{a.detail.nextDue}</th></tr>
               </thead>
               <tbody>
                 {client.services.map((service) => (
                   <tr key={service.id}>
                     <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a></td>
                     <td>{service.domainRecords?.[0]?.domain ?? "—"}</td>
-                    <td><StatusPill label={serviceStatusLabel(service.status)} tone={service.status === "ACTIVE" ? "good" : "warn"} /></td>
+                    <td><StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} /></td>
                     <td>{dateLabel(service.renewsAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No services yet.</p>}
+          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>{a.noServices}</p>}
         </Panel>
 
         <Panel
-          title="Invoices"
+          title={a.invoices}
           actions={
             <div style={{ display: "flex", gap: 8 }}>
               {client.invoices?.length ? <StatusPill label={`${client.invoices.length}`} tone="neutral" /> : null}
@@ -122,30 +123,30 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
           {client.invoices?.length ? (
             <table className="table">
               <thead>
-                <tr><th>Invoice</th><th>Status</th><th>Due</th><th>Total</th></tr>
+                <tr><th>{a.col.invoice}</th><th>{a.status}</th><th>{a.detail.due}</th><th>{a.total}</th></tr>
               </thead>
               <tbody>
                 {client.invoices.map((invoice) => (
                   <tr key={invoice.id}>
                     <td><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></td>
-                    <td><StatusPill label={invoiceStatusLabel(invoice.status)} tone={invoice.status === "PAID" ? "good" : "warn"} /></td>
+                    <td><StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} /></td>
                     <td>{dateLabel(invoice.dueAt)}</td>
                     <td>{money(invoice.totalCents, invoice.currency, locale)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No invoices yet.</p>}
+          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>{a.misc.noInvoicesYet}</p>}
         </Panel>
 
         <Panel
-          title="Orders"
+          title={a.orders}
           actions={client.orders?.length ? <StatusPill label={`${client.orders.length}`} tone="neutral" /> : null}
         >
           {client.orders?.length ? (
             <table className="table">
               <thead>
-                <tr><th>Order</th><th>Status</th><th>Items</th><th>Total</th></tr>
+                <tr><th>{a.order}</th><th>{a.status}</th><th>{a.col.items}</th><th>{a.total}</th></tr>
               </thead>
               <tbody>
                 {client.orders.map((order) => (
@@ -160,7 +161,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
                 ))}
               </tbody>
             </table>
-          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>No orders yet.</p>}
+          ) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>{a.noOrders}</p>}
         </Panel>
       </main>
     </div>

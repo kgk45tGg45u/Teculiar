@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, storeAuth, type AuthPayload } from "../../../../lib/api";
+import { API_BASE_URL, authHeaders, currentLocale, storeAuth, type AuthPayload } from "../../../../lib/api";
+import { getDictionary } from "../../../../lib/dictionary";
 
 type ConfirmResult = {
   status: string;
@@ -25,6 +26,7 @@ async function doConfirm(invoiceId: string): Promise<ConfirmResult | null> {
 }
 
 function applyResult(result: ConfirmResult, invoiceId: string): { redirect?: string; message?: string; showNewOrderLink?: boolean } {
+  const c = getDictionary(currentLocale()).client.pay;
   if (result.accessToken && result.user) {
     try {
       storeAuth({
@@ -44,13 +46,13 @@ function applyResult(result: ConfirmResult, invoiceId: string): { redirect?: str
     return { redirect: `/client?invoice=${encodeURIComponent(id)}` };
   }
   if (result.status === "PENDING") {
-    return { message: "Your payment is being processed. You will be notified by email once confirmed." };
+    return { message: c.paymentProcessing };
   }
   if (result.status === "FAILED") {
     if (result.accessToken) {
       return { redirect: `/client?invoice=${encodeURIComponent(id)}&paymentFailed=1` };
     }
-    return { message: "Payment was not completed. You can place a new order and choose a different payment method.", showNewOrderLink: true };
+    return { message: c.paymentNotCompleted, showNewOrderLink: true };
   }
 
   // For any other status (including error responses from the API), redirect if we have auth.
@@ -58,13 +60,14 @@ function applyResult(result: ConfirmResult, invoiceId: string): { redirect?: str
     return { redirect: `/client?invoice=${encodeURIComponent(id)}` };
   }
   return {
-    message: result.status ? `Payment status: ${result.status}` : "Payment confirmation failed.",
+    message: result.status ? c.paymentStatus.replace("{status}", result.status) : c.paymentConfirmFailed,
     showNewOrderLink: true
   };
 }
 
 export default function PaymentReturnPage() {
-  const [message, setMessage] = useState("Confirming your payment…");
+  const c = getDictionary(currentLocale()).client.pay;
+  const [message, setMessage] = useState(c.confirmingYourPayment);
   const [showNewOrderLink, setShowNewOrderLink] = useState(false);
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export default function PaymentReturnPage() {
     const invoiceId = params.get("invoiceId");
 
     if (!invoiceId) {
-      setMessage("No invoice found. Please contact support if you completed a payment.");
+      setMessage(c.noInvoiceFound);
       return;
     }
 
@@ -91,7 +94,7 @@ export default function PaymentReturnPage() {
       }
 
       if (!result) {
-        setMessage("Could not confirm your payment. Please refresh the page or contact support.");
+        setMessage(c.couldNotConfirm);
         setShowNewOrderLink(true);
         return;
       }
@@ -109,7 +112,7 @@ export default function PaymentReturnPage() {
   return (
     <main style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60dvh", padding: "32px 16px" }}>
       <div style={{ maxWidth: 480, textAlign: "center" }}>
-        <h1 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 12 }}>Payment</h1>
+        <h1 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 12 }}>{c.paymentHeading}</h1>
         <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>{message}</p>
         {showNewOrderLink ? (
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
@@ -117,10 +120,10 @@ export default function PaymentReturnPage() {
               href="/"
               style={{ display: "inline-block", padding: "10px 22px", background: "var(--dezhost)", color: "white", borderRadius: 8, fontWeight: 700, fontSize: "0.9rem", textDecoration: "none" }}
             >
-              ← Place a new order
+              {c.placeNewOrder}
             </a>
             <a href="/de/contact" style={{ fontSize: "0.82rem", color: "var(--muted)", textDecoration: "underline" }}>
-              Contact support
+              {c.contactSupport}
             </a>
           </div>
         ) : null}
