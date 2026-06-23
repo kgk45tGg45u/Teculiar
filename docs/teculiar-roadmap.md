@@ -28,6 +28,29 @@ renamed to reflect that name. More themes come later.
 
 ---
 
+## Translation editing UX (applies to Phases 2–4)
+
+These rules govern **every admin-side translatable field**: menu-item labels (Phase 2), page **name,
+slug, content and SEO** (Phase 2/3), and **Customizer element text** (Phase 3).
+
+- **Conditional on ≥2 languages.** Translation affordances appear **only when the store has at least two
+  configured languages**. A single-language store (one main language, no extra packs) shows **no**
+  translation buttons or fields anywhere in Admin > Settings > Theme or the Customizer — there is nothing
+  to translate. (Mirrors the Phase 1 rule that hides the storefront language toggle when only one language
+  is configured.)
+- **The "translate" affordance.** Next to each translatable text sits a **small button bearing a
+  one-character language sign**. Clicking it opens a **modal with one input field per configured language**;
+  the modal saves each language's value separately.
+- **Default language = the editing admin's own language.** The value shown inline (menu label, page
+  title/slug/content, element text) is authored in **the current admin's language** — the language that
+  admin picked via their own toggle (`dezhost_admin_locale`). The modal collects the **other** languages'
+  values.
+- **English fallback** still applies at render time for any language left blank.
+- **Auto-translate** (Phase 3 elements): a button calls the **DeepSeek API** to pre-fill a target language,
+  but every language field stays **editable**. Menus/pages may reuse the same helper.
+
+---
+
 ## Phase 1 — Modular languages, locale & currency (FULL-STACK) — *implemented; verification pending*
 
 Status: **Steps 1–8 implemented & committed** (2026-06-20) on branch `feat/teculiar-i18n-currency`;
@@ -124,24 +147,29 @@ Moved here at the user's request — pick up **after step 3 (country VAT)**:
 ## Phase 2 — Theme foundation: "Blue" + Admin > Theme tabs 1–3
 
 Goal: introduce the Theme concept and make menus + pages data-driven, **without** the Customizer yet.
-Nothing on the live site may break; CSS/section names get renamed to the "Blue" theme.
+Nothing on the live site may break. **Rollout (decided 2026-06-23): parity-first, two steps** — build the
+models + admin tabs seeded to mirror today's site exactly, then flip the live header/footer/routing to
+data-driven only **after prod parity is verified**. **The "Blue" CSS/section/module rename is deferred to
+Phase 3** (it pairs with Phase 3's reusable-element refactor, avoiding visual regressions here).
 
-**Admin > Theme** is a 5-tab page. Phase 2 delivers tabs **Theme**, **Menus**, **Pages** (tabs 4 & 5,
-Customizer + any theme-settings, come in Phase 3).
+**Admin > Theme** is a multi-tab page. Phase 2 delivers **Theme**, **Menus**, **Pages**, and **Footer**.
+The **Customizer** (and any further theme-settings) come in Phase 3 as later tabs.
 
 ### Tab 1 — Theme
 - Admin chooses the active theme from available themes and clicks **Apply** to activate it.
 - Today there is exactly one theme, **"Blue"**, shown as a selectable button with a **screenshot/thumbnail**
   of the theme on it; it is active by default.
 - A theme bundles: its menu items, pages, header, footer, and per-page localized content + sections/elements.
-- Rename the current storefront's CSS/JS/HTML sections and modules to reflect the "Blue" name.
+- *(Deferred to Phase 3.)* Renaming the current storefront's CSS/JS/HTML sections and modules to the
+  "Blue" name is **not** done in Phase 2 — it pairs with Phase 3's reusable-element refactor to avoid
+  visual regressions.
 
 ### Tab 2 — Menus
 A **5-column CRUD table**; each row is one menu item:
 
 | Column | Type | Notes |
 |---|---|---|
-| Menu item | text | the label; **translatable per configured language** |
+| Menu item | text | the label; **translatable per configured language** — via the shared translate-button modal (see *Translation editing UX*) |
 | Menu | dropdown | **Main Menu** or **Legal Menu** |
 | Parent item | dropdown | another menu item, to nest/group it |
 | Page | dropdown | which Page it links to (from the Pages tab) |
@@ -159,8 +187,23 @@ Rules:
 - **Decision (locked): one Page record with per-locale fields** — each page's **name and slug (and SEO)
   carry a translation for every configured language** — rather than one row per locale. (Replaces today's
   per-locale `Content` rows for marketing pages.)
+  - **Per-locale slugs are authored here.** Example: IT-Solutions is `/en/it-solutions` and
+    `/de/it-losungen`. Each language's slug is edited in this Pages tab via the translate-button modal
+    (see *Translation editing UX*); blank locales fall back to the main-language slug.
 - Seed the tab with the current pages: **Web Hosting, VPS, Reseller, Domains, IT Solutions, Web Design,
   Blog, About, Contact**.
+
+### Tab 4 — Footer
+- A dedicated tab to **edit the storefront footer content**, admin-defined and **translatable per
+  configured language** (via the translate-button modal; see *Translation editing UX*).
+- The live footer becomes **data-driven from this tab** (replacing today's hard-coded footer content).
+  Footer **menu links** still come from the **Menus** tab (e.g. the **Legal Menu**); this Footer tab owns
+  the footer's **other content** (column headings, free text, contact blurb, copyright line, etc.).
+
+### Header (no dedicated tab in Phase 2)
+The header needs little customization now: it renders the **logo**, the **menu items** in the active
+language (from the **Menus** tab), and the **fixed action buttons** (identical in every language). So it
+becomes menu-driven but gets **no separate editing tab** this phase.
 
 ### Phase 2 open questions / standards to decide
 - Theme model + how "active theme" is stored and switched; how a theme is packaged (mirroring the language
@@ -168,13 +211,15 @@ Rules:
 - How the theme **thumbnail/screenshot** is produced and stored.
 - Migration from today's hard-coded header/footer + `Content`-based pages to the Menu/Page models without
   breaking live routing/SEO (slugs, redirects).
-- How `[locale]` routing maps to per-locale slugs.
+- **Slug routing (decided 2026-06-23): localized URLs go live in Phase 2's flip step.** `[locale]` routing
+  resolves the per-locale slug authored in the Pages tab (e.g. `/de/it-losungen`); old paths get **301
+  redirects** and the sitemap/hreflang are updated. Blank locales fall back to the main-language slug.
 
 ---
 
 ## Phase 3 — Customizer (Elementor-like page builder) — *needs its own deep-design session*
 
-The hardest part. Tab 4 of Admin > Theme. **Storage decision is locked** (see below); the full
+The hardest part. A later tab of Admin > Theme (after Footer). **Storage decision is locked** (see below); the full
 architecture should be designed in a dedicated session before building.
 
 ### UX
@@ -190,6 +235,15 @@ architecture should be designed in a dedicated session before building.
   e.g. **Hero, Explainer Section, Call Out Section, Steps Section**, plus **all cards, buttons, and every
   other reusable UI piece** — not only sections-with-children.
 - **Sections can contain sub-sections** (as the site does today); model nesting smartly.
+- **Build the library by surveying every page *outside* the Admin & Client dashboards** (home, web-hosting,
+  VPS, reseller, domains, IT-Solutions, web-design, blog, about, contact, legal): catalogue **every section
+  and element**, give each a **clear, appropriate name**, and register it. The library is a faithful
+  inventory of **what the site has today**.
+- **Homepage product grids are a special case — distinct from the product grids on other pages.** Other
+  pages' grids render a product list. The **homepage grids are admin-composed**: the admin defines each
+  homepage product **card's content/details, per card**, in **Admin > Settings > Theme**. Model the
+  homepage-grid element so its cards are admin-authored, separate from the data-driven product grids
+  elsewhere.
 - Dragging an element onto the page shows it pre-filled with **example content**.
 
 ### Per-element editing
@@ -222,7 +276,8 @@ architecture should be designed in a dedicated session before building.
 ### Seeding & safety
 - Seed the Customizer with **all main sections and cards currently on the various pages**, preserving
   sub-section nesting. **Nothing on the live site may break** during the migration; CSS class names and
-  section names are expected to change as part of making elements reusable.
+  section names are expected to change as part of making elements reusable. (This is also where the
+**"Blue" theme rename** deferred from Phase 2 lands.)
 
 ### Phase 3 deep-design topics (for the dedicated session)
 - The **element registry** (how each element type declares its props, default/example content, edit-modal

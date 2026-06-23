@@ -1,7 +1,7 @@
 import type { AuthUser } from "../../../../lib/api";
 import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
-import { ThemeBlueForm } from "../../../../components/admin/theme-blue-form";
+import { ThemeBuilder } from "../../../../components/admin/theme/theme-builder";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 
 type BlueThemeSettings = {
@@ -42,7 +42,7 @@ export default async function ThemeBluePage() {
             <h1>Blue</h1>
           </div>
         </header>
-        <ThemeBlueForm initialImages={{
+        <ThemeBuilder initialImages={{
           homeHeroImageUrl: b.homeHeroImageUrl ?? "",
           webhostingHeroImageUrl: b.webhostingHeroImageUrl ?? "",
           domainsHeroImageUrl: b.domainsHeroImageUrl ?? "",

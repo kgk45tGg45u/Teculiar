@@ -1034,6 +1034,72 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 }
 
+// ---------------------------------------------------------------------------
+// Theme foundation (Phase 2 — "Teculiar" roadmap).
+// A theme bundles the storefront's menus, pages and footer. The current
+// storefront is the theme "blue". Per-locale text is stored as a JSON map
+// keyed by locale code, e.g. { "en": "IT Solutions", "de": "IT-Lösungen" };
+// missing locales fall back to the store's main language at render time.
+// ---------------------------------------------------------------------------
+
+enum MenuName {
+  MAIN
+  LEGAL
+}
+
+model Theme {
+  id        String     @id @default(cuid())
+  key       String     @unique // stable id, e.g. "blue"
+  name      String // display name shown in the Theme tab
+  thumbnail String? // screenshot asset path
+  active    Boolean    @default(false)
+  footer    Json? // per-locale footer content (mission, headings, CTA, tagline, …)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  pages     Page[]
+  menuItems MenuItem[]
+}
+
+model Page {
+  id             String     @id @default(cuid())
+  themeId        String
+  key            String // stable identifier, e.g. "home", "webhosting", "it-solutions"
+  component      String // built-in renderer this page maps to in Phase 2 (pre-Customizer)
+  name           Json // per-locale display name
+  slug           Json // per-locale URL slug ("" for the home page)
+  seoTitle       Json? // per-locale
+  seoDescription Json? // per-locale
+  published      Boolean    @default(true)
+  isSystem       Boolean    @default(true) // seeded built-in pages: cannot be deleted in Phase 2, only unpublished
+  order          Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  theme          Theme      @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  menuItems      MenuItem[]
+
+  @@unique([themeId, key])
+}
+
+model MenuItem {
+  id          String     @id @default(cuid())
+  themeId     String
+  menu        MenuName
+  parentId    String? // null = top-level; set to nest (e.g. "Cloud" parent)
+  pageId      String? // null = parent-only item or external link
+  externalUrl String? // optional non-page link
+  label       Json // per-locale label
+  newTab      Boolean    @default(false)
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  theme       Theme      @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  parent      MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MenuItem[] @relation("MenuItemChildren")
+  page        Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([themeId, menu, order])
+}
+
 model EmailTemplate {
   id        String   @id @default(cuid())
   key       String

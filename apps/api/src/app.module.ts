@@ -15,6 +15,7 @@ import { ModuleRegistryModule } from "./modules/module-registry/module-registry.
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { ThemeModule } from "./modules/theme/theme.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VirtualminClientModule } from "./modules/virtualmin-client/virtualmin-client.module";
@@ -38,6 +39,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     CmsModule,
     CronModule,
     ExternalModule,
+    ThemeModule,
     VirtualminClientModule
   ],
   controllers: [HealthController]
