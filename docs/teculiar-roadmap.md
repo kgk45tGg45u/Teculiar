@@ -144,7 +144,20 @@ Moved here at the user's request — pick up **after step 3 (country VAT)**:
 
 ---
 
-## Phase 2 — Theme foundation: "Blue" + Admin > Theme tabs 1–3
+## Phase 2 — Theme foundation: "Blue" + Admin > Theme tabs (Theme/Menus/Pages/Footer)
+
+> **Status (2026-06-23): IMPLEMENTED on branch `feat/teculiar-theme-foundation`; locally verified; pending
+> deploy + prod E2E.** Prisma `Theme`/`Page`/`MenuItem` models + migration; API `theme` module
+> (`apps/api/src/modules/theme/`) with an idempotent "Blue" parity seed (labels pulled from
+> `@dezhost/locales`), public `GET /storefront/theme`, admin `GET /admin/dev/theme` + page/menu/footer CRUD
+> + `:key/activate`; Admin > Theme tabbed builder (`apps/web/components/admin/theme/`) with the one-glyph
+> translate-button modal (shown only when ≥2 languages). **Flip done in two stages:** (A) data-driven
+> header/footer (`site-header`/`site-footer`/`mobile-menu` read from `lib/storefront-theme.ts`, with a
+> fallback); (B) per-locale slug routing in `middleware.ts` — maps a visitor's localized slug to the
+> physical route (rewrite) and 301s old paths to the current slug (no-op under parity; ~60s cache).
+> Verified locally end-to-end (seed parity, admin tabs, 3-language translate modal, create, localized-slug
+> rewrite + 301). **Follow-up:** hreflang `alternates` + sitemap localized-slug entries (only matter once
+> slugs are localized; 301s keep old URLs working meanwhile).
 
 Goal: introduce the Theme concept and make menus + pages data-driven, **without** the Customizer yet.
 Nothing on the live site may break. **Rollout (decided 2026-06-23): parity-first, two steps** — build the
