@@ -5,6 +5,7 @@ import { ChevronDown, Globe } from "lucide-react";
 import { type Locale } from "../../lib/i18n";
 import { getDictionary } from "../../lib/dictionary";
 import { SUPPORTED_LOCALES } from "../../lib/supported-locales";
+import { type NavNode, type StorefrontTheme, toNav } from "../../lib/storefront-theme";
 import { AccountMenu } from "./account-menu";
 import { DetailsAutoClose } from "./details-auto-close";
 import { LanguageToggle } from "./language-toggle";
@@ -19,28 +20,15 @@ type SiteHeaderProps = {
   variant?: "site" | "admin";
   languages?: string[];
   currencies?: string[];
+  theme?: StorefrontTheme | null;
 };
 
-export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"] }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"], theme }: SiteHeaderProps) {
   const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
   const brandLabel = isPanel ? "Teculiar" : "Dezhost";
-
-  const navLinks = [
-    { href: `${base}/domains`, label: copy.common.nav.domains },
-    { href: `${base}/it-losungen`, label: copy.common.nav.itSolutions },
-    { href: `${base}/webdesign`, label: copy.common.nav.webdesign },
-    { href: `${base}/blog`, label: copy.common.nav.blog },
-    { href: `${base}/uber-uns`, label: copy.common.nav.about },
-    { href: `${base}/kontakt`, label: copy.common.nav.contact }
-  ];
-
-  const cloudChildren = [
-    { href: `${base}/webhosting`, label: copy.common.nav.hosting },
-    { href: `${base}/virtual-servers`, label: copy.common.nav.virtualServers },
-    { href: `${base}/reseller`, label: copy.common.nav.reseller }
-  ];
+  const nav = buildNav(theme, locale, copy, base);
 
   return (
     <header className={styles.header}>
@@ -51,20 +39,21 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", lan
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
-          <details className={styles.navDropdown}>
-            <summary className={styles.navDropdownToggle}>
-              {copy.common.nav.cloud}
-              <ChevronDown aria-hidden size={14} className={styles.navChevron} />
-            </summary>
-            <div className={styles.navDropdownMenu}>
-              {cloudChildren.map((link) => (
-                <MenuLink href={link.href as Route} key={link.href}>{link.label}</MenuLink>
-              ))}
-            </div>
-          </details>
-          {navLinks.map((link) => (
-            <Link href={link.href as Route} key={link.href}>{link.label}</Link>
-          ))}
+          {nav.map((node) => (node.children.length ? (
+            <details className={styles.navDropdown} key={node.label}>
+              <summary className={styles.navDropdownToggle}>
+                {node.label}
+                <ChevronDown aria-hidden size={14} className={styles.navChevron} />
+              </summary>
+              <div className={styles.navDropdownMenu}>
+                {node.children.map((child) => (
+                  <MenuLink href={(child.href ?? base) as Route} key={child.href ?? child.label} target={child.newTab ? "_blank" : undefined}>{child.label}</MenuLink>
+                ))}
+              </div>
+            </details>
+          ) : node.href ? (
+            <Link href={node.href as Route} key={node.href} target={node.newTab ? "_blank" : undefined}>{node.label}</Link>
+          ) : null))}
         </nav>
 
         <div className={styles.actions}>
@@ -72,13 +61,32 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", lan
             <LanguageToggle locale={locale} languages={languages} currencies={currencies} />
           </Suspense>
           <AccountMenu />
-          <MobileMenu
-            cloudLabel={copy.common.nav.cloud}
-            cloudChildren={cloudChildren}
-            navLinks={navLinks}
-          />
+          <MobileMenu nav={nav} />
         </div>
       </div>
     </header>
   );
+}
+
+// Build the nav tree from theme menu data; fall back to the historical hard-coded nav so the header
+// never breaks if the theme API is briefly unavailable. Seeded slugs equal today's paths, so the
+// data-driven output is identical to the previous hard-coded nav.
+function buildNav(theme: StorefrontTheme | null | undefined, locale: string, copy: ReturnType<typeof getDictionary>, base: string): NavNode[] {
+  if (theme?.menus?.main?.length) {
+    return toNav(theme.menus.main, locale, theme.languages[0] ?? locale);
+  }
+  const leaf = (label: string, path: string): NavNode => ({ label, href: `${base}/${path}`, newTab: false, children: [] });
+  return [
+    { label: copy.common.nav.cloud, href: null, newTab: false, children: [
+      leaf(copy.common.nav.hosting, "webhosting"),
+      leaf(copy.common.nav.virtualServers, "virtual-servers"),
+      leaf(copy.common.nav.reseller, "reseller")
+    ] },
+    leaf(copy.common.nav.domains, "domains"),
+    leaf(copy.common.nav.itSolutions, "it-losungen"),
+    leaf(copy.common.nav.webdesign, "webdesign"),
+    leaf(copy.common.nav.blog, "blog"),
+    leaf(copy.common.nav.about, "uber-uns"),
+    leaf(copy.common.nav.contact, "kontakt")
+  ];
 }

@@ -3,20 +3,13 @@
 import { ChevronDown, Menu } from "lucide-react";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
+import type { NavNode } from "../../lib/storefront-theme";
 import { MenuLink } from "./menu-link";
 import styles from "./site-header.module.css";
 
-type NavLink = { href: string; label: string };
-
-type Props = {
-  cloudLabel: string;
-  cloudChildren: NavLink[];
-  navLinks: NavLink[];
-};
-
-export function MobileMenu({ cloudLabel, cloudChildren, navLinks }: Props) {
+export function MobileMenu({ nav }: { nav: NavNode[] }) {
   const [open, setOpen] = useState(false);
-  const [cloudOpen, setCloudOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +25,7 @@ export function MobileMenu({ cloudLabel, cloudChildren, navLinks }: Props) {
 
   function closeMenu() {
     setOpen(false);
-    setCloudOpen(false);
+    setOpenGroups({});
   }
 
   return (
@@ -50,35 +43,36 @@ export function MobileMenu({ cloudLabel, cloudChildren, navLinks }: Props) {
 
       {open && (
         <nav className={styles.mobileNav} aria-label="Mobile primary">
-          <div className={styles.mobileCloudGroup}>
-            <button
-              type="button"
-              className={styles.mobileCloudToggle}
-              aria-expanded={cloudOpen}
-              onClick={() => setCloudOpen((o) => !o)}
-            >
-              {cloudLabel}
-              <ChevronDown
-                aria-hidden
-                size={14}
-                className={`${styles.mobileChevron}${cloudOpen ? ` ${styles.mobileChevronOpen}` : ""}`}
-              />
-            </button>
-            {cloudOpen && (
-              <div className={styles.mobileCloudChildren}>
-                {cloudChildren.map((link) => (
-                  <MenuLink href={link.href as Route} key={link.href} onClick={closeMenu}>
-                    {link.label}
-                  </MenuLink>
-                ))}
-              </div>
-            )}
-          </div>
-          {navLinks.map((link) => (
-            <MenuLink href={link.href as Route} key={link.href} onClick={closeMenu}>
-              {link.label}
+          {nav.map((node) => (node.children.length ? (
+            <div className={styles.mobileCloudGroup} key={node.label}>
+              <button
+                type="button"
+                className={styles.mobileCloudToggle}
+                aria-expanded={!!openGroups[node.label]}
+                onClick={() => setOpenGroups((g) => ({ ...g, [node.label]: !g[node.label] }))}
+              >
+                {node.label}
+                <ChevronDown
+                  aria-hidden
+                  size={14}
+                  className={`${styles.mobileChevron}${openGroups[node.label] ? ` ${styles.mobileChevronOpen}` : ""}`}
+                />
+              </button>
+              {openGroups[node.label] && (
+                <div className={styles.mobileCloudChildren}>
+                  {node.children.map((child) => (
+                    <MenuLink href={(child.href ?? "#") as Route} key={child.href ?? child.label} onClick={closeMenu} target={child.newTab ? "_blank" : undefined}>
+                      {child.label}
+                    </MenuLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : node.href ? (
+            <MenuLink href={node.href as Route} key={node.href} onClick={closeMenu} target={node.newTab ? "_blank" : undefined}>
+              {node.label}
             </MenuLink>
-          ))}
+          ) : null))}
         </nav>
       )}
     </div>

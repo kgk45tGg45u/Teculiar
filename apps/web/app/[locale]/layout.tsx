@@ -4,6 +4,7 @@ import { CurrencyConfigInit } from "../../components/layout/currency-config-init
 import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
 import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
+import { fetchStorefrontTheme } from "../../lib/storefront-theme";
 import { getLocale } from "../../lib/i18n";
 
 type SiteSettings = {
@@ -58,17 +59,20 @@ export default async function PublicLayout({
 }>) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
-  const settings = await apiGet<SiteSettings>("/storefront/settings");
+  const [settings, theme] = await Promise.all([
+    apiGet<SiteSettings>("/storefront/settings"),
+    fetchStorefrontTheme()
+  ]);
   const brandLogo = settings?.siteLogoUrl;
   const currencyConfig = currencyConfigFromSettings(settings);
   const i18nConfig = i18nConfigFromSettings(settings);
 
   return (
     <div className="shell">
-      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
+      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} theme={theme} />
       <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
-      <SiteFooter brandLogo={brandLogo} locale={locale} />
+      <SiteFooter brandLogo={brandLogo} locale={locale} theme={theme} />
     </div>
   );
 }
