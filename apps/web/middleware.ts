@@ -5,6 +5,7 @@ import { isLocaleCode } from "./lib/supported-locales";
 const PUBLIC_FILE = /\.(.*)$/;
 const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
 const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
+const LOCALE_COOKIE_OPTS = { path: "/", sameSite: "lax" as const, maxAge: 60 * 60 * 24 * 365 };
 
 function nextWithPath(request: NextRequest) {
   const pathnameHeader = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -13,7 +14,60 @@ function nextWithPath(request: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export function middleware(request: NextRequest) {
+// ── Per-locale slug routing (Phase 2 flip stage B) ────────────────────────────
+// Maps the public, per-locale slug a visitor types to the physical storefront route that renders it,
+// and 301s old/other paths to the current localized slug. Theme page data is cached briefly so this
+// costs ~1 API call/minute. With parity data (slug == component) every branch is a pass-through, so
+// today's URLs are unchanged; it only activates once an admin localizes a slug in Admin > Theme.
+type ThemePage = { component: string; slug: Record<string, string> };
+let themeCache: { at: number; pages: ThemePage[] } | null = null;
+
+async function getThemePages(): Promise<ThemePage[]> {
+  if (themeCache && Date.now() - themeCache.at < 60_000) {
+    return themeCache.pages;
+  }
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
+    const res = await fetch(`${base}/storefront/theme`, { headers: { accept: "application/json" } });
+    if (!res.ok) {
+      return themeCache?.pages ?? [];
+    }
+    const data = (await res.json()) as { pages?: Array<{ component?: string; slug?: Record<string, string> }> };
+    const pages: ThemePage[] = Array.isArray(data?.pages)
+      ? data.pages.map((p) => ({ component: String(p.component ?? ""), slug: p.slug ?? {} }))
+      : [];
+    themeCache = { at: Date.now(), pages };
+    return pages;
+  } catch {
+    return themeCache?.pages ?? [];
+  }
+}
+
+type SlugAction = { type: "pass" } | { type: "rewrite" | "redirect"; to: string };
+
+async function resolveSlug(locale: string, rest: string): Promise<SlugAction> {
+  if (!rest) {
+    return { type: "pass" }; // home is served by [locale]/page.tsx
+  }
+  const pages = await getThemePages();
+  if (!pages.length) {
+    return { type: "pass" };
+  }
+  // The current localized slug for this locale → rewrite to the physical route (unless they're equal).
+  const current = pages.find((p) => p.slug[locale] === rest);
+  if (current) {
+    return current.component === rest ? { type: "pass" } : { type: "rewrite", to: current.component };
+  }
+  // An old/physical path whose localized slug now differs → 301 to the current localized slug.
+  const physical = pages.find((p) => p.component === rest);
+  const target = physical?.slug[locale];
+  if (physical && typeof target === "string" && target && target !== rest) {
+    return { type: "redirect", to: target };
+  }
+  return { type: "pass" }; // not a theme page (e.g. /order, /signup) — leave it alone
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (
@@ -68,8 +122,26 @@ export function middleware(request: NextRequest) {
   // optional region) — this covers admin-added languages the build-time manifest can't list.
   const firstSegment = pathname.split("/")[1] ?? "";
   if (isLocaleCode(firstSegment)) {
+    const localeCode = firstSegment.toLowerCase();
+    const rest = pathname.split("/").slice(2).join("/");
+    const action = await resolveSlug(localeCode, rest);
+
+    if (action.type === "redirect") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${firstSegment}/${action.to}`;
+      const response = NextResponse.redirect(url, 301);
+      response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
+      return response;
+    }
+    if (action.type === "rewrite") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${firstSegment}/${action.to}`;
+      const response = NextResponse.rewrite(url);
+      response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
+      return response;
+    }
     const response = NextResponse.next();
-    response.cookies.set(LOCALE_COOKIE, firstSegment.toLowerCase(), { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+    response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
     return response;
   }
 
