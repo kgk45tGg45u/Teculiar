@@ -156,8 +156,22 @@ Moved here at the user's request — pick up **after step 3 (country VAT)**:
 > fallback); (B) per-locale slug routing in `middleware.ts` — maps a visitor's localized slug to the
 > physical route (rewrite) and 301s old paths to the current slug (no-op under parity; ~60s cache).
 > Verified locally end-to-end (seed parity, admin tabs, 3-language translate modal, create, localized-slug
-> rewrite + 301). **Follow-up:** hreflang `alternates` + sitemap localized-slug entries (only matter once
-> slugs are localized; 301s keep old URLs working meanwhile).
+> rewrite + 301).
+>
+> **Follow-up (DONE 2026-06-24, locally verified):**
+> - **hreflang `alternates` + self-`canonical`** rendered by the `[locale]` layout (`generateMetadata`),
+>   built from the active theme's per-locale slugs (`storefrontAlternates`/`pageSlug`/`pagePath` in
+>   `lib/storefront-theme.ts`). Middleware now sets `x-pathname` on the storefront branch so the layout
+>   knows the visitor-facing path. Hidden for single-language stores; blog/KB detail get canonical-only.
+> - **Sitemap localized-slug entries** (`apps/web/app/sitemap.xml/route.ts`): per-locale `<loc>` from the
+>   theme slugs, each with `<xhtml:link rel="alternate" hreflang>` for every configured language +
+>   `x-default`; falls back to a flat path list if the theme can't be fetched. The **cron `sitemap`
+>   reporting step** (`cron.service.ts → sitemapStatus`) was made consistent — it now counts
+>   (theme pages + extra paths) × configured locales + posts, via the injected `ThemeService`.
+> - **Admin-managed redirects (no hard-coded redirects):** new `Redirect` model + migration; API
+>   `redirects` module (public `GET /storefront/redirects`, admin CRUD `…/admin/dev/redirects`); the
+>   storefront middleware 301/302s any path matching a rule (internal path or absolute URL), cached ~60s.
+>   Edited in a new **Admin > Theme > Redirects** tab. Packs: `admin.themeBuilder.{tabRedirects,…}` (en+de).
 
 Goal: introduce the Theme concept and make menus + pages data-driven, **without** the Customizer yet.
 Nothing on the live site may break. **Rollout (decided 2026-06-23): parity-first, two steps** — build the

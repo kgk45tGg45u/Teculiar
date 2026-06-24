@@ -43,6 +43,42 @@ async function getThemePages(): Promise<ThemePage[]> {
   }
 }
 
+// ── Admin-managed redirects (no hard-coded redirects) ─────────────────────────
+// The storefront 301/302s any request whose path equals a redirect's `from` to its `to`
+// (internal path or absolute URL). Rows are admin-defined in Admin > Theme > Redirects and
+// cached briefly here (~1 API call/minute), like the theme data above.
+type RedirectRule = { from: string; to: string; permanent: boolean };
+let redirectCache: { at: number; rules: RedirectRule[] } | null = null;
+
+async function getRedirects(): Promise<RedirectRule[]> {
+  if (redirectCache && Date.now() - redirectCache.at < 60_000) {
+    return redirectCache.rules;
+  }
+  try {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1";
+    const res = await fetch(`${base}/storefront/redirects`, { headers: { accept: "application/json" } });
+    if (!res.ok) {
+      return redirectCache?.rules ?? [];
+    }
+    const data = (await res.json()) as Array<{ from?: string; to?: string; permanent?: boolean }>;
+    const rules: RedirectRule[] = Array.isArray(data)
+      ? data
+          .filter((r) => r.from && r.to)
+          .map((r) => ({ from: String(r.from), to: String(r.to), permanent: r.permanent !== false }))
+      : [];
+    redirectCache = { at: Date.now(), rules };
+    return rules;
+  } catch {
+    return redirectCache?.rules ?? [];
+  }
+}
+
+// Match the incoming path (trailing slash normalized, except root) against the redirect rules.
+async function matchRedirect(pathname: string): Promise<RedirectRule | undefined> {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return (await getRedirects()).find((rule) => rule.from === path);
+}
+
 type SlugAction = { type: "pass" } | { type: "rewrite" | "redirect"; to: string };
 
 async function resolveSlug(locale: string, rest: string): Promise<SlugAction> {
@@ -115,6 +151,15 @@ export async function middleware(request: NextRequest) {
     return nextWithPath(request);
   }
 
+  // Admin-defined redirects win over locale/slug routing for any public path they match.
+  const redirect = await matchRedirect(pathname);
+  if (redirect) {
+    const dest = /^https?:\/\//i.test(redirect.to)
+      ? redirect.to
+      : new URL(redirect.to, request.nextUrl.origin).toString();
+    return NextResponse.redirect(dest, redirect.permanent ? 301 : 302);
+  }
+
   const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
   const locale = savedLocale ? getLocale(savedLocale) : localeFromAcceptLanguage(request.headers.get("accept-language"));
 
@@ -133,14 +178,18 @@ export async function middleware(request: NextRequest) {
       response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
       return response;
     }
+    // Expose the visitor-facing path to server components (hreflang/canonical in the [locale] layout
+    // read it via headers()), the same way nextWithPath does for admin/client routes.
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-pathname", `${pathname}${request.nextUrl.search}`);
     if (action.type === "rewrite") {
       const url = request.nextUrl.clone();
       url.pathname = `/${firstSegment}/${action.to}`;
-      const response = NextResponse.rewrite(url);
+      const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
       response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
       return response;
     }
-    const response = NextResponse.next();
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.cookies.set(LOCALE_COOKIE, localeCode, LOCALE_COOKIE_OPTS);
     return response;
   }

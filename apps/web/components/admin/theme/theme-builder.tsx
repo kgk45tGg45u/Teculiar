@@ -11,9 +11,10 @@ import { ThemeBlueForm } from "../theme-blue-form";
 import { FooterTab } from "./footer-tab";
 import { MenusTab } from "./menus-tab";
 import { PagesTab } from "./pages-tab";
+import { RedirectsTab } from "./redirects-tab";
 import type { AdminThemeData, TB } from "./types";
 
-type TabKey = "theme" | "menus" | "pages" | "footer";
+type TabKey = "theme" | "menus" | "pages" | "footer" | "redirects";
 type HeroImages = ComponentProps<typeof ThemeBlueForm>["initialImages"];
 
 export function ThemeBuilder({ initialImages }: { initialImages: HeroImages }) {
@@ -41,7 +42,8 @@ export function ThemeBuilder({ initialImages }: { initialImages: HeroImages }) {
     { key: "theme", label: t.tabTheme },
     { key: "menus", label: t.tabMenus },
     { key: "pages", label: t.tabPages },
-    { key: "footer", label: t.tabFooter }
+    { key: "footer", label: t.tabFooter },
+    { key: "redirects", label: t.tabRedirects }
   ];
 
   return (
@@ -71,6 +73,7 @@ export function ThemeBuilder({ initialImages }: { initialImages: HeroImages }) {
       {tab === "menus" ? <MenusTab menuItems={data.menuItems} pages={data.pages} {...common} /> : null}
       {tab === "pages" ? <PagesTab pages={data.pages} {...common} /> : null}
       {tab === "footer" ? <FooterTab footer={data.theme.footer} {...common} /> : null}
+      {tab === "redirects" ? <RedirectsTab t={t} /> : null}
     </div>
   );
 }

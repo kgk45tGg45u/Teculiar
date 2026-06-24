@@ -211,10 +211,12 @@ test.describe("Cron job result detail", () => {
     const result = await runCronViaApi(page);
     const sitemap = result.ran.find((j) => j.name === "sitemap");
     if (sitemap && sitemap.status === "ran") {
-      const res = sitemap.result as { urls?: number; de?: number; en?: number; source?: string };
+      // Shape mirrors the dynamic route: theme pages + extra paths per configured locale + posts.
+      const res = sitemap.result as { urls?: number; locales?: string[]; pagesPerLocale?: number; posts?: number; source?: string };
       expect(typeof res.urls, "sitemap result should include url count").toBe("number");
-      expect(typeof res.de, "sitemap result should include de count").toBe("number");
-      expect(typeof res.en, "sitemap result should include en count").toBe("number");
+      expect(Array.isArray(res.locales), "sitemap result should list configured locales").toBe(true);
+      expect((res.locales ?? []).length, "sitemap should cover at least one locale").toBeGreaterThan(0);
+      expect(typeof res.pagesPerLocale, "sitemap result should include pages-per-locale").toBe("number");
       expect(res.source, "sitemap is served by the live route, not a file").toBe("dynamic-route");
     }
   });

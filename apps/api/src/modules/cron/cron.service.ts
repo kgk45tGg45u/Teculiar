@@ -4,6 +4,7 @@ import { BillingService } from "../billing/billing.service";
 import { CmsService } from "../cms/cms.service";
 import { OrdersService } from "../orders/orders.service";
 import { ProductsService } from "../products/products.service";
+import { ThemeService } from "../theme/theme.service";
 import { TicketsService } from "../tickets/tickets.service";
 
 export type CronSettings = {
@@ -52,6 +53,7 @@ export class CronService {
     private readonly cms: CmsService,
     private readonly orders: OrdersService,
     private readonly products: ProductsService,
+    private readonly theme: ThemeService,
     private readonly tickets: TicketsService
   ) {}
 
@@ -168,18 +170,22 @@ export class CronService {
   }
 
   // The sitemap is served live by the web app's dynamic route (apps/web/app/sitemap.xml/route.ts),
-  // which always reflects the admin-configured site URL (www) and the current published posts.
-  // The cron no longer writes a file (the old approach wrote to the API container's filesystem,
-  // which the web app never served). This step just reports the current sitemap shape for the log.
+  // which always reflects the admin-configured site URL (www), the active theme's per-locale page
+  // slugs (with hreflang alternates) and the current published posts. The cron no longer writes a
+  // file (the old approach wrote to the API container's filesystem, which the web app never served).
+  // This step just reports the current sitemap shape for the log; it mirrors the route's URL math —
+  // (theme pages + extra paths) × configured locales + posts per locale — so the count stays accurate.
   private async sitemapStatus() {
-    const [dePosts, enPosts] = await Promise.all([
-      this.cms.listPosts("de", {}).catch(() => []),
-      this.cms.listPosts("en", {}).catch(() => [])
-    ]);
-    const staticPerLocale = SITEMAP_STATIC_PATHS.length;
-    const de = staticPerLocale + dePosts.length;
-    const en = staticPerLocale + enPosts.length;
-    return { urls: de + en, de, en, posts: dePosts.length + enPosts.length, source: "dynamic-route" };
+    const theme = await this.theme.storefrontTheme().catch(() => null);
+    const locales = theme?.languages?.length ? theme.languages : ["de", "en"];
+    // Mirror the route: theme pages + extra paths per locale, or the flat fallback list if no theme.
+    const pagesPerLocale = theme ? theme.pages.length + SITEMAP_EXTRA_PATHS.length : SITEMAP_FALLBACK_PATHS.length;
+    const perLocalePostCounts = await Promise.all(
+      locales.map((locale) => this.cms.listPosts(locale, {}).then((p) => p.length).catch(() => 0))
+    );
+    const posts = perLocalePostCounts.reduce((sum, n) => sum + n, 0);
+    const urls = pagesPerLocale * locales.length + posts;
+    return { urls, locales, pagesPerLocale, posts, source: "dynamic-route" };
   }
 
   private async maybeRunTimed(
@@ -313,11 +319,14 @@ export class CronService {
   }
 }
 
-// Mirrors the static paths in apps/web/app/sitemap.xml/route.ts — used only to count URLs for the log.
-const SITEMAP_STATIC_PATHS = [
-  "", "/domains", "/domains/pricing", "/hosting", "/webhosting", "/virtual-servers", "/vps", "/reseller",
-  "/webdesign", "/it-losungen", "/blog", "/uber-uns", "/kontakt", "/knowledgebase",
-  "/legal/agb", "/legal/datenschutz", "/legal/impressum"
+// Mirror apps/web/app/sitemap.xml/route.ts — used only to count URLs for the log.
+// EXTRA_PATHS: public pages that aren't theme pages (added on top of the theme pages per locale).
+const SITEMAP_EXTRA_PATHS = ["/domains/pricing", "/knowledgebase"];
+// FALLBACK_PATHS: the flat per-locale list the route emits when the theme can't be fetched.
+const SITEMAP_FALLBACK_PATHS = [
+  "", "/webhosting", "/virtual-servers", "/reseller", "/domains", "/it-losungen", "/webdesign",
+  "/blog", "/uber-uns", "/kontakt", "/legal/impressum", "/legal/datenschutz", "/legal/agb",
+  ...SITEMAP_EXTRA_PATHS
 ];
 
 function hours(value: unknown, fallback: number) {

@@ -1088,6 +1088,7 @@
     "tabMenus": "Menus",
     "tabPages": "Pages",
     "tabFooter": "Footer",
+    "tabRedirects": "Redirects",
     "themeHeading": "Active theme",
     "themeHint": "Choose which theme the storefront uses, then apply it.",
     "active": "Active",
@@ -1132,6 +1133,14 @@
     "fRightsReserved": "Rights-reserved line",
     "fTagline": "Tagline",
     "fContactEmail": "Contact email",
-    "fCtaHref": "Call-out link"
+    "fCtaHref": "Call-out link",
+    "redirectsHeading": "Redirects",
+    "redirectsHint": "Send an old or moved URL to a new one. The “from” path must start with “/”; the “to” path can be an internal path or a full https:// URL. Permanent means 301 (SEO-friendly), otherwise 302.",
+    "redirectsEmpty": "No redirects yet.",
+    "colFrom": "From (path)",
+    "colTo": "To (path or URL)",
+    "colPermanent": "Permanent (301)",
+    "colEnabled": "Enabled",
+    "addRedirect": "Add redirect"
   }
 }

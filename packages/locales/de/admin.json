@@ -1088,6 +1088,7 @@
     "tabMenus": "Menüs",
     "tabPages": "Seiten",
     "tabFooter": "Footer",
+    "tabRedirects": "Weiterleitungen",
     "themeHeading": "Aktives Theme",
     "themeHint": "Wählen Sie das Theme für die Website und übernehmen Sie es.",
     "active": "Aktiv",
@@ -1132,6 +1133,14 @@
     "fRightsReserved": "Zeile „Alle Rechte vorbehalten“",
     "fTagline": "Slogan",
     "fContactEmail": "Kontakt-E-Mail",
-    "fCtaHref": "Call-out-Link"
+    "fCtaHref": "Call-out-Link",
+    "redirectsHeading": "Weiterleitungen",
+    "redirectsHint": "Leitet eine alte oder verschobene URL auf eine neue um. Der „Von“-Pfad muss mit „/“ beginnen; das „Nach“-Ziel kann ein interner Pfad oder eine vollständige https://-URL sein. „Dauerhaft“ bedeutet 301 (SEO-freundlich), sonst 302.",
+    "redirectsEmpty": "Noch keine Weiterleitungen.",
+    "colFrom": "Von (Pfad)",
+    "colTo": "Nach (Pfad oder URL)",
+    "colPermanent": "Dauerhaft (301)",
+    "colEnabled": "Aktiv",
+    "addRedirect": "Weiterleitung hinzufügen"
   }
 }

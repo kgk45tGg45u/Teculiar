@@ -19,6 +19,14 @@ export type AdminPage = {
   order: number;
 };
 
+export type AdminRedirect = {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  permanent: boolean;
+  enabled: boolean;
+};
+
 export type AdminMenuItem = {
   id: string;
   menu: "MAIN" | "LEGAL";

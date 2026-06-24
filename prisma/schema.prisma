@@ -1100,6 +1100,21 @@ model MenuItem {
   @@index([themeId, menu, order])
 }
 
+// Admin-managed URL redirects (no hard-coded redirects). The storefront middleware reads the
+// enabled rows and 301/302s an incoming request whose path equals `fromPath` to `toPath`.
+// `toPath` may be an internal path ("/de/angebot") or an absolute URL ("https://…").
+model Redirect {
+  id        String   @id @default(cuid())
+  fromPath  String   @unique // exact request path to match, e.g. "/de/alte-seite"
+  toPath    String // destination — internal path or absolute URL
+  permanent Boolean  @default(true) // true = 301, false = 302
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
+
 model EmailTemplate {
   id        String   @id @default(cuid())
   key       String

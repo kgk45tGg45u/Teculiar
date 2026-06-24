@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { CurrencyConfigInit } from "../../components/layout/currency-config-init";
 import { SiteFooter } from "../../components/layout/site-footer";
 import { SiteHeader } from "../../components/layout/site-header";
 import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
-import { fetchStorefrontTheme } from "../../lib/storefront-theme";
+import { fetchStorefrontTheme, storefrontAlternates } from "../../lib/storefront-theme";
 import { getLocale } from "../../lib/i18n";
 
 type SiteSettings = {
@@ -23,7 +24,11 @@ type SiteSettings = {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
-  const settings = await apiGet<SiteSettings>("/storefront/settings");
+  const [settings, theme, headerStore] = await Promise.all([
+    apiGet<SiteSettings>("/storefront/settings"),
+    fetchStorefrontTheme(),
+    headers()
+  ]);
   const siteName = settings?.siteName || "Dezhost";
   const description = settings?.metaDescription || (locale === "de"
     ? "Dezhost – ethisches Webhosting und IT-Dienstleistungen aus Deutschland. Faire Preise, persönlicher Support, DSGVO-konform."
@@ -31,10 +36,20 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const ogImage = settings?.ogImageStatic;
   const siteUrl = settings?.siteUrl?.replace(/\/$/, "") || process.env.SITE_URL || "https://www.dezhost.com";
   const logoUrl = settings?.siteLogoUrl;
+
+  // hreflang + canonical from the localized-slug data. We only build them when the visitor-facing path
+  // is known (set by middleware); the part after "/<locale>" maps to the page's per-locale slugs.
+  const rawPath = headerStore.get("x-pathname") ?? "";
+  const mainLocale = getLocale(settings?.languages?.main);
+  const alternates = rawPath
+    ? storefrontAlternates(theme, locale, mainLocale, (rawPath.split("?")[0] ?? "").split("/").slice(2).join("/").replace(/\/$/, ""))
+    : undefined;
+
   return {
     metadataBase: new URL(siteUrl),
     title: { default: siteName, template: `%s ${settings?.ogTitleSuffix || `| ${siteName}`}` },
     description,
+    alternates,
     openGraph: {
       siteName,
       url: siteUrl,
