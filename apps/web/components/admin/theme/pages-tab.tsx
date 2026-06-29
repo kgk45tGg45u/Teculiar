@@ -105,6 +105,7 @@ function PageRow({ page, locales, adminLocale, canTranslate, t, reload }: Common
           <input checked={published} onChange={(e) => setPublished(e.target.checked)} style={{ width: "auto" }} type="checkbox" /> {t.colPublished}
         </label>
         <button className={styles.linkBtn} disabled={busy} onClick={() => void save()} type="button">{t.save}</button>
+        <a className={styles.linkBtn} href={`/admin/theme/customizer/${page.key}`} rel="noopener noreferrer" target="_blank">{t.customize}</a>
         {page.isSystem ? null : <button className={styles.dangerLinkBtn} onClick={() => void remove()} type="button"><Trash2 size={14} /></button>}
       </div>
     </div>

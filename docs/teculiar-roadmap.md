@@ -299,6 +299,26 @@ architecture should be designed in a dedicated session before building.
 > `apps/web/test/customizer-foundation.test.mjs`. API + web typecheck green. **Next: 3c** (builder shell —
 > `@dnd-kit` canvas, edit modals, IndexedDB autosave + restore, Save/Publish/rollback UI, DeepSeek button).
 
+> **Sub-phase 3c — builder shell: IMPLEMENTED & locally verified (2026-06-29).** Full-screen route
+> `app/admin/theme/customizer/[pageKey]/page.tsx` (no admin chrome; resolves `pageKey`→id + configured
+> locales via `/admin/dev/theme`, loads docs via the 3b API). New client builder under
+> `apps/web/components/admin/customizer/`: **`@dnd-kit`** canvas (`builder.tsx` `DndContext`+`DragOverlay`+
+> `closestCenter`; `palette.tsx` registry-driven `useDraggable`; `canvas.tsx` nested
+> `SortableContext`/`useSortable`/`useDroppable`, renders nodes through the **same registry** as live in
+> `mode="preview"`). Pure immutable tree ops (`tree.ts`: insert/move/remove/update, container-into-self
+> guard) → nothing lost mid-drag. **Three storage layers** wired: IndexedDB buffer (`idb.ts`, debounced
+> 1 s, "Restore unsaved changes" banner when local > server `draftUpdatedAt`) → **Save** PATCHes
+> `draftLayout` → **Publish** promotes draft→published + snapshots `PageVersion` (flips the live badge to
+> `custom`). `beforeunload` guard while dirty. **Edit modal** (`edit-modal.tsx`) is generated from
+> `ElementDef.textSlots`/`propSchema`, live-applies to the in-memory doc, per-slot **DeepSeek
+> auto-translate** (≥2-language-gated) via `POST /admin/dev/customizer/translate`. **Versions modal** lists
+> snapshots + revert (reloads the doc). New deps `@dnd-kit/core`+`/sortable`+`/utilities`. "Customize"
+> link added to the Pages tab (opens the builder in a new tab). Locale packs: new `admin.customizer.*`
+> group + `themeBuilder.customize` in **en + de** (parity-checked). Verified: web `build` (route emitted),
+> web+api typecheck, `node --test` (new `apps/web/test/customizer-builder.test.mjs`, 22 customizer/
+> decoupling assertions green). Live pages still use built-in renderers (no `component` flipped) — site
+> unaffected. **Next: 3d** (component refactor + registry population), then 3e per-page migration.
+
 > **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
 > `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —
 > only the branch; implementation starts next session at sub-phase **3a**).
