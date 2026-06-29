@@ -275,8 +275,29 @@ architecture should be designed in a dedicated session before building.
 > `menus/pages/footer/languages`), so header/footer/mobile-menu/sitemap/layout/cron consumers are
 > untouched. Verified locally: `db:push` applied, DB confirms no `themeId`/`Theme.footer` columns +
 > 15 pages/15 menu items preserved + `storefront.footer` populated; the live payload renders identically.
-> Tests: `apps/web/test/theme-content-decoupling.test.mjs`. API + web typecheck green. **Next: 3b** (layout
-> schema + Customizer API + registry skeleton + `LayoutRenderer`).
+> Tests: `apps/web/test/theme-content-decoupling.test.mjs`. API + web typecheck green.
+>
+> **Sub-phase 3b — layout schema + Customizer API + registry skeleton + `LayoutRenderer`: IMPLEMENTED &
+> locally verified (2026-06-29).** Schema: `Page` gains `publishedLayout`/`draftLayout`/`draftUpdatedAt`/
+> `layoutVersion` (Json + meta) and a `PageVersion` snapshot model (`@@unique([pageId, version])`);
+> migration `20260629130000_page_layout_docs` (additive, MariaDB-idempotent). Layout doc =
+> `{ schemaVersion, root: Node[] }` (`apps/web/lib/customizer/types.ts`). New **element registry**
+> (`apps/web/lib/customizer/registry/`, theme-neutral) with `ElementDef` + `getElementDef`/`listElements`
+> + skeleton defs (`section` container, `textBlock` atom; full inventory in 3d). One **`LayoutRenderer`**
+> (`layout-renderer.tsx`) for live (server) + preview (client): walks the tree, resolves per-locale text
+> via `localized()` (main-language fallback), skips unregistered types live / placeholders them in preview.
+> New API **`customizer` module** (`apps/api/src/modules/customizer/`), guarded
+> `JwtAuthGuard+RolesGuard @Roles("admin","super_admin")`, on global pages:
+> `GET :pageId`, `PATCH :pageId/draft` (Save), `POST :pageId/publish` (promote draft→published, bump
+> `layoutVersion`, snapshot `PageVersion`, flip `component="custom"`), `GET :pageId/versions`,
+> `POST :pageId/revert/:version` (append-only re-publish), `POST translate` (DeepSeek per-field, reuses
+> `AiBlogService.callDeepseek` + `BillingService.{i18nLanguages,deepseekApiKey}`; upstream failure → clean
+> 502). Public `GET /storefront/page/:key` returns a custom page's `publishedLayout` (route wiring is 3e).
+> Verified locally end-to-end against the running API (admin JWT): get→saveDraft→invalid-layout-400→
+> publish v1→v2→versions→revert→published==reverted-v1→storefront read shows custom+published→translate
+> (empty echo + clean 502 without a valid key); unauthenticated → 401. Tests:
+> `apps/web/test/customizer-foundation.test.mjs`. API + web typecheck green. **Next: 3c** (builder shell —
+> `@dnd-kit` canvas, edit modals, IndexedDB autosave + restore, Save/Publish/rollback UI, DeepSeek button).
 
 > **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
 > `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —

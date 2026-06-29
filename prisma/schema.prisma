@@ -1062,21 +1062,44 @@ model Theme {
   updatedAt DateTime @updatedAt
 }
 
-// Global storefront page (theme-independent). The Customizer's layout docs land here in Phase 3b.
+// Global storefront page (theme-independent). The Customizer (Phase 3) stores a versioned JSON
+// layout document here: `draftLayout` (server draft, written on Save) + `publishedLayout` (live,
+// written on Publish, snapshotted into PageVersion). `component` stays a built-in renderer until a
+// layout is first published, then flips to "custom" (incremental rollout — nothing breaks).
 model Page {
-  id             String     @id @default(cuid())
-  key            String     @unique // stable identifier, e.g. "home", "webhosting", "it-solutions"
+  id             String        @id @default(cuid())
+  key            String        @unique // stable identifier, e.g. "home", "webhosting", "it-solutions"
   component      String // built-in renderer this page maps to (pre-Customizer); "custom" once a layout doc is published
   name           Json // per-locale display name
   slug           Json // per-locale URL slug ("" for the home page)
   seoTitle       Json? // per-locale
   seoDescription Json? // per-locale
-  published      Boolean    @default(true)
-  isSystem       Boolean    @default(true) // seeded built-in pages: cannot be deleted, only unpublished
-  order          Int        @default(0)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  published      Boolean       @default(true)
+  isSystem       Boolean       @default(true) // seeded built-in pages: cannot be deleted, only unpublished
+  order          Int           @default(0)
+  publishedLayout Json? // live layout doc; null → page stays on its built-in renderer
+  draftLayout    Json? // latest server-saved draft (what the builder reloads to continue)
+  draftUpdatedAt DateTime? // when draftLayout was last saved (for the "restore unsaved changes" check)
+  layoutVersion  Int           @default(0) // bumped on each Publish
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   menuItems      MenuItem[]
+  versions       PageVersion[]
+}
+
+// Published-layout snapshot history for a page (Customizer rollback).
+model PageVersion {
+  id          String   @id @default(cuid())
+  pageId      String
+  version     Int
+  layout      Json
+  label       String?
+  publishedAt DateTime @default(now())
+  publishedBy String?
+  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, version])
+  @@index([pageId, version])
 }
 
 // Global menu item (theme-independent).

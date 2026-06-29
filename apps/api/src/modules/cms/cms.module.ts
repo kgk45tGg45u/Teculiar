@@ -10,6 +10,6 @@ import { TranslationService } from "./translation.service";
   imports: [BillingModule],
   controllers: [CmsController],
   providers: [CmsService, CmsRepository, TranslationService, AiBlogService],
-  exports: [CmsService]
+  exports: [CmsService, AiBlogService]
 })
 export class CmsModule {}

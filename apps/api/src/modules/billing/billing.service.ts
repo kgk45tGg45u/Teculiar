@@ -1457,6 +1457,11 @@ export class BillingService {
     return this.billing.settingString("siteUrl");
   }
 
+  // DeepSeek API key (DB-stored) — reused by the Customizer's per-field auto-translate.
+  deepseekApiKey() {
+    return this.billing.settingString("deepseekApiKey");
+  }
+
   // Configured languages (main + others). Defaults to German main / English secondary.
   async i18nLanguages(): Promise<StoredLanguages> {
     const stored = await this.billing.settingJson<Partial<StoredLanguages> | null>("i18n.languages", null);

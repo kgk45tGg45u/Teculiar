@@ -7,6 +7,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { CmsModule } from "./modules/cms/cms.module";
 import { CronModule } from "./modules/cron/cron.module";
+import { CustomizerModule } from "./modules/customizer/customizer.module";
 import { DepartmentsModule } from "./modules/departments/departments.module";
 import { EmailModule } from "./modules/email/email.module";
 import { ExternalModule } from "./modules/external/external.module";
@@ -42,6 +43,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     ExternalModule,
     RedirectsModule,
     ThemeModule,
+    CustomizerModule,
     VirtualminClientModule
   ],
   controllers: [HealthController]
