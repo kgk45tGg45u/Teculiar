@@ -26,6 +26,14 @@ footer**, and — inside pages — **localized text content + section modules + 
 The current storefront becomes the theme named **"Blue"**. Its CSS/JS/HTML sections and modules get
 renamed to reflect that name. More themes come later.
 
+> **Superseded by the Phase 3 deep-design session (2026-06-24):** **content is theme-independent; a
+> theme is styling only.** Pages, menus, footer and the elements/sections inside pages keep their
+> **content and structure** when the active theme changes — only the **styling** changes. So the theme
+> does **not** own menus/pages/footer (those become global); reusable components carry **generic,
+> theme-neutral names** (`hero`, never `blue.hero`). The "Blue rename" therefore targets the **styling
+> bundle / design tokens**, not the component names. (Phase 2 had scoped Page/MenuItem/footer under
+> Theme; Phase 3 decouples them — see Phase 3 below.)
+
 ---
 
 ## Translation editing UX (applies to Phases 2–4)
@@ -45,7 +53,11 @@ slug, content and SEO** (Phase 2/3), and **Customizer element text** (Phase 3).
   title/slug/content, element text) is authored in **the current admin's language** — the language that
   admin picked via their own toggle (`dezhost_admin_locale`). The modal collects the **other** languages'
   values.
-- **English fallback** still applies at render time for any language left blank.
+- **Main-language fallback** for any language left blank (revised in the Phase 3 session, 2026-06-24:
+  fallback is the **store's main language** from Admin > Settings, *not* hard-coded English, for all
+  *authored content* — menu labels, page name/slug/SEO, element text). Reuse `localized()` (already
+  `map[locale] || map[mainLocale] || …`). The static UI **packs** (`packages/locales`) keep
+  English-as-source fallback — English is *their* authored source; separate concern.
 - **Auto-translate** (Phase 3 elements): a button calls the **DeepSeek API** to pre-fill a target language,
   but every language field stays **editable**. Menus/pages may reuse the same helper.
 
@@ -244,10 +256,69 @@ becomes menu-driven but gets **no separate editing tab** this phase.
 
 ---
 
-## Phase 3 — Customizer (Elementor-like page builder) — *needs its own deep-design session*
+## Phase 3 — Customizer (Elementor-like page builder) — *deep-design DONE 2026-06-24; build plan approved; implementing on `feat/teculiar-customizer`*
 
 The hardest part. A later tab of Admin > Theme (after Footer). **Storage decision is locked** (see below); the full
 architecture should be designed in a dedicated session before building.
+
+> **Sub-phase 3a — content/theme decoupling + nav restructure: IMPLEMENTED & locally verified (2026-06-29).**
+> Schema decoupled: `themeId` dropped from `Page`/`MenuItem` (now global; `Page.key @unique`,
+> `MenuItem @@index([menu, order])`); `Theme` slimmed to styling-only (`key/name/thumbnail/active`);
+> `Theme.footer` → SystemSetting **`storefront.footer`**. Migration
+> `prisma/migrations/20260629120000_decouple_content_from_theme` (MariaDB-idempotent; drops the FK
+> columns + copies the active theme's footer into the setting before dropping it). API `theme` repo/
+> service now read global content + the footer setting; the seed split into `ensureContentSeeded`
+> (pages/menus/footer setting, theme-neutral `CONTENT_PAGE_DEFS`/`MAIN_MENU`/`LEGAL_MENU`/`FOOTER_KEYS`)
+> + `ensureStylingSeeded` (the `blue` theme). Nav: `/admin/theme/blue` → `/admin/theme` (301 via a
+> redirect page), the **Blue** sidebar child dropped (Theme is a direct leaf; active theme chosen on
+> tab 1). **Storefront `GET /storefront/theme` payload shape is unchanged** (`theme` styling + global
+> `menus/pages/footer/languages`), so header/footer/mobile-menu/sitemap/layout/cron consumers are
+> untouched. Verified locally: `db:push` applied, DB confirms no `themeId`/`Theme.footer` columns +
+> 15 pages/15 menu items preserved + `storefront.footer` populated; the live payload renders identically.
+> Tests: `apps/web/test/theme-content-decoupling.test.mjs`. API + web typecheck green. **Next: 3b** (layout
+> schema + Customizer API + registry skeleton + `LayoutRenderer`).
+
+> **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
+> `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —
+> only the branch; implementation starts next session at sub-phase **3a**).
+>
+> **Locked decisions:**
+> 1. **Save = server draft; Publish = go live** (two-step draft/published states).
+> 2. **Recovery = browser-local autosave (IndexedDB)**; the server is written **only** on explicit Save.
+>    Three layers: IndexedDB buffer (continuous, offline-safe) → `Page.draftLayout` (on Save) →
+>    `Page.publishedLayout` + `PageVersion` snapshot (on Publish). "Restore unsaved changes" on reopen.
+> 3. **Drag-and-drop = `@dnd-kit`** (`@dnd-kit/core` + `/sortable`; nested sortable, `DragOverlay`,
+>    immutable in-memory doc → nothing lost mid-drag). No DnD lib installed today.
+> 4. **Incremental rollout behind `Page.component`** — each page keeps its hard-coded renderer until its
+>    layout doc is authored, verified, and Published, then `component` flips to `"custom"`. Live site never breaks.
+> 5. **Content is theme-independent; theme = styling only** (see the "What Theme means" superseding note).
+>    Requires decoupling the shipped Phase 2 model: drop `themeId` from `Page`/`MenuItem`, move
+>    `Theme.footer` → SystemSetting `storefront.footer`, slim `Theme` to `key/name/thumbnail/active`
+>    (+ future `styling`), split the seed into a global **content** seed + a **styling** seed.
+> 6. **Main-language fallback** for authored content (see Translation editing UX note).
+> 7. **Sidebar: Admin > Theme has NO child.** Drop the "Blue" sub-item; active theme chosen on tab 1.
+>    Route `/admin/theme/blue` → `/admin/theme`; Customizer at `/admin/theme/customizer/[pageKey]`.
+>
+> **Sub-phases:** 3a content/theme decoupling + nav restructure → 3b layout schema + Customizer API +
+> registry skeleton + `LayoutRenderer` → 3c builder shell (`@dnd-kit` canvas, edit modals, IndexedDB
+> autosave, Save/Publish, rollback, DeepSeek translate) → 3d component refactor (reusable, theme-neutral
+> presentational) + registry population → 3e per-page migration (author → verify parity → publish).
+> Reuse: `AiBlogService.callDeepseek` (DB `deepseekApiKey`) for auto-translate; `i18nLanguages()` →
+> `{main, others}`; `translate-field.tsx` modal; the `JwtAuthGuard + RolesGuard + @Roles` admin pattern.
+> Prod E2E deferred to the **end of Phase 3** (user's call this session).
+>
+> **Element library inventory** (from the survey, to register with generic names): Hero, Explainer/
+> Feature-card Grid, Platform "Why" grid, Steps/Process, Call-out/CTA, FAQ/Accordion, Domain Search,
+> Contact (form+sidebar), About blocks, Blog grid, Legal prose; atoms Button/Card/Badge/Chip/TextBlock/
+> Icon + Explainer/Step/Service cards; dynamic `ProductPackages`/`HomepageProductGrid`/`DomainSearch`/
+> `ContactForm`/`BlogPostGrid`; Price/Number/Date tokens. All content today is inline `isDe ? … : …`.
+>
+> **Deferred to its own phase (dedicated design session first): Properties tab + Custom Themes.** The
+> Theme page gains a **Properties** tab — a big **locale-aware** textbox serializing a theme's exhaustive
+> properties (theme name, main color hex codes, grid box border-radius, …). Editing it changes that
+> theme's **CSS-level** properties (active or not); copy/edit/import via a **"New Custom Theme"** button
+> creates a new theme (re-skinning the same theme-neutral components). This is the `Theme.styling` payload
+> the Phase 3 decoupling anticipates. **Not built in Phase 3.**
 
 ### UX
 - Admin picks a page from a dropdown and clicks **Customize** → opens a **new browser tab** that:

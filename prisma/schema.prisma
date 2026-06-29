@@ -1035,11 +1035,13 @@ model SystemSetting {
 }
 
 // ---------------------------------------------------------------------------
-// Theme foundation (Phase 2 — "Teculiar" roadmap).
-// A theme bundles the storefront's menus, pages and footer. The current
-// storefront is the theme "blue". Per-locale text is stored as a JSON map
-// keyed by locale code, e.g. { "en": "IT Solutions", "de": "IT-Lösungen" };
-// missing locales fall back to the store's main language at render time.
+// Theme foundation (Phase 2) + content/theme decoupling (Phase 3a — "Teculiar"
+// roadmap). Content (Page, MenuItem, footer) is GLOBAL and theme-independent —
+// switching the active theme re-skins the same content. A Theme is a styling-only
+// record. Per-locale text is stored as a JSON map keyed by locale code, e.g.
+// { "en": "IT Solutions", "de": "IT-Lösungen" }; missing locales fall back to the
+// store's main language at render time. Footer content lives in SystemSetting
+// "storefront.footer" (mission, headings, CTA, tagline, …).
 // ---------------------------------------------------------------------------
 
 enum MenuName {
@@ -1047,42 +1049,39 @@ enum MenuName {
   LEGAL
 }
 
+// Styling-only record. Owns no pages/menus/footer (those are global). The current
+// storefront look is the theme "blue". A future `styling` payload (design tokens)
+// lands with the Properties tab / Custom Themes phase.
 model Theme {
-  id        String     @id @default(cuid())
-  key       String     @unique // stable id, e.g. "blue"
+  id        String   @id @default(cuid())
+  key       String   @unique // stable id, e.g. "blue"
   name      String // display name shown in the Theme tab
   thumbnail String? // screenshot asset path
-  active    Boolean    @default(false)
-  footer    Json? // per-locale footer content (mission, headings, CTA, tagline, …)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  pages     Page[]
-  menuItems MenuItem[]
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// Global storefront page (theme-independent). The Customizer's layout docs land here in Phase 3b.
 model Page {
   id             String     @id @default(cuid())
-  themeId        String
-  key            String // stable identifier, e.g. "home", "webhosting", "it-solutions"
-  component      String // built-in renderer this page maps to in Phase 2 (pre-Customizer)
+  key            String     @unique // stable identifier, e.g. "home", "webhosting", "it-solutions"
+  component      String // built-in renderer this page maps to (pre-Customizer); "custom" once a layout doc is published
   name           Json // per-locale display name
   slug           Json // per-locale URL slug ("" for the home page)
   seoTitle       Json? // per-locale
   seoDescription Json? // per-locale
   published      Boolean    @default(true)
-  isSystem       Boolean    @default(true) // seeded built-in pages: cannot be deleted in Phase 2, only unpublished
+  isSystem       Boolean    @default(true) // seeded built-in pages: cannot be deleted, only unpublished
   order          Int        @default(0)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-  theme          Theme      @relation(fields: [themeId], references: [id], onDelete: Cascade)
   menuItems      MenuItem[]
-
-  @@unique([themeId, key])
 }
 
+// Global menu item (theme-independent).
 model MenuItem {
   id          String     @id @default(cuid())
-  themeId     String
   menu        MenuName
   parentId    String? // null = top-level; set to nest (e.g. "Cloud" parent)
   pageId      String? // null = parent-only item or external link
@@ -1092,12 +1091,11 @@ model MenuItem {
   order       Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  theme       Theme      @relation(fields: [themeId], references: [id], onDelete: Cascade)
   parent      MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children    MenuItem[] @relation("MenuItemChildren")
   page        Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
 
-  @@index([themeId, menu, order])
+  @@index([menu, order])
 }
 
 // Admin-managed URL redirects (no hard-coded redirects). The storefront middleware reads the

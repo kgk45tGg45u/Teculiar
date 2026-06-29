@@ -1,7 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { MenuName, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import { BLUE_FOOTER_KEYS, BLUE_LEGAL_MENU, BLUE_MAIN_MENU, BLUE_PAGE_DEFS, type LocaleMap, type MenuDef, localeMap } from "./theme-seed";
+import { CONTENT_PAGE_DEFS, FOOTER_KEYS, LEGAL_MENU, MAIN_MENU, type LocaleMap, type MenuDef, localeMap } from "./theme-seed";
+
+// Global storefront-content (Phase 3a decoupling): the footer JSON lives in this SystemSetting,
+// no longer on the Theme row. Mirrors how email/i18n/tax config already live in DB settings.
+const FOOTER_SETTING_KEY = "storefront.footer";
 
 @Injectable()
 export class ThemeRepository {
@@ -16,6 +20,7 @@ export class ThemeRepository {
     return [...new Set([main, ...others])].filter(Boolean);
   }
 
+  // ── Theme (styling) ───────────────────────────────────────────────────────────
   activeTheme() {
     return this.prisma.theme.findFirst({ where: { active: true } });
   }
@@ -28,12 +33,33 @@ export class ThemeRepository {
     return this.prisma.theme.findMany({ orderBy: { createdAt: "asc" } });
   }
 
-  pagesForTheme(themeId: string) {
-    return this.prisma.page.findMany({ where: { themeId }, orderBy: { order: "asc" } });
+  async setActiveTheme(id: string) {
+    await this.prisma.$transaction([
+      this.prisma.theme.updateMany({ data: { active: false } }),
+      this.prisma.theme.update({ where: { id }, data: { active: true } })
+    ]);
   }
 
-  menuItemsForTheme(themeId: string) {
-    return this.prisma.menuItem.findMany({ where: { themeId }, orderBy: { order: "asc" } });
+  // ── Global content (theme-independent) ──────────────────────────────────────────
+  pages() {
+    return this.prisma.page.findMany({ orderBy: { order: "asc" } });
+  }
+
+  menuItems() {
+    return this.prisma.menuItem.findMany({ orderBy: { order: "asc" } });
+  }
+
+  async footer(): Promise<Record<string, unknown> | null> {
+    const setting = await this.prisma.systemSetting.findUnique({ where: { key: FOOTER_SETTING_KEY } });
+    return (setting?.value as Record<string, unknown>) ?? null;
+  }
+
+  updateFooter(footer: Prisma.InputJsonValue) {
+    return this.prisma.systemSetting.upsert({
+      where: { key: FOOTER_SETTING_KEY },
+      create: { key: FOOTER_SETTING_KEY, value: footer },
+      update: { value: footer }
+    });
   }
 
   // ── Page CRUD ───────────────────────────────────────────────────────────────
@@ -70,56 +96,65 @@ export class ThemeRepository {
     return this.prisma.menuItem.delete({ where: { id } });
   }
 
-  updateFooter(themeId: string, footer: Prisma.InputJsonValue) {
-    return this.prisma.theme.update({ where: { id: themeId }, data: { footer } });
-  }
-
-  async setActiveTheme(id: string) {
-    await this.prisma.$transaction([
-      this.prisma.theme.updateMany({ data: { active: false } }),
-      this.prisma.theme.update({ where: { id }, data: { active: true } })
-    ]);
-  }
-
   // ── Idempotent parity seed ──────────────────────────────────────────────────
-  // Creates the "Blue" theme + its pages/menus/footer to mirror today's storefront, but only
-  // if it doesn't exist yet — so re-runs and later admin edits are never clobbered.
-  async ensureBlueSeeded(): Promise<void> {
-    if (await this.themeByKey("blue")) {
+  // Two independent, idempotent seeds: the GLOBAL content (pages/menus/footer setting), and the
+  // styling (the single active "blue" theme). Either is skipped if already present, so re-runs and
+  // later admin edits are never clobbered.
+  async ensureSeeded(): Promise<void> {
+    await this.ensureContentSeeded();
+    await this.ensureStylingSeeded();
+  }
+
+  // Seeds the global pages/menus/footer to mirror today's storefront — only when no pages exist yet.
+  async ensureContentSeeded(): Promise<void> {
+    if (await this.prisma.page.findFirst({ select: { id: true } })) {
       return;
     }
     const locales = await this.configuredLocales();
     await this.prisma.$transaction(async (tx) => {
-      if (await tx.theme.findUnique({ where: { key: "blue" } })) {
+      if (await tx.page.findFirst({ select: { id: true } })) {
         return; // lost a create race — another request seeded it first
       }
 
       const footer: Record<string, LocaleMap | string> = { contactEmail: "sales@dezhost.com", ctaHref: "/kontakt" };
-      for (const key of BLUE_FOOTER_KEYS) {
+      for (const key of FOOTER_KEYS) {
         footer[key] = localeMap(locales, `storefront.footer.${key}`);
       }
-      const theme = await tx.theme.create({
-        data: { key: "blue", name: "Blue", active: true, footer: footer as Prisma.InputJsonValue }
+      await tx.systemSetting.upsert({
+        where: { key: FOOTER_SETTING_KEY },
+        create: { key: FOOTER_SETTING_KEY, value: footer as Prisma.InputJsonValue },
+        update: {} // keep an existing (migrated) footer untouched
       });
 
       const pageIdByKey: Record<string, string> = {};
-      for (const def of BLUE_PAGE_DEFS) {
+      for (const def of CONTENT_PAGE_DEFS) {
         const name = def.nameLiteral ?? localeMap(locales, def.nameKey ?? "");
         const slug = Object.fromEntries(locales.map((loc) => [loc, def.slug])); // parity: one path per locale today
         const page = await tx.page.create({
-          data: { themeId: theme.id, key: def.key, component: def.component, name, slug, order: def.order }
+          data: { key: def.key, component: def.component, name, slug, order: def.order }
         });
         pageIdByKey[def.key] = page.id;
       }
 
-      await this.seedMenu(tx, theme.id, MenuName.MAIN, BLUE_MAIN_MENU, pageIdByKey, locales, null);
-      await this.seedMenu(tx, theme.id, MenuName.LEGAL, BLUE_LEGAL_MENU, pageIdByKey, locales, null);
+      await this.seedMenu(tx, MenuName.MAIN, MAIN_MENU, pageIdByKey, locales, null);
+      await this.seedMenu(tx, MenuName.LEGAL, LEGAL_MENU, pageIdByKey, locales, null);
+    });
+  }
+
+  // Seeds the single active "blue" styling record — only when it doesn't exist yet.
+  async ensureStylingSeeded(): Promise<void> {
+    if (await this.themeByKey("blue")) {
+      return;
+    }
+    await this.prisma.theme.upsert({
+      where: { key: "blue" },
+      create: { key: "blue", name: "Blue", active: true },
+      update: {}
     });
   }
 
   private async seedMenu(
     tx: Prisma.TransactionClient,
-    themeId: string,
     menu: MenuName,
     defs: MenuDef[],
     pageIdByKey: Record<string, string>,
@@ -129,7 +164,6 @@ export class ThemeRepository {
     for (const def of defs) {
       const item = await tx.menuItem.create({
         data: {
-          themeId,
           menu,
           parentId,
           order: def.order,
@@ -139,7 +173,7 @@ export class ThemeRepository {
         }
       });
       if (def.children?.length) {
-        await this.seedMenu(tx, themeId, menu, def.children, pageIdByKey, locales, item.id);
+        await this.seedMenu(tx, menu, def.children, pageIdByKey, locales, item.id);
       }
     }
   }

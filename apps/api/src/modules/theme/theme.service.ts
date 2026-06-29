@@ -22,7 +22,7 @@ export class ThemeService {
   constructor(private readonly repo: ThemeRepository) {}
 
   private async activeOrSeed(): Promise<Theme> {
-    await this.repo.ensureBlueSeeded();
+    await this.repo.ensureSeeded();
     const theme = await this.repo.activeTheme();
     if (!theme) {
       throw new NotFoundException("No active theme configured");
@@ -30,13 +30,15 @@ export class ThemeService {
     return theme;
   }
 
-  /** Public, data-driven view consumed by the storefront header/footer/router (used by the flip). */
+  /** Public view consumed by the storefront header/footer/router. `theme` is the active styling
+   *  key/name; `menus`/`pages`/`footer` are the global, theme-independent content. */
   async storefrontTheme() {
     const theme = await this.activeOrSeed();
-    const [pages, items, languages] = await Promise.all([
-      this.repo.pagesForTheme(theme.id),
-      this.repo.menuItemsForTheme(theme.id),
-      this.repo.configuredLocales()
+    const [pages, items, languages, footer] = await Promise.all([
+      this.repo.pages(),
+      this.repo.menuItems(),
+      this.repo.configuredLocales(),
+      this.repo.footer()
     ]);
     const pageById = new Map(pages.map((page) => [page.id, page]));
 
@@ -63,21 +65,22 @@ export class ThemeService {
       languages,
       menus: { main: topLevel("MAIN"), legal: topLevel("LEGAL") },
       pages: pages.filter((page) => page.published).map(toPublicPage),
-      footer: theme.footer ?? null
+      footer: footer ?? null
     };
   }
 
   /** Full, editable view for the Admin > Theme tabs. */
   async adminTheme() {
     const theme = await this.activeOrSeed();
-    const [pages, items, locales, themes] = await Promise.all([
-      this.repo.pagesForTheme(theme.id),
-      this.repo.menuItemsForTheme(theme.id),
+    const [pages, items, locales, themes, footer] = await Promise.all([
+      this.repo.pages(),
+      this.repo.menuItems(),
       this.repo.configuredLocales(),
-      this.repo.listThemes()
+      this.repo.listThemes(),
+      this.repo.footer()
     ]);
     return {
-      theme: { id: theme.id, key: theme.key, name: theme.name, thumbnail: theme.thumbnail, active: theme.active, footer: theme.footer ?? null },
+      theme: { id: theme.id, key: theme.key, name: theme.name, thumbnail: theme.thumbnail, active: theme.active, footer: footer ?? null },
       themes: themes.map((entry) => ({ id: entry.id, key: entry.key, name: entry.name, thumbnail: entry.thumbnail, active: entry.active })),
       locales,
       canTranslate: locales.length > 1, // drives the per-field translate button (hidden for single-language stores)
@@ -104,12 +107,12 @@ export class ThemeService {
     return { ok: true };
   }
 
-  // ── Pages ────────────────────────────────────────────────────────────────────
+  // ── Pages (global content) ─────────────────────────────────────────────────────
   async createPage(dto: CreatePageDto) {
-    const theme = await this.activeOrSeed();
+    await this.repo.ensureContentSeeded();
     const name = sanitizeMap(dto.name);
     const slug = sanitizeMap(dto.slug, true);
-    const pages = await this.repo.pagesForTheme(theme.id);
+    const pages = await this.repo.pages();
     const key = dto.key?.trim() || deriveKey(name, slug);
     if (!key) {
       throw new BadRequestException("A page name or key is required.");
@@ -119,7 +122,6 @@ export class ThemeService {
     }
     this.assertSlugFree(pages, slug, null);
     return this.repo.createPage({
-      themeId: theme.id,
       key,
       component: "custom", // admin-created pages render via the Customizer (Phase 3); metadata only for now
       name: name as Prisma.InputJsonValue,
@@ -133,9 +135,8 @@ export class ThemeService {
   }
 
   async updatePage(id: string, dto: UpdatePageDto) {
-    const theme = await this.activeOrSeed();
     const page = await this.repo.pageById(id);
-    if (!page || page.themeId !== theme.id) {
+    if (!page) {
       throw new NotFoundException("Page not found");
     }
     const data: Prisma.PageUncheckedUpdateInput = {};
@@ -144,7 +145,7 @@ export class ThemeService {
     }
     if (dto.slug) {
       const slug = sanitizeMap(dto.slug, true);
-      this.assertSlugFree(await this.repo.pagesForTheme(theme.id), slug, id);
+      this.assertSlugFree(await this.repo.pages(), slug, id);
       data.slug = slug as Prisma.InputJsonValue;
     }
     if (dto.seoTitle) {
@@ -163,9 +164,8 @@ export class ThemeService {
   }
 
   async deletePage(id: string) {
-    const theme = await this.activeOrSeed();
     const page = await this.repo.pageById(id);
-    if (!page || page.themeId !== theme.id) {
+    if (!page) {
       throw new NotFoundException("Page not found");
     }
     if (page.isSystem) {
@@ -175,17 +175,16 @@ export class ThemeService {
     return { ok: true };
   }
 
-  // ── Menu items ─────────────────────────────────────────────────────────────────
+  // ── Menu items (global content) ──────────────────────────────────────────────────
   async createMenuItem(dto: CreateMenuItemDto) {
-    const theme = await this.activeOrSeed();
+    await this.repo.ensureContentSeeded();
     const menu = dto.menu as MenuName;
     const parentId = dto.parentId ?? null;
-    await this.validateMenuRefs(theme.id, menu, parentId, dto.pageId ?? null, null);
-    const siblings = (await this.repo.menuItemsForTheme(theme.id)).filter(
+    await this.validateMenuRefs(menu, parentId, dto.pageId ?? null, null);
+    const siblings = (await this.repo.menuItems()).filter(
       (item) => item.menu === menu && (item.parentId ?? null) === parentId
     );
     return this.repo.createMenuItem({
-      themeId: theme.id,
       menu,
       label: sanitizeMap(dto.label) as Prisma.InputJsonValue,
       parentId,
@@ -197,15 +196,14 @@ export class ThemeService {
   }
 
   async updateMenuItem(id: string, dto: UpdateMenuItemDto) {
-    const theme = await this.activeOrSeed();
     const item = await this.repo.menuItemById(id);
-    if (!item || item.themeId !== theme.id) {
+    if (!item) {
       throw new NotFoundException("Menu item not found");
     }
     const menu = (dto.menu ?? item.menu) as MenuName;
     const parentId = dto.parentId === undefined ? item.parentId : dto.parentId;
     const pageId = dto.pageId === undefined ? item.pageId : dto.pageId;
-    await this.validateMenuRefs(theme.id, menu, parentId, pageId, id);
+    await this.validateMenuRefs(menu, parentId, pageId, id);
     const data: Prisma.MenuItemUncheckedUpdateInput = {};
     if (dto.menu !== undefined) {
       data.menu = menu;
@@ -232,9 +230,8 @@ export class ThemeService {
   }
 
   async deleteMenuItem(id: string) {
-    const theme = await this.activeOrSeed();
     const item = await this.repo.menuItemById(id);
-    if (!item || item.themeId !== theme.id) {
+    if (!item) {
       throw new NotFoundException("Menu item not found");
     }
     await this.repo.deleteMenuItem(id); // children cascade via FK
@@ -242,8 +239,7 @@ export class ThemeService {
   }
 
   async updateFooter(dto: UpdateFooterDto) {
-    const theme = await this.activeOrSeed();
-    await this.repo.updateFooter(theme.id, dto.footer as Prisma.InputJsonValue);
+    await this.repo.updateFooter(dto.footer as Prisma.InputJsonValue);
     return { ok: true };
   }
 
@@ -262,13 +258,13 @@ export class ThemeService {
     }
   }
 
-  private async validateMenuRefs(themeId: string, menu: MenuName, parentId: string | null, pageId: string | null, selfId: string | null) {
+  private async validateMenuRefs(menu: MenuName, parentId: string | null, pageId: string | null, selfId: string | null) {
     if (parentId) {
       if (parentId === selfId) {
         throw new BadRequestException("A menu item can't be its own parent.");
       }
       const parent = await this.repo.menuItemById(parentId);
-      if (!parent || parent.themeId !== themeId) {
+      if (!parent) {
         throw new BadRequestException("Parent menu item not found.");
       }
       if (parent.menu !== menu) {
@@ -280,7 +276,7 @@ export class ThemeService {
     }
     if (pageId) {
       const page = await this.repo.pageById(pageId);
-      if (!page || page.themeId !== themeId) {
+      if (!page) {
         throw new BadRequestException("Linked page not found.");
       }
     }

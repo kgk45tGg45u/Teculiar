@@ -73,12 +73,7 @@ function buildBaseNav(c: AdminDict): NavEntry[] {
       ]
     },
     { href: "/admin/announcements", label: c.announcements },
-    {
-      label: c.nav.theme,
-      children: [
-        { href: "/admin/theme/blue", label: "Blue" }
-      ]
-    }
+    { href: "/admin/theme", label: c.nav.theme }
   ];
 }
 

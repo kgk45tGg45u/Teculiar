@@ -1,16 +1,17 @@
-// Parity seed for the "Blue" theme — a faithful mirror of today's hard-coded storefront
-// header (site-header.tsx), footer (site-footer.tsx) and pages. Per-locale labels are pulled
-// straight from the @dezhost/locales packs so de/en (and any 3rd language) stay in sync with
-// what the live site renders today. Slugs are seeded identical across locales because today's
-// routes are NOT localized yet (both /en/it-losungen and /de/it-losungen share one path); the
-// admin localizes them later via the Pages tab, and the routing flip serves them.
+// Parity seed for the GLOBAL storefront content — a faithful mirror of today's hard-coded
+// header (site-header.tsx), footer (site-footer.tsx) and pages. Content is theme-independent
+// (Phase 3a decoupling): pages/menus/footer carry no theme reference; a Theme is styling only.
+// Per-locale labels are pulled straight from the @dezhost/locales packs so de/en (and any 3rd
+// language) stay in sync with what the live site renders today. Slugs are seeded identical across
+// locales because today's routes are NOT localized yet (both /en/it-losungen and /de/it-losungen
+// share one path); the admin localizes them later via the Pages tab, and the routing flip serves them.
 import { t } from "../../common/i18n";
 
 export type LocaleMap = Record<string, string>;
 
 type PageDef = {
   key: string; // stable identifier + maps to today's built-in renderer
-  component: string; // route the built-in renderer lives at (used by the Phase 2 flip)
+  component: string; // route the built-in renderer lives at (used by the routing flip)
   slug: string; // live path today, same for every locale (parity)
   order: number;
   nameKey?: string; // pack key for the display name
@@ -18,7 +19,7 @@ type PageDef = {
 };
 
 // Order mirrors the header (Cloud children first), then the footer's legal column.
-export const BLUE_PAGE_DEFS: PageDef[] = [
+export const CONTENT_PAGE_DEFS: PageDef[] = [
   { key: "home", component: "home", nameLiteral: { de: "Startseite", en: "Home" }, slug: "", order: 0 },
   { key: "webhosting", component: "webhosting", nameKey: "common.nav.hosting", slug: "webhosting", order: 1 },
   { key: "virtual-servers", component: "virtual-servers", nameKey: "common.nav.virtualServers", slug: "virtual-servers", order: 2 },
@@ -40,7 +41,7 @@ export type MenuDef = { labelKey: string; pageKey?: string; order: number; child
 
 // MAIN menu — mirrors site-header.tsx: the "Cloud" parent (links nothing) + its three children,
 // then the top-level page links in header order.
-export const BLUE_MAIN_MENU: MenuDef[] = [
+export const MAIN_MENU: MenuDef[] = [
   {
     labelKey: "common.nav.cloud",
     order: 0,
@@ -59,7 +60,7 @@ export const BLUE_MAIN_MENU: MenuDef[] = [
 ];
 
 // LEGAL menu — mirrors the footer's legal column.
-export const BLUE_LEGAL_MENU: MenuDef[] = [
+export const LEGAL_MENU: MenuDef[] = [
   { labelKey: "storefront.footer.legal.impressum", pageKey: "legal-impressum", order: 0 },
   { labelKey: "storefront.footer.legal.datenschutz", pageKey: "legal-datenschutz", order: 1 },
   { labelKey: "storefront.footer.legal.agb", pageKey: "legal-agb", order: 2 },
@@ -68,7 +69,7 @@ export const BLUE_LEGAL_MENU: MenuDef[] = [
 ];
 
 // Footer free-text content (the parts NOT covered by the LEGAL menu). Keyed under storefront.footer.*.
-export const BLUE_FOOTER_KEYS = [
+export const FOOTER_KEYS = [
   "mission",
   "servicesHeading",
   "legalHeading",
