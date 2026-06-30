@@ -255,6 +255,7 @@ export function CustomizerBuilder(props: BuilderProps) {
 
       <DndContext
         collisionDetection={closestCenter}
+        id="customizer-builder"
         onDragEnd={onDragEnd}
         onDragStart={(event: DragStartEvent) => setActiveId(String(event.active.id))}
         sensors={sensors}

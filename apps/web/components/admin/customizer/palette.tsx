@@ -42,6 +42,7 @@ function PaletteItem({ type, label, icon }: { type: string; label: string; icon:
   return (
     <button
       className={styles.paletteItem}
+      data-element={type}
       ref={setNodeRef}
       style={{ opacity: isDragging ? 0.4 : 1 }}
       type="button"

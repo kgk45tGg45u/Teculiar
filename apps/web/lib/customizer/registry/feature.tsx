@@ -5,6 +5,8 @@ import platformStyles from "../../../components/marketing/platform-section.modul
 import { lucideIcon } from "../icons";
 import { newId } from "../id";
 import { stringProp, textOf } from "../resolve";
+import { gridColumnsVars, responsiveProp } from "../responsive";
+import gridStyles from "./responsive.module.css";
 import type { ElementDef } from "./types";
 
 export const featureGridDef: ElementDef = {
@@ -19,10 +21,11 @@ export const featureGridDef: ElementDef = {
     { key: "title", multiline: true },
     { key: "subtitle", multiline: true }
   ],
-  propSchema: [],
+  propSchema: [{ key: "columns", type: "responsiveNumber" }],
   example: () => ({
     id: newId(),
     type: "featureGrid",
+    props: { columns: { base: 4, md: 2, sm: 1 } },
     text: {
       eyebrow: { en: "Why us", de: "Warum wir" },
       title: { en: "Digital solutions without the corporate feel.", de: "Digitale Lösungen ohne Konzerngefühl." },
@@ -37,6 +40,7 @@ export const featureGridDef: ElementDef = {
     const eyebrow = textOf(node, "eyebrow", locale, mainLocale);
     const title = textOf(node, "title", locale, mainLocale);
     const subtitle = textOf(node, "subtitle", locale, mainLocale);
+    const cols = responsiveProp(node, "columns", 4);
     return (
       <section className="section">
         <div className="container">
@@ -45,7 +49,7 @@ export const featureGridDef: ElementDef = {
             {title ? <h2>{title}</h2> : null}
             {subtitle ? <p className={platformStyles.subhead}>{subtitle}</p> : null}
           </div>
-          <div className="grid four">{children}</div>
+          <div className={gridStyles.grid} data-grid="responsive" style={gridColumnsVars(cols)}>{children}</div>
         </div>
       </section>
     );

@@ -52,6 +52,7 @@ function CanvasNode({ node, ctx }: { node: Node; ctx: CanvasContext }) {
   return (
     <div
       className={`${styles.node}${selected ? ` ${styles.nodeSelected}` : ""}`}
+      data-node-type={node.type}
       onClick={(event) => {
         event.stopPropagation();
         ctx.onSelect(node.id);

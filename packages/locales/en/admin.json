@@ -1205,6 +1205,28 @@
       "atom": "Elements",
       "dynamic": "Dynamic",
       "token": "Tokens"
+    },
+    "viewports": {
+      "desktop": "Desktop",
+      "tablet": "Tablet",
+      "mobile": "Mobile"
+    },
+    "props": {
+      "category": "Category",
+      "columns": "Columns",
+      "variant": "Variant",
+      "href": "Link",
+      "tone": "Tone",
+      "icon": "Icon",
+      "size": "Size",
+      "amountCents": "Amount (cents)",
+      "currency": "Currency",
+      "num": "Number",
+      "ctaHref": "Button link",
+      "primaryHref": "Primary link",
+      "secondaryHref": "Secondary link",
+      "eyebrowIcon": "Eyebrow icon",
+      "imageUrl": "Image URL"
     }
   }
 }

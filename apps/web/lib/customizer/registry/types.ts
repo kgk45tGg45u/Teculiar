@@ -21,10 +21,12 @@ export type RenderProps = {
 // Edit-modal: a translatable text slot (drives the ≥2-language translate modal + DeepSeek button).
 export type TextSlot = { key: string; multiline?: boolean };
 
-// Edit-modal: a non-translatable structural input.
+// Edit-modal: a non-translatable structural input. `number` is a single value; `responsiveNumber`
+// edits a per-viewport { base, md, sm } value (desktop / tablet / mobile).
 export type PropField =
   | { key: string; type: "text" | "link" | "iconSelect" }
   | { key: string; type: "select"; options: string[] }
+  | { key: string; type: "number" }
   | { key: string; type: "responsiveNumber" };
 
 export type ElementCategory = "section" | "card" | "atom" | "dynamic" | "token";

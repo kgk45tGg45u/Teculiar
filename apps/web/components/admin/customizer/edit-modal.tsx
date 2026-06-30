@@ -107,6 +107,7 @@ export function EditModal({
             field={field}
             key={field.key}
             onChange={(value) => applyProps({ ...props, [field.key]: value })}
+            t={t}
             value={props[field.key]}
           />
         ))}
@@ -173,28 +174,71 @@ function SlotField({
   );
 }
 
-function PropFieldInput({ field, value, onChange }: { field: PropField; value: JsonValue | undefined; onChange: (next: JsonValue) => void }) {
+function PropFieldInput({ field, value, onChange, t }: { field: PropField; value: JsonValue | undefined; onChange: (next: JsonValue) => void; t: CustomizerT }) {
   return (
-    <label className={styles.field}>
-      <strong style={{ color: "var(--text, inherit)" }}>{field.key}</strong>
+    <div className={styles.field}>
+      <strong style={{ color: "var(--text, inherit)" }}>{labelForProp(field.key, t)}</strong>
       {field.type === "select" ? (
         <select onChange={(event) => onChange(event.target.value)} value={typeof value === "string" ? value : field.options[0]}>
           {field.options.map((option) => (
             <option key={option} value={option}>{option}</option>
           ))}
         </select>
+      ) : field.type === "number" ? (
+        <input onChange={(event) => onChange(event.target.value === "" ? 0 : Number(event.target.value))} type="number" value={typeof value === "number" ? value : 0} />
       ) : field.type === "responsiveNumber" ? (
-        <input onChange={(event) => onChange(Number(event.target.value))} type="number" value={typeof value === "number" ? value : 0} />
+        <ResponsiveInput onChange={onChange} t={t} value={value} />
       ) : (
         <input onChange={(event) => onChange(event.target.value)} value={typeof value === "string" ? value : ""} />
       )}
-    </label>
+    </div>
+  );
+}
+
+// Per-viewport number control: desktop (base, required) + tablet/mobile (inherit when blank).
+function ResponsiveInput({ value, onChange, t }: { value: JsonValue | undefined; onChange: (next: JsonValue) => void; t: CustomizerT }) {
+  const map = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, JsonValue>) : {};
+  const current = {
+    base: typeof map.base === "number" ? map.base : typeof value === "number" ? value : 1,
+    md: typeof map.md === "number" ? map.md : null,
+    sm: typeof map.sm === "number" ? map.sm : null
+  };
+  const set = (key: "base" | "md" | "sm", raw: string) => {
+    const parsed = raw === "" ? (key === "base" ? 1 : null) : Math.max(1, Math.round(Number(raw)));
+    onChange({ ...current, [key]: parsed } as JsonValue);
+  };
+  const cells: Array<["base" | "md" | "sm", string]> = [
+    ["base", t.viewports.desktop],
+    ["md", t.viewports.tablet],
+    ["sm", t.viewports.mobile]
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+      {cells.map(([key, label]) => (
+        <label key={key} style={{ display: "grid", gap: 2 }}>
+          <span style={{ fontSize: "0.74rem" }}>{label}</span>
+          <input
+            min={1}
+            onChange={(event) => set(key, event.target.value)}
+            placeholder={key === "base" ? "" : "↑"}
+            type="number"
+            value={current[key] ?? ""}
+          />
+        </label>
+      ))}
+    </div>
   );
 }
 
 // Friendly label for the common text slots; unknown slot keys fall back to the raw key.
 function labelForSlot(key: string, t: CustomizerT): string {
   const labels = t.slots as Record<string, string>;
+  return labels[key] ?? key;
+}
+
+// Friendly label for the common structural props; unknown keys fall back to the raw key.
+function labelForProp(key: string, t: CustomizerT): string {
+  const labels = t.props as Record<string, string>;
   return labels[key] ?? key;
 }
 

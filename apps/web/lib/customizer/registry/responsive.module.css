@@ -1,0 +1,20 @@
+/* Responsive grid for layout-doc elements (feature grid, product packages). Column counts come from
+   CSS custom properties (--cols / --cols-md / --cols-sm) set inline per node, so the same element can
+   show e.g. 4 columns on desktop, 2 on tablet, 1 on mobile. Gap matches the global .grid (14px). */
+.grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(var(--cols-md, var(--cols, 3)), minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(var(--cols-sm, var(--cols-md, var(--cols, 1))), minmax(0, 1fr));
+  }
+}

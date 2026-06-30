@@ -74,7 +74,7 @@ export const iconDef: ElementDef = {
   textSlots: [],
   propSchema: [
     { key: "icon", type: "iconSelect" },
-    { key: "size", type: "responsiveNumber" }
+    { key: "size", type: "number" }
   ],
   example: () => ({ id: newId(), type: "icon", props: { icon: "Sparkles", size: 28 } }),
   Render: ({ node }) => {
@@ -133,7 +133,7 @@ export const priceTokenDef: ElementDef = {
     { key: "suffix" }
   ],
   propSchema: [
-    { key: "amountCents", type: "responsiveNumber" },
+    { key: "amountCents", type: "number" },
     { key: "currency", type: "text" }
   ],
   example: () => ({

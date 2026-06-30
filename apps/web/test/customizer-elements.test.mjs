@@ -51,9 +51,11 @@ test("elements reuse storefront styling for live==preview parity", () => {
   assert.match(atoms, /components\/ui\/button|components\/ui\/badge/);
 });
 
-test("dynamic productGrid renders live data, placeholder in preview", () => {
+test("dynamic productGrid: category + responsive columns, fetches products live, placeholder in preview", () => {
   assert.match(product, /category: "dynamic"/);
-  assert.match(product, /ProductGrid/);
+  assert.match(product, /key: "category", type: "text"/);
+  assert.match(product, /key: "columns", type: "responsiveNumber"/);
+  assert.match(product, /storefront\/products\?category=/); // live data fetch by category
   assert.match(product, /mode === "preview"/);
 });
 

@@ -1205,6 +1205,28 @@
       "atom": "Elemente",
       "dynamic": "Dynamisch",
       "token": "Tokens"
+    },
+    "viewports": {
+      "desktop": "Desktop",
+      "tablet": "Tablet",
+      "mobile": "Mobil"
+    },
+    "props": {
+      "category": "Kategorie",
+      "columns": "Spalten",
+      "variant": "Variante",
+      "href": "Link",
+      "tone": "Ton",
+      "icon": "Symbol",
+      "size": "Größe",
+      "amountCents": "Betrag (Cent)",
+      "currency": "Währung",
+      "num": "Nummer",
+      "ctaHref": "Schaltflächen-Link",
+      "primaryHref": "Primärer Link",
+      "secondaryHref": "Sekundärer Link",
+      "eyebrowIcon": "Augenbrauen-Symbol",
+      "imageUrl": "Bild-URL"
     }
   }
 }
