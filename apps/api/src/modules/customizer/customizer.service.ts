@@ -7,7 +7,9 @@ import { PrismaService } from "../prisma/prisma.service";
 // Customizer storage operations on the GLOBAL Page (content is theme-independent):
 //  • Save  → write draftLayout (durable draft the builder reloads).
 //  • Publish → promote draft (or a supplied layout) to publishedLayout, bump layoutVersion, snapshot
-//              a PageVersion, and flip component to "custom" so the live route renders the doc.
+//              a PageVersion. A non-null publishedLayout is the signal the live route gate renders the
+//              doc — `Page.component` is left untouched (it stays the physical route key the storefront
+//              slug-routing middleware rewrites to; overwriting it would 404 the page).
 //  • Revert → re-publish a past snapshot as a new version (append-only history).
 //  • Translate → DeepSeek per-field auto-translate (reuses AiBlogService.callDeepseek + DB key).
 @Injectable()
@@ -53,8 +55,7 @@ export class CustomizerService {
         data: {
           publishedLayout: doc as Prisma.InputJsonValue,
           draftLayout: doc as Prisma.InputJsonValue,
-          layoutVersion: version,
-          component: "custom"
+          layoutVersion: version
         }
       }),
       this.prisma.pageVersion.create({
@@ -89,8 +90,7 @@ export class CustomizerService {
         data: {
           publishedLayout: snap.layout as Prisma.InputJsonValue,
           draftLayout: snap.layout as Prisma.InputJsonValue,
-          layoutVersion: next,
-          component: "custom"
+          layoutVersion: next
         }
       }),
       this.prisma.pageVersion.create({
@@ -150,16 +150,20 @@ export class CustomizerService {
     return { items };
   }
 
-  /** Storefront read: the published layout for a custom, published page (null otherwise). */
+  /** Storefront read for the live route gate. A non-null `publishedLayout` means the page has an
+   *  authored custom layout to render (in place of its built-in renderer); `mainLocale` (the configured
+   *  main language) is the renderer's fallback locale. Returns null for missing/unpublished pages. */
   async storefrontPage(key: string) {
     const page = await this.prisma.page.findUnique({ where: { key } });
     if (!page || !page.published) {
       return null;
     }
+    const layout = page.publishedLayout ?? null;
     return {
       key: page.key,
       component: page.component,
-      publishedLayout: page.component === "custom" ? (page.publishedLayout ?? null) : null
+      publishedLayout: layout,
+      mainLocale: layout ? (await this.billing.i18nLanguages()).main : null
     };
   }
 

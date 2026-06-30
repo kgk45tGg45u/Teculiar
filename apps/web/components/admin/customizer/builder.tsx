@@ -44,7 +44,7 @@ export type BuilderProps = {
   pageId: string;
   pageKey: string;
   pageName: string;
-  component: string;
+  published: boolean; // a layout has been published → the live page renders the doc (not the built-in renderer)
   locales: string[];
   mainLocale: string;
   canTranslate: boolean;
@@ -61,7 +61,7 @@ export function CustomizerBuilder(props: BuilderProps) {
 
   const [doc, setDoc] = useState<LayoutDoc>(initialDoc);
   const [dirty, setDirty] = useState(false);
-  const [component, setComponent] = useState(props.component);
+  const [published, setPublished] = useState(props.published);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewLocale, setPreviewLocale] = useState(adminLocale);
@@ -190,7 +190,7 @@ export function CustomizerBuilder(props: BuilderProps) {
     await notifyResponse(response, t.published, t.publishFailed);
     if (response.ok) {
       setDirty(false);
-      setComponent("custom");
+      setPublished(true);
       await clearBuffer(pageId);
     }
     setPublishing(false);
@@ -202,7 +202,7 @@ export function CustomizerBuilder(props: BuilderProps) {
       return;
     }
     setDoc(asLayoutDoc(data.draftLayout) ?? asLayoutDoc(data.publishedLayout) ?? emptyLayout());
-    setComponent(data.page.component);
+    setPublished(data.publishedLayout != null);
     setDirty(false);
     await clearBuffer(pageId);
   }
@@ -263,8 +263,8 @@ export function CustomizerBuilder(props: BuilderProps) {
           <Button href="/admin/theme" icon={ArrowLeft} variant="ghost">{t.back}</Button>
           <h1 className={styles.title}>{pageName}</h1>
           <span className={styles.badge}>{pageKey}</span>
-          <span className={component === "custom" ? `${styles.badge} ${styles.badgeLive}` : styles.badge}>
-            {component === "custom" ? t.liveCustom : t.builtIn}
+          <span className={published ? `${styles.badge} ${styles.badgeLive}` : styles.badge}>
+            {published ? t.liveCustom : t.builtIn}
           </span>
           {dirty ? <span className={`${styles.badge} ${styles.badgeDirty}`}>{t.unsaved}</span> : null}
           <span className={styles.spacer} />

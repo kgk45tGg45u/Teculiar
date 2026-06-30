@@ -37,8 +37,8 @@ export default async function CustomizerPage({ params }: { params: Promise<{ pag
   return (
     <CustomizerBuilder
       canTranslate={theme.canTranslate}
-      component={payload?.page.component ?? meta.component}
       draftUpdatedAt={payload?.draftUpdatedAt ?? null}
+      published={(payload?.layoutVersion ?? 0) > 0}
       initialDoc={initialDoc}
       layoutVersion={payload?.layoutVersion ?? 0}
       locales={locales}

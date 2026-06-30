@@ -1,12 +1,22 @@
 import { ArrowRight, Globe, HandHeart, Lock, MessageCircle, Phone, Sprout, User } from "lucide-react";
 import { Button } from "../../../components/ui/button";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { apiGet } from "../../../lib/api";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
 import styles from "./uber-uns.module.css";
 
 export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="uber-uns">
+      <AboutBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+// Built-in About renderer — the fallback when no custom layout is published for the "uber-uns" page.
+async function AboutBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
   const settings = await apiGet<{ founderPhotoUrl?: string; themeBlueAboutHeroImageUrl?: string }>("/storefront/settings");
   const founderPhotoUrl = settings?.founderPhotoUrl || null;

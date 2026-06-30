@@ -338,6 +338,28 @@ architecture should be designed in a dedicated session before building.
 > follow-ups: remaining data-wired elements (DomainSearch, ContactForm, BlogPostGrid, admin-composed
 > HomepageProductGrid), a real icon-picker input, and `accepts` drop-enforcement in the builder.
 
+> **Sub-phase 3e — live render flip + first migration (About): IMPLEMENTED & locally verified
+> (2026-06-30).** Wires the published layout doc into the live storefront. New **`CustomPageGate`**
+> (`apps/web/components/customizer/custom-page.tsx`, server component): a route wraps its built-in
+> renderer in the gate, which fetches `GET /storefront/page/:key` and — when a `publishedLayout` exists —
+> renders it via the **same `LayoutRenderer`** the builder previews (`mode="live"`), else returns
+> `children` (the built-in renderer) unchanged; `children` is an element, so its data fetching only runs
+> on the fallback path. Wired into the About route (`app/[locale]/uber-uns/page.tsx`): its body is
+> extracted to `AboutBuiltIn`, the default export is the gate. **Design correction (caught by live
+> testing):** publishing must **NOT** overwrite `Page.component` — the slug-routing middleware rewrites
+> `/<locale>/<slug>` → `/<locale>/<component>`, so a `component="custom"` sentinel made the page 404
+> (`/de/custom`). Fixed: `publish`/`revert` no longer touch `component`; the "render custom" signal is a
+> **non-null `publishedLayout`**. `storefrontPage` returns `publishedLayout` + `mainLocale` (renderer
+> fallback locale); the builder/route track a `published` flag (`layoutVersion > 0`) instead of the
+> sentinel. **Verified end-to-end against the local stack** (API:4000 + web:3000): published a sample
+> About layout → `/de/uber-uns` (200) rendered the custom doc (custom-only copy present, built-in copy
+> absent); reverted → the same route rendered the **built-in** About again (fallback). web `build`,
+> web+api typecheck, `node --test` (new `apps/web/test/customizer-flip.test.mjs`; 33 customizer/decoupling
+> assertions green). The committed code ships the **mechanism** only — no page is published in seed/prod,
+> so every storefront page renders exactly as today; authoring a page's real content to parity happens in
+> the builder (and is the remaining 3e work, page by page). **Phase 3 mechanism complete; next: author
+> migrations + the deferred end-of-Phase-3 production E2E** (covers Phase 2 + 3).
+
 > **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
 > `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —
 > only the branch; implementation starts next session at sub-phase **3a**).

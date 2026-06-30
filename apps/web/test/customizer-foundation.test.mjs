@@ -39,7 +39,7 @@ test("Customizer service covers the full lifecycle + reuses DeepSeek/i18n", () =
   for (const m of ["async getPage", "async saveDraft", "async publish", "async listVersions", "async revert", "async translate", "async storefrontPage"]) {
     assert.ok(service.includes(m), `service missing ${m}`);
   }
-  assert.match(service, /component: "custom"/); // publish/revert flip the page renderer
+  assert.doesNotMatch(service, /component: "custom"/); // 3e: publish must NOT clobber the route key; publishedLayout is the signal
   assert.match(service, /pageVersion\.create/); // snapshots on publish + revert
   assert.match(service, /this\.ai\.callDeepseek/);
   assert.match(service, /this\.billing\.i18nLanguages\(\)/);

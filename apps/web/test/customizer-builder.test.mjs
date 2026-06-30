@@ -36,7 +36,7 @@ test("builder shell: dnd-kit canvas, Save/Publish, IndexedDB autosave, beforeunl
   assert.match(builder, /saveBuffer\(pageId, doc\)/); // debounced IndexedDB autosave
   assert.match(builder, /loadBuffer\(pageId\)/); // restore-on-open
   assert.match(builder, /"beforeunload"/); // dirty guard
-  assert.match(builder, /setComponent\("custom"\)/); // publish flips the live badge
+  assert.match(builder, /setPublished\(true\)/); // 3e: publish flips the live badge via published state
 });
 
 test("immutable tree helpers cover insert/move/remove/update", () => {
