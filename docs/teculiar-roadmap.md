@@ -360,6 +360,25 @@ architecture should be designed in a dedicated session before building.
 > the builder (and is the remaining 3e work, page by page). **Phase 3 mechanism complete; next: author
 > migrations + the deferred end-of-Phase-3 production E2E** (covers Phase 2 + 3).
 
+> **Phase 3 follow-up — page mirrors + universal flip + builder polish (2026-06-30).** (1) **Hydration
+> fix:** `DndContext` got a stable `id`, removing the builder's SSR `aria-describedby` mismatch. (2)
+> **Per-viewport settings:** `ResponsiveNumber` ({base, md, sm}) + `registry/responsive.module.css` drive
+> per-breakpoint grid columns (desktop / tablet ≤1024 / mobile ≤640) via CSS vars; the edit modal renders
+> a Desktop/Tablet/Mobile control (and a single input for plain `number` props). `featureGrid` +
+> `productGrid` expose responsive `columns`. (3) **productGrid options:** a `category` (which catalog
+> category) + responsive `columns`; the live render fetches the category's products. (4) New
+> **`domainSearch`** element. (5) **Page mirrors:** every storefront page except blog gets a Customizer
+> **draft** mirroring its content (`apps/api/.../theme/page-mirrors.ts`, seeded idempotently by
+> `ThemeRepository.ensureMirrorDrafts()` — drafts only, never auto-published). (6) **Universal flip:**
+> `CustomPageGate` wired into all those routes (built-in body extracted to `<Name>BuiltIn`), so any page,
+> once published, renders its layout; until then the built-in page is unchanged. Verified: web build +
+> web/api typecheck + `node --test` (43 assertions) + the **Playwright** suite
+> (`tests/e2e/specs/customizer.spec.ts`, 5/5: clean hydration, drag inserts, edits reflect, responsive
+> 4/2/1 columns per viewport, productGrid renders real products). Deferred: a blog-posts element (so blog
+> can be mirrored), contact-form element, and an icon-picker input. **Shipped to deploy on
+> `feat/teculiar-customizer`** — live pages render as today (nothing published); admins refine + publish
+> per page in the builder.
+
 > **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
 > `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —
 > only the branch; implementation starts next session at sub-phase **3a**).
