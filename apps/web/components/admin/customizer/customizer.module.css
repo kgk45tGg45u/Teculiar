@@ -69,6 +69,10 @@
   overflow-y: auto;
 }
 
+.palette > div + div {
+  margin-top: 18px;
+}
+
 .paletteTitle {
   font-size: 0.78rem;
   text-transform: uppercase;

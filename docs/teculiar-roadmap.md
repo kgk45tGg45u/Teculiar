@@ -319,6 +319,25 @@ architecture should be designed in a dedicated session before building.
 > decoupling assertions green). Live pages still use built-in renderers (no `component` flipped) — site
 > unaffected. **Next: 3d** (component refactor + registry population), then 3e per-page migration.
 
+> **Sub-phase 3d — registry population: IMPLEMENTED & locally verified (2026-06-29).** The element
+> registry (`apps/web/lib/customizer/registry/`) is populated with a faithful, **theme-neutral** inventory
+> across all five categories, each reusing the storefront's existing styling (global classes + the
+> marketing CSS modules + the `Button`/`Badge` UI primitives) so **preview == live**:
+> **sections** `hero`, `featureGrid`, `steps`, `cta`, `faq` (+ generic `section`); **cards** `featureCard`,
+> `step`, `faqItem`; **atoms** `textBlock`, `button`, `badge`, `icon`, `prose`; **dynamic** `productGrid`
+> (renders the real `<ProductGrid>` live, a placeholder in preview); **token** `priceToken` (Intl
+> locale/currency formatting). Containers declare `accepts`; every def carries palette label/icon,
+> `textSlots`/`propSchema` (→ edit modal), and a pre-filled `example()` seeded with the current site copy
+> (en+de). Shared `lib/customizer/icons.ts` (lucide-by-name) + `numberProp` helper. The **palette now
+> groups by category**; packs gained `admin.customizer.categories.*` + richer `slots` labels in **en + de**
+> (parity-checked). Per the locked plan, **no live page is modified** — these elements become the building
+> blocks the per-page migration (3e) assembles into layout docs. Verified: web `build` (the dynamic
+> server-component import is RSC-safe), web+api typecheck, `node --test` (new
+> `apps/web/test/customizer-elements.test.mjs`; 28 customizer/decoupling assertions green). **Next: 3e**
+> (per-page migration — author → verify parity → Publish/flip `component`, page by page). Deferred
+> follow-ups: remaining data-wired elements (DomainSearch, ContactForm, BlogPostGrid, admin-composed
+> HomepageProductGrid), a real icon-picker input, and `accepts` drop-enforcement in the builder.
+
 > **Deep-design session outcome (2026-06-24).** Full approved build plan lives outside the repo at
 > `~/.claude/plans/steady-doodling-babbage.md`. Branch `feat/teculiar-customizer` created (no code yet —
 > only the branch; implementation starts next session at sub-phase **3a**).

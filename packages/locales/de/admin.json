@@ -1183,7 +1183,28 @@
       "heading": "Überschrift",
       "subtitle": "Untertitel",
       "label": "Beschriftung",
-      "text": "Text"
+      "text": "Text",
+      "primaryCta": "Primäre Schaltfläche",
+      "secondaryCta": "Sekundäre Schaltfläche",
+      "ctaLabel": "Schaltflächentext",
+      "question": "Frage",
+      "answer": "Antwort",
+      "prefix": "Präfix",
+      "suffix": "Suffix",
+      "num": "Nummer",
+      "stat1": "Statistik 1 Wert",
+      "stat1Label": "Statistik 1 Beschriftung",
+      "stat2": "Statistik 2 Wert",
+      "stat2Label": "Statistik 2 Beschriftung",
+      "stat3": "Statistik 3 Wert",
+      "stat3Label": "Statistik 3 Beschriftung"
+    },
+    "categories": {
+      "section": "Abschnitte",
+      "card": "Karten",
+      "atom": "Elemente",
+      "dynamic": "Dynamisch",
+      "token": "Tokens"
     }
   }
 }

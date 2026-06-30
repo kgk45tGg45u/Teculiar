@@ -19,6 +19,11 @@ export function stringProp(node: Node, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+export function numberProp(node: Node, key: string, fallback = 0): number {
+  const value = propOf(node, key);
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 /** A locale-aware token (price/number/date) for the active locale, formatted via Intl. */
 export function formatToken(token: TokenRef | undefined, locale: string, currency: string): string {
   if (!token) {

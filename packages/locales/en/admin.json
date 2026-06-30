@@ -1183,7 +1183,28 @@
       "heading": "Heading",
       "subtitle": "Subtitle",
       "label": "Label",
-      "text": "Text"
+      "text": "Text",
+      "primaryCta": "Primary button",
+      "secondaryCta": "Secondary button",
+      "ctaLabel": "Button label",
+      "question": "Question",
+      "answer": "Answer",
+      "prefix": "Prefix",
+      "suffix": "Suffix",
+      "num": "Number",
+      "stat1": "Stat 1 value",
+      "stat1Label": "Stat 1 label",
+      "stat2": "Stat 2 value",
+      "stat2Label": "Stat 2 label",
+      "stat3": "Stat 3 value",
+      "stat3Label": "Stat 3 label"
+    },
+    "categories": {
+      "section": "Sections",
+      "card": "Cards",
+      "atom": "Elements",
+      "dynamic": "Dynamic",
+      "token": "Tokens"
     }
   }
 }

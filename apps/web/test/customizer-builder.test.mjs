@@ -55,7 +55,7 @@ test("IndexedDB buffer + API client expose the full surface", () => {
 });
 
 test("palette is registry-driven; canvas uses sortable + droppable contexts", () => {
-  assert.match(palette, /listElements\(\)/);
+  assert.match(palette, /listElements\(category\)/); // 3d: palette groups elements by category
   assert.match(palette, /useDraggable/);
   assert.match(canvas, /useSortable/);
   assert.match(canvas, /useDroppable/);
