@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { MenuName, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CONTENT_PAGE_DEFS, FOOTER_KEYS, LEGAL_MENU, MAIN_MENU, type LocaleMap, type MenuDef, localeMap } from "./theme-seed";
+import { PAGE_MIRRORS } from "./page-mirrors";
 
 // Global storefront-content (Phase 3a decoupling): the footer JSON lives in this SystemSetting,
 // no longer on the Theme row. Mirrors how email/i18n/tax config already live in DB settings.
@@ -10,6 +11,8 @@ const FOOTER_SETTING_KEY = "storefront.footer";
 @Injectable()
 export class ThemeRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  private mirrorsSeeded = false;
 
   /** Languages configured in Admin > Settings (main + others), deduped. Falls back to ["de"]. */
   async configuredLocales(): Promise<string[]> {
@@ -103,6 +106,27 @@ export class ThemeRepository {
   async ensureSeeded(): Promise<void> {
     await this.ensureContentSeeded();
     await this.ensureStylingSeeded();
+    await this.ensureMirrorDrafts();
+  }
+
+  // Seeds a Customizer "mirror" DRAFT for each page that has none yet, so the admin opens the builder
+  // and sees the page's content as editable blocks. Drafts only — never auto-published, so the live
+  // site is untouched until the admin reviews + publishes a page. Idempotent: skips any page that
+  // already has a draft (even an empty one the admin saved), and runs its loop once per process.
+  async ensureMirrorDrafts(): Promise<void> {
+    if (this.mirrorsSeeded) {
+      return;
+    }
+    this.mirrorsSeeded = true;
+    for (const [key, layout] of Object.entries(PAGE_MIRRORS)) {
+      const page = await this.prisma.page.findUnique({ where: { key }, select: { id: true, draftLayout: true } });
+      if (page && page.draftLayout == null) {
+        await this.prisma.page.update({
+          where: { id: page.id },
+          data: { draftLayout: layout as unknown as Prisma.InputJsonValue, draftUpdatedAt: new Date() }
+        });
+      }
+    }
   }
 
   // Seeds the global pages/menus/footer to mirror today's storefront — only when no pages exist yet.

@@ -3,6 +3,7 @@
 // is theme-neutral and reuses the storefront's styling so preview == live.
 import { badgeDef, buttonDef, iconDef, priceTokenDef, proseDef } from "./atoms";
 import { ctaDef } from "./cta";
+import { domainSearchDef } from "./domain-search";
 import { faqDef, faqItemDef } from "./faq";
 import { featureCardDef, featureGridDef } from "./feature";
 import { heroDef } from "./hero";
@@ -33,6 +34,7 @@ const DEFS: ElementDef[] = [
   proseDef,
   // dynamic
   productGridDef,
+  domainSearchDef,
   // tokens
   priceTokenDef
 ];

@@ -102,8 +102,8 @@ test.describe("Customizer builder + live render", () => {
 
     await page.goto(`/admin/theme/customizer/${PAGE_KEY}`);
     await expect(page.locator('[data-element="hero"]')).toBeVisible();
-    // every category group is present
-    await expect(page.locator('[data-element]')).toHaveCount(16);
+    // every registered element is shown in the palette (grouped by category)
+    await expect(page.locator('[data-element]')).toHaveCount(17);
     await page.waitForTimeout(800); // allow hydration to settle
 
     const hydration = errors.filter((e) => /hydrat|did not match|describedby/i.test(e));
