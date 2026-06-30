@@ -2,12 +2,21 @@ import { ArrowRight, Globe, Mail, Search, Settings } from "lucide-react";
 import { apiGet } from "../../../lib/api";
 import { DomainSearch } from "../../../components/marketing/domain-search";
 import { Button } from "../../../components/ui/button";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./domains.module.css";
 
 export default async function DomainsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="domains">
+      <DomainsPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function DomainsPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   const tlds = [

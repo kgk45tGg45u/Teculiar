@@ -1,9 +1,18 @@
-import { getLocale } from "../../../../lib/i18n";
+import { getLocale, type Locale } from "../../../../lib/i18n";
+import { CustomPageGate } from "../../../../components/customizer/custom-page";
 import styles from "../legal.module.css";
 
 export default async function WiderrufPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="legal-widerruf">
+      <WiderrufPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function WiderrufPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   return (

@@ -1,12 +1,21 @@
 import { ArrowRight, CheckCircle, Globe, Layers, MessageCircle, Palette, Search, Smartphone, Users } from "lucide-react";
 import { apiGet } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./webdesign.module.css";
 
 export default async function WebdesignPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="webdesign">
+      <WebdesignPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function WebdesignPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
   const themeSettings = await apiGet<{ themeBlueWebdesignHeroImageUrl?: string }>("/storefront/settings");
   const heroImageUrl = themeSettings?.themeBlueWebdesignHeroImageUrl ?? null;

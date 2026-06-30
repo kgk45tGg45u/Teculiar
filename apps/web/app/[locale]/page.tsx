@@ -3,12 +3,21 @@ import { DomainSearch } from "../../components/marketing/domain-search";
 import { Hero } from "../../components/marketing/hero";
 import { PlatformSection } from "../../components/marketing/platform-section";
 import { ProductGrid } from "../../components/marketing/product-grid";
-import { getLocale } from "../../lib/i18n";
+import { CustomPageGate } from "../../components/customizer/custom-page";
+import { getLocale, type Locale } from "../../lib/i18n";
 import styles from "./home.module.css";
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="home">
+      <HomeBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function HomeBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   const explainers = isDe

@@ -1,12 +1,21 @@
 import { ArrowRight, Bot, CheckCircle, Cloud, Database, Download, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
 import { apiGet } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./it-losungen.module.css";
 
 export default async function ITSolutionsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="it-losungen">
+      <ITSolutionsPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function ITSolutionsPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
   const themeSettings = await apiGet<{ themeBlueItSolutionsHeroImageUrl?: string }>("/storefront/settings");
   const heroImageUrl = themeSettings?.themeBlueItSolutionsHeroImageUrl ?? null;

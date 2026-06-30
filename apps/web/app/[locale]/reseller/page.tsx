@@ -4,7 +4,8 @@ import type { Route } from "next";
 import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Price } from "../../../components/marketing/price";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./reseller.module.css";
 
 type FallbackCard = {
@@ -34,6 +35,14 @@ function configValue(product: ApiProduct, key: string): string | undefined {
 export default async function ResellerPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="reseller">
+      <ResellerPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function ResellerPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   const products = await apiGet<ApiProduct[]>("/storefront/products?category=reseller");

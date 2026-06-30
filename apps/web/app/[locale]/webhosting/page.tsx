@@ -1,7 +1,8 @@
 import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
 import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { HostingPackages } from "./hosting-packages";
 import { WebhostingFaq } from "./webhosting-faq";
 import styles from "./webhosting.module.css";
@@ -9,6 +10,14 @@ import styles from "./webhosting.module.css";
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="webhosting">
+      <HostingPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function HostingPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   const features = isDe

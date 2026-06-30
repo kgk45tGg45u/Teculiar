@@ -3,7 +3,8 @@ import Link from "next/link";
 import { apiGet, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Price } from "../../../components/marketing/price";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./virtual-servers.module.css";
 
 const FALLBACK_VPS = {
@@ -23,6 +24,14 @@ const FALLBACK_VPS = {
 export default async function VirtualServersPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="virtual-servers">
+      <VirtualServersPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function VirtualServersPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
 
   const [products, themeSettings] = await Promise.all([

@@ -1,12 +1,21 @@
 import { Mail, MessageCircle, Phone } from "lucide-react";
 import { apiGet } from "../../../lib/api";
-import { getLocale } from "../../../lib/i18n";
+import { getLocale, type Locale } from "../../../lib/i18n";
+import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { ContactForm } from "./contact-form";
 import styles from "./kontakt.module.css";
 
 export default async function ContactPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
   const locale = getLocale(rawLocale);
+  return (
+    <CustomPageGate locale={locale} pageKey="kontakt">
+      <ContactPageBuiltIn locale={locale} />
+    </CustomPageGate>
+  );
+}
+
+async function ContactPageBuiltIn({ locale }: { locale: Locale }) {
   const isDe = locale === "de";
   const themeSettings = await apiGet<{ themeBlueContactHeroImageUrl?: string }>("/storefront/settings");
   const heroImageUrl = themeSettings?.themeBlueContactHeroImageUrl ?? null;
