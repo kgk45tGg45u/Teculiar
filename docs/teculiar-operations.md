@@ -261,6 +261,20 @@ GRANT ALL PRIVILEGES ON *.* TO 'teculiar_admin'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
 
+> ⚠️ **The containers connect over TCP from the Docker network, not the socket.** The API reaches MariaDB
+> via `host.docker.internal` (a `172.x` bridge address), so a user defined **only** as `@'localhost'` fails
+> with `P1000: Authentication failed` even though the password is correct. Grant the user for the Docker
+> network too (mirror how today's working Dezhost DB user is defined). Check + fix as root:
+>
+> ```sql
+> SELECT user, host FROM mysql.user WHERE user = 'teculiar_admin';   -- likely only 'localhost'
+> -- allow it from the Docker network (MariaDB must NOT be exposed publicly — keep 3306 firewalled):
+> CREATE USER 'teculiar_admin'@'%' IDENTIFIED BY 'REPLACE_DB_PASSWORD';
+> GRANT ALL PRIVILEGES ON *.* TO 'teculiar_admin'@'%' WITH GRANT OPTION;
+> FLUSH PRIVILEGES;
+> ```
+> (If you prefer to scope it, use the Docker subnet host instead of `'%'`, e.g. `'teculiar_admin'@'172.%'`.)
+
 > If you'd rather keep `teculiar_admin` scoped to `teculiar_control` and use a *separate* privileged user
 > for tenant creation, create that user and use it only in `TENANT_ADMIN_DATABASE_URL` (H.2). Either works.
 
