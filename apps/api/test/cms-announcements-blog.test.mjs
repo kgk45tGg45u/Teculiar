@@ -66,9 +66,9 @@ test("cms schema and routes model announcements outside blog posts", async () =>
 test("manual blog UI exposes photo, category, tags, rich text, and tag pages", async () => {
   const adminForms = await readFile(new URL("../../web/components/admin/admin-forms.tsx", import.meta.url), "utf8");
   const packageJson = await readFile(new URL("../../web/package.json", import.meta.url), "utf8");
-  const blogPage = await readFile(new URL("../../web/app/[locale]/blog/page.tsx", import.meta.url), "utf8");
-  const blogPostPage = await readFile(new URL("../../web/app/[locale]/blog/[slug]/page.tsx", import.meta.url), "utf8");
-  const tagPage = await readFile(new URL("../../web/app/[locale]/blog/tag/[tag]/page.tsx", import.meta.url), "utf8");
+  const blogPage = await readFile(new URL("../../storefront/app/[locale]/blog/page.tsx", import.meta.url), "utf8");
+  const blogPostPage = await readFile(new URL("../../storefront/app/[locale]/blog/[slug]/page.tsx", import.meta.url), "utf8");
+  const tagPage = await readFile(new URL("../../storefront/app/[locale]/blog/tag/[tag]/page.tsx", import.meta.url), "utf8");
 
   assert.match(adminForms, /Feature photo/);
   assert.match(adminForms, /Category/);
@@ -89,11 +89,11 @@ test("manual blog UI exposes photo, category, tags, rich text, and tag pages", a
 });
 
 test("site chrome has collapsible mobile nav, panel branding, and refined client login", async () => {
-  const header = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
-  const mobileMenu = await readFile(new URL("../../web/components/layout/mobile-menu.tsx", import.meta.url), "utf8");
-  const headerCss = await readFile(new URL("../../web/components/layout/site-header.module.css", import.meta.url), "utf8");
-  const footer = await readFile(new URL("../../web/components/layout/site-footer.tsx", import.meta.url), "utf8");
-  const footerCss = await readFile(new URL("../../web/components/layout/site-footer.module.css", import.meta.url), "utf8");
+  const header = await readFile(new URL("../../../packages/web-core/src/components/layout/site-header.tsx", import.meta.url), "utf8");
+  const mobileMenu = await readFile(new URL("../../../packages/web-core/src/components/layout/mobile-menu.tsx", import.meta.url), "utf8");
+  const headerCss = await readFile(new URL("../../../packages/web-core/src/components/layout/site-header.module.css", import.meta.url), "utf8");
+  const footer = await readFile(new URL("../../../packages/web-core/src/components/layout/site-footer.tsx", import.meta.url), "utf8");
+  const footerCss = await readFile(new URL("../../../packages/web-core/src/components/layout/site-footer.module.css", import.meta.url), "utf8");
 
   assert.match(header, /<MobileMenu/);
   assert.match(mobileMenu, /className=\{styles\.mobileMenu\}/);

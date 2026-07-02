@@ -1,6 +1,18 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { accessSecret } from "../../../tenancy/jwt-secrets";
+import { getTenantContext } from "../../../tenancy/tenant-context";
+
+// Licensing enforcement: a tenant whose Teculiar subscription lapsed is marked `suspended` in the
+// control-plane. Its DATA and PUBLIC storefront stay intact, but every AUTHENTICATED dashboard/API
+// request is refused until the overdue invoice is paid (Tecreator flips the status back to `active`).
+// A no-op in single-tenant fallback (no control-plane → tenant context is null).
+export function assertTenantActive(): void {
+  const status = getTenantContext()?.tenant?.status;
+  if (status && status.toLowerCase() === "suspended") {
+    throw new ForbiddenException("This account is suspended for non-payment. Please settle the outstanding invoice to reactivate.");
+  }
+}
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -19,10 +31,11 @@ export class JwtAuthGuard implements CanActivate {
       request.user = this.jwt.verify(token, {
         secret: accessSecret()
       });
-      return true;
     } catch {
       throw new UnauthorizedException("Invalid access token");
     }
+    assertTenantActive();
+    return true;
   }
 }
 

@@ -137,6 +137,35 @@ Mirror `apps/api/src/modules/external/virtualmin-provider.service.ts`; register 
 `apps/api/src/modules/external/external.service.ts`; add the catalog entry + `"platform"` kind in
 `apps/api/src/modules/module-registry/module-catalog.ts`.
 
+## Two selling motions (one codebase)
+
+- **Dezhost** is a tenant that **sells hosting** — its catalog is web-hosting/VPS/reseller/domains, provisioned
+  by the `virtualmin`/`resellbiz` modules (exactly as today).
+- **Teculiar.com** is a tenant that **sells Teculiar itself** — its catalog is the Teculiar subscription
+  (a flat **constant monthly price** for now), provisioned by the `tecreator` module. Its marketing website is
+  the **same storefront engine on the same "Blue" theme** Dezhost uses (kept by that name); Teculiar-specific
+  marketing pages are authored as **content** in the Customizer. Any SaaS-marketing pieces it needs (e.g. a
+  pricing-table) are built as **reusable, sellable registry elements**, not one-offs.
+- **Repos:** one **Teculiar monorepo** builds all three images (API, dashboards, storefront). teculiar.net
+  serves the API+dashboards; **teculiar.com is served straight from that same monorepo** as tenant #0 (no
+  separate teculiar.com repo). Only genuine outside customers (Dezhost) get a **thin storefront repo**.
+
+## Licensing (the tenant subscription IS the license)
+
+Because the dashboards + API are hosted, no separate license key is needed — **a tenant's control-plane
+`status` is its license**. The lifecycle reuses the ordinary billing engine:
+
+- **Provision / activate:** buying the Teculiar plan runs Tecreator → `createTenant` → the tenant is
+  registered `status: "active"`. The recurring monthly invoice keeps it active.
+- **Non-payment → suspend (non-destructive):** when a Teculiar invoice passes the grace period, billing's
+  suspension pass calls the provider's `disable(externalId)`. For Tecreator that flips the tenant to
+  `status: "suspended"` (`ControlPlaneService.setStatus`). **Nothing is deleted** — DB, uploads and the
+  **public storefront stay up**; only **authenticated dashboard/API access is refused** (`JwtAuthGuard`
+  rejects any request whose tenant context is `suspended`). Paying reactivates instantly via the
+  provider's `enable` → `status: "active"`.
+- These `disable`/`enable` hooks are optional on the `HostingProvider` interface, so the same billing path
+  drives Virtualmin (panel disable/enable) and Tecreator (tenant suspend/reactivate) with no special-casing.
+
 ## Updates (Teculiar-push hosted; reversible theme/locale)
 
 - **API + dashboards** are hosted and **single-version**: updating = deploying new images. Every tenant is

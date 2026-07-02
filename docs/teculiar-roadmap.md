@@ -638,6 +638,22 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 >   theme's shipped default page content** (the Phase-3 per-page authoring) — these need the deployed
 >   multi-tenant stack + a content pass, not code.
 
+> **Sub-phase 4.3b — Licensing + suspension: IMPLEMENTED & tested (2026-07-02).** Decided this session
+> (see [teculiar-architecture.md → Licensing](./teculiar-architecture.md#licensing-the-tenant-subscription-is-the-license)):
+> **the tenant's control-plane `status` IS its license** (no separate key — dashboards/API are hosted).
+> Teculiar.com sells the **Teculiar plan (flat constant monthly)**; Dezhost keeps selling hosting; **one
+> codebase, one "Blue" theme** (kept by name), Teculiar.com is tenant #0 served from the monorepo (no
+> separate teculiar.com repo). Enforcement, reusing the ordinary billing engine with **no special-casing**:
+> `HostingProvider` gained optional **`disable`/`enable`** hooks; billing's suspend + unsuspend passes call
+> them **provider-generically** (`hostingProvider(module).disable/enable`) instead of hardcoding Virtualmin;
+> **Tecreator's `disable`/`enable` flip the tenant `status` suspended/active** (`ControlPlaneService.setStatus`);
+> and **`JwtAuthGuard` refuses any authenticated request whose tenant context is `suspended`** — so a lapsed
+> customer keeps their **data + public storefront** but their **dashboards/API are locked** until they pay
+> (reactivates instantly). Non-destructive; nothing is terminated. Verified: API typecheck + build; **10
+> Tecreator tests** (`apps/api/test/tecreator-module.test.mjs`, incl. disable/enable + the suspension gate)
+> pass; full API suite back at the **15-failure baseline** (a 4.2 fallout — `apps/api/test` reading moved
+> web files by path — was also fixed here by remapping those refs to `packages/web-core`/`apps/storefront`).
+
 ### Phase 5 — Option 2: custom themes *(accepted, later)*
 A buyer builds a theme in the hosted admin (Customizer + the deferred Properties/Custom-Themes tab,
 anticipated by `Theme.styling`), downloads the theme files, and self-runs the storefront against the

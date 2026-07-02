@@ -60,6 +60,11 @@ export interface HostingProvider {
   provision(request: ProvisioningRequest): Promise<ProvisioningResult>;
   restart(serviceExternalId: string): Promise<{ accepted: boolean; operationId: string }>;
   status?(serviceExternalId: string): Promise<ProvisioningResult>;
+  // Optional lifecycle hooks the billing engine calls on non-payment / reactivation. Providers that
+  // support suspension implement them (Virtualmin disables the panel account; Tecreator suspends the
+  // whole tenant — the "license"); providers without them are simply skipped, so nothing is terminated.
+  disable?(serviceExternalId: string): Promise<unknown>;
+  enable?(serviceExternalId: string): Promise<unknown>;
 }
 
 // Domains can additionally be CANCELLED (the registrar/panel reports the domain no longer exists),

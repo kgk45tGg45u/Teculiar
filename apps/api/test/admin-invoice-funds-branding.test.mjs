@@ -60,14 +60,14 @@ test("admin invoice page mirrors client invoice detail and exposes admin-only ac
 test("sandbox gateway and reusable logo uploader are wired", async () => {
   const billingService = await readFile(new URL("../src/modules/billing/billing.service.ts", import.meta.url), "utf8");
   const billingController = await readFile(new URL("../src/modules/billing/billing.controller.ts", import.meta.url), "utf8");
-  const checkout = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const checkout = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
   const adminForms = await readFile(new URL("../../web/components/admin/admin-forms.tsx", import.meta.url), "utf8");
-  const siteHeader = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
+  const siteHeader = await readFile(new URL("../../../packages/web-core/src/components/layout/site-header.tsx", import.meta.url), "utf8");
 
   assert.match(billingService, /method: "SANDBOX"/);
   assert.match(checkout, /paymentMethod === "SANDBOX"/);
   assert.match(billingController, /uploadSiteLogo/);
-  assert.ok(existsSync(new URL("../../web/components/ui/image-uploader.tsx", import.meta.url)));
+  assert.ok(existsSync(new URL("../../../packages/web-core/src/components/ui/image-uploader.tsx", import.meta.url)));
   assert.match(adminForms, /ImageUploader/);
   assert.match(siteHeader, /brandLogo/);
 });

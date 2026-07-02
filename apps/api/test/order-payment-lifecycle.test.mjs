@@ -336,7 +336,7 @@ test("client dashboard does not ship sample client data", async () => {
 });
 
 test("checkout form pays new-client order before trying client login", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
   const checkoutIndex = source.indexOf('postJson<{ order: { id: string } }>("/orders/checkout"');
   const checkoutOrderIdIndex = source.indexOf("checkoutOrderId = checkoutResponse.order.id", checkoutIndex);
   const payIndex = source.indexOf("`/orders/${checkoutOrderId}/pay`", checkoutOrderIdIndex);
@@ -349,7 +349,7 @@ test("checkout form pays new-client order before trying client login", async () 
 });
 
 test("checkout form locks logged-in checkout to profile email", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /const customerEmail = profile\?\.email \?\? String\(formData\.get\("email"\) \?\? ""\)\.trim\(\)\.toLowerCase\(\)/);
   assert.match(source, /email: customerEmail/);
@@ -357,14 +357,14 @@ test("checkout form locks logged-in checkout to profile email", async () => {
 });
 
 test("checkout API requests include auth headers when present", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /headers: \{ \.\.\.authHeaders\("client"\), "Content-Type": "application\/json" \}/);
 });
 
 test("site header swaps account link for signed-in account menu with logout", async () => {
-  const header = await readFile(new URL("../../web/components/layout/site-header.tsx", import.meta.url), "utf8");
-  const menu = await readFile(new URL("../../web/components/layout/account-menu.tsx", import.meta.url), "utf8");
+  const header = await readFile(new URL("../../../packages/web-core/src/components/layout/site-header.tsx", import.meta.url), "utf8");
+  const menu = await readFile(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
   assert.match(header, /<AccountMenu \/>/);
   assert.match(menu, /Dashboard/);
@@ -375,7 +375,7 @@ test("site header swaps account link for signed-in account menu with logout", as
 test("portal and admin dashboards expose logout actions", async () => {
   const client = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
   const admin = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
-  const accountMenu = await readFile(new URL("../../web/components/layout/account-menu.tsx", import.meta.url), "utf8");
+  const accountMenu = await readFile(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
   assert.match(accountMenu, /clearAuth\("client"\)/);
   assert.match(client, /href="\/client\/profile"/);
@@ -383,7 +383,7 @@ test("portal and admin dashboards expose logout actions", async () => {
 });
 
 test("signed-in checkout uses profile data and hides contact fields", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /getJson<ClientProfile>\("\/users\/me", authToken\("client"\)\)/);
   assert.match(source, /profile \? profileCheckoutCustomer\(profile, formData\)/);
@@ -393,7 +393,7 @@ test("signed-in checkout uses profile data and hides contact fields", async () =
 });
 
 test("guest checkout password field has eye visibility toggle", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /showPassword/);
   assert.match(source, /type=\{showPassword \? "text" : "password"\}/);
@@ -540,7 +540,7 @@ test("admin can save suggested TLD without manual amount", async () => {
 });
 
 test("checkout summary multiplies selected domain year price by selected years", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /function domainUnitPriceCents/);
   assert.match(source, /domainYears \* domainUnitPrice/);
@@ -548,7 +548,7 @@ test("checkout summary multiplies selected domain year price by selected years",
 });
 
 test("checkout domain year dropdown comes from positive TLD registration prices", async () => {
-  const source = await readFile(new URL("../../web/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
 
   assert.match(source, /getJson<ApiDomainPrice\[\]>\("\/storefront\/domain-prices"\)/);
   assert.match(source, /function domainSelectablePrices/);

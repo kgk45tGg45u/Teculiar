@@ -83,6 +83,32 @@ export class TecreatorProviderService implements HostingProvider {
     return { externalId: serviceExternalId, status: "QUEUED", metadata: { platform: "tecreator", reason: "Tenant not found in control-plane (still provisioning?)." } };
   }
 
+  // Licensing lifecycle. The Teculiar subscription IS the tenant's license, so suspending/reactivating a
+  // customer for (non-)payment simply flips the tenant's control-plane status. Suspension is
+  // NON-destructive: the DB + uploads + public storefront stay; only authenticated dashboard/API access
+  // is blocked (by JwtAuthGuard) until the overdue Teculiar invoice is paid. `serviceExternalId` is the
+  // tenant subdomain (returned as the provision externalId).
+  async disable(serviceExternalId: string) {
+    return this.setTenantStatus(serviceExternalId, "suspended");
+  }
+
+  async enable(serviceExternalId: string) {
+    return this.setTenantStatus(serviceExternalId, "active");
+  }
+
+  private async setTenantStatus(serviceExternalId: string, status: "suspended" | "active") {
+    if (!this.controlPlane.enabled) {
+      return { accepted: false, reason: "Control-plane is not configured." };
+    }
+    const subdomain = serviceExternalId.trim().toLowerCase();
+    try {
+      await this.controlPlane.setStatus(subdomain, status);
+      return { accepted: true, subdomain, status };
+    } catch (error) {
+      return { accepted: false, reason: error instanceof Error ? error.message : `failed to set ${status}` };
+    }
+  }
+
   // Tenants are not "restartable" — provisioning is one-shot database creation. Report an accepted no-op
   // so the generic restart action the pipeline offers every hosting service does not error.
   async restart(serviceExternalId: string) {

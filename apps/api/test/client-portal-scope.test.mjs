@@ -3,9 +3,9 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 test("admin login does not replace the client portal token", async () => {
-  const api = await readFile(new URL("../../web/lib/api.ts", import.meta.url), "utf8");
+  const api = await readFile(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
   const loginForm = await readFile(new URL("../../web/components/auth/login-form.tsx", import.meta.url), "utf8");
-  const serverApi = await readFile(new URL("../../web/lib/server-api.ts", import.meta.url), "utf8");
+  const serverApi = await readFile(new URL("../../../packages/web-core/src/lib/server-api.ts", import.meta.url), "utf8");
   const middleware = await readFile(new URL("../../web/middleware.ts", import.meta.url), "utf8");
   const clientDashboard = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 

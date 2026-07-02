@@ -1043,9 +1043,11 @@ export class BillingService {
     // provision/manage manually. (Unknown modules with no registry entry default to active.)
     const moduleEnabled = this.modules ? await this.modules.moduleActive(moduleName) : true;
     if (action === "unsuspend") {
-      // Paying an overdue invoice re-enables the account that billing maintenance disabled.
-      if (moduleEnabled && moduleName === "virtualmin" && service.externalId) {
-        await this.external.virtualmin.enable(service.externalId).catch(() => undefined);
+      // Paying an overdue invoice re-enables the account billing maintenance disabled. Provider-generic:
+      // Virtualmin re-enables the panel account, Tecreator reactivates the suspended tenant, others no-op.
+      if (moduleEnabled && service.externalId) {
+        const provider = this.external.hostingProvider(moduleName, service.product?.type);
+        await provider.enable?.(service.externalId).catch(() => undefined);
       }
       return { externalId: service.externalId ?? service.id, metadata: { action }, status: "ACTIVE" as const };
     }
@@ -1197,8 +1199,11 @@ export class BillingService {
     ))];
     const servicesToSuspend = await this.billing.activeServicesByIds(suspendServiceIds);
     for (const service of servicesToSuspend) {
-      if (effectiveServiceModule(service) === "virtualmin" && service.externalId) {
-        await this.external?.virtualmin.disable(service.externalId).catch(() => undefined);
+      // Provider-generic suspension: Virtualmin disables the panel account, Tecreator suspends the whole
+      // tenant (the license), providers without a `disable` hook are skipped. Never deletes/terminates.
+      if (service.externalId) {
+        const provider = this.external?.hostingProvider(effectiveServiceModule(service), service.product?.type);
+        await provider?.disable?.(service.externalId).catch(() => undefined);
       }
     }
     const suspended = await this.billing.suspendServices(suspendServiceIds);

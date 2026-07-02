@@ -18,16 +18,22 @@ let ExternalService;
 let MODULE_KINDS;
 let MODULE_CATALOG;
 let moduleDefinition;
+let runWithTenant;
+let assertTenantActive;
 
 before(async () => {
   const provider = await import("../dist/modules/external/tecreator-provider.service.js");
   const external = await import("../dist/modules/external/external.service.js");
   const catalog = await import("../dist/modules/module-registry/module-catalog.js");
+  const ctx = await import("../dist/tenancy/tenant-context.js");
+  const guard = await import("../dist/modules/auth/guards/jwt-auth.guard.js");
   TecreatorProviderService = provider.TecreatorProviderService;
   ExternalService = external.ExternalService;
   MODULE_KINDS = catalog.MODULE_KINDS;
   MODULE_CATALOG = catalog.MODULE_CATALOG;
   moduleDefinition = catalog.moduleDefinition;
+  runWithTenant = ctx.runWithTenant;
+  assertTenantActive = guard.assertTenantActive;
 });
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
@@ -68,8 +74,13 @@ function makeProvider({ enabled = true, createTenant, findBySubdomain } = {}) {
     enabled,
     async findBySubdomain(sub) {
       return findBySubdomain ? findBySubdomain(sub) : null;
+    },
+    async setStatus(subdomain, status) {
+      calls.setStatus.push({ subdomain, status });
+      return { subdomain, status };
     }
   };
+  calls.setStatus = [];
   return { provider: new TecreatorProviderService(tenants, controlPlane), calls };
 }
 
@@ -120,4 +131,37 @@ test("status reflects control-plane presence", async () => {
   const missing = makeProvider({ findBySubdomain: () => null });
   const queued = await missing.provider.status("ghost");
   assert.equal(queued.status, "QUEUED");
+});
+
+// ── Licensing lifecycle: suspend / reactivate flips the tenant's control-plane status ─────────────
+
+test("disable suspends the tenant, enable reactivates it (the subscription IS the license)", async () => {
+  const { provider, calls } = makeProvider();
+  const suspended = await provider.disable("Acme");
+  assert.equal(suspended.accepted, true);
+  assert.deepEqual(calls.setStatus.at(-1), { subdomain: "acme", status: "suspended" });
+
+  const reactivated = await provider.enable("acme");
+  assert.equal(reactivated.accepted, true);
+  assert.deepEqual(calls.setStatus.at(-1), { subdomain: "acme", status: "active" });
+});
+
+test("disable/enable are inert when the control-plane is off", async () => {
+  const { provider, calls } = makeProvider({ enabled: false });
+  assert.equal((await provider.disable("acme")).accepted, false);
+  assert.equal(calls.setStatus.length, 0);
+});
+
+// ── Suspended-tenant gate (authenticated dashboard/API access) ────────────────────────────────────
+
+test("assertTenantActive blocks a suspended tenant but allows active / single-tenant fallback", () => {
+  const withTenant = (tenant, fn) => runWithTenant({ tenant, prisma: {}, jwtSecrets: { access: "", refresh: "" } }, fn);
+
+  // Suspended → refused (the JwtAuthGuard turns this into a 403 for every authed request).
+  assert.throws(() => withTenant({ status: "suspended" }, () => assertTenantActive()), /suspended/i);
+  // Active tenant, and single-tenant fallback (no tenant) → allowed.
+  assert.doesNotThrow(() => withTenant({ status: "active" }, () => assertTenantActive()));
+  assert.doesNotThrow(() => withTenant(null, () => assertTenantActive()));
+  // Outside any request context → allowed (e.g. boot / cron).
+  assert.doesNotThrow(() => assertTenantActive());
 });

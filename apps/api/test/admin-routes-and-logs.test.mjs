@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 test("admin detail and storefront order routes point at real pages", async () => {
-  const webhosting = await readFile(new URL("../../web/app/[locale]/webhosting/page.tsx", import.meta.url), "utf8");
-  const hostingPackages = await readFile(new URL("../../web/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
+  const webhosting = await readFile(new URL("../../storefront/app/[locale]/webhosting/page.tsx", import.meta.url), "utf8");
+  const hostingPackages = await readFile(new URL("../../storefront/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
   const dashboard = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
   const sidebar = await readFile(new URL("../../web/components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
 
@@ -42,8 +42,8 @@ test("admin product categories are wired end to end", async () => {
 });
 
 test("webhosting storefront uses category products and client billing toggle", async () => {
-  const webhosting = await readFile(new URL("../../web/app/[locale]/webhosting/page.tsx", import.meta.url), "utf8");
-  const hostingPackages = await readFile(new URL("../../web/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
+  const webhosting = await readFile(new URL("../../storefront/app/[locale]/webhosting/page.tsx", import.meta.url), "utf8");
+  const hostingPackages = await readFile(new URL("../../storefront/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
 
   assert.match(webhosting, /\/storefront\/products\?category=webhosting/);
   assert.match(hostingPackages, /"use client"/);
@@ -52,9 +52,9 @@ test("webhosting storefront uses category products and client billing toggle", a
 });
 
 test("storefront product cards and domain results route to order flows", async () => {
-  const productGrid = await readFile(new URL("../../web/components/marketing/product-grid.tsx", import.meta.url), "utf8");
-  const hostingPackages = await readFile(new URL("../../web/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
-  const domainSearch = await readFile(new URL("../../web/app/[locale]/domains/search/page.tsx", import.meta.url), "utf8");
+  const productGrid = await readFile(new URL("../../../packages/web-core/src/components/marketing/product-grid.tsx", import.meta.url), "utf8");
+  const hostingPackages = await readFile(new URL("../../storefront/app/[locale]/webhosting/hosting-packages.tsx", import.meta.url), "utf8");
+  const domainSearch = await readFile(new URL("../../storefront/app/[locale]/domains/search/page.tsx", import.meta.url), "utf8");
 
   assert.match(productGrid, /const fullHref = `\/\$\{locale\}\/\$\{href\}`/);
   assert.match(productGrid, /<Button href=\{fullHref\}/);
