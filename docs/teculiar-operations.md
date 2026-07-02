@@ -289,6 +289,11 @@ sudo nano /opt/teculiar/.env      # paste the block below, then Ctrl-O, Enter, C
 ```
 
 ```dotenv
+# ── Default DB (the API's startup `migrate deploy` + the fallback client outside a request run against
+#    this; it is NOT tenant data — tenants get their own DBs). Create it once:
+#      CREATE DATABASE teculiar_default CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DATABASE_URL=mysql://teculiar_admin:REPLACE_DB_PASSWORD@host.docker.internal:3306/teculiar_default
+
 # ── Multi-tenancy (setting CONTROL_PLANE_DATABASE_URL is what turns it ON) ──
 CONTROL_PLANE_DATABASE_URL=mysql://teculiar_admin:REPLACE_DB_PASSWORD@host.docker.internal:3306/teculiar_control
 TENANT_ADMIN_DATABASE_URL=mysql://teculiar_admin:REPLACE_DB_PASSWORD@host.docker.internal:3306/mysql
