@@ -164,12 +164,12 @@ behind Apache), just three services.
    > `127.0.0.1:4000` and every request looks like "unknown tenant". (Alternatively set
    > `TRUST_FORWARDED_HOST=true` and ensure Apache forwards `X-Forwarded-Host`.)
    - **teculiar.net** vhost (this also serves `*.teculiar.net` — add `ServerAlias *.teculiar.net`):
-     - `/api`      → `http://127.0.0.1:4000/api`
-     - `/admin`    → `http://127.0.0.1:3000/admin`
-     - `/client`   → `http://127.0.0.1:3000/client`
+     - `/api`      → `http://127.0.0.1:4001/api`
+     - `/admin`    → `http://127.0.0.1:3010/admin`
+     - `/client`   → `http://127.0.0.1:3010/client`
      - `/releases` → served as static files from the teculiar.net home (update bundles)
      - `/`         → the dashboards or a simple landing (tenant dashboards live under the subdomains)
-   - **teculiar.com** vhost: `/` → `http://127.0.0.1:3001` (the thin storefront). Its `/admin`,`/client`,
+   - **teculiar.com** vhost: `/` → `http://127.0.0.1:3011` (the thin storefront). Its `/admin`,`/client`,
      `/api` are proxied **by the storefront app itself** to `teculiar.teculiar.net`, so you don't add those
      here.
 4. Reload Apache. Check `https://teculiar.net/api/v1/health` (or the real health route) responds, and
@@ -309,6 +309,12 @@ TECULIAR_UPSTREAM=https://teculiar.teculiar.net   # SSR data-fetch target for th
 
 # ── Which image tag this stack runs (edge = the Phase-4 pre-release; live prod uses latest) ──
 IMAGE_TAG=edge
+
+# ── Host ports (this stack coexists with the LIVE Dezhost prod, which holds 4000/3000). Use spare
+#    ports here so both stacks run side by side on the box during the transition. ──
+API_PORT=4001
+WEB_PORT=3010
+STOREFRONT_PORT=3011
 ```
 
 > `host.docker.internal` lets the containers reach MariaDB on the host (already used by today's prod).
@@ -345,24 +351,24 @@ ProxyPreserveHost On
 SSLProxyEngine on
 
 # API + uploads → the API container
-ProxyPass        /api      http://127.0.0.1:4000/api
-ProxyPassReverse /api      http://127.0.0.1:4000/api
-ProxyPass        /uploads  http://127.0.0.1:4000/uploads
-ProxyPassReverse /uploads  http://127.0.0.1:4000/uploads
+ProxyPass        /api      http://127.0.0.1:4001/api
+ProxyPassReverse /api      http://127.0.0.1:4001/api
+ProxyPass        /uploads  http://127.0.0.1:4001/uploads
+ProxyPassReverse /uploads  http://127.0.0.1:4001/uploads
 
 # Dashboards (admin + client + login) → the dashboards container
-ProxyPass        /admin           http://127.0.0.1:3000/admin
-ProxyPassReverse /admin           http://127.0.0.1:3000/admin
-ProxyPass        /client          http://127.0.0.1:3000/client
-ProxyPassReverse /client          http://127.0.0.1:3000/client
-ProxyPass        /login           http://127.0.0.1:3000/login
-ProxyPassReverse /login           http://127.0.0.1:3000/login
-ProxyPass        /reset-password  http://127.0.0.1:3000/reset-password
-ProxyPassReverse /reset-password  http://127.0.0.1:3000/reset-password
+ProxyPass        /admin           http://127.0.0.1:3010/admin
+ProxyPassReverse /admin           http://127.0.0.1:3010/admin
+ProxyPass        /client          http://127.0.0.1:3010/client
+ProxyPassReverse /client          http://127.0.0.1:3010/client
+ProxyPass        /login           http://127.0.0.1:3010/login
+ProxyPassReverse /login           http://127.0.0.1:3010/login
+ProxyPass        /reset-password  http://127.0.0.1:3010/reset-password
+ProxyPassReverse /reset-password  http://127.0.0.1:3010/reset-password
 
 # Dashboard bundles: assetPrefix=/_dash → strip back to the dashboards' real /_next
-ProxyPass        /_dash/  http://127.0.0.1:3000/
-ProxyPassReverse /_dash/  http://127.0.0.1:3000/
+ProxyPass        /_dash/  http://127.0.0.1:3010/
+ProxyPassReverse /_dash/  http://127.0.0.1:3010/
 ```
 
 Reload Apache, then check: `curl -sI https://teculiar.net/api/v1/health` → 200, and
@@ -399,8 +405,8 @@ ProxyPass        /_dash           https://teculiar.teculiar.net/_dash          n
 ProxyPassReverse /_dash           https://teculiar.teculiar.net/_dash
 
 # Everything else → the local thin storefront container (MUST be last)
-ProxyPass        /  http://127.0.0.1:3001/
-ProxyPassReverse /  http://127.0.0.1:3001/
+ProxyPass        /  http://127.0.0.1:3011/
+ProxyPassReverse /  http://127.0.0.1:3011/
 ```
 
 For a **buyer domain** like `dezhost.com`, use the IDENTICAL block but replace every
