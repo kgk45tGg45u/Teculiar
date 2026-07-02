@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type AuthUser } from "../../../../lib/api";
-import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
-import { requestLocale } from "../../../../lib/server-locale";
-import { getDictionary } from "../../../../lib/dictionary";
+import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type AuthUser } from "@dezhost/web-core/lib/api";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { AdminClientActions } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
-import { Button } from "../../../../components/ui/button";
+import { Button } from "@dezhost/web-core/components/ui/button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "../../../../components/ui/status-pill";
-import { invoiceStatusLabel, serviceStatusLabel } from "../../../../lib/status-labels";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { invoiceStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
 
 export default async function AdminClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");

@@ -4,7 +4,7 @@ import test from "node:test";
 
 // Domain products carry a 0 list price (every TLD/term is priced live from resell.biz at checkout), so
 // the dashboards must show the captured *order* price (recurringAmountCents), never productPrice.amountCents.
-const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8");
+const api = readFileSync(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
 const clientDashboard = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 const adminDashboard = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
 const serviceDetail = readFileSync(new URL("../app/admin/services/[serviceId]/page.tsx", import.meta.url), "utf8");

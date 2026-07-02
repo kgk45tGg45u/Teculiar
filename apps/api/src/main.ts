@@ -17,7 +17,7 @@ async function bootstrap() {
   app.useStaticAssets(uploadsDir, { prefix: "/uploads" });
   app.setGlobalPrefix("api/v1");
   app.enableCors({
-    origin: allowedOrigins(),
+    origin: corsOrigin,
     credentials: true
   });
   app.use(helmet());
@@ -49,4 +49,40 @@ function allowedOrigins() {
     .filter(Boolean);
 
   return Array.from(new Set(origins));
+}
+
+// Domain suffixes whose subdomains are always allowed (multi-tenant, Phase 4.1). Every
+// tenant lives at <subdomain>.teculiar.net; teculiar.com is the dogfood storefront.
+// Extra buyer domains can be added via CORS_TENANT_SUFFIXES (comma-separated).
+function tenantOriginSuffixes() {
+  const extra = (process.env.CORS_TENANT_SUFFIXES ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return ["teculiar.net", "teculiar.com", ...extra];
+}
+
+// CORS callback: allow the configured static origins plus any host under a tenant
+// suffix (apex or subdomain). Same-origin / server-to-server requests carry no Origin.
+function corsOrigin(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+  const normalized = origin.trim().replace(/\/$/, "");
+  if (allowedOrigins().includes(normalized)) {
+    callback(null, true);
+    return;
+  }
+  let hostname = "";
+  try {
+    hostname = new URL(origin).hostname.toLowerCase();
+  } catch {
+    callback(null, false);
+    return;
+  }
+  const allowed = tenantOriginSuffixes().some(
+    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+  );
+  callback(null, allowed);
 }

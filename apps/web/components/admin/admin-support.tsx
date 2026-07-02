@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BookOpen, FileText, Image as ImageIcon, Send } from "lucide-react";
-import { API_BASE_URL, authHeaders, type ApiKnowledgebaseArticle, type ApiTicket } from "../../lib/api";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary } from "../../lib/dictionary";
-import { TICKET_STATUS_VALUES, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
+import { API_BASE_URL, authHeaders, type ApiKnowledgebaseArticle, type ApiTicket } from "@dezhost/web-core/lib/api";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { TICKET_STATUS_VALUES, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
 import { InvoiceModal } from "../tickets/invoice-modal";
 import { TicketConversation } from "../tickets/ticket-conversation";
-import { Button } from "../ui/button";
-import { StatusPill } from "../ui/status-pill";
-import { notifyResponse } from "../ui/toast-provider";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function KnowledgebasePanel({ articles: initialArticles }: { articles: ApiKnowledgebaseArticle[] }) {

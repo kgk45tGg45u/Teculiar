@@ -4,7 +4,7 @@ import test from "node:test";
 
 const dashboardUrl = new URL("../components/portal/client-dashboard.tsx", import.meta.url);
 const dashboardCssUrl = new URL("../components/portal/client-dashboard.module.css", import.meta.url);
-const statusCssUrl = new URL("../components/ui/status-pill.module.css", import.meta.url);
+const statusCssUrl = new URL("../../../packages/web-core/src/components/ui/status-pill.module.css", import.meta.url);
 
 test("client dashboard keeps content bounded with fixed metric cards and one bottom feed", async () => {
   const css = await readFile(dashboardCssUrl, "utf8");

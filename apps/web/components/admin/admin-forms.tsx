@@ -6,16 +6,16 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "../../lib/api";
-import { getDictionary, type Dictionary } from "../../lib/dictionary";
-import type { Locale } from "../../lib/i18n";
-import { useLocale } from "../layout/locale-provider";
-import { serviceStatusLabel } from "../../lib/status-labels";
+import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@dezhost/web-core/lib/api";
+import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
 import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
 import { TaxCountrySettings, type TaxCountriesValue } from "./tax-country-settings";
-import { Button } from "../ui/button";
-import { ImageUploader } from "../ui/image-uploader";
-import { notify, notifyResponse } from "../ui/toast-provider";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
+import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {

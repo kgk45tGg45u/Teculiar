@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, storeAuth, type AuthPayload } from "../../../../lib/api";
-import { getDictionary } from "../../../../lib/dictionary";
+import { API_BASE_URL, authHeaders, currentLocale, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 
 type ConfirmResult = {
   status: string;

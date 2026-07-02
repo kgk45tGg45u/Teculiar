@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Plus, Send, Trash2, UploadCloud } from "lucide-react";
-import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "../../lib/api";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary } from "../../lib/dictionary";
-import { Button } from "../ui/button";
-import { notifyResponse } from "../ui/toast-provider";
+import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "@dezhost/web-core/lib/api";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 // ── Departments management ─────────────────────────────────────────────────────

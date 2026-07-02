@@ -14,10 +14,10 @@ const controller = read("../../api/src/modules/customizer/customizer.controller.
 const moduleFile = read("../../api/src/modules/customizer/customizer.module.ts");
 const appModule = read("../../api/src/app.module.ts");
 const cmsModule = read("../../api/src/modules/cms/cms.module.ts");
-const types = read("../lib/customizer/types.ts");
-const registryIndex = read("../lib/customizer/registry/index.ts");
-const renderer = read("../lib/customizer/layout-renderer.tsx");
-const resolve = read("../lib/customizer/resolve.ts");
+const types = read("../../../packages/web-core/src/lib/customizer/types.ts");
+const registryIndex = read("../../../packages/web-core/src/lib/customizer/registry/index.ts");
+const renderer = read("../../../packages/web-core/src/lib/customizer/layout-renderer.tsx");
+const resolve = read("../../../packages/web-core/src/lib/customizer/resolve.ts");
 
 test("Page carries versioned layout-doc storage + PageVersion snapshot model", () => {
   const page = schema.match(/model Page \{[\s\S]*?\n\}/)[0];
@@ -87,7 +87,7 @@ test("renderer skips unknown types live, shows placeholder in preview; main-lang
 });
 
 test("Customizer builder route + page assets exist", () => {
-  assert.ok(existsSync(new URL("../lib/customizer/layout-renderer.tsx", import.meta.url)));
-  assert.ok(existsSync(new URL("../lib/customizer/registry/section.tsx", import.meta.url)));
-  assert.ok(existsSync(new URL("../lib/customizer/registry/text-block.tsx", import.meta.url)));
+  assert.ok(existsSync(new URL("../../../packages/web-core/src/lib/customizer/layout-renderer.tsx", import.meta.url)));
+  assert.ok(existsSync(new URL("../../../packages/web-core/src/lib/customizer/registry/section.tsx", import.meta.url)));
+  assert.ok(existsSync(new URL("../../../packages/web-core/src/lib/customizer/registry/text-block.tsx", import.meta.url)));
 });

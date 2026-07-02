@@ -2,25 +2,29 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 
-# NEXT_PUBLIC_API_URL must be baked in at build time (used by the browser bundle).
-# Pass it via --build-arg or as a Docker build secret.
+# Hosted dashboards (admin + client). The browser now calls the same-origin `/api` (served by Apache
+# next to the dashboards), so NEXT_PUBLIC_API_URL is no longer baked into the browser bundle. It is
+# kept as an OPTIONAL server-side fallback (single-tenant mode); server SSR prefers API_INTERNAL_URL
+# at runtime. Pass via --build-arg only if you rely on the fallback.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Copy workspace manifests first — lets Docker cache the install layer
 COPY package.json package-lock.json ./
-COPY packages/shared/package.json  ./packages/shared/
-COPY packages/locales/package.json ./packages/locales/
-COPY apps/web/package.json         ./apps/web/
+COPY packages/shared/package.json   ./packages/shared/
+COPY packages/locales/package.json  ./packages/locales/
+COPY packages/web-core/package.json ./packages/web-core/
+COPY apps/web/package.json          ./apps/web/
 RUN npm ci
 
 # Copy source code
 COPY tsconfig.base.json  ./
 COPY packages/shared     ./packages/shared
-# apps/web resolves @dezhost/locales straight from its .ts source via the
-# tsconfig path mapping, so the source (incl. en/de JSON packs + manifest)
-# must be present for Turbopack to bundle it into the standalone output.
+# apps/web resolves @dezhost/locales and @dezhost/web-core straight from their .ts/.tsx source via the
+# tsconfig path mappings, so the source (locales JSON packs + manifest; web-core lib/components) must be
+# present for Turbopack to bundle it into the standalone output.
 COPY packages/locales    ./packages/locales
+COPY packages/web-core   ./packages/web-core
 COPY apps/web            ./apps/web
 
 # Build shared lib → build Next.js app (produces .next/standalone)

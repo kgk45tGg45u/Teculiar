@@ -28,6 +28,7 @@ jobs:
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"
           echo "image_api=ghcr.io/${OWNER}/dezhost-api" >> $GITHUB_OUTPUT
           echo "image_web=ghcr.io/${OWNER}/dezhost-web" >> $GITHUB_OUTPUT
+          echo "image_storefront=ghcr.io/${OWNER}/dezhost-storefront" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -52,20 +53,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── Web image ─────────────────────────────────────────────────────────────
-      - name: Build and push Web image
+      # ── Web (dashboards) image ─────────────────────────────────────────────────
+      - name: Build and push Web (dashboards) image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.web
           push: true
-          # NEXT_PUBLIC_API_URL is baked into the Next.js bundle at build time.
-          # Set this secret in GitHub → Settings → Secrets → Actions.
+          # NEXT_PUBLIC_API_URL is now only an OPTIONAL server-side fallback (the browser calls
+          # same-origin /api). Kept for single-tenant/back-compat; safe to leave the secret unset.
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           tags: |
             ${{ steps.vars.outputs.image_web }}:latest
             ${{ steps.vars.outputs.image_web }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Storefront (thin Blue theme) image ──────────────────────────────────────
+      - name: Build and push Storefront image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.storefront
+          push: true
+          # No build args: the storefront bakes no API URL (same-origin /api + runtime TECULIAR_UPSTREAM).
+          tags: |
+            ${{ steps.vars.outputs.image_storefront }}:latest
+            ${{ steps.vars.outputs.image_storefront }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

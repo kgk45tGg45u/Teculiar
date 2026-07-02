@@ -1,12 +1,12 @@
-import { cycleLabel, invoiceDisplayNumber, money, type ApiOrder, type AuthUser } from "../../../../lib/api";
-import { orderStatusLabel, serviceStatusLabel } from "../../../../lib/status-labels";
-import { requestLocale } from "../../../../lib/server-locale";
-import { getDictionary } from "../../../../lib/dictionary";
-import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
+import { cycleLabel, invoiceDisplayNumber, money, type ApiOrder, type AuthUser } from "@dezhost/web-core/lib/api";
+import { orderStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "../../../../components/ui/status-pill";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 
 type AdminOrderItem = ApiOrder["items"][number] & {
   billingCycle?: string | null;

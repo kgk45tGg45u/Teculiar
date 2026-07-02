@@ -7,7 +7,10 @@
 // Module ENABLED-state and config VALUES live in SystemSetting rows (`module.<name>.<field>`); the
 // catalog only describes the shape. The prod/dev .env is consulted as a FALLBACK via `envFallback`.
 
-export const MODULE_KINDS = ["registrar", "hosting"] as const;
+// `platform` = a provisioning module that creates a whole Teculiar TENANT (its own database) rather
+// than a hosting account or a domain — used by Teculiar.com's own catalog to sell Teculiar itself
+// (the Tecreator module). It plugs into the identical order→invoice→provision pipeline as `hosting`.
+export const MODULE_KINDS = ["registrar", "hosting", "platform"] as const;
 export type ModuleKind = (typeof MODULE_KINDS)[number];
 
 export type ModuleFieldType = "text" | "secret" | "boolean" | "select";
@@ -120,6 +123,32 @@ export const MODULE_CATALOG: ModuleDefinition[] = [
         type: "text",
         placeholder: "0",
         help: "Minimum delay enforced between Virtualmin create / suspend / delete jobs so the panel never receives simultaneous changes. 0 disables the delay."
+      }
+    ]
+  },
+  {
+    // Tecreator provisions a brand-new Teculiar TENANT on purchase (create DB + user → migrate → seed
+    // Blue content + admin → register in the control-plane → email credentials). It reuses the 4.1
+    // `createTenant` primitive and the DB admin connection from TENANT_ADMIN_DATABASE_URL / the
+    // control-plane, so it needs no per-tenant secrets of its own — only a couple of defaults.
+    name: "tecreator",
+    kind: "platform",
+    label: "Tecreator Tenant Provisioning",
+    description: "Provisions a new Teculiar tenant (its own database) when a Teculiar plan is purchased.",
+    fields: [
+      {
+        key: "subdomainPrefix",
+        label: "Auto-subdomain prefix",
+        type: "text",
+        placeholder: "user",
+        help: "Prefix for auto-generated tenant subdomains when the buyer does not choose one (e.g. user0042.teculiar.net)."
+      },
+      {
+        key: "defaultPlan",
+        label: "Default plan label",
+        type: "text",
+        placeholder: "teculiar",
+        help: "Plan label recorded on the tenant in the control-plane when the product does not specify one."
       }
     ]
   }

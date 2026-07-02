@@ -17,7 +17,9 @@
       "@dezhost/shared": ["packages/shared/src/index.ts"],
       "@dezhost/shared/*": ["packages/shared/src/*"],
       "@dezhost/locales": ["packages/locales/index.ts"],
-      "@dezhost/locales/*": ["packages/locales/*"]
+      "@dezhost/locales/*": ["packages/locales/*"],
+      "@dezhost/web-core": ["packages/web-core/src/index.ts"],
+      "@dezhost/web-core/*": ["packages/web-core/src/*"]
     }
   }
 }

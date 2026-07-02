@@ -22,15 +22,15 @@ import {
   type ApiKnowledgebaseArticle,
   type ApiService,
   type ApiTicket
-} from "../../lib/api";
-import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
-import { type Locale } from "../../lib/i18n";
-import { getDictionary } from "../../lib/dictionary";
+} from "@dezhost/web-core/lib/api";
+import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
+import { type Locale } from "@dezhost/web-core/lib/i18n";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
-import { Button } from "../ui/button";
-import { StatusPill } from "../ui/status-pill";
-import { notify, notifyResponse } from "../ui/toast-provider";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";

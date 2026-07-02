@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "react-toastify/dist/ReactToastify.css";
-import { ToastProvider } from "../components/ui/toast-provider";
-import { apiGet } from "../lib/api";
-import { DEFAULT_LOCALE } from "../lib/supported-locales";
-import "./globals.css";
+import { ToastProvider } from "@dezhost/web-core/components/ui/toast-provider";
+import { apiGet } from "@dezhost/web-core/lib/api";
+import { DEFAULT_LOCALE } from "@dezhost/web-core/lib/supported-locales";
+import "@dezhost/web-core/globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await apiGet<{ faviconUrl?: string }>("/storefront/settings");

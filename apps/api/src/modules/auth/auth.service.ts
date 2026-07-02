@@ -4,6 +4,7 @@ import { compare, hash } from "bcryptjs";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { EmailService } from "../email/email.service";
 import { UsersRepository } from "../users/users.repository";
+import { accessSecret } from "../../tenancy/jwt-secrets";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
@@ -241,7 +242,7 @@ export class AuthService {
         roles: user.roles
       },
       {
-        secret: process.env.JWT_ACCESS_SECRET,
+        secret: accessSecret(),
         expiresIn
       }
     );
@@ -264,7 +265,7 @@ export class AuthService {
         roles: user.roles
       },
       {
-        secret: process.env.JWT_ACCESS_SECRET,
+        secret: accessSecret(),
         expiresIn
       }
     );
@@ -315,7 +316,7 @@ export class AuthService {
   }
 
   private passwordResetSignature(payload: string, passwordHash: string) {
-    return createHmac("sha256", process.env.JWT_ACCESS_SECRET ?? "dev-password-reset-secret")
+    return createHmac("sha256", accessSecret() ?? "dev-password-reset-secret")
       .update(`${payload}.${passwordHash}`)
       .digest("base64url");
   }

@@ -1,12 +1,12 @@
 import { ModulesManager } from "../../../../components/admin/admin-modules";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { LogoutButton } from "../../../../components/auth/logout-button";
-import { LanguageToggle } from "../../../../components/layout/language-toggle";
-import { Button } from "../../../../components/ui/button";
-import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
-import { requestLocale } from "../../../../lib/server-locale";
-import { getDictionary } from "../../../../lib/dictionary";
-import type { AuthUser, ApiDomainPrice } from "../../../../lib/api";
+import { LanguageToggle } from "@dezhost/web-core/components/layout/language-toggle";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import type { AuthUser, ApiDomainPrice } from "@dezhost/web-core/lib/api";
 import { Suspense } from "react";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 

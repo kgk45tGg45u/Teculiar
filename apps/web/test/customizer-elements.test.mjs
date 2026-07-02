@@ -8,14 +8,14 @@ import test from "node:test";
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const json = (rel) => JSON.parse(read(rel));
 
-const index = read("../lib/customizer/registry/index.ts");
-const hero = read("../lib/customizer/registry/hero.tsx");
-const feature = read("../lib/customizer/registry/feature.tsx");
-const steps = read("../lib/customizer/registry/steps.tsx");
-const cta = read("../lib/customizer/registry/cta.tsx");
-const faq = read("../lib/customizer/registry/faq.tsx");
-const atoms = read("../lib/customizer/registry/atoms.tsx");
-const product = read("../lib/customizer/registry/product.tsx");
+const index = read("../../../packages/web-core/src/lib/customizer/registry/index.ts");
+const hero = read("../../../packages/web-core/src/lib/customizer/registry/hero.tsx");
+const feature = read("../../../packages/web-core/src/lib/customizer/registry/feature.tsx");
+const steps = read("../../../packages/web-core/src/lib/customizer/registry/steps.tsx");
+const cta = read("../../../packages/web-core/src/lib/customizer/registry/cta.tsx");
+const faq = read("../../../packages/web-core/src/lib/customizer/registry/faq.tsx");
+const atoms = read("../../../packages/web-core/src/lib/customizer/registry/atoms.tsx");
+const product = read("../../../packages/web-core/src/lib/customizer/registry/product.tsx");
 const palette = read("../components/admin/customizer/palette.tsx");
 const enAdmin = json("../../../packages/locales/en/admin.json");
 const deAdmin = json("../../../packages/locales/de/admin.json");
@@ -32,7 +32,7 @@ test("registry index registers the full element inventory", () => {
     assert.ok(index.includes(name), `index missing ${name}`);
   }
   for (const file of ["hero.tsx", "feature.tsx", "steps.tsx", "cta.tsx", "faq.tsx", "atoms.tsx", "product.tsx", "faq.module.css"]) {
-    assert.ok(existsSync(new URL(`../lib/customizer/registry/${file}`, import.meta.url)), `missing ${file}`);
+    assert.ok(existsSync(new URL(`../../../packages/web-core/src/lib/customizer/registry/${file}`, import.meta.url)), `missing ${file}`);
   }
 });
 

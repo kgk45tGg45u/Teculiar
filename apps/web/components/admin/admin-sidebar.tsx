@@ -3,9 +3,9 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ADMIN_AUTH_COOKIE, clearAuth } from "../../lib/api";
-import { getDictionary, type Dictionary } from "../../lib/dictionary";
-import { useLocale } from "../layout/locale-provider";
+import { ADMIN_AUTH_COOKIE, clearAuth } from "@dezhost/web-core/lib/api";
+import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 

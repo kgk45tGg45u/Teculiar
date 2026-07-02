@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const checkout = readFileSync(new URL("../components/checkout/checkout-form.tsx", import.meta.url), "utf8");
-const checkoutCss = readFileSync(new URL("../components/checkout/checkout-form.module.css", import.meta.url), "utf8");
+const checkout = readFileSync(new URL("../../storefront/components/checkout/checkout-form.tsx", import.meta.url), "utf8");
+const checkoutCss = readFileSync(new URL("../../storefront/components/checkout/checkout-form.module.css", import.meta.url), "utf8");
 const adminForms = readFileSync(new URL("../components/admin/admin-forms.tsx", import.meta.url), "utf8");
 const apiController = readFileSync(new URL("../../api/src/modules/billing/billing.controller.ts", import.meta.url), "utf8");
 const apiService = readFileSync(new URL("../../api/src/modules/billing/billing.service.ts", import.meta.url), "utf8");

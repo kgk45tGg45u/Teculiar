@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { canonicalModuleName } from "../module-registry/module-catalog";
 import { HetznerProviderService } from "./hetzner-provider.service";
 import { ResellBizProviderService } from "./resellbiz-provider.service";
+import { TecreatorProviderService } from "./tecreator-provider.service";
 import { VirtualminProviderService } from "./virtualmin-provider.service";
 import type { DomainProvider, HostingProvider } from "./provider.types";
 
@@ -10,12 +11,17 @@ export class ExternalService {
   constructor(
     readonly virtualmin: VirtualminProviderService,
     readonly resellBiz: ResellBizProviderService,
-    readonly hetzner: HetznerProviderService
+    readonly hetzner: HetznerProviderService,
+    readonly tecreator: TecreatorProviderService
   ) {}
 
   hostingProvider(moduleNameOrProductType: string | null | undefined, productType?: string): HostingProvider {
     const moduleName = productType ? moduleNameOrProductType : undefined;
     const type = productType ?? moduleNameOrProductType;
+    // Tecreator (kind: "platform") provisions a whole tenant — selected only by explicit module name.
+    if (moduleName === "tecreator") {
+      return this.tecreator;
+    }
     if (moduleName === "hetzner" || (!moduleName && ["VPS", "DEDICATED_SERVER"].includes(type ?? ""))) {
       return this.hetzner;
     }

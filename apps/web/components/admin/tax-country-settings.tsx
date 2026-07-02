@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary } from "../../lib/dictionary";
-import { countriesForLocale } from "../../lib/countries";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { countriesForLocale } from "@dezhost/web-core/lib/countries";
 
 export type TaxCountriesValue = { enabled: boolean; default: string; rates: Record<string, number> };
 

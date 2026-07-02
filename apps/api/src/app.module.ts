@@ -14,6 +14,8 @@ import { ExternalModule } from "./modules/external/external.module";
 import { KnowledgebaseModule } from "./modules/knowledgebase/knowledgebase.module";
 import { ModuleRegistryModule } from "./modules/module-registry/module-registry.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
+import { TenancyModule } from "./tenancy/tenancy.module";
+import { TenantMiddleware } from "./tenancy/tenant.middleware";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { RedirectsModule } from "./modules/redirects/redirects.module";
@@ -28,6 +30,7 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     ConfigModule.forRoot({ envFilePath: findDotEnv(), isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    TenancyModule,
     ModuleRegistryModule,
     AuthModule,
     UsersModule,
@@ -50,6 +53,8 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CsrfMiddleware).forRoutes("*");
+    // TenantMiddleware first: it establishes the AsyncLocalStorage tenant context that
+    // wraps the entire request pipeline (CSRF, guards, controllers, services).
+    consumer.apply(TenantMiddleware, CsrfMiddleware).forRoutes("*");
   }
 }

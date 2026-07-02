@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale } from "../../../../lib/api";
-import { getDictionary } from "../../../../lib/dictionary";
+import { API_BASE_URL, authHeaders, currentLocale } from "@dezhost/web-core/lib/api";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 
 export default function PaymentMethodReturnPage() {
   const c = getDictionary(currentLocale()).client.pay;

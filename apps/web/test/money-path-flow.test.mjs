@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8");
+const api = readFileSync(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
 const paymentReturn = readFileSync(new URL("../app/client/billing/payment-return/page.tsx", import.meta.url), "utf8");
 const clientDashboard = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 const adminDashboard = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");

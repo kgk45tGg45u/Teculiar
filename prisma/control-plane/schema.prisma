@@ -1,0 +1,54 @@
+// Teculiar CONTROL-PLANE schema (Phase 4.1 — SaaS separation).
+//
+// This is a TINY registry database, completely separate from tenant data. It maps a
+// subdomain (e.g. dezhost.teculiar.net) to that tenant's own database and lifecycle
+// metadata. There is NO relation to any tenant's business tables — the per-tenant
+// database *is* the isolation boundary (see docs/teculiar-architecture.md).
+//
+// Generated to a gitignored ./generated folder so it never collides with the tenant
+// `@prisma/client`. Regenerate with:  npm run db:cp:generate
+// Runtime connection comes from env("CONTROL_PLANE_DATABASE_URL"); when that env var
+// is unset the API runs in single-tenant fallback mode (today's behaviour, unchanged).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("CONTROL_PLANE_DATABASE_URL")
+}
+
+model Tenant {
+  id        String @id @default(cuid())
+  subdomain String @unique // routing key: <subdomain>.teculiar.net
+
+  // Connection routing — how the API reaches this tenant's own database.
+  dbName String // e.g. db_dezhost
+  dbUrl  String @db.Text // least-privilege connection string for this tenant DB
+
+  // Reserved for a future secrets-manager indirection (Phase 4.6 hardening). Per-tenant
+  // JWT signing secrets currently live inside each tenant's own DB (SystemSetting), so a
+  // leaked control-plane row cannot forge a tenant's tokens.
+  dbUserRef    String? @db.Text
+  jwtSecretRef String? @db.Text
+
+  // Lifecycle / billing metadata.
+  brand   String? // display name shown before tenant chrome loads
+  plan    String? // Teculiar plan key the tenant subscribed to
+  status  String  @default("active") // active | suspended | provisioning | archived
+  modules Json? // which module kinds this tenant enables (informational mirror)
+
+  // Distributed-artifact versions (theme + language packs) + one-step revert (Phase 4.5).
+  autoUpdate        Boolean @default(true)
+  themeVersion      String?
+  localeVersion     String?
+  prevThemeVersion  String?
+  prevLocaleVersion String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenants")
+}

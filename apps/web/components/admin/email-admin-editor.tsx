@@ -3,11 +3,11 @@
 import type { DragEvent } from "react";
 import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "../../lib/api";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary, type Dictionary } from "../../lib/dictionary";
-import { Button } from "../ui/button";
-import { notifyResponse } from "../ui/toast-provider";
+import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "@dezhost/web-core/lib/api";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 type EmailDict = Dictionary["admin"]["emailEditor"];

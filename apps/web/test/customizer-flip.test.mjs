@@ -9,13 +9,13 @@ import test from "node:test";
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 const service = read("../../api/src/modules/customizer/customizer.service.ts");
-const gate = read("../components/customizer/custom-page.tsx");
-const aboutRoute = read("../app/[locale]/uber-uns/page.tsx");
+const gate = read("../../storefront/components/customizer/custom-page.tsx");
+const aboutRoute = read("../../storefront/app/[locale]/uber-uns/page.tsx");
 const builderRoute = read("../app/admin/theme/customizer/[pageKey]/page.tsx");
-const middleware = read("../middleware.ts");
+const middleware = read("../../storefront/middleware.ts");
 
 test("the gate component exists and renders the published doc or falls back", () => {
-  assert.ok(existsSync(new URL("../components/customizer/custom-page.tsx", import.meta.url)));
+  assert.ok(existsSync(new URL("../../storefront/components/customizer/custom-page.tsx", import.meta.url)));
   assert.match(gate, /asLayoutDoc\(data\?\.publishedLayout\)/); // signal = a published layout doc
   assert.match(gate, /<LayoutRenderer/);
   assert.match(gate, /mode="live"/);

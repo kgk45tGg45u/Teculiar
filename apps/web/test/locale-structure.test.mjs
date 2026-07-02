@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const i18n = readFileSync(new URL("../lib/i18n.ts", import.meta.url), "utf8");
-const middleware = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
-const api = readFileSync(new URL("../lib/api.ts", import.meta.url), "utf8");
-const usePrefs = readFileSync(new URL("../lib/use-prefs.ts", import.meta.url), "utf8");
-const header = readFileSync(new URL("../components/layout/site-header.tsx", import.meta.url), "utf8");
-const menuLink = readFileSync(new URL("../components/layout/menu-link.tsx", import.meta.url), "utf8");
+const i18n = readFileSync(new URL("../../../packages/web-core/src/lib/i18n.ts", import.meta.url), "utf8");
+const middleware = readFileSync(new URL("../../storefront/middleware.ts", import.meta.url), "utf8");
+const api = readFileSync(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
+const usePrefs = readFileSync(new URL("../../../packages/web-core/src/lib/use-prefs.ts", import.meta.url), "utf8");
+const header = readFileSync(new URL("../../../packages/web-core/src/components/layout/site-header.tsx", import.meta.url), "utf8");
+const menuLink = readFileSync(new URL("../../../packages/web-core/src/components/layout/menu-link.tsx", import.meta.url), "utf8");
 
 test("locale preference is scoped per admin/client like the auth tokens", () => {
   // The client/public scope keeps dezhost_locale; the admin panel has its own cookie so the two

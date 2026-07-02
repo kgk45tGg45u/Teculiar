@@ -1,12 +1,12 @@
-import { cycleLabel, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "../../../../lib/api";
-import { requestLocale } from "../../../../lib/server-locale";
-import { getDictionary } from "../../../../lib/dictionary";
-import { serviceStatusLabel } from "../../../../lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
+import { cycleLabel, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "@dezhost/web-core/lib/api";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { AdminServiceDueDateForm, AdminServiceStatusForm } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "../../../../components/ui/status-pill";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 
 export default async function AdminServicePage({ params }: { params: Promise<{ serviceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");

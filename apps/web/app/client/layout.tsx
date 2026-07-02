@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { CurrencyConfigInit } from "../../components/layout/currency-config-init";
-import { SiteFooter } from "../../components/layout/site-footer";
-import { SiteHeader } from "../../components/layout/site-header";
-import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "../../lib/api";
-import { requestLocale } from "../../lib/server-locale";
+import { CurrencyConfigInit } from "@dezhost/web-core/components/layout/currency-config-init";
+import { SiteFooter } from "@dezhost/web-core/components/layout/site-footer";
+import { SiteHeader } from "@dezhost/web-core/components/layout/site-header";
+import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@dezhost/web-core/lib/api";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 
 export const metadata: Metadata = {
   title: "Teculiar Client Panel | Dezhost"

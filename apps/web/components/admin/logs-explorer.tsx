@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, dateLabel, type ApiActionLog } from "../../lib/api";
-import { getDictionary } from "../../lib/dictionary";
-import type { Locale } from "../../lib/i18n";
-import { cronJobSummary, cronLogStatus } from "../../lib/cron-log";
-import { StatusPill } from "../ui/status-pill";
+import { API_BASE_URL, authHeaders, dateLabel, type ApiActionLog } from "@dezhost/web-core/lib/api";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { cronJobSummary, cronLogStatus } from "@dezhost/web-core/lib/cron-log";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 import styles from "./admin-dashboard.module.css";
 
 type Tab = "system" | "cron";

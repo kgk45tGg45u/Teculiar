@@ -18,16 +18,16 @@ import {
   type ApiService,
   type ApiTicket,
   type AuthUser
-} from "../../lib/api";
-import { type Locale } from "../../lib/i18n";
-import { getDictionary } from "../../lib/dictionary";
-import { requestLocale } from "../../lib/server-locale";
-import { LanguageToggle } from "../layout/language-toggle";
-import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "../../lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin } from "../../lib/server-api";
-import { Button } from "../ui/button";
+} from "@dezhost/web-core/lib/api";
+import { type Locale } from "@dezhost/web-core/lib/i18n";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { LanguageToggle } from "@dezhost/web-core/components/layout/language-toggle";
+import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { Button } from "@dezhost/web-core/components/ui/button";
 import { LogoutButton } from "../auth/logout-button";
-import { StatusPill } from "../ui/status-pill";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";

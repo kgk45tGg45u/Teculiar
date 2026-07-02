@@ -256,7 +256,14 @@ becomes menu-driven but gets **no separate editing tab** this phase.
 
 ---
 
-## Phase 3 — Customizer (Elementor-like page builder) — *deep-design DONE 2026-06-24; build plan approved; implementing on `feat/teculiar-customizer`*
+## Phase 3 — Customizer (Elementor-like page builder) — ✅ **DONE (mechanism complete; merged to `main`)**
+
+**Status (2026-07-01): the Customizer mechanism is complete and merged to `main`** (sub-phases
+3a→3e + the page-mirrors/universal-flip follow-up = commits `6613cda`→`b6fa46d`). Everything below is
+implemented and locally verified. **Two trailing threads are intentionally deferred into Phase 4:**
+1. **Authoring real per-page content** in the builder → becomes the **Blue theme's shipped default
+   content** (Phase 4.3), since the storefront becomes a distributable theme.
+2. **The end-of-Phase-3 production E2E** (covers Phase 2 + 3) → runs at the **Dezhost cutover** (Phase 4.4).
 
 The hardest part. A later tab of Admin > Theme (after Footer). **Storage decision is locked** (see below); the full
 architecture should be designed in a dedicated session before building.
@@ -490,11 +497,158 @@ architecture should be designed in a dedicated session before building.
 
 ---
 
-## Phase 4 — Dezhost ↔ Teculiar separation
+## Phase 4 — Dezhost ↔ Teculiar separation — *deep-design DONE 2026-07-01; program approved; building on `feat/teculiar-phase4-separation`*
 
-Make Teculiar the product and Dezhost a tenant/instance running the Blue theme. Multi-tenant / white-label
-packaging, brand/system name as a single configurable setting (started in Phase 1), theme + language-pack
-+ (later) currency distribution to buyers. Detailed later.
+Make **Teculiar** a hosted SaaS product and **Dezhost its first tenant**. Scope now = **Option 1 only**
+(hosted API + a downloadable "Blue" storefront theme). Full approved program at
+`~/.claude/plans/first-read-teculiar-roadmap-jiggly-bumblebee.md`; architecture at
+[teculiar-architecture.md](./teculiar-architecture.md); operator runbook at
+[teculiar-operations.md](./teculiar-operations.md).
+
+**Guiding principle: ONE codebase.** Dezhost and Teculiar.com run the *identical* backend + frontend; the
+only differences between tenants are (a) **which modules they enable** and (b) **admin settings/content**.
+**Teculiar.com is the marketing website for the Teculiar app — NOT a hosting provider**; it is a dogfood
+tenant whose catalog is the Teculiar plans and which runs the **Tecreator** provisioning module.
+
+**Locked decisions (2026-07-01 design session):**
+1. **Tenancy = shared API + DB-per-tenant** (tenant resolved by subdomain `userNNNN.teculiar.net`; each
+   tenant DB is a clone of today's schema). Adds a **control-plane DB** (tenant registry) + **per-request
+   connection routing**.
+2. **App split = Model B:** the buyer downloads **only the presentational Blue storefront**; **admin +
+   client dashboards + API stay hosted** (protects IP). The client dashboard still wears each tenant's
+   data-driven header/footer/brand.
+3. **Routing:** the storefront **proxies `/admin`, `/client`, `/api`** to the tenant's `*.teculiar.net`;
+   browser calls are same-origin `/api` (no build-time API-URL baking — one theme artifact for all).
+4. **Repos:** rename the current monorepo → **`Teculiar`**; the existing private **`Dezhost`** repo holds
+   the thin storefront.
+5. **Updates = Teculiar-push, mandatory for hosted parts** (API + dashboards are one hosted version). Only
+   **theme + language packs** are distributed per tenant, gated by an **auto-update checkbox**, and
+   **reversible to the last version**. Bundles served from **teculiar.net** (no CDN yet).
+6. **Dezhost data = start fresh** (catalog/config only) **except import Dezhost's existing blog posts**;
+   Teculiar.com starts with 0 posts. Customers/orders/invoices/domains do **not** migrate (archive old
+   prod read-only).
+7. **Server = reuse the existing Dezhost Virtualmin box** for everything; **no load balancer / object
+   storage yet**; uploads on the filesystem (tenant-scoped). **Deployment = Docker behind Apache.**
+8. **Tecreator** (module `kind: "platform"`) provisions each tenant by creating its DB **directly via a
+   MariaDB admin connection** (create → migrate → seed → register → email credentials).
+
+**Sub-phases:** 4.0 close out Phase 3 + rename repo → 4.1 multi-tenant API core (control-plane +
+connection routing) → 4.2 split web app (distributable storefront vs hosted dashboards) → 4.3 Teculiar.com
+dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 update distribution (reversible)
+→ 4.6 hardening.
+
+> **Sub-phase 4.1 — multi-tenant API core: IMPLEMENTED & locally verified (2026-07-01).** The whole layer
+> lives under `apps/api/src/tenancy/` and is **backward-compatible**: multi-tenancy activates **only** when
+> `CONTROL_PLANE_DATABASE_URL` is set — otherwise the API runs in **single-tenant fallback mode** exactly as
+> today (verified by a real boot: `/api/v1/health` + `/api/v1/storefront/theme` → 200). Pieces:
+> - **Control-plane DB + `Tenant` registry** — its own Prisma schema `prisma/control-plane/schema.prisma`
+>   generating a **separate** client to a gitignored `prisma/control-plane/generated` (imported via the one
+>   wrapper `tenancy/control-plane-prisma.ts`; scripts `db:cp:generate`/`db:cp:push`; Dockerfile.api
+>   generates it too). Fields per the design (`subdomain`, `dbName`, `dbUrl`, reserved `dbUserRef`/
+>   `jwtSecretRef`, `brand/plan/status/modules/autoUpdate` + `theme/locale` + `prev*` version fields).
+> - **The tenant choke point** — `PrismaService` is no longer a class instance but a **Proxy** (provided by
+>   `PrismaModule` via factory) that resolves the current request's Prisma client from
+>   **`AsyncLocalStorage`**; every existing `this.prisma.*` call is unchanged and automatically hits the
+>   right tenant DB. Falls back to the default `DATABASE_URL` client outside a request / in fallback mode.
+> - **`TenantMiddleware`** (applied before CSRF) reads the `Host` → subdomain (`<sub>.teculiar.net` /
+>   `<sub>.localhost`; apex+`www` → none), looks the tenant up in the control-plane, gets a pooled client
+>   from **`ConnectionRegistry`**, resolves its **per-tenant JWT secrets** (from that tenant's own DB
+>   `SystemSetting`, cached; env fallback), and runs the pipeline inside the ALS context.
+> - **Per-tenant JWT** — `tenancy/jwt-secrets.ts` `accessSecret()`/`refreshSecret()` read the context (env
+>   fallback); wired into the auth guard, `auth.service` (sign + password-reset HMAC) and `billing.controller`.
+> - **CORS** now allows any host under `teculiar.net`/`teculiar.com` (+ `CORS_TENANT_SUFFIXES`).
+> - **`createTenant(subdomain)`** (`tenant-provisioning.service.ts`, reused later by Tecreator): MariaDB
+>   admin conn (`TENANT_ADMIN_DATABASE_URL`) → `CREATE DATABASE`+least-privilege user → `prisma migrate
+>   resolve`+`deploy` (mirrors the Dockerfile CMD's broken-migration workaround) → seed (Blue content +
+>   admin user + per-tenant JWT secrets, via the existing seeders inside the tenant context) → register in
+>   the control-plane. Returns the admin credentials.
+> - **Verified:** api typecheck + build green; **5 deterministic unit tests** (`apps/api/test/tenancy.test.mjs`
+>   — proxy routing, ALS interleaving with no bleed, fallback, JWT context, host parsing); a **real 2-DB
+>   proof** on local MySQL (write in tenant A invisible to tenant B; seeders + distinct per-tenant JWT
+>   secrets + control-plane registration land in the right DB); full API suite unchanged at the **15-failure
+>   pre-existing baseline** (my changes add only the 5 passing tenancy tests, zero new failures).
+> - **Env (new):** `CONTROL_PLANE_DATABASE_URL` (enables multi-tenancy), `TENANT_ADMIN_DATABASE_URL`
+>   (createTenant DDL conn), optional `CORS_TENANT_SUFFIXES`, `TRUST_FORWARDED_HOST=true` (read
+>   `x-forwarded-host` behind a proxy — set **only** when Apache `ProxyPreserveHost` is off).
+> - **Known follow-ups (not blockers for 4.1):** (1) `ThemeRepository.mirrorsSeeded` is a **process-level**
+>   flag → in live multi-tenant only the first tenant's lazy path seeds Customizer mirror drafts; make it
+>   per-tenant (createTenant sidesteps it by calling `ensureContentSeeded`/`ensureStylingSeeded` directly).
+>   (2) **Background/cron jobs run with no request → no tenant context**; multi-tenant cron must iterate
+>   tenants (deferred to 4.6; fallback-mode cron is unaffected). (3) `createTenant`'s **`migrate deploy`**
+>   only runs against **MariaDB** (prod) — locally on MySQL 8.3 the MariaDB-only `IF NOT EXISTS` migrations
+>   fail, so the 2-DB proof laid schemas down with `db push` (per the documented local convention). (4)
+>   The per-tenant DB **connection string is stored in the control-plane** for now; a secrets-manager
+>   indirection (`dbUserRef`/`jwtSecretRef`) is 4.6 hardening.
+
+> **Sub-phase 4.2 — split the web app: distributable storefront vs hosted dashboards: IMPLEMENTED &
+> locally verified (2026-07-02).** The single `apps/web` Next app became **three pieces** (the locked
+> "clean move" — no route duplication):
+> - **`packages/web-core`** (`@dezhost/web-core`) — the shared foundation both apps import: all of
+>   `lib/*` (api types + currency/locale formatting + auth + i18n + customizer registry/`LayoutRenderer` +
+>   storefront-theme + dictionaries…), `components/ui/*`, `components/layout/*` (site-header/footer/mobile-menu/
+>   toggles), `components/marketing/*` (the customizer registry renders these, so they're shared), and
+>   `globals.css`. Resolved from **source** via the existing tsconfig-path pattern (`@dezhost/web-core/*` →
+>   `packages/web-core/src/*`) + `transpilePackages`; a `typesVersions` map makes subpath types resolve under
+>   `next build`'s checker (which ignores tsconfig paths for node_modules-resolved workspace packages).
+> - **`apps/storefront`** (`@dezhost/storefront`) — the thin, **distributable Blue theme**: the moved
+>   `app/[locale]/*` + `sitemap.xml`, `components/{checkout,customizer/custom-page,auth/signup-form}`, a root
+>   layout, and a **locale/slug/redirect-only middleware**. Its `next.config.mjs` **reverse-proxies**
+>   `/api`,`/uploads`,`/admin`,`/client`,`/login`,`/reset-password` → `TECULIAR_UPSTREAM` (optional
+>   `TECULIAR_API_UPSTREAM` splits the API target for local dev). **Audited logic/secret-free** (only public
+>   `apiGet`, non-secret tax/cycle display helpers from `@dezhost/shared`).
+> - **`apps/web`** (`@dezhost/web`) — now the **hosted dashboards only** (`app/admin`,`app/client`,`login`,
+>   `reset-password`); its middleware is **auth-guard only**; it proxies `/api`,`/uploads` to the API for
+>   local same-origin dev and exposes `DASHBOARD_ASSET_PREFIX` so the storefront's `/admin` proxy loads
+>   dashboard assets from a browser-reachable origin (avoids `/_next` collision).
+> - **Killed build-time API-URL baking.** `web-core` `lib/api.ts` resolves the base URL at **runtime**:
+>   browser → same-origin `/api/v1`; server/SSR/middleware → `TECULIAR_UPSTREAM` (else legacy
+>   `NEXT_PUBLIC_API_URL` for single-tenant fallback). One storefront artifact serves every tenant.
+> - **Docker/compose/CI:** new `Dockerfile.storefront` (port 3001, no API-URL arg); `Dockerfile.web` +
+>   `docker-compose.prod.yml` gained the `web-core` source + a **`storefront` service**; the CI builds
+>   **three images** (`dezhost-api`/`dezhost-web`/`dezhost-storefront`).
+> - **Verified:** all 6 workspaces typecheck; **both apps `next build` green**; web `node --test` = **78 pass /
+>   5 fail = unchanged pre-existing baseline** (confirmed against a clean HEAD worktree — 0 new); storefront
+>   standalone boot + `/`→`/de` locale redirect + SSR render; **`/api` + `/uploads` same-origin proxy proven**
+>   against a mock upstream; `i18n-sync --check` OK (no new UI strings). **Deferred:** full `/admin`,`/client`
+>   live-proxy + prod E2E run at the 4.4 cutover (needs the deployed multi-tenant stack); the `@dezhost/*` →
+>   `@teculiar/*` package/repo rename stays with 4.0.
+
+> **Sub-phase 4.3 — Tecreator provisioning module: CODE IMPLEMENTED & tested (2026-07-02).** The module
+> that lets **Teculiar sell itself** now exists and plugs into the **unchanged** order pipeline:
+> - **New `platform` module kind** + a **`tecreator`** catalog entry in
+>   `apps/api/src/modules/module-registry/module-catalog.ts` (`kind: "platform"`; light config —
+>   `subdomainPrefix`, `defaultPlan`; no secrets of its own).
+> - **`TecreatorProviderService`** (`apps/api/src/modules/external/tecreator-provider.service.ts`)
+>   implements the same `HostingProvider` interface as Virtualmin/Hetzner. `provision()` delegates to the
+>   4.1 **`createTenant`** primitive (create DB+user → migrate → seed Blue+admin+JWT → register in the
+>   control-plane) and returns `externalId = subdomain` + the admin **credentials in
+>   `metadata.credentials`** (emailed by the existing activation-email path). Degrades to **QUEUED** when
+>   the control-plane is off (single-tenant/dev) and to **FAILED** (never throws) on a bad/duplicate
+>   subdomain or DDL/migrate/seed error; `status()` reflects control-plane presence; `restart()` is a no-op.
+> - **Wired** into `ExternalService.hostingProvider()` (`moduleName === "tecreator"` → the provider) and
+>   `ExternalModule` (imports `TenancyModule` for `TenantProvisioningService`/`ControlPlaneService` — no
+>   cycle). A Teculiar-plan product simply sets `provisioningModule = "tecreator"`; the existing
+>   `onInvoicePaid → activateItem → finishHostingProvisioning` flow does the rest — **no core changes**.
+> - **Verified:** API typecheck + `nest build` green; **7 new deterministic tests**
+>   (`apps/api/test/tecreator-module.test.mjs`: catalog/kind wiring, provider routing, create→ACTIVE+creds,
+>   auto-subdomain, graceful QUEUED/FAILED, status) all pass; `module-registry` (8/8) + `deployment-config`
+>   (3/3) still green; no API test boots the app so the DI change is safe (15-failure live-server/DB
+>   baseline unchanged). **Operator/data work deferred to deployment (Part F):** provisioning
+>   **Teculiar.com (tenant #0)** + enabling the module + authoring its marketing/docs/blog, and the **Blue
+>   theme's shipped default page content** (the Phase-3 per-page authoring) — these need the deployed
+>   multi-tenant stack + a content pass, not code.
+
+### Phase 5 — Option 2: custom themes *(accepted, later)*
+A buyer builds a theme in the hosted admin (Customizer + the deferred Properties/Custom-Themes tab,
+anticipated by `Theme.styling`), downloads the theme files, and self-runs the storefront against the
+hosted API — same proxy/runtime model as Blue.
+
+### Phase 6 — Option 3: headless integration *(accepted, later)*
+A **hosted JS SDK + embeddable widgets** (web components / iframes for domain search, product cards, cart,
+checkout, login) + the documented `/api/v1` + **webhooks**, to embed ordering into an arbitrary existing
+site. **Assessment: do NOT build an installed "agent"** — a stateless SDK/widgets + webhooks is simpler,
+safer, and lower-maintenance for web-order embedding; an agent only pays off for local/offline
+provisioning, which this doesn't need.
 
 ---
 
@@ -504,9 +658,10 @@ packaging, brand/system name as a single configurable setting (started in Phase 
    need the modular language list + locale-aware formatting.
 2. **Phase 2** in a new branch (`feat/teculiar-theme-foundation` suggested): build Theme/Menus/Pages tabs +
    the "Blue" rename, driving header/footer from menu data. Resolve the Phase 2 open questions first.
-3. **Phase 3** starts with a **dedicated Customizer design session** (no coding) to settle the deep-design
-   topics above and produce a build plan; then implement in its own branch.
-4. **Phase 4** last.
+3. **Phase 3** ✅ done (Customizer mechanism merged to `main`).
+4. **Phase 4** (in progress on `feat/teculiar-phase4-separation`): the SaaS separation — see the locked
+   decisions above and the approved program plan. Then **Phase 5** (custom themes) and **Phase 6**
+   (headless) follow.
 
 Keep each phase on its own branch, test per [CLAUDE.md](../CLAUDE.md) (local first, then prod), and update
 this file + the relevant `docs/` as decisions are made.

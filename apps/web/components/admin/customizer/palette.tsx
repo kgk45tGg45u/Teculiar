@@ -1,10 +1,10 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { lucideIcon } from "../../../lib/customizer/icons";
-import { listElements } from "../../../lib/customizer/registry";
-import type { ElementCategory } from "../../../lib/customizer/registry/types";
-import { localized } from "../../../lib/storefront-theme";
+import { lucideIcon } from "@dezhost/web-core/lib/customizer/icons";
+import { listElements } from "@dezhost/web-core/lib/customizer/registry";
+import type { ElementCategory } from "@dezhost/web-core/lib/customizer/registry/types";
+import { localized } from "@dezhost/web-core/lib/storefront-theme";
 import { PALETTE_PREFIX } from "./dnd-ids";
 import styles from "./customizer.module.css";
 import type { CustomizerT } from "./types";

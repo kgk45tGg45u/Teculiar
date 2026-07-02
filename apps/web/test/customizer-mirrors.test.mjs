@@ -9,7 +9,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
 const mirrors = read("../../api/src/modules/theme/page-mirrors.ts");
 const repo = read("../../api/src/modules/theme/theme.repository.ts");
-const registryIndex = read("../lib/customizer/registry/index.ts");
+const registryIndex = read("../../../packages/web-core/src/lib/customizer/registry/index.ts");
 
 const GATED = {
   webhosting: "webhosting/page.tsx",
@@ -43,11 +43,11 @@ test("mirror drafts are seeded idempotently (drafts only, never published)", () 
 
 test("home + uber-uns + all gated routes wrap their built-in renderer in the gate", () => {
   for (const [key, rel] of Object.entries(GATED)) {
-    const src = read(`../app/[locale]/${rel}`);
+    const src = read(`../../storefront/app/[locale]/${rel}`);
     assert.match(src, new RegExp(`<CustomPageGate locale=\\{locale\\} pageKey="${key}">`), `gate missing in ${rel}`);
     assert.match(src, /BuiltIn locale=\{locale\}/, `built-in extraction missing in ${rel}`);
   }
-  const home = read("../app/[locale]/page.tsx");
+  const home = read("../../storefront/app/[locale]/page.tsx");
   assert.match(home, /pageKey="home"/);
 });
 

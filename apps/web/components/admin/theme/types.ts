@@ -1,5 +1,5 @@
 // Shared shapes for the Admin > Theme tabs, mirroring GET /admin/dev/theme.
-import type { Dictionary } from "../../../lib/dictionary";
+import type { Dictionary } from "@dezhost/web-core/lib/dictionary";
 
 export type LocaleMap = Record<string, string>;
 

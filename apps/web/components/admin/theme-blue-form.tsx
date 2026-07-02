@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { API_BASE_URL, authHeaders } from "../../lib/api";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary } from "../../lib/dictionary";
-import { ImageUploader } from "../ui/image-uploader";
+import { API_BASE_URL, authHeaders } from "@dezhost/web-core/lib/api";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
 import styles from "./admin-dashboard.module.css";
 
 type BlueThemeImages = {

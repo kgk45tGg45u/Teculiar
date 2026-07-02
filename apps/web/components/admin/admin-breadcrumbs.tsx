@@ -3,8 +3,8 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getDictionary, type Dictionary } from "../../lib/dictionary";
-import { useLocale } from "../layout/locale-provider";
+import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
 import styles from "./admin-breadcrumbs.module.css";
 
 type AdminDict = Dictionary["admin"];

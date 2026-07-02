@@ -1,13 +1,13 @@
-import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "../../../../lib/api";
-import { requestLocale } from "../../../../lib/server-locale";
-import { getDictionary } from "../../../../lib/dictionary";
-import { invoiceStatusLabel } from "../../../../lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin } from "../../../../lib/server-api";
+import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "@dezhost/web-core/lib/api";
+import { requestLocale } from "@dezhost/web-core/lib/server-locale";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { invoiceStatusLabel } from "@dezhost/web-core/lib/status-labels";
+import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/portal/client-dashboard.module.css";
 import adminStyles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "../../../../components/ui/status-pill";
+import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");

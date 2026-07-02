@@ -1,7 +1,7 @@
 // Pure, immutable helpers for editing a layout doc's node tree (Phase 3c builder). Every mutation
 // returns a new tree so the in-memory doc is never mutated in place — nothing is lost mid-drag and
 // React re-renders cleanly. `containerId` is "root" for the top level, else a container node's id.
-import type { LayoutDoc, Node } from "../../../lib/customizer/types";
+import type { LayoutDoc, Node } from "@dezhost/web-core/lib/customizer/types";
 import { ROOT_CONTAINER } from "./dnd-ids";
 
 /** Find a node anywhere in the tree by id. */

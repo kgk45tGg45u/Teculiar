@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { API_BASE_URL, authFetch } from "../../../lib/api";
-import { Button } from "../../ui/button";
-import { notifyResponse } from "../../ui/toast-provider";
+import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "../admin-dashboard.module.css";
 import { TranslateField } from "./translate-field";
 import type { LocaleMap, TB } from "./types";

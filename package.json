@@ -28,7 +28,9 @@
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "db:push": "prisma db push --schema prisma/schema.prisma",
-    "db:studio": "prisma studio --schema prisma/schema.prisma"
+    "db:studio": "prisma studio --schema prisma/schema.prisma",
+    "db:cp:generate": "prisma generate --schema prisma/control-plane/schema.prisma",
+    "db:cp:push": "prisma db push --schema prisma/control-plane/schema.prisma"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.21",

@@ -3,10 +3,10 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { API_BASE_URL, storeAuth, type AuthPayload } from "../../lib/api";
-import { getDictionary } from "../../lib/dictionary";
-import type { Locale } from "../../lib/i18n";
-import { notify } from "../ui/toast-provider";
+import { API_BASE_URL, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { notify } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./login-form.module.css";
 
 export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: Locale }) {

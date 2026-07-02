@@ -6,6 +6,7 @@ import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { JwtAuthGuard, OptionalJwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { accessSecret, refreshSecret } from "../../tenancy/jwt-secrets";
 import { BillingService } from "./billing.service";
 import { CreateInvoiceDto } from "./dto/create-invoice.dto";
 import { CreateSubscriptionDto } from "./dto/create-subscription.dto";
@@ -212,11 +213,11 @@ export class BillingConfirmController {
           const expiresIn = (process.env.JWT_ACCESS_TTL ?? "15m") as JwtSignOptions["expiresIn"];
           const accessToken = await this.jwt.signAsync(
             { sub: user.id, email: user.email, roles: user.roles },
-            { expiresIn, secret: process.env.JWT_ACCESS_SECRET }
+            { expiresIn, secret: accessSecret() }
           );
           const refreshToken = await this.jwt.signAsync(
             { sub: user.id },
-            { expiresIn: (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"], secret: process.env.JWT_REFRESH_SECRET }
+            { expiresIn: (process.env.JWT_REFRESH_TTL ?? "30d") as JwtSignOptions["expiresIn"], secret: refreshSecret() }
           );
           return { ...result, accessToken, refreshToken, tokenType: "Bearer", user };
         }

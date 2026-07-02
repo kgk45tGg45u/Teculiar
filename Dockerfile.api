@@ -22,6 +22,8 @@ COPY prisma              ./prisma
 RUN npm run build --workspace @dezhost/shared
 RUN npm run build --workspace @dezhost/locales
 RUN node_modules/.bin/prisma generate --schema prisma/schema.prisma
+# Control-plane client (Phase 4.1 tenant registry) → prisma/control-plane/generated
+RUN node_modules/.bin/prisma generate --schema prisma/control-plane/schema.prisma
 RUN npm run build --workspace @dezhost/api
 
 # Strip dev dependencies before copying to the production image

@@ -3,17 +3,29 @@ import path from "path";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
+// Hosted dashboards (admin + client). Served at the tenant subdomain alongside the API, so browser
+// calls are same-origin `/api`. Locally the API runs on a separate port, so we proxy `/api` + `/uploads`
+// to it (matching the prod same-origin model). `DASHBOARD_ASSET_PREFIX` lets the storefront's reverse
+// proxy load these assets from the dashboards' own origin instead of the storefront's `/_next`.
+const stripSlash = (value) => value.replace(/\/+$/, "");
+const API_ORIGIN = stripSlash(process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow 127.0.0.1 access to dev resources so Playwright E2E tests
-  // can load client-side bundles (otherwise Next.js blocks them as cross-origin).
   allowedDevOrigins: ["127.0.0.1", "localhost"],
-  typedRoutes: true,
-  // Standalone output for Docker — traces and bundles only what's needed.
-  // outputFileTracingRoot must point to the monorepo root so the shared
-  // package (@dezhost/shared) is included in the trace.
+  // Off: shared header/footer link to storefront routes (/, /de/…) that live in the other app.
+  typedRoutes: false,
+  assetPrefix: process.env.DASHBOARD_ASSET_PREFIX || undefined,
+  // web-core is a source workspace package (React/CSS-module components); transpile it like app code.
+  transpilePackages: ["@dezhost/web-core"],
   output: "standalone",
-  outputFileTracingRoot: path.join(__dirname, "../../")
+  outputFileTracingRoot: path.join(__dirname, "../../"),
+  async rewrites() {
+    return [
+      { source: "/api/:path*", destination: `${API_ORIGIN}/api/:path*` },
+      { source: "/uploads/:path*", destination: `${API_ORIGIN}/uploads/:path*` }
+    ];
+  }
 };
 
 export default nextConfig;

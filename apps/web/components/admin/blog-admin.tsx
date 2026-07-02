@@ -2,12 +2,12 @@
 
 import { Bot, Edit2, Plus, Power, PowerOff, Save, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "../../lib/api";
-import { useLocale } from "../layout/locale-provider";
-import { getDictionary } from "../../lib/dictionary";
-import { Button } from "../ui/button";
-import { notify, notifyResponse } from "../ui/toast-provider";
-import { ImageUploader } from "../ui/image-uploader";
+import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "@dezhost/web-core/lib/api";
+import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
 import { RichTextEditor } from "./admin-forms";
 import styles from "./admin-dashboard.module.css";
 

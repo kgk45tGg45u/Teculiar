@@ -4,10 +4,10 @@ import test from "node:test";
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
-const themeLib = read("../lib/storefront-theme.ts");
-const sitemap = read("../app/sitemap.xml/route.ts");
-const middleware = read("../middleware.ts");
-const layout = read("../app/[locale]/layout.tsx");
+const themeLib = read("../../../packages/web-core/src/lib/storefront-theme.ts");
+const sitemap = read("../../storefront/app/sitemap.xml/route.ts");
+const middleware = read("../../storefront/middleware.ts");
+const layout = read("../../storefront/app/[locale]/layout.tsx");
 const cron = read("../../api/src/modules/cron/cron.service.ts");
 const redirectsService = read("../../api/src/modules/redirects/redirects.service.ts");
 const enAdmin = JSON.parse(read("../../../packages/locales/en/admin.json"));

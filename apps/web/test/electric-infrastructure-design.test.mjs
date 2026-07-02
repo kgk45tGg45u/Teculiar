@@ -2,29 +2,29 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-const globals = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
-const button = readFileSync(new URL("../components/ui/button.tsx", import.meta.url), "utf8");
-const card = readFileSync(new URL("../components/ui/card.tsx", import.meta.url), "utf8");
+const globals = readFileSync(new URL("../../../packages/web-core/src/globals.css", import.meta.url), "utf8");
+const button = readFileSync(new URL("../../../packages/web-core/src/components/ui/button.tsx", import.meta.url), "utf8");
+const card = readFileSync(new URL("../../../packages/web-core/src/components/ui/card.tsx", import.meta.url), "utf8");
 const clientDashboardCss = readFileSync(new URL("../components/portal/client-dashboard.module.css", import.meta.url), "utf8");
 const clientDashboardTsx = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 const adminDashboardCss = readFileSync(new URL("../components/admin/admin-dashboard.module.css", import.meta.url), "utf8");
 const adminDashboardTsx = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
 const adminSidebarCss = readFileSync(new URL("../components/admin/admin-sidebar.module.css", import.meta.url), "utf8");
 const adminSidebarTsx = readFileSync(new URL("../components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
-const siteHeaderCss = readFileSync(new URL("../components/layout/site-header.module.css", import.meta.url), "utf8");
+const siteHeaderCss = readFileSync(new URL("../../../packages/web-core/src/components/layout/site-header.module.css", import.meta.url), "utf8");
 
 const uiFiles = [
-  "../components/ui/badge.tsx",
-  "../components/ui/status-badge.tsx",
-  "../components/ui/form-controls.tsx",
-  "../components/ui/table.tsx",
-  "../components/ui/dialog.tsx",
-  "../components/ui/dropdown.tsx",
-  "../components/ui/tabs.tsx",
-  "../components/ui/layout-primitives.tsx",
-  "../components/ui/sidebar-nav.tsx",
-  "../components/ui/top-bar.tsx",
-  "../components/ui/index.ts"
+  "../../../packages/web-core/src/components/ui/badge.tsx",
+  "../../../packages/web-core/src/components/ui/status-badge.tsx",
+  "../../../packages/web-core/src/components/ui/form-controls.tsx",
+  "../../../packages/web-core/src/components/ui/table.tsx",
+  "../../../packages/web-core/src/components/ui/dialog.tsx",
+  "../../../packages/web-core/src/components/ui/dropdown.tsx",
+  "../../../packages/web-core/src/components/ui/tabs.tsx",
+  "../../../packages/web-core/src/components/ui/layout-primitives.tsx",
+  "../../../packages/web-core/src/components/ui/sidebar-nav.tsx",
+  "../../../packages/web-core/src/components/ui/top-bar.tsx",
+  "../../../packages/web-core/src/components/ui/index.ts"
 ];
 
 test("electric infrastructure palette is global design source", () => {

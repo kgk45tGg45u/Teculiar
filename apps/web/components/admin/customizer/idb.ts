@@ -2,7 +2,7 @@
 // connection BEFORE an explicit Save writes the durable server draft. One record per pageId. On
 // reopen the builder compares `savedAt` to the server `draftUpdatedAt` to offer "Restore unsaved
 // changes". Best-effort: every op degrades to a no-op when IndexedDB is unavailable.
-import type { LayoutDoc } from "../../../lib/customizer/types";
+import type { LayoutDoc } from "@dezhost/web-core/lib/customizer/types";
 
 const DB_NAME = "dezhost-customizer";
 const STORE = "drafts";

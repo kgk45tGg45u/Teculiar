@@ -23,6 +23,7 @@ services:
       # 120s gives plenty of time for Prisma migrations on first boot
       start_period: 120s
 
+  # Hosted dashboards (admin + client), served at the tenant subdomains (*.teculiar.net).
   web:
     image: ghcr.io/kgk45tgg45u/dezhost-web:latest
     restart: unless-stopped
@@ -30,6 +31,12 @@ services:
       - "127.0.0.1:3000:3000"
     env_file:
       - /opt/dezhost/.env
+    environment:
+      # SSR reaches the API over the container network; the browser uses same-origin /api (Apache).
+      - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:4000}
+      # So the storefront's /admin,/client reverse proxy can load dashboard assets from a
+      # browser-reachable origin instead of the storefront's own /_next.
+      - DASHBOARD_ASSET_PREFIX=${DASHBOARD_ASSET_PREFIX:-}
     # Same uploads volume so the web container can serve files written by the API.
     volumes:
       - uploads:/app/apps/web/public/uploads
@@ -40,7 +47,31 @@ services:
       api:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/admin/login"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Thin, distributable Blue storefront (Teculiar.com's own marketing site = tenant #0). Reverse-proxies
+  # /api,/uploads,/admin,/client,/login to the tenant upstream so browser calls are same-origin.
+  storefront:
+    image: ghcr.io/kgk45tgg45u/dezhost-storefront:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    env_file:
+      - /opt/dezhost/.env
+    environment:
+      # The tenant this storefront belongs to (dashboards + API). For teculiar.com this is the
+      # teculiar dogfood tenant. TECULIAR_API_UPSTREAM may point straight at the API container.
+      - TECULIAR_UPSTREAM=${TECULIAR_UPSTREAM:-https://teculiar.teculiar.net}
+      - TECULIAR_API_UPSTREAM=${TECULIAR_API_UPSTREAM:-}
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
       interval: 20s
       timeout: 10s
       retries: 5

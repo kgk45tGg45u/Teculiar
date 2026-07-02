@@ -2,9 +2,9 @@
 
 import { Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiTicket } from "../../lib/api";
-import { Button } from "../ui/button";
-import { notifyResponse } from "../ui/toast-provider";
+import { API_BASE_URL, authHeaders, type ApiTicket } from "@dezhost/web-core/lib/api";
+import { Button } from "@dezhost/web-core/components/ui/button";
+import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./invoice-modal.module.css";
 
 type Line = { description: string; quantity: number; unitAmount: string; vatRate: number };

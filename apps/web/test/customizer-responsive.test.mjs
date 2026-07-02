@@ -8,13 +8,13 @@ import test from "node:test";
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const json = (rel) => JSON.parse(read(rel));
 
-const responsive = read("../lib/customizer/responsive.ts");
-const responsiveCss = read("../lib/customizer/registry/responsive.module.css");
-const feature = read("../lib/customizer/registry/feature.tsx");
-const product = read("../lib/customizer/registry/product.tsx");
+const responsive = read("../../../packages/web-core/src/lib/customizer/responsive.ts");
+const responsiveCss = read("../../../packages/web-core/src/lib/customizer/registry/responsive.module.css");
+const feature = read("../../../packages/web-core/src/lib/customizer/registry/feature.tsx");
+const product = read("../../../packages/web-core/src/lib/customizer/registry/product.tsx");
 const editModal = read("../components/admin/customizer/edit-modal.tsx");
 const builder = read("../components/admin/customizer/builder.tsx");
-const types = read("../lib/customizer/registry/types.ts");
+const types = read("../../../packages/web-core/src/lib/customizer/registry/types.ts");
 const enAdmin = json("../../../packages/locales/en/admin.json");
 const deAdmin = json("../../../packages/locales/de/admin.json");
 
@@ -23,7 +23,7 @@ test("builder gives DndContext a stable id (kills the SSR hydration mismatch)", 
 });
 
 test("responsive helper + CSS drive per-viewport column counts via CSS vars", () => {
-  assert.ok(existsSync(new URL("../lib/customizer/responsive.ts", import.meta.url)));
+  assert.ok(existsSync(new URL("../../../packages/web-core/src/lib/customizer/responsive.ts", import.meta.url)));
   assert.match(responsive, /export type ResponsiveNumber = \{ base: number; md: number \| null; sm: number \| null \}/);
   assert.match(responsive, /export function responsiveProp/);
   assert.match(responsive, /export function gridColumnsVars/);

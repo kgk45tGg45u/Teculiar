@@ -1,0 +1,48 @@
+# ─── Build stage ─────────────────────────────────────────────────────────────
+FROM node:24-alpine AS builder
+WORKDIR /app
+
+# The thin, distributable Blue storefront. It bakes NO API URL: the browser calls same-origin `/api`
+# (reverse-proxied to the tenant upstream) and server-side code reads TECULIAR_UPSTREAM at runtime.
+# One image serves every tenant — only TECULIAR_UPSTREAM differs at deploy time.
+
+# Copy workspace manifests first — lets Docker cache the install layer
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json     ./packages/shared/
+COPY packages/locales/package.json    ./packages/locales/
+COPY packages/web-core/package.json   ./packages/web-core/
+COPY apps/storefront/package.json     ./apps/storefront/
+RUN npm ci
+
+# Copy source code
+COPY tsconfig.base.json  ./
+COPY packages/shared     ./packages/shared
+# The storefront resolves @dezhost/locales and @dezhost/web-core straight from their .ts/.tsx source
+# via the tsconfig path mappings, so that source must be present for Turbopack to bundle it.
+COPY packages/locales    ./packages/locales
+COPY packages/web-core   ./packages/web-core
+COPY apps/storefront     ./apps/storefront
+
+# Build shared lib → build Next.js app (produces .next/standalone)
+RUN npm run build --workspace @dezhost/shared
+RUN npm run build --workspace @dezhost/storefront
+
+# ─── Production stage ─────────────────────────────────────────────────────────
+FROM node:24-alpine AS production
+WORKDIR /app
+
+ENV NODE_ENV=production
+# next/server reads PORT and HOSTNAME at runtime
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
+
+# The standalone bundle includes a minimal Node server and all traced deps.
+# outputFileTracingRoot=monorepo-root means the bundle is rooted at /app,
+# and the entry point is apps/storefront/server.js.
+COPY --from=builder /app/apps/storefront/.next/standalone   ./
+COPY --from=builder /app/apps/storefront/.next/static       ./apps/storefront/.next/static
+COPY --from=builder /app/apps/storefront/public             ./apps/storefront/public
+
+EXPOSE 3001
+
+CMD ["node", "apps/storefront/server.js"]
