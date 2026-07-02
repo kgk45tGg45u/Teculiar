@@ -220,4 +220,178 @@ behind Apache), just three services.
 - [ ] Part D — MariaDB: `teculiar_control` DB + `teculiar_admin` user (password saved).
 - [ ] Part E onward waits on the build — I'll hand you the compose file + Apache blocks when ready.
 
+---
+
+# Part H — Concrete deploy (4.1–4.3 landed): env, containers, Apache, white-label, repos
+
+Everything below is ready to run now. Follow it top to bottom on **eu01.dezhost.com**. Where a value is
+`REPLACE_...`, paste your own (I give the exact strings for your box in chat, kept out of the repo).
+
+## H.1 — Verify the `teculiar_admin` privileges
+
+`teculiar_admin` needs **global** rights (not just on `teculiar_control`) because Tecreator creates a NEW
+database + user per tenant on purchase. Check, and grant if missing, as MySQL **root**:
+
+```sql
+-- what does teculiar_admin currently have?
+SHOW GRANTS FOR 'teculiar_admin'@'localhost';
+-- you want a line like: GRANT ALL PRIVILEGES ON *.* TO `teculiar_admin`@`localhost` WITH GRANT OPTION
+-- if it only shows GRANT ... ON `teculiar_control`.* then grant the global rights:
+GRANT ALL PRIVILEGES ON *.* TO 'teculiar_admin'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+```
+
+> If you'd rather keep `teculiar_admin` scoped to `teculiar_control` and use a *separate* privileged user
+> for tenant creation, create that user and use it only in `TENANT_ADMIN_DATABASE_URL` (H.2). Either works.
+
+## H.2 — The environment file `/opt/teculiar/.env`
+
+Create it once (paste the concrete values I give you in chat for the two `REPLACE_...` items — your
+`teculiar_admin` password + a random 64-char JWT secret). **Do NOT commit this file.**
+
+```bash
+sudo mkdir -p /opt/teculiar
+sudo nano /opt/teculiar/.env      # paste the block below, then Ctrl-O, Enter, Ctrl-X
+```
+
+```dotenv
+# ── Multi-tenancy (setting CONTROL_PLANE_DATABASE_URL is what turns it ON) ──
+CONTROL_PLANE_DATABASE_URL=mysql://teculiar_admin:REPLACE_DB_PASSWORD@host.docker.internal:3306/teculiar_control
+TENANT_ADMIN_DATABASE_URL=mysql://teculiar_admin:REPLACE_DB_PASSWORD@host.docker.internal:3306/mysql
+# Apache forwards the real Host (ProxyPreserveHost On on teculiar.net), so leave this OFF:
+# TRUST_FORWARDED_HOST=true
+CORS_TENANT_SUFFIXES=dezhost.com
+
+# ── Auth / JWT (single value; per-tenant secrets are seeded into each tenant DB automatically) ──
+JWT_ACCESS_SECRET=REPLACE_RANDOM_64_CHARS
+JWT_REFRESH_SECRET=REPLACE_RANDOM_64_CHARS
+
+# ── Dashboards (web) ──
+API_INTERNAL_URL=http://api:4000       # SSR → API over the docker network
+DASHBOARD_ASSET_PREFIX=/_dash          # white-label: bundles at /_dash/_next (Apache strips → /_next)
+
+# ── Storefront (teculiar.com = tenant #0) ──
+TECULIAR_UPSTREAM=https://teculiar.teculiar.net   # SSR data-fetch target for the teculiar.com storefront
+```
+
+> `host.docker.internal` lets the containers reach MariaDB on the host (already used by today's prod).
+> Generate a secret with `openssl rand -hex 32`.
+
+**Create the control-plane's one table** (run once, after the API image is on the box):
+
+```bash
+docker run --rm --env-file /opt/teculiar/.env --add-host host.docker.internal:host-gateway \
+  ghcr.io/kgk45tgg45u/dezhost-api:latest npm run db:cp:push
+```
+
+## H.3 — Bring up the three containers
+
+`docker-compose.prod.yml` (in the repo) already defines `api` (:4000), `web`/dashboards (:3000) and
+`storefront` (:3001). Copy it to `/opt/teculiar/` and start:
+
+```bash
+cd /opt/teculiar
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps      # all three healthy
+```
+
+## H.4 — Apache for `teculiar.net` (+ every `*.teculiar.net` tenant)
+
+In Virtualmin → the **teculiar.net** virtual server → **Services → Configure Website → Edit Directives**
+(or "Edit Proxy Website"), add — inside the SSL `<VirtualHost *:443>` — and add `ServerAlias *.teculiar.net`:
+
+```apache
+# The API resolves the tenant from the Host header (dezhost.teculiar.net, teculiar.teculiar.net, …) —
+# this line is REQUIRED so Apache keeps the original Host instead of rewriting it to 127.0.0.1.
+ProxyPreserveHost On
+SSLProxyEngine on
+
+# API + uploads → the API container
+ProxyPass        /api      http://127.0.0.1:4000/api
+ProxyPassReverse /api      http://127.0.0.1:4000/api
+ProxyPass        /uploads  http://127.0.0.1:4000/uploads
+ProxyPassReverse /uploads  http://127.0.0.1:4000/uploads
+
+# Dashboards (admin + client + login) → the dashboards container
+ProxyPass        /admin           http://127.0.0.1:3000/admin
+ProxyPassReverse /admin           http://127.0.0.1:3000/admin
+ProxyPass        /client          http://127.0.0.1:3000/client
+ProxyPassReverse /client          http://127.0.0.1:3000/client
+ProxyPass        /login           http://127.0.0.1:3000/login
+ProxyPassReverse /login           http://127.0.0.1:3000/login
+ProxyPass        /reset-password  http://127.0.0.1:3000/reset-password
+ProxyPassReverse /reset-password  http://127.0.0.1:3000/reset-password
+
+# Dashboard bundles: assetPrefix=/_dash → strip back to the dashboards' real /_next
+ProxyPass        /_dash/  http://127.0.0.1:3000/
+ProxyPassReverse /_dash/  http://127.0.0.1:3000/
+```
+
+Reload Apache, then check: `curl -sI https://teculiar.net/api/v1/health` → 200, and
+`https://dezhost.teculiar.net/admin` (after the tenant exists) shows the admin login.
+
+## H.5 — Apache for a WHITE-LABEL site (`teculiar.com`, and later `dezhost.com`)
+
+This is the answer to "**theirdomain.com/client must stay theirdomain.com/client**." The buyer's vhost
+**reverse-proxies** (never redirects) the hosted paths to the tenant subdomain, and serves everything else
+from the local storefront container. The browser URL never changes; assets load same-origin.
+
+For **teculiar.com** (tenant `teculiar`), in its Virtualmin vhost SSL `<VirtualHost *:443>`:
+
+```apache
+SSLProxyEngine on
+# ProxyPreserveHost OFF so the upstream sees the TENANT host (teculiar.teculiar.net) and picks the
+# right tenant DB — do NOT preserve teculiar.com here.
+ProxyPreserveHost Off
+
+# Hosted paths → the tenant subdomain on this same box (white-label reverse proxy)
+ProxyPass        /api             https://teculiar.teculiar.net/api            nocanon
+ProxyPassReverse /api             https://teculiar.teculiar.net/api
+ProxyPass        /uploads         https://teculiar.teculiar.net/uploads        nocanon
+ProxyPassReverse /uploads         https://teculiar.teculiar.net/uploads
+ProxyPass        /admin           https://teculiar.teculiar.net/admin          nocanon
+ProxyPassReverse /admin           https://teculiar.teculiar.net/admin
+ProxyPass        /client          https://teculiar.teculiar.net/client         nocanon
+ProxyPassReverse /client          https://teculiar.teculiar.net/client
+ProxyPass        /login           https://teculiar.teculiar.net/login          nocanon
+ProxyPassReverse /login           https://teculiar.teculiar.net/login
+ProxyPass        /reset-password  https://teculiar.teculiar.net/reset-password nocanon
+ProxyPassReverse /reset-password  https://teculiar.teculiar.net/reset-password
+ProxyPass        /_dash           https://teculiar.teculiar.net/_dash          nocanon
+ProxyPassReverse /_dash           https://teculiar.teculiar.net/_dash
+
+# Everything else → the local thin storefront container (MUST be last)
+ProxyPass        /  http://127.0.0.1:3001/
+ProxyPassReverse /  http://127.0.0.1:3001/
+```
+
+For a **buyer domain** like `dezhost.com`, use the IDENTICAL block but replace every
+`teculiar.teculiar.net` with `dezhost.teculiar.net`, and set the storefront container's
+`TECULIAR_UPSTREAM=https://dezhost.teculiar.net` (so its server-side data fetches hit the right tenant).
+
+> Why it's white-label: the customer's browser only ever sees `theirdomain.com/...`; Apache fetches the
+> dashboard HTML + `/_dash` bundles + `/api` from the tenant and streams them back on `theirdomain.com`.
+> No `theirdomain.teculiar.net` ever appears in the URL bar or in the page's asset URLs. Auth cookies are
+> set host-only, so they scope to `theirdomain.com`.
+
+## H.6 — The two repos + local folders
+
+**One Teculiar monorepo builds all three images; each site is a deployment of those images.** You need
+exactly two GitHub repos:
+
+1. **`Teculiar`** (rename of this monorepo — Phase 4.0, still pending your `gh auth login`). It holds the
+   API + dashboards + storefront theme, and **builds all 3 images** via `.github/workflows/deploy.yml`.
+   **teculiar.net AND teculiar.com are both served from these images** (teculiar.com is tenant #0) — there
+   is **no separate teculiar.com repo**.
+2. **`Dezhost`** (your existing private repo) — the **thin storefront deploy** for `dezhost.com`: just a
+   `docker-compose.yml` that runs the published `dezhost-storefront` image with
+   `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`, plus the `dezhost.com` Apache white-label block (H.5).
+   No app source lives here — it consumes the image the monorepo publishes, so **updating Teculiar updates
+   Dezhost automatically** (pull the new image; the dashboards/API are hosted + always current).
+
+Local folders mirror that: keep working in this monorepo folder; create a second small folder for the
+Dezhost deploy repo (a compose file + `.env` + the Apache block). I can scaffold that deploy folder on
+request; creating the GitHub repos/rename needs your `gh auth login` (currently 401) or the GitHub UI.
+
 _This runbook is updated as each sub-phase lands._

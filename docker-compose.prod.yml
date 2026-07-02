@@ -34,9 +34,9 @@ services:
     environment:
       # SSR reaches the API over the container network; the browser uses same-origin /api (Apache).
       - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:4000}
-      # So the storefront's /admin,/client reverse proxy can load dashboard assets from a
-      # browser-reachable origin instead of the storefront's own /_next.
-      - DASHBOARD_ASSET_PREFIX=${DASHBOARD_ASSET_PREFIX:-}
+      # White-label: dashboard bundles move to /_dash/_next so they don't collide with the storefront's
+      # own /_next when it reverse-proxies /admin,/client. The teculiar.net vhost strips /_dash → /_next.
+      - DASHBOARD_ASSET_PREFIX=${DASHBOARD_ASSET_PREFIX:-/_dash}
     # Same uploads volume so the web container can serve files written by the API.
     volumes:
       - uploads:/app/apps/web/public/uploads

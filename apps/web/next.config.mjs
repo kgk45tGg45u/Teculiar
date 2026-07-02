@@ -5,8 +5,13 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 // Hosted dashboards (admin + client). Served at the tenant subdomain alongside the API, so browser
 // calls are same-origin `/api`. Locally the API runs on a separate port, so we proxy `/api` + `/uploads`
-// to it (matching the prod same-origin model). `DASHBOARD_ASSET_PREFIX` lets the storefront's reverse
-// proxy load these assets from the dashboards' own origin instead of the storefront's `/_next`.
+// to it (matching the prod same-origin model).
+//
+// `DASHBOARD_ASSET_PREFIX` = a PATH (e.g. `/_dash`) set in production. It moves this app's bundles to
+// `/_dash/_next/...` so they never collide with the storefront's own `/_next` when the storefront
+// reverse-proxies `/admin` + `/client`. That keeps the buyer's site fully white-label: dashboard assets
+// load same-origin from `theirdomain.com/_dash/...` (the storefront forwards it), never from teculiar.net.
+// Leave it UNSET locally (assets stay at `/_next`, so hitting :3000 directly still works).
 const stripSlash = (value) => value.replace(/\/+$/, "");
 const API_ORIGIN = stripSlash(process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000");
 
