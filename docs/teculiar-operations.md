@@ -227,6 +227,26 @@ behind Apache), just three services.
 Everything below is ready to run now. Follow it top to bottom on **eu01.dezhost.com**. Where a value is
 `REPLACE_...`, paste your own (I give the exact strings for your box in chat, kept out of the repo).
 
+## H.0 — Build the new images (once) — WITHOUT touching live prod
+
+The `:latest` images in ghcr are today's **single-tenant** build (no multi-tenant code / no control-plane
+schema), so `db:cp:push` would fail on them. Build the Phase-4 images from this branch under a separate
+**`:edge`** tag. CI is set up so **main → `:latest` + auto-deploy live prod**, but **this branch (or a
+manual run) → `:edge` only, no deploy** — live prod is untouched.
+
+1. Push the branch so GitHub Actions builds it:
+   ```bash
+   git push -u origin feat/teculiar-phase4-separation
+   ```
+   (If `git push` is fine but only `gh` is broken, this just works. Otherwise use the GitHub web UI →
+   Actions → "Build & Deploy" → **Run workflow** → pick the branch.)
+2. Watch **GitHub → Actions**: the `Build Docker images` job builds + pushes
+   `ghcr.io/kgk45tgg45u/dezhost-{api,web,storefront}:edge`. The `Deploy` job is **skipped** (branch, not main).
+3. Your box already has ghcr pull credentials (today's prod uses them), so it can pull `:edge` in H.3.
+
+> Alternative (no CI): build on the box from a checkout —
+> `docker build -f Dockerfile.api -t ghcr.io/kgk45tgg45u/dezhost-api:edge .` (and `.web`, `.storefront`).
+
 ## H.1 — Verify the `teculiar_admin` privileges
 
 `teculiar_admin` needs **global** rights (not just on `teculiar_control`) because Tecreator creates a NEW
@@ -272,6 +292,9 @@ DASHBOARD_ASSET_PREFIX=/_dash          # white-label: bundles at /_dash/_next (A
 
 # ── Storefront (teculiar.com = tenant #0) ──
 TECULIAR_UPSTREAM=https://teculiar.teculiar.net   # SSR data-fetch target for the teculiar.com storefront
+
+# ── Which image tag this stack runs (edge = the Phase-4 pre-release; live prod uses latest) ──
+IMAGE_TAG=edge
 ```
 
 > `host.docker.internal` lets the containers reach MariaDB on the host (already used by today's prod).
@@ -281,7 +304,7 @@ TECULIAR_UPSTREAM=https://teculiar.teculiar.net   # SSR data-fetch target for th
 
 ```bash
 docker run --rm --env-file /opt/teculiar/.env --add-host host.docker.internal:host-gateway \
-  ghcr.io/kgk45tgg45u/dezhost-api:latest npm run db:cp:push
+  ghcr.io/kgk45tgg45u/dezhost-api:edge npm run db:cp:push
 ```
 
 ## H.3 — Bring up the three containers

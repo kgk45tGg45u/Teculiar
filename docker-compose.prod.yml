@@ -1,13 +1,13 @@
 services:
   api:
-    image: ghcr.io/kgk45tgg45u/dezhost-api:latest
+    image: ghcr.io/kgk45tgg45u/dezhost-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     # Bind to localhost only — Apache in Virtualmin proxies inbound traffic.
     # Never expose port 4000 publicly.
     ports:
       - "127.0.0.1:4000:4000"
     env_file:
-      - /opt/dezhost/.env
+      - .env
     # Extra hosts lets the container reach MariaDB running on the host machine.
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -25,12 +25,12 @@ services:
 
   # Hosted dashboards (admin + client), served at the tenant subdomains (*.teculiar.net).
   web:
-    image: ghcr.io/kgk45tgg45u/dezhost-web:latest
+    image: ghcr.io/kgk45tgg45u/dezhost-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
     env_file:
-      - /opt/dezhost/.env
+      - .env
     environment:
       # SSR reaches the API over the container network; the browser uses same-origin /api (Apache).
       - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:4000}
@@ -56,12 +56,12 @@ services:
   # Thin, distributable Blue storefront (Teculiar.com's own marketing site = tenant #0). Reverse-proxies
   # /api,/uploads,/admin,/client,/login to the tenant upstream so browser calls are same-origin.
   storefront:
-    image: ghcr.io/kgk45tgg45u/dezhost-storefront:latest
+    image: ghcr.io/kgk45tgg45u/dezhost-storefront:${IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3001"
     env_file:
-      - /opt/dezhost/.env
+      - .env
     environment:
       # The tenant this storefront belongs to (dashboards + API). For teculiar.com this is the
       # teculiar dogfood tenant. TECULIAR_API_UPSTREAM may point straight at the API container.
