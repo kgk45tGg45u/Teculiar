@@ -423,24 +423,35 @@ For a **buyer domain** like `dezhost.com`, use the IDENTICAL block but replace e
 > No `theirdomain.teculiar.net` ever appears in the URL bar or in the page's asset URLs. Auth cookies are
 > set host-only, so they scope to `theirdomain.com`.
 
-## H.6 — The two repos + local folders
+## H.6 — The two repos + local folders  ✅ DONE
 
-**One Teculiar monorepo builds all three images; each site is a deployment of those images.** You need
-exactly two GitHub repos:
+**One Teculiar monorepo builds all three images; each site is a deployment of those images.** There are
+exactly two GitHub repos, both now populated:
 
-1. **`Teculiar`** (rename of this monorepo — Phase 4.0, still pending your `gh auth login`). It holds the
-   API + dashboards + storefront theme, and **builds all 3 images** via `.github/workflows/deploy.yml`.
-   **teculiar.net AND teculiar.com are both served from these images** (teculiar.com is tenant #0) — there
-   is **no separate teculiar.com repo**.
-2. **`Dezhost`** (your existing private repo) — the **thin storefront deploy** for `dezhost.com`: just a
-   `docker-compose.yml` that runs the published `dezhost-storefront` image with
-   `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`, plus the `dezhost.com` Apache white-label block (H.5).
-   No app source lives here — it consumes the image the monorepo publishes, so **updating Teculiar updates
-   Dezhost automatically** (pull the new image; the dashboards/API are hosted + always current).
+1. **`kgk45tGg45u/Teculiar`** (this monorepo, renamed — Phase 4.0 ✅). It holds the API + dashboards +
+   storefront theme, and **builds all 3 images** via `.github/workflows/deploy.yml`. **teculiar.net AND
+   teculiar.com are both served from these images** (teculiar.com is tenant #0) — there is **no separate
+   teculiar.com repo**. The Phase-4 branch `feat/teculiar-phase4-separation` is pushed and builds `:edge`.
+2. **`kgk45tGg45u/Dezhost`** (private, populated ✅) — the **thin storefront deploy** for `dezhost.com`:
+   a `docker-compose.yml` running the published `dezhost-storefront` image with
+   `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`, an `.env.example`, and the `dezhost.com` Apache
+   white-label block in `apache/dezhost.com.conf`. **No app source lives here** — it consumes the image the
+   monorepo publishes, so **updating Teculiar updates Dezhost automatically** (pull the new image; the
+   dashboards/API are hosted + always current). Local folder: `~/code/Dezhost` (mirrors the repo).
 
-Local folders mirror that: keep working in this monorepo folder; create a second small folder for the
-Dezhost deploy repo (a compose file + `.env` + the Apache block). I can scaffold that deploy folder on
-request; creating the GitHub repos/rename needs your `gh auth login` (currently 401) or the GitHub UI.
+**Deploy the Dezhost storefront** (on eu01, alongside the `/opt/teculiar` stack — do this at the Part F
+cutover, once `dezhost.teculiar.net` is verified):
+
+```bash
+sudo git clone https://github.com/kgk45tGg45u/Dezhost.git /opt/dezhost-storefront
+cd /opt/dezhost-storefront
+cp .env.example .env         # TECULIAR_UPSTREAM=https://dezhost.teculiar.net, STOREFRONT_PORT=3021, IMAGE_TAG=edge
+docker compose pull
+docker compose up -d         # storefront on 127.0.0.1:3021
+```
+
+Then apply `apache/dezhost.com.conf` to the dezhost.com vhost (it targets `dezhost.teculiar.net` + local
+`:3021`). ⚠️ That REPLACES dezhost.com's current live proxy — see the cutover guard in **H.8 / Part F**.
 
 ## H.7 — Provision the first tenants (breaks the chicken-and-egg)
 
@@ -472,5 +483,31 @@ Each run prints the tenant's **admin email + a one-time generated password** —
 > Suspension/licensing is automatic from here: if a tenant's Teculiar invoice goes unpaid past the grace
 > period, billing suspends it (control-plane `status: suspended`) — its dashboards/API lock (403) while its
 > public storefront + data stay; paying reactivates it instantly.
+
+## H.8 — Going live (the exact remaining steps)
+
+Everything up to and including **H.5 is done** (images built, `.env`, the three containers up, Apache for
+`teculiar.net` + `teculiar.com`). What remains to go live is server-side only:
+
+1. **Provision the two tenants** — run the H.7 `bootstrap-tenant.js` commands for `teculiar` and `dezhost`;
+   save each printed admin email + one-time password.
+2. **Bring up teculiar.com** — log into `https://teculiar.teculiar.net/admin`, enable **Tecreator**, seed
+   the Teculiar plan (monthly recurring, provisioning module `tecreator`), author the marketing pages.
+   Verify `https://teculiar.com` shows the storefront and `/client`, `/admin` load same-origin.
+   **teculiar.net + teculiar.com can go fully live now — they are brand-new sites and cannot affect the
+   live dezhost.com.**
+3. **Dezhost cutover (Part F)** — this is the ONLY step that touches the live site. Do it last: provision
+   `dezhost`, enable virtualmin/resellbiz, import the old blog posts, verify everything at
+   `dezhost.teculiar.net`, deploy the Dezhost storefront (H.6), THEN swap dezhost.com's Apache to
+   `apache/dezhost.com.conf`. Keep the old single-tenant instance reachable read-only until satisfied.
+
+> ### ⛔ Do NOT merge `feat/teculiar-phase4-separation` into `main` yet
+> `main` auto-deploys `:latest` into the LIVE `/opt/dezhost` (`deploy.yml`, `if: refs/heads/main`). The
+> Phase-4 web image defaults `DASHBOARD_ASSET_PREFIX=/_dash`, moving dashboard bundles to `/_dash/_next`,
+> which the **current** dezhost.com Apache does not strip — merging now would break the live dashboards, and
+> the synced compose would also start a storefront container the live box isn't wired for. The whole
+> Teculiar go-live runs on the **`:edge`** stack in `/opt/teculiar`; live prod stays on `:latest` and is
+> untouched. Merge to `main` only at the very end of Part F, when `/opt/dezhost` itself is converted to the
+> multi-tenant stack (or retired in favour of `/opt/teculiar` + the Dezhost storefront).
 
 _This runbook is updated as each sub-phase lands._

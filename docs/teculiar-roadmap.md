@@ -654,6 +654,29 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > pass; full API suite back at the **15-failure baseline** (a 4.2 fallout — `apps/api/test` reading moved
 > web files by path — was also fixed here by remapping those refs to `packages/web-core`/`apps/storefront`).
 
+> **Sub-phase 4.4 — Dezhost as first tenant + cutover: DEPLOYMENT IN PROGRESS (2026-07-02).** The code is
+> done and the `:edge` stack is up on eu01 (api 4001, dashboards 3010, teculiar.com storefront 3011);
+> operator work through **H.5** (env, containers, Apache for teculiar.net + teculiar.com) is complete. The
+> **two repos are populated**: `Teculiar` (this monorepo, builds all 3 images) and `Dezhost` (thin
+> storefront-only deploy — `docker-compose.yml` + `.env.example` + `apache/dezhost.com.conf`, consumes the
+> published `dezhost-storefront` image, `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`; local `~/code/Dezhost`).
+> **Remaining (server-side, in `docs/teculiar-operations.md` H.7 + H.8/Part F):** provision the `teculiar`
+> + `dezhost` tenants; bring teculiar.com fully live (safe — new site); then the **gated dezhost.com
+> cutover** (provision + import blog posts + verify on `dezhost.teculiar.net` → deploy the Dezhost
+> storefront on `:3021` → swap dezhost.com's Apache to the white-label block → keep old instance read-only).
+> ⛔ **Do NOT merge to `main` until the cutover** — `main` auto-deploys `:latest` to the LIVE `/opt/dezhost`
+> and the new `DASHBOARD_ASSET_PREFIX=/_dash` default would break the current dezhost.com dashboards; the
+> whole go-live runs on `:edge` in `/opt/teculiar`. **Open decision for the operator:** the locked plan is
+> "Dezhost starts fresh — import blog posts only" (customers/orders/invoices/domains do NOT carry over);
+> confirm before cutting over, since it drops the live customer base from the new tenant.
+
+> **Sub-phase 4.5 — Update distribution (reversible): DOCUMENTED (2026-07-02).** Model recorded in ops
+> **Part G**: API + dashboards are hosted/single-version (update = deploy new images, every tenant current
+> instantly); theme + language packs are versioned bundles published to `teculiar.net/releases/...`, applied
+> from each tenant's admin **Updates** panel (auto or one-click, one-step revert). The Dezhost storefront
+> updates by pulling the new published image. The generalized `release-sync` publish command (from
+> `scripts/i18n-sync.ts`) is the remaining code piece, deferred until after cutover.
+
 ### Phase 5 — Option 2: custom themes *(accepted, later)*
 A buyer builds a theme in the hosted admin (Customizer + the deferred Properties/Custom-Themes tab,
 anticipated by `Theme.styling`), downloads the theme files, and self-runs the storefront against the
