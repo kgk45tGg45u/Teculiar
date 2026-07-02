@@ -394,4 +394,35 @@ Local folders mirror that: keep working in this monorepo folder; create a second
 Dezhost deploy repo (a compose file + `.env` + the Apache block). I can scaffold that deploy folder on
 request; creating the GitHub repos/rename needs your `gh auth login` (currently 401) or the GitHub UI.
 
+## H.7 — Provision the first tenants (breaks the chicken-and-egg)
+
+Tecreator normally provisions a tenant on purchase, but the first tenants have no store to buy from yet.
+Use the **bootstrap CLI** (baked into the API image, reuses the same `createTenant` primitive). Run it
+**inside the API container**:
+
+```bash
+cd /opt/teculiar
+# Teculiar.com = tenant #0 (its catalog will be the Teculiar plan; enable the Tecreator module after login)
+docker compose exec api node dist/tenancy/bootstrap-tenant.js teculiar admin@teculiar.com "Teculiar"
+# Dezhost = the hosting tenant (enable virtualmin/resellbiz after login)
+docker compose exec api node dist/tenancy/bootstrap-tenant.js dezhost  admin@dezhost.com  "Dezhost"
+```
+
+Each run prints the tenant's **admin email + a one-time generated password** — save them. Then:
+
+1. Log in at `https://teculiar.teculiar.net/admin` (and `https://dezhost.teculiar.net/admin`).
+2. In each tenant's admin, enable its modules: **teculiar → Tecreator**; **dezhost → Virtualmin/ResellBiz**.
+3. Create each tenant's catalog: **teculiar** gets the **Teculiar plan** (a monthly recurring product with
+   provisioning module `tecreator`); **dezhost** gets its hosting/VPS/domain products (provisioning module
+   `virtualmin`/`resellbiz`).
+4. Point the domains: `teculiar.com` → the storefront (H.5, upstream `teculiar.teculiar.net`);
+   `dezhost.com` → the storefront (H.5, upstream `dezhost.teculiar.net`). Both stay fully white-label.
+5. Verify: `https://teculiar.com` and `https://dezhost.com` show the storefront; `.../client` and
+   `.../admin` load same-origin (URL bar unchanged); buying the Teculiar plan on teculiar.com provisions a
+   brand-new `userNNNN.teculiar.net` tenant (Tecreator) and emails its credentials.
+
+> Suspension/licensing is automatic from here: if a tenant's Teculiar invoice goes unpaid past the grace
+> period, billing suspends it (control-plane `status: suspended`) — its dashboards/API lock (403) while its
+> public storefront + data stay; paying reactivates it instantly.
+
 _This runbook is updated as each sub-phase lands._
