@@ -9,30 +9,63 @@ their sites**. Design: [../../docs/teculiar-phase4.6-plan.md](../../docs/teculia
 > touching dezhost.com. The named-site (own-domain) routing is complete; the external-customer catch-all is a
 > documented TODO pending the hosting-model decision (O-2 / apexMode).
 
-## Prerequisites (yours)
+## Prerequisites — do these IN ORDER before installing Caddy (AlmaLinux, non-root sudo admin)
 
-1. **A second IPv4 on eu01** (or an IPv6). Assign it to the box: `ip addr add 203.0.113.2/24 dev eth0` (make
-   it persistent via your netplan/ifcfg). Confirm Apache is NOT listening on it (Virtualmin binds the first
-   IP; check `ss -ltnp | grep :443`).
-2. The `:edge` API image with the **`tls-allowed`** endpoint deployed (it ships in the current build):
-   `curl -s http://127.0.0.1:4001/api/v1/tenancy/tls-allowed?domain=teculiar.com` → `{"ok":true}` (once
-   teculiar.com is a registered ACTIVE `tenant_domains` row), any other host → 404.
+**Use a second IPv4, not IPv6-only.** The edge is public-facing; IPv4-only visitors can't reach an
+IPv6-only address, so the site would be down for them. IPv6 is fine only as an extra dual-stack address.
 
-## Install + run Caddy
+1. **Buy an additional IPv4** from your host (Hetzner: it's a small paid add-on; IPv6 is free but doesn't
+   replace IPv4 for public reachability).
+2. **Assign it to the interface** (it's allocated to the server but not live on the OS until you add it):
+   ```bash
+   nmcli connection show                                   # find the active connection name
+   sudo nmcli connection modify "System eth0" +ipv4.addresses 203.0.113.2/32
+   sudo nmcli connection up "System eth0"
+   ip addr show                                            # the new IP should be listed
+   ```
+   (Use the netmask/gateway your host gives you; some dedicated setups route the extra IP as /32.)
+3. **Free the second IP's :443 — pin Apache to the FIRST IP.** Apache/Virtualmin almost certainly listens on
+   *all* IPs, which blocks Caddy from binding the second one. Check + fix:
+   ```bash
+   sudo ss -ltnp '( sport = :443 )'          # httpd on 0.0.0.0:443 / *:443 / [::]:443 → it grabs the new IP too
+   ```
+   Fix in **Virtualmin** (so it isn't overwritten): Webmin → **Servers → Apache Webserver → Global
+   configuration → Networking and Addresses** → set the listen address from "All" to your **first IP** for
+   both 80 and 443. (Or edit `Listen` in `/etc/httpd/` to `Listen <FIRST_IP>:80` / `Listen <FIRST_IP>:443
+   https`, then `sudo systemctl restart httpd`.) Re-check: `sudo ss -ltnp '( sport = :443 )'` → httpd should
+   show **only `<first-ip>:443`**. Your hosting customers are unaffected (their domains resolve to the first IP).
+4. **Open the firewall for 80/443** (Caddy needs :80 for the ACME challenge + redirect):
+   ```bash
+   sudo firewall-cmd --permanent --add-service=http --add-service=https && sudo firewall-cmd --reload
+   ```
+   If you also run a Hetzner **Cloud Firewall**, allow 80/443 there too.
+5. **Confirm the `tls-allowed` endpoint is live** (it ships in the current `:edge` API build):
+   `curl -s 'http://127.0.0.1:4001/api/v1/tenancy/tls-allowed?domain=teculiar.com'` → `{"ok":true}` once
+   teculiar.com is a registered ACTIVE `tenant_domains` row; any other host → 404.
+
+## Install + run Caddy (AlmaLinux / RHEL, via COPR)
 
 ```bash
-# Debian/Ubuntu (adjust for your distro):
-sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt update && sudo apt install -y caddy
-
-sudo mkdir -p /opt/teculiar/edge
-sudo cp deploy/caddy/Caddyfile /opt/teculiar/edge/Caddyfile   # then edit: real second IP + confirm ports
-caddy validate --config /opt/teculiar/edge/Caddyfile          # MUST pass before you point any DNS
-sudo cp deploy/caddy/Caddyfile /etc/caddy/Caddyfile           # or run: caddy run --config .../Caddyfile
-sudo systemctl restart caddy
+sudo dnf install -y 'dnf-command(copr)'
+sudo dnf copr enable -y @caddy/caddy
+sudo dnf install -y caddy
 ```
+The package installs a **systemd service that runs Caddy as the `caddy` user with `CAP_NET_BIND_SERVICE`**, so
+it can bind :80/:443 even though you're a non-root admin — you drive it entirely with `sudo`, never
+`caddy run` as your own user (that can't bind low ports). Then:
+
+```bash
+sudo cp deploy/caddy/Caddyfile /etc/caddy/Caddyfile        # then edit: real second IP + confirm container ports
+sudo caddy validate --config /etc/caddy/Caddyfile          # MUST pass before you point any DNS
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy                                # graceful reload after later edits
+sudo systemctl status caddy                                # active (running)
+journalctl -u caddy -e                                     # logs, incl. ACME cert issuance
+```
+
+> **SELinux (enforcing on AlmaLinux):** if Caddy starts but can't reach the containers or issue certs, check
+> `sudo ausearch -m AVC -ts recent`. Caddy from COPR runs unconfined via systemd, so this is usually fine; if
+> a reverse-proxy connection is denied, `sudo setsebool -P httpd_can_network_connect 1` clears the common case.
 
 Caddy is free (Apache-2.0), including on-demand TLS — no license, no per-tenant fee.
 
