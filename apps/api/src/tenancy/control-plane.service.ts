@@ -88,11 +88,38 @@ export class ControlPlaneService implements OnModuleDestroy {
     };
     const host = input.host.toLowerCase();
     this.apexCache.delete(input.tenantId); // routing changed → drop the cached base url
+    this.activeHostCache.delete(host); // …and the cached CORS allow-decision for this host
     return this.db().tenantDomain.upsert({
       where: { host },
       update: { tenantId: input.tenantId, ...data },
       create: { host, tenantId: input.tenantId, ...data }
     });
+  }
+
+  // Cache of "is this a known ACTIVE tenant host?" for the CORS allowlist (Phase 4.6). Short TTL;
+  // invalidated on registerDomain. Deny-on-miss, so it only ever WIDENS access to confirmed hosts.
+  private readonly activeHostCache = new Map<string, { ok: boolean; exp: number }>();
+
+  /** True when `hostname` is a registered ACTIVE tenant domain — used to allow a cross-origin request. */
+  async isActiveTenantHost(hostname: string): Promise<boolean> {
+    if (!this.enabled) {
+      return false;
+    }
+    const key = hostname.toLowerCase();
+    const now = Date.now();
+    const cached = this.activeHostCache.get(key);
+    if (cached && cached.exp > now) {
+      return cached.ok;
+    }
+    let ok = false;
+    try {
+      const row = await this.db().tenantDomain.findUnique({ where: { host: key } });
+      ok = row?.status === "active";
+    } catch {
+      ok = false; // table not pushed yet / lookup failed → deny (safe)
+    }
+    this.activeHostCache.set(key, { ok, exp: now + 60_000 });
+    return ok;
   }
 
   // Per-tenant apex-host cache so building a link (reset/invoice/…) doesn't hit the control-plane on
