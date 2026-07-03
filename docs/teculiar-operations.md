@@ -461,11 +461,15 @@ Use the **bootstrap CLI** (baked into the API image, reuses the same `createTena
 
 ```bash
 cd /opt/teculiar
+# The API image is a monorepo build: the compiled output lives at apps/api/dist (the container boots
+# `node apps/api/dist/main.js`), so the CLI is at apps/api/dist/tenancy/bootstrap-tenant.js — NOT dist/…
 # Teculiar.com = tenant #0 (its catalog will be the Teculiar plan; enable the Tecreator module after login)
-docker compose exec api node dist/tenancy/bootstrap-tenant.js teculiar admin@teculiar.com "Teculiar"
+docker compose exec api node apps/api/dist/tenancy/bootstrap-tenant.js teculiar info@teculiar.com "Teculiar"
 # Dezhost = the hosting tenant (enable virtualmin/resellbiz after login)
-docker compose exec api node dist/tenancy/bootstrap-tenant.js dezhost  admin@dezhost.com  "Dezhost"
+docker compose exec api node apps/api/dist/tenancy/bootstrap-tenant.js dezhost  admin@dezhost.com "Dezhost"
 ```
+
+> If the path ever moves, find it: `docker compose exec api sh -c 'find /app -name bootstrap-tenant.js'`.
 
 Each run prints the tenant's **admin email + a one-time generated password** — save them. Then:
 
