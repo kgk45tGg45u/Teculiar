@@ -332,9 +332,19 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   (custom-host first, `<sub>.teculiar.net` heuristic fallback) + `surface` in `TenantContext`;
   `register-domain` CLI; extended `tenancy.test.mjs`. Build clean, 6/6 tests pass. *(No behavior change for
   existing `*.teculiar.net` hosts; `DASHBOARD_ASSET_PREFIX` kept for path-based apex hosts.)*
-- **4.6b — Per-tenant URLs:** `TenantUrlService`; migrate the §6 call-sites; link-host test; locale sweep.
-- **4.6c — CORS + ownership verification:** per-tenant origin allowlist; DNS-TXT verify flow + jobs.
-- **4.6d — Edge (Stage B):** Caddy config + `tls-allowed` endpoint + on-demand TLS; topology O-1.
+- **4.6b — Per-tenant URLs ✅ DONE:** `tenant-urls.ts` (`tenantWebBaseUrl()` reads the tenant's white-label
+  root from the request context, resolved once in the middleware via cached `primaryApexHost`, env fallback);
+  migrated all base-url call-sites (auth reset, email, billing invoice/service/domain/payment-method/return,
+  tickets). No-op in single-tenant fallback → live prod byte-for-byte unchanged. Build clean; 7/7 tenancy +
+  baseline (46/6 on the email/billing/auth files, identical pre/post) confirmed. *(Dedicated surface
+  subdomains — no `/client` path prefix — deferred with 4.6d.)*
+- **4.6c — CORS allowlist ✅ DONE:** extracted `cors-origin.ts` (`corsStaticDecision` + `makeCorsOrigin`);
+  unknown origins are allowed only when a registered ACTIVE tenant host (`ControlPlaneService.isActiveTenantHost`,
+  cached, deny-on-error). 6 new tests. **DNS-TXT ownership verification moved to 4.6d** (it's the TLS-issuance
+  gate — only meaningful with the edge).
+- **4.6d — Edge (Stage B) ⛔ NEEDS SERVER ACTION + O-1:** Caddy config + `tls-allowed` endpoint + on-demand
+  TLS + DNS-TXT ownership verify + verifyToken flow; topology O-1. Only needed for EXTERNAL custom-domain
+  customers — the three own-domains don't need it.
 - **4.6e — SSO handoff:** endpoints + `/sso/handoff` `/sso/callback` pages + PKCE + returnTo validation.
 - **4.6f — Onboarding wizard:** admin Setup Wizard (domain, apexMode, subdomains, DNS records, verify
   polling, optional install one-liner); install script `get.teculiar.com/install.sh`.
