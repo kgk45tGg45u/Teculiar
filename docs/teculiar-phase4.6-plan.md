@@ -342,10 +342,12 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   unknown origins are allowed only when a registered ACTIVE tenant host (`ControlPlaneService.isActiveTenantHost`,
   cached, deny-on-error). 6 new tests. **DNS-TXT ownership verification moved to 4.6d** (it's the TLS-issuance
   gate — only meaningful with the edge).
-- **4.6d — Edge (Stage B) 🔶 PARTLY DONE, then ⛔ NEEDS SERVER ACTION + O-1:** ✅ `tls-allowed` endpoint
+- **4.6d — Edge (Stage B) 🔶 CODE+CONFIG DONE, then ⛔ NEEDS OPERATOR STAND-UP:** ✅ `tls-allowed` endpoint
   (`GET /api/v1/tenancy/tls-allowed?domain=` → 2xx only for ACTIVE tenant hosts; `TenancyController`, 3 tests).
-  ⛔ Remaining: the Caddyfile (B1/B2 per **O-1**) + standing up Caddy + DNS-TXT ownership verify + verifyToken
-  flow — all gated on the O-1 topology decision + a server action. Only needed for EXTERNAL custom-domain
+  ✅ **O-1 = B1 (second IP)** chosen; `deploy/caddy/Caddyfile` + `deploy/caddy/README.md` written (own-domain
+  routing complete; external catch-all = documented TODO pending the hosting model). ⛔ Remaining = OPERATOR:
+  add the second IP, `apt install caddy`, `caddy validate`, point DNS at it (Part L). Still to build:
+  external-customer routing + DNS-TXT ownership verify (pairs with 4.6f). Only needed for EXTERNAL custom-domain
   customers — the three own-domains don't need it. **After it lands, run Part L of the server-migration doc**
   to flip teculiar.com + dezhost.com off their temporary §6 Apache blocks onto the CNAME/edge path (revert to
   the plain SSL vhost → edge-issued TLS), dogfooding the exact customer experience.
