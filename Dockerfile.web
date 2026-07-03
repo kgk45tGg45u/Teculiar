@@ -9,6 +9,14 @@ WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# assetPrefix MUST be baked at BUILD time. With `output: standalone`, Next freezes the config into
+# required-server-files.json and the standalone server ignores a runtime DASHBOARD_ASSET_PREFIX — so the
+# bundles would ship at /_next/... and 404 behind Apache's /_dash strip. The hosted dashboards image is
+# ALWAYS served behind that strip (tenant subdomains AND white-label buyer domains, where the storefront
+# owns /_next), so bake /_dash here. Overridable via --build-arg for the single-tenant legacy build.
+ARG DASHBOARD_ASSET_PREFIX=/_dash
+ENV DASHBOARD_ASSET_PREFIX=$DASHBOARD_ASSET_PREFIX
+
 # Copy workspace manifests first — lets Docker cache the install layer
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json   ./packages/shared/
