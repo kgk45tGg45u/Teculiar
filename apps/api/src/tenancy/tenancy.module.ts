@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ThemeModule } from "../modules/theme/theme.module";
 import { UsersModule } from "../modules/users/users.module";
 import { ControlPlaneService } from "./control-plane.service";
+import { TenancyController } from "./tenancy.controller";
 import { TenantMiddleware } from "./tenant.middleware";
 import { TenantProvisioningService } from "./tenant-provisioning.service";
 
@@ -14,6 +15,7 @@ import { TenantProvisioningService } from "./tenant-provisioning.service";
  */
 @Module({
   imports: [ThemeModule, UsersModule],
+  controllers: [TenancyController],
   providers: [ControlPlaneService, TenantProvisioningService, TenantMiddleware],
   exports: [ControlPlaneService, TenantProvisioningService, TenantMiddleware]
 })
