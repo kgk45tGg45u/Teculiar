@@ -35,6 +35,13 @@ export interface TenantContext {
    * fallback or when no tenant resolved. Optional so existing single-tenant call-sites are unaffected.
    */
   surface?: Surface | null;
+  /**
+   * The tenant's white-label ROOT url (Phase 4.6), e.g. `https://dezhost.com` — the base every
+   * generated link (reset-password, invoice, payment return, ticket) is built from. Resolved once at
+   * middleware time from the tenant's registered apex host, else `https://<subdomain>.teculiar.net`.
+   * Undefined in single-tenant fallback / when no tenant resolved → callers use the env base (today).
+   */
+  webBaseUrl?: string;
 }
 
 const storage = new AsyncLocalStorage<TenantContext>();

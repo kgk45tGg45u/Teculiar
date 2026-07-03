@@ -87,11 +87,44 @@ export class ControlPlaneService implements OnModuleDestroy {
       verifyToken: input.verifyToken ?? null
     };
     const host = input.host.toLowerCase();
+    this.apexCache.delete(input.tenantId); // routing changed → drop the cached base url
     return this.db().tenantDomain.upsert({
       where: { host },
       update: { tenantId: input.tenantId, ...data },
       create: { host, tenantId: input.tenantId, ...data }
     });
+  }
+
+  // Per-tenant apex-host cache so building a link (reset/invoice/…) doesn't hit the control-plane on
+  // every email. Short TTL; invalidated on registerDomain. Keyed by tenant id.
+  private readonly apexCache = new Map<string, { host: string | null; exp: number }>();
+
+  /**
+   * The tenant's primary (apex) white-label host — the ACTIVE `apex` TenantDomain, else the first
+   * active host, else null. Cached ~60s. Null when the control-plane is off or the table is absent,
+   * so callers fall back to <subdomain>.teculiar.net / the env base.
+   */
+  async primaryApexHost(tenantId: string): Promise<string | null> {
+    if (!this.enabled) {
+      return null;
+    }
+    const now = Date.now();
+    const cached = this.apexCache.get(tenantId);
+    if (cached && cached.exp > now) {
+      return cached.host;
+    }
+    let host: string | null = null;
+    try {
+      const domains = await this.db().tenantDomain.findMany({
+        where: { tenantId, status: "active" },
+        orderBy: { createdAt: "asc" }
+      });
+      host = (domains.find((d) => d.surface === "apex") ?? domains[0])?.host ?? null;
+    } catch {
+      host = null; // table not pushed yet → fall back
+    }
+    this.apexCache.set(tenantId, { host, exp: now + 60_000 });
+    return host;
   }
 
   async listDomains(tenantId?: string): Promise<TenantDomain[]> {

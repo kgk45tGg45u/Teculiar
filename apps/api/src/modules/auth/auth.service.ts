@@ -5,6 +5,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import { EmailService } from "../email/email.service";
 import { UsersRepository } from "../users/users.repository";
 import { accessSecret } from "../../tenancy/jwt-secrets";
+import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
@@ -286,7 +287,7 @@ export class AuthService {
     const expiresAt = Date.now() + 1000 * 60 * 60;
     const payload = Buffer.from(JSON.stringify({ email: user.email, exp: expiresAt, id: user.id, nonce: randomUUID() })).toString("base64url");
     const signature = this.passwordResetSignature(payload, user.passwordHash);
-    const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    const baseUrl = tenantWebBaseUrl();
     return `${baseUrl}/reset-password?token=${encodeURIComponent(`${payload}.${signature}`)}`;
   }
 

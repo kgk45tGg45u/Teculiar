@@ -9,6 +9,7 @@ import { PublicInquiryDto } from "./dto/public-inquiry.dto";
 import { fetchUnreadImapMessages, type ImapMailboxConfig, type ImapMessage } from "./imap-mailbox";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
 import { TicketsRepository } from "./tickets.repository";
+import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
 
 export type TicketActor = { id: string; roles?: string[] };
 
@@ -544,7 +545,7 @@ function stringValue(value: unknown) {
 }
 
 function appBaseUrl() {
-  return (process.env.APP_URL ?? "https://www.dezhost.com").replace(/\/$/, "");
+  return tenantWebBaseUrl();
 }
 
 function mailboxConfigs(settings: Record<string, unknown>): ImapMailboxConfig[] {

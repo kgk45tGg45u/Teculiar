@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, type EmailRecipientType } from "./email-events";
 import { emailLayoutBlockLibrary, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailDict, type EmailLayoutBlock } from "./email-layouts";
 import { emailPlaceholdersForModules } from "./email-placeholders";
+import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
 
 type EmailUser = {
   email?: string | null;
@@ -625,7 +626,7 @@ function stringValue(value: unknown) {
 }
 
 function defaultTestVariables(currency = "EUR", locale = "de") {
-  const baseUrl = (process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const baseUrl = tenantWebBaseUrl();
   return {
     customer_email: "client@example.test",
     customer_name: "Test Client",

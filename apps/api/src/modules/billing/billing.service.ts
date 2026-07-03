@@ -16,6 +16,7 @@ import { PayInvoiceDto } from "./dto/pay-invoice.dto";
 import { renderInvoiceDocument, renderInvoicePdfFromHtml } from "./invoice-document";
 import { addBillingCycle } from "./platform-rules";
 import { AbstractPaymentService } from "./processors/abstract-payment.service";
+import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
 
 @Injectable()
 export class BillingService {
@@ -2941,7 +2942,7 @@ function sandboxGateway() {
 }
 
 function publicWebUrl() {
-  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+  return tenantWebBaseUrl();
 }
 
 function publicApiUrl() {

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { BillingRepository } from "../billing.repository";
 import type { PaymentProcessor, PaymentRequest, PaymentResult } from "./payment-processor.interface";
+import { tenantWebBaseUrl } from "../../../tenancy/tenant-urls";
 
 @Injectable()
 export class AbstractPaymentService {
@@ -725,7 +726,7 @@ function paypalBaseUrl(config: Record<string, unknown>) {
 }
 
 function publicWebUrl() {
-  return process.env.PUBLIC_WEB_URL ?? process.env.NEXT_PUBLIC_WEB_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+  return tenantWebBaseUrl();
 }
 
 function approvalUrl(payload: unknown) {

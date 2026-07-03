@@ -118,7 +118,12 @@ export class TenantMiddleware implements NestMiddleware {
   private async contextFor(tenant: Tenant, surface: Surface | null): Promise<TenantContext> {
     const prisma = this.registry.clientFor(tenant.dbUrl);
     const jwtSecrets = await this.registry.secretsFor(tenant.id, prisma);
-    return { tenant, prisma, jwtSecrets, surface };
+    // The tenant's white-label root url for all generated links (Phase 4.6) — its registered apex
+    // host, else its <subdomain>.teculiar.net. Resolved once here (cached) so downstream link builders
+    // read it from the context instead of a single global env var.
+    const apexHost = await this.controlPlane.primaryApexHost(tenant.id);
+    const webBaseUrl = `https://${apexHost ?? `${tenant.subdomain}.teculiar.net`}`;
+    return { tenant, prisma, jwtSecrets, surface, webBaseUrl };
   }
 
   private hostHeader(req: Request): string | undefined {

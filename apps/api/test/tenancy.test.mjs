@@ -28,6 +28,7 @@ before(async () => {
   const ctx = await import("../dist/tenancy/tenant-context.js");
   const mw = await import("../dist/tenancy/tenant.middleware.js");
   const jwt = await import("../dist/tenancy/jwt-secrets.js");
+  const urls = await import("../dist/tenancy/tenant-urls.js");
   createTenantAwarePrisma = prismaSvc.createTenantAwarePrisma;
   runWithTenant = ctx.runWithTenant;
   getTenantContext = ctx.getTenantContext;
@@ -35,7 +36,10 @@ before(async () => {
   hostnameOf = mw.hostnameOf;
   accessSecret = jwt.accessSecret;
   refreshSecret = jwt.refreshSecret;
+  tenantWebBaseUrl = urls.tenantWebBaseUrl;
 });
+
+let tenantWebBaseUrl;
 
 // A fake Prisma client that only carries an identifying marker + a query method that
 // records which client it ran against, so we can observe exactly where a call landed.
@@ -130,6 +134,20 @@ test("Host → subdomain resolution", () => {
   // A tenant's OWN domain is NOT resolvable by the first-label heuristic — it needs a TenantDomain
   // row (Phase 4.6). This is exactly the gap the full-host resolver closes.
   assert.equal(subdomainFromHost("dezhost.com"), null, "custom apex domain is not a *.teculiar.net subdomain");
+});
+
+test("tenantWebBaseUrl: tenant's white-label base in context, env fallback outside (Phase 4.6)", () => {
+  process.env.PUBLIC_WEB_URL = "https://www.dezhost.com";
+  // No tenant context → single-tenant env base (today's behaviour, unchanged).
+  assert.equal(tenantWebBaseUrl(), "https://www.dezhost.com");
+  // Inside a tenant context → that tenant's registered white-label root.
+  const ctx = { tenant: null, prisma: {}, jwtSecrets: { access: "", refresh: "" }, webBaseUrl: "https://dezhost.com" };
+  runWithTenant(ctx, () => {
+    assert.equal(tenantWebBaseUrl(), "https://dezhost.com");
+    assert.equal(`${tenantWebBaseUrl()}/reset-password`, "https://dezhost.com/reset-password");
+  });
+  // Back outside the context → env base again (no bleed).
+  assert.equal(tenantWebBaseUrl(), "https://www.dezhost.com");
 });
 
 test("hostnameOf normalizes a Host header (strip port, lowercase)", () => {
