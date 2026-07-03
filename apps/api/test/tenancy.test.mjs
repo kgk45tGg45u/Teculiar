@@ -19,6 +19,7 @@ let createTenantAwarePrisma;
 let runWithTenant;
 let getTenantContext;
 let subdomainFromHost;
+let hostnameOf;
 let accessSecret;
 let refreshSecret;
 
@@ -31,6 +32,7 @@ before(async () => {
   runWithTenant = ctx.runWithTenant;
   getTenantContext = ctx.getTenantContext;
   subdomainFromHost = mw.subdomainFromHost;
+  hostnameOf = mw.hostnameOf;
   accessSecret = jwt.accessSecret;
   refreshSecret = jwt.refreshSecret;
 });
@@ -125,4 +127,15 @@ test("Host → subdomain resolution", () => {
   assert.equal(subdomainFromHost("www.teculiar.net"), null, "www is not a tenant");
   assert.equal(subdomainFromHost("localhost"), null);
   assert.equal(subdomainFromHost(undefined), null);
+  // A tenant's OWN domain is NOT resolvable by the first-label heuristic — it needs a TenantDomain
+  // row (Phase 4.6). This is exactly the gap the full-host resolver closes.
+  assert.equal(subdomainFromHost("dezhost.com"), null, "custom apex domain is not a *.teculiar.net subdomain");
+});
+
+test("hostnameOf normalizes a Host header (strip port, lowercase)", () => {
+  assert.equal(hostnameOf("Dezhost.com:443"), "dezhost.com");
+  assert.equal(hostnameOf("client.acmehost.com"), "client.acmehost.com");
+  assert.equal(hostnameOf("ADMIN.Acme.COM:3010"), "admin.acme.com");
+  assert.equal(hostnameOf(""), null);
+  assert.equal(hostnameOf(undefined), null);
 });

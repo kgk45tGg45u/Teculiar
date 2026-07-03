@@ -13,6 +13,9 @@ export interface JwtSecrets {
   refresh: string;
 }
 
+/** Which white-label surface a request's host serves (Phase 4.6). */
+export type Surface = "ADMIN" | "CLIENT" | "API" | "APEX";
+
 /**
  * The resolved identity + resources for a single in-flight request. Established by
  * TenantMiddleware and stashed in AsyncLocalStorage so every downstream service
@@ -26,6 +29,12 @@ export interface TenantContext {
   prisma: PrismaClient;
   /** JWT signing secrets for this tenant (env-derived in fallback mode). */
   jwtSecrets: JwtSecrets;
+  /**
+   * Which white-label surface the request host serves (Phase 4.6). Set from the matched
+   * custom-domain record (admin./client./api./apex); null for the <subdomain>.teculiar.net
+   * fallback or when no tenant resolved. Optional so existing single-tenant call-sites are unaffected.
+   */
+  surface?: Surface | null;
 }
 
 const storage = new AsyncLocalStorage<TenantContext>();

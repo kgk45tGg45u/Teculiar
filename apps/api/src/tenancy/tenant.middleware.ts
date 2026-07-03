@@ -1,15 +1,25 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
 import type { PrismaClient } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
+import type { Tenant } from "./control-plane-prisma";
 import { ConnectionRegistry } from "./connection-registry.service";
 import { ControlPlaneService } from "./control-plane.service";
-import { runWithTenant, type JwtSecrets, type TenantContext } from "./tenant-context";
+import { runWithTenant, type JwtSecrets, type Surface, type TenantContext } from "./tenant-context";
 
 function envSecrets(): JwtSecrets {
   return {
     access: process.env.JWT_ACCESS_SECRET ?? "",
     refresh: process.env.JWT_REFRESH_SECRET ?? ""
   };
+}
+
+/** Bare lowercased hostname from a Host header (drops the port). Null when absent/empty. */
+export function hostnameOf(host: string | undefined): string | null {
+  if (!host) {
+    return null;
+  }
+  const hostname = host.split(":")[0]?.trim().toLowerCase() ?? "";
+  return hostname.length > 0 ? hostname : null;
 }
 
 /**
@@ -81,19 +91,34 @@ export class TenantMiddleware implements NestMiddleware {
   private async resolve(req: Request): Promise<TenantContext> {
     // Single-tenant fallback: no control-plane → today's behaviour, unchanged.
     if (!this.controlPlane.enabled) {
-      return { tenant: null, prisma: this.registry.defaultClient(), jwtSecrets: envSecrets() };
+      return { tenant: null, prisma: this.registry.defaultClient(), jwtSecrets: envSecrets(), surface: null };
     }
 
     const host = this.hostHeader(req);
+    const hostname = hostnameOf(host);
+
+    // 1) Custom-domain match (Phase 4.6): full-host lookup in the control-plane. This is what lets a
+    //    tenant's OWN domain (dezhost.com, admin.acmehost.com, …) resolve — the first-label heuristic
+    //    in step 2 only understands <subdomain>.teculiar.net. Only ACTIVE hosts route.
+    const domain = hostname ? await this.controlPlane.findDomainByHost(hostname) : null;
+    if (domain && domain.status === "active" && domain.tenant) {
+      const surface = (domain.surface ?? "apex").toUpperCase() as Surface;
+      return this.contextFor(domain.tenant, surface);
+    }
+
+    // 2) Fallback: <subdomain>.teculiar.net first-label heuristic (Phase 4.1).
     const subdomain = subdomainFromHost(host);
     const tenant = subdomain ? await this.controlPlane.findBySubdomain(subdomain) : null;
     if (!tenant) {
-      return { tenant: null, prisma: unresolvedTenantClient(host), jwtSecrets: envSecrets() };
+      return { tenant: null, prisma: unresolvedTenantClient(host), jwtSecrets: envSecrets(), surface: null };
     }
+    return this.contextFor(tenant, null);
+  }
 
+  private async contextFor(tenant: Tenant, surface: Surface | null): Promise<TenantContext> {
     const prisma = this.registry.clientFor(tenant.dbUrl);
     const jwtSecrets = await this.registry.secretsFor(tenant.id, prisma);
-    return { tenant, prisma, jwtSecrets };
+    return { tenant, prisma, jwtSecrets, surface };
   }
 
   private hostHeader(req: Request): string | undefined {

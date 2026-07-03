@@ -11,4 +11,4 @@
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
 export { PrismaClient as ControlPlanePrismaClient } from "../../../../prisma/control-plane/generated";
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
-export type { Tenant } from "../../../../prisma/control-plane/generated";
+export type { Tenant, TenantDomain } from "../../../../prisma/control-plane/generated";

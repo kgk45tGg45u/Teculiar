@@ -47,8 +47,37 @@ model Tenant {
   prevThemeVersion  String?
   prevLocaleVersion String?
 
+  // Custom hostnames that route to this tenant (Phase 4.6). Each is a white-label surface
+  // (admin./client./api./apex) on the buyer's own domain; the per-request resolver looks the
+  // full Host up here. Absent hosts fall back to the <subdomain>.teculiar.net heuristic.
+  domains TenantDomain[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("tenants")
+}
+
+/// A hostname that routes to a tenant + which white-label surface it serves (Phase 4.6).
+/// See docs/teculiar-phase4.6-plan.md. This is what lets a tenant's OWN domain
+/// (dezhost.com, admin.acmehost.com, …) resolve — the first-label host heuristic only
+/// understands <subdomain>.teculiar.net.
+model TenantDomain {
+  id       String @id @default(cuid())
+  host     String @unique // full lowercased hostname, e.g. "admin.acmehost.com" or "dezhost.com"
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  surface String @default("apex")    // admin | client | api | apex (an apex host serves several surfaces by path)
+  status  String @default("pending") // pending → verified → active | disabled (only active hosts resolve / get TLS)
+  tlsMode String @default("edge")    // edge (we issue at the edge) | external (the tenant terminates TLS themselves)
+
+  // Set for pending hosts: the tenant proves ownership via a DNS TXT record before the host goes active.
+  verifyToken String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("tenant_domains")
 }

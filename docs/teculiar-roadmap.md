@@ -677,6 +677,17 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > updates by pulling the new published image. The generalized `release-sync` publish command (from
 > `scripts/i18n-sync.ts`) is the remaining code piece, deferred until after cutover.
 
+### Phase 4.6 — per-subdomain white-label + edge TLS *(planned)*
+Replaces the H.4/H.5 **Apache reverse-proxy** onboarding with **DNS-only** onboarding: each tenant points
+**one hostname per surface** (`admin.`/`client.`/`api.`/apex) at our edge; we serve everything white-label.
+Adds a `TenantDomain` map + full-host tenant/surface resolution (replacing the first-label
+`subdomainFromHost` heuristic), a **free Caddy** on-demand-TLS edge (gated by an allowlist; needed only for
+external **custom** domains — your own domains keep pre-issued certs), **per-tenant URL emission**,
+**per-tenant CORS allowlist**, DNS-TXT **domain-ownership verification**, and a **one-time-code SSO handoff**
+for the separate-origin client case. Certs follow whoever terminates the host (tenants may keep their own
+apex cert). Keeps Phase 5/6 invariants (runtime API base, origin allowlist, host-only tokens). Full plan +
+box undo/convert steps: [teculiar-phase4.6-plan.md](./teculiar-phase4.6-plan.md).
+
 ### Phase 5 — Option 2: custom themes *(accepted, later)*
 A buyer builds a theme in the hosted admin (Customizer + the deferred Properties/Custom-Themes tab,
 anticipated by `Theme.styling`), downloads the theme files, and self-runs the storefront against the
