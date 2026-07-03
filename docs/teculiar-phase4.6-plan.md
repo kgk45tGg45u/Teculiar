@@ -344,7 +344,9 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   gate — only meaningful with the edge).
 - **4.6d — Edge (Stage B) ⛔ NEEDS SERVER ACTION + O-1:** Caddy config + `tls-allowed` endpoint + on-demand
   TLS + DNS-TXT ownership verify + verifyToken flow; topology O-1. Only needed for EXTERNAL custom-domain
-  customers — the three own-domains don't need it.
+  customers — the three own-domains don't need it. **After it lands, run Part L of the server-migration doc**
+  to flip teculiar.com + dezhost.com off their temporary §6 Apache blocks onto the CNAME/edge path (revert to
+  the plain SSL vhost → edge-issued TLS), dogfooding the exact customer experience.
 - **4.6e — SSO handoff:** endpoints + `/sso/handoff` `/sso/callback` pages + PKCE + returnTo validation.
 - **4.6f — Onboarding wizard:** admin Setup Wizard (domain, apexMode, subdomains, DNS records, verify
   polling, optional install one-liner); install script `get.teculiar.com/install.sh`.

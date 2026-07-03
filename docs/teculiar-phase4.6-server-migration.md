@@ -158,9 +158,45 @@ Nothing else in that repo (compose, `.env.example`) needs reverting — the stor
 
 ---
 
+## 🔔 Part L — LATER: dogfood the real CNAME/edge model on teculiar.com + dezhost.com
+
+**Reminder to future-you.** The §6 Apache blocks are a *temporary bootstrap* for your own domains. Once the
+**Caddy edge (4.6d)** is up, flip teculiar.com + dezhost.com onto the **DNS-only CNAME path** so you test the
+exact experience an external customer gets — no per-domain Apache directives, edge-issued TLS. Do this
+**only after 4.6d is built and the O-1 topology is decided.**
+
+Per domain (teculiar.com first, **dezhost.com last** — it's the live site):
+
+1. **Save the rollback.** Copy the current §6 `<VirtualHost *:443>` proxy block somewhere safe (or export the
+   Virtualmin vhost). This is your one-click way back if the edge test misbehaves.
+2. **Revert to the old SSL directive.** In the domain's Virtualmin vhost → Edit Directives, **remove the
+   ProxyPreserveHost + ProxyPass block** you added in §6, leaving the plain SSL vhost Virtualmin originally
+   created. The domain is now no longer routed by Apache.
+3. **Point DNS at the edge (the "change CNAME" step).** Repoint the domain to the Caddy edge:
+   - O-1 = **B1 (second IP):** set the domain's `A`/`ALIAS` (apex) or `CNAME` (a `www`/subdomain) to the
+     **edge IP**. `mail.`/`cpanel.` records stay as-is.
+   - O-1 = **B2 (Caddy in front of Apache):** DNS already resolves to the box; just step 2 is enough — Caddy's
+     host-routing now wins once the Apache proxy block is gone.
+4. **TLS moves to the edge.** Caddy issues the cert on-demand via ACME (gated by the `tls-allowed` allowlist),
+   so the domain's hosts must be **`status=active`, `tlsMode=edge`** in `tenant_domains` (they already are
+   from step 5 of the main flow; if you added `admin.`/`client.` subdomains, register those too). Your old
+   Apache Let's Encrypt cert for the domain is simply no longer used — leave it or let it lapse.
+5. **Test the full white-label flow:** browse the domain → storefront; `/admin`, `/client` load same-origin
+   (URL never shows `*.teculiar.net`); a password-reset email links to the domain; on-demand TLS shows a
+   valid cert; (if you split a `client.` subdomain) the SSO handoff works. Buying the Teculiar plan on
+   teculiar.com provisions a fresh `userNNNN` tenant and its cert issues automatically.
+6. **Rollback if needed:** restore the saved Apache block (step 1) and revert DNS. Because dezhost.com is
+   live, keep it on the §6 Apache path until teculiar.com has passed the edge test.
+
+> This is the moment the "customers only change DNS, never Apache" promise becomes literally true for your
+> own domains too — they stop being a special Apache-bootstrap case and route exactly like a paying tenant.
+
+---
+
 ## What still needs building (not on you — code, later sub-phases)
 
-4.6a (host resolver + `tenant_domains` + `register-domain` CLI) is **done**. Still to build before external
-custom-domain customers: **4.6b** per-tenant email/link URLs, **4.6c** CORS allowlist + DNS-TXT ownership,
-**4.6d** the Caddy on-demand-TLS edge, **4.6e** SSO handoff, **4.6f** onboarding wizard + install script.
-Your three own-domains do **not** need those — they work on this box with the steps above.
+4.6a–**4.6c are done** (host resolver + `tenant_domains` + `register-domain` CLI; per-tenant white-label link
+URLs; per-tenant CORS allowlist). Still to build before external custom-domain customers — and before Part L
+above: **4.6d** the Caddy on-demand-TLS edge (+ DNS-TXT ownership verify; needs the O-1 decision + a server
+action), **4.6e** SSO handoff, **4.6f** onboarding wizard + install script. Your three own-domains work on
+this box **today** with the §1–§7 steps; Part L is the later upgrade to the edge model.
