@@ -97,7 +97,12 @@ The edge is the front door that terminates TLS and routes host → container. **
 **free at any scale**, on-demand TLS built in). Introduce it in two stages so nothing on the live
 Virtualmin box breaks and you need no new spend until real external customers arrive.
 
-### Stage A — your own domains (no new edge needed)
+### Stage A — your own domains (no new edge needed) — **SUPERSEDED 2026-07-04**
+
+> The edge went live ahead of schedule (Stage B below), so the white-label own-domains (teculiar.com,
+> dezhost.com) route through **Caddy via DNS** instead of Apache blocks — see the server-migration doc §6.
+> Only **teculiar.net** (platform host + `*.teculiar.net` wildcard cert) still runs the Stage-A Apache
+> pattern described here.
 
 `teculiar.net`, `*.teculiar.net`, `teculiar.com`, and `dezhost.com` + `admin.dezhost.com` /
 `client.dezhost.com` / `api.dezhost.com` are **your** domains. Keep Virtualmin/Apache terminating them with
@@ -342,15 +347,16 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   unknown origins are allowed only when a registered ACTIVE tenant host (`ControlPlaneService.isActiveTenantHost`,
   cached, deny-on-error). 6 new tests. **DNS-TXT ownership verification moved to 4.6d** (it's the TLS-issuance
   gate — only meaningful with the edge).
-- **4.6d — Edge (Stage B) 🔶 CODE+CONFIG DONE, then ⛔ NEEDS OPERATOR STAND-UP:** ✅ `tls-allowed` endpoint
-  (`GET /api/v1/tenancy/tls-allowed?domain=` → 2xx only for ACTIVE tenant hosts; `TenancyController`, 3 tests).
-  ✅ **O-1 = B1 (second IP)** chosen; `deploy/caddy/Caddyfile` + `deploy/caddy/README.md` written (own-domain
-  routing complete; external catch-all = documented TODO pending the hosting model). ⛔ Remaining = OPERATOR:
-  add the second IP, `apt install caddy`, `caddy validate`, point DNS at it (Part L). Still to build:
-  external-customer routing + DNS-TXT ownership verify (pairs with 4.6f). Only needed for EXTERNAL custom-domain
-  customers — the three own-domains don't need it. **After it lands, run Part L of the server-migration doc**
-  to flip teculiar.com + dezhost.com off their temporary §6 Apache blocks onto the CNAME/edge path (revert to
-  the plain SSL vhost → edge-issued TLS), dogfooding the exact customer experience.
+- **4.6d — Edge (Stage B) ✅ STOOD UP + SMOKE-TESTED (2026-07-04):** `tls-allowed` endpoint (2xx only for
+  ACTIVE tenant hosts; `TenancyController`, 3 tests); **O-1 = B1** via Hetzner **floating IP
+  `195.201.252.12`** (Apache pinned to primary `178.104.82.146`, Virtualmin primary set explicit); Caddy
+  2.11 (COPR) running with on-demand-only TLS; **`edge-test.teculiar.net` proved the full pipeline
+  end-to-end** (ask gate → LE issuance → tenant resolution → container routing). **The edge is now the
+  standard path for white-label domains — the Apache proxy blocks (H.5 / old server-migration §6b,c) are
+  RETIRED**; own-domain flips are DNS-only (server-migration §6; teculiar.net stays on Apache H.4).
+  Runbook incl. change ledger/revert/migration/B3 exit: `deploy/caddy/README.md`. ⛔ Still to build before
+  the FIRST external customer: the Caddyfile catch-all (needs **O-2**: self-hosted vs hosted external
+  storefront) + DNS-TXT ownership verify (pairs with 4.6f).
 - **4.6e — SSO handoff:** endpoints + `/sso/handoff` `/sso/callback` pages + PKCE + returnTo validation.
 - **4.6f — Onboarding wizard:** admin Setup Wizard (domain, apexMode, subdomains, DNS records, verify
   polling, optional install one-liner); install script `get.teculiar.com/install.sh`.

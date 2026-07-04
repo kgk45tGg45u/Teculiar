@@ -381,6 +381,12 @@ Reload Apache, then check: `curl -sI https://teculiar.net/api/v1/health` → 200
 
 ## H.5 — Apache for a WHITE-LABEL site (`teculiar.com`, and later `dezhost.com`)
 
+> **⛔ RETIRED (Phase 4.6, 2026-07-04).** White-label domains no longer use Apache proxy blocks — they route
+> through the **Caddy edge** (on-demand TLS on the floating IP) with a **DNS-only** flip. See
+> `deploy/caddy/README.md` (runbook) + `docs/teculiar-phase4.6-server-migration.md` §6. Do NOT apply the
+> block below to any new domain; it is kept only as a historical reference. (H.4 for teculiar.net remains
+> valid — the platform host stays on Apache.)
+
 This is the answer to "**theirdomain.com/client must stay theirdomain.com/client**." The buyer's vhost
 **reverse-proxies** (never redirects) the hosted paths to the tenant subdomain, and serves everything else
 from the local storefront container. The browser URL never changes; assets load same-origin.
@@ -450,8 +456,9 @@ docker compose pull
 docker compose up -d         # storefront on 127.0.0.1:3021
 ```
 
-Then apply `apache/dezhost.com.conf` to the dezhost.com vhost (it targets `dezhost.teculiar.net` + local
-`:3021`). ⚠️ That REPLACES dezhost.com's current live proxy — see the cutover guard in **H.8 / Part F**.
+Then cut over **via DNS only** (Phase 4.6): point dezhost.com at the Caddy edge per
+`docs/teculiar-phase4.6-server-migration.md` §6c — `apache/dezhost.com.conf` is **deprecated**, no Apache
+swap happens. ⚠️ Cutover gating still applies — see **H.8 / Part F**.
 
 ## H.7 — Provision the first tenants (breaks the chicken-and-egg)
 
@@ -502,8 +509,9 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
    live dezhost.com.**
 3. **Dezhost cutover (Part F)** — this is the ONLY step that touches the live site. Do it last: provision
    `dezhost`, enable virtualmin/resellbiz, import the old blog posts, verify everything at
-   `dezhost.teculiar.net`, deploy the Dezhost storefront (H.6), THEN swap dezhost.com's Apache to
-   `apache/dezhost.com.conf`. Keep the old single-tenant instance reachable read-only until satisfied.
+   `dezhost.teculiar.net`, deploy the Dezhost storefront (H.6), THEN flip dezhost.com's **DNS** to the Caddy
+   edge (`docs/teculiar-phase4.6-server-migration.md` §6c — no Apache swap; rollback = revert DNS). Keep the
+   old single-tenant instance reachable read-only until satisfied.
 
 > ### ⛔ Do NOT merge `feat/teculiar-phase4-separation` into `main` yet
 > `main` auto-deploys `:latest` into the LIVE `/opt/dezhost` (`deploy.yml`, `if: refs/heads/main`). The

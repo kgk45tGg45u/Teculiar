@@ -1,5 +1,12 @@
 # Teculiar edge (Caddy) on the live eu01 box — full runbook
 
+> **✅ STATUS (2026-07-04): Part 1 completed on eu01 and smoke-tested end-to-end** — Apache pinned to the
+> primary IP, floating IP added, Caddy 2.11 running on `195.201.252.12:443`, and `edge-test.teculiar.net`
+> proved the full pipeline (tls-allowed gate → Let's Encrypt issuance → tenant resolution → routing).
+> **The edge is now the standard path for white-label domains** — the Apache proxy blocks (old
+> server-migration §6b/§6c, operations H.5) are retired; own-domain flips are DNS-only per
+> [server-migration §6](../../docs/teculiar-phase4.6-server-migration.md).
+
 **Model (topology B1, one box):** Apache keeps the **primary IP** `178.104.82.146` — every Virtualmin
 hosting customer, the own-domain Apache bootstrap (teculiar.com/dezhost.com/teculiar.net), and their
 **Let's Encrypt via Virtualmin all keep working exactly as today**, because those domains' DNS points at
@@ -16,7 +23,7 @@ floating IP. And we pin Apache + tell Virtualmin its primary IP *before* re-addi
 removes the two things that fought back (the `*:443` grab and the "primary IP changed" warning).
 
 > AlmaLinux, non-root sudo admin. Design: [../../docs/teculiar-phase4.6-plan.md](../../docs/teculiar-phase4.6-plan.md) §3.
-> Own-domain DNS flip lives in the server-migration doc **Part L** — not part of this runbook.
+> Own-domain DNS flips live in the server-migration doc **§6** (teculiar.com = 6b, dezhost.com = 6c).
 
 ---
 

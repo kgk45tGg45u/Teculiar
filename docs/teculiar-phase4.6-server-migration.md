@@ -82,47 +82,57 @@ docker compose exec api node apps/api/dist/tenancy/register-domain.js dezhost.co
 (`apex` = the host serves storefront + /admin + /client + /api by path. You do **not** register
 `<sub>.teculiar.net` — the fallback handles it.)
 
-## 6. Apache — the three vhosts (new model: preserve Host, proxy to LOCAL containers)
+## 6. Routing the three domains — Caddy for the white-label apexes; Apache only for teculiar.net
 
-The difference from H.4/H.5: **`ProxyPreserveHost On`** (so the API sees the real domain → resolves via
-`tenant_domains`) and proxy straight to the **local containers** (no cross-box hop to `*.teculiar.net`).
+> **⚠️ MODEL CHANGE (2026-07-04): the Apache white-label blocks are RETIRED.** The original §6 had you paste
+> `ProxyPreserveHost`/`ProxyPass` blocks into the teculiar.com/dezhost.com vhosts. The **Caddy edge is now
+> stood up and smoke-tested** ([deploy/caddy/README.md](../deploy/caddy/README.md), Part 1 ✅ incl. the
+> `edge-test.teculiar.net` end-to-end test), so white-label domains route through **Caddy via DNS only** —
+> no Apache directives, exactly like a future external customer. The interim §6b block you applied to
+> teculiar.com gets **removed again** in step 6b below.
 
-### 6a. `teculiar.net` vhost — unchanged (keep your H.4 block)
+### 6a. `teculiar.net` — stays on Apache (keep the H.4 block, unchanged)
 
-It already preserves Host and proxies `/api`→4001, `/admin`,`/client`→3010, `/_dash/`→3010/. `*.teculiar.net`
-tenant subdomains resolve via the fallback. Nothing to change.
+The platform host: API + dashboards for every `<sub>.teculiar.net` + `/releases` update bundles, covered by
+the existing wildcard LE cert. Tenant subdomains resolve via the first-label fallback. Moving this to Caddy
+is optional later (it needs per-subdomain on-demand certs gated by a tenant lookup, or a DNS-01 wildcard) —
+deliberately **not** part of this change.
 
-### 6b. `teculiar.com` vhost — replace the H.5 white-label block with:
+### 6b. `teculiar.com` — flip to Caddy (DNS-only)
 
-```apache
-ProxyPreserveHost On
-ProxyPass        /api      http://127.0.0.1:4001/api
-ProxyPassReverse /api      http://127.0.0.1:4001/api
-ProxyPass        /uploads  http://127.0.0.1:4001/uploads
-ProxyPassReverse /uploads  http://127.0.0.1:4001/uploads
-ProxyPass        /admin           http://127.0.0.1:3010/admin
-ProxyPassReverse /admin           http://127.0.0.1:3010/admin
-ProxyPass        /client          http://127.0.0.1:3010/client
-ProxyPassReverse /client          http://127.0.0.1:3010/client
-ProxyPass        /login           http://127.0.0.1:3010/login
-ProxyPassReverse /login           http://127.0.0.1:3010/login
-ProxyPass        /reset-password  http://127.0.0.1:3010/reset-password
-ProxyPassReverse /reset-password  http://127.0.0.1:3010/reset-password
-ProxyPass        /_dash/  http://127.0.0.1:3010/
-ProxyPassReverse /_dash/  http://127.0.0.1:3010/
-ProxyPass        /  http://127.0.0.1:3011/
-ProxyPassReverse /  http://127.0.0.1:3011/
-```
+1. **Register the `www` host** (the apex is already registered; the TLS gate approves only registered hosts):
+   ```bash
+   cd /opt/teculiar
+   docker compose exec api node apps/api/dist/tenancy/register-domain.js www.teculiar.com teculiar apex active
+   ```
+2. **DNS:** `teculiar.com` A → `195.201.252.12`; `www` → same (CNAME to the apex or A record).
+3. **Wait for propagation** (the record's old TTL). During propagation both paths work — clients on the old
+   IP hit the Apache block (still in place), clients on the new IP hit Caddy.
+4. **Verify via Caddy explicitly** (before propagation finishes):
+   ```bash
+   curl -sI --resolve teculiar.com:443:195.201.252.12 https://teculiar.com | head -3
+   journalctl -u caddy -e     # shows the Let's Encrypt issuance for teculiar.com on first hit
+   ```
+   Browser: storefront + `/admin` + `/client` load with a valid padlock, URL stays teculiar.com.
+5. **Remove the interim Apache block:** Virtualmin → teculiar.com vhost → Edit Directives → delete the §6b
+   `ProxyPreserveHost`/`ProxyPass` lines → reload Apache. (Only after propagation — removing early breaks
+   clients still resolving the old IP.)
+6. **Disable Let's Encrypt auto-renewal for the teculiar.com virtual server** (Virtualmin → that server →
+   SSL Certificate → Let's Encrypt → renewal off). Validation traffic now lands on Caddy, so Virtualmin's
+   renewals would fail and nag; **Caddy owns this domain's cert now.**
 
-(`:3011` = the teculiar.com storefront container. `SSLProxyEngine` not needed now — targets are plain-HTTP
-local containers.)
+### 6c. `dezhost.com` — the GATED cutover is now DNS-only (do LAST)
 
-### 6c. `dezhost.com` vhost — the GATED cutover (do LAST)
-
-Same block as 6b but the storefront port is **`:3021`** (the Dezhost storefront container). Use the updated
-`apache/dezhost.com.conf` in the **`kgk45tGg45u/Dezhost`** repo (rewritten for this model — see §8). ⚠️ This
-REPLACES dezhost.com's live proxy — apply only after `dezhost` is verified (browse dezhost.com/admin →
-loads, log in). Keep the old single-tenant instance reachable read-only until satisfied.
+**No Apache swap anymore** — `apache/dezhost.com.conf` in the Dezhost repo is deprecated (§8). When the gate
+clears (dezhost tenant verified at `dezhost.teculiar.net`, blog posts imported, Dezhost storefront container
+up on `:3021` per H.6):
+1. Register the www host: `register-domain.js www.dezhost.com dezhost apex active`.
+2. **DNS:** `dezhost.com` + `www` → `195.201.252.12`.
+3. The old single-tenant prod **stays reachable on `178.104.82.146` the whole time** — clients migrate as
+   DNS propagates, and **rollback = revert the DNS record**, nothing else. (Cleaner than the old
+   Apache-swap cutover, which was all-or-nothing.)
+4. After propagation: verify like 6b step 4, disable LE renewal for the dezhost.com vhost, keep the old
+   instance read-only until satisfied, then run the full production E2E per [CLAUDE.md](../CLAUDE.md).
 
 ## 7. Verify
 
@@ -143,27 +153,27 @@ Finally run the production E2E per [CLAUDE.md](../CLAUDE.md) against the new hos
 
 ## 8. GitHub revert — the `Dezhost` repo's Apache file
 
-The only GitHub change to make now: `kgk45tGg45u/Dezhost` → `apache/dezhost.com.conf` was the old
-cross-hop white-label block (proxy to `dezhost.teculiar.net`, `ProxyPreserveHost Off`). It's been rewritten
-to the new model (preserve Host, local containers) in your local `~/code/Dezhost`. Review and push it:
+`kgk45tGg45u/Dezhost` → `apache/dezhost.com.conf` is **DEPRECATED** (2026-07-04): the dezhost.com cutover is
+now a DNS flip to the Caddy edge (§6c) — **no Apache block is ever applied**. The file in `~/code/Dezhost`
+has been replaced with a deprecation note; commit + push it:
 
 ```bash
 cd ~/code/Dezhost
-git add apache/dezhost.com.conf README.md
-git commit -m "Switch dezhost.com to Phase 4.6 custom-domain model (preserve Host, local containers)"
+git add apache/dezhost.com.conf
+git commit -m "Deprecate the Apache white-label block — dezhost.com routes via the Caddy edge (DNS-only)"
 git push
 ```
 
-Nothing else in that repo (compose, `.env.example`) needs reverting — the storefront container is unchanged.
+The rest of that repo stays as-is — the storefront container (`:3021`) + `.env.example` are still exactly
+what the cutover uses.
 
 ---
 
-## 🔔 Part L — LATER: dogfood the real CNAME/edge model on teculiar.com + dezhost.com
+## 🔔 Part L — ✅ ACTIVE (2026-07-04): the CNAME/edge model IS the plan now
 
-**Reminder to future-you.** The §6 Apache blocks are a *temporary bootstrap* for your own domains. Once the
-**Caddy edge (4.6d)** is up, flip teculiar.com + dezhost.com onto the **DNS-only CNAME path** so you test the
-exact experience an external customer gets — no per-domain Apache directives, edge-issued TLS. Do this
-**only after 4.6d is built and the O-1 topology is decided.**
+**Status:** the edge is up and smoke-tested; this section stopped being a "later reminder" and became the
+standard path — **teculiar.com's flip = §6b, dezhost.com's = §6c (at the gated cutover)**. The steps below
+are kept as the generic per-domain reference (rollback copy, revert-to-plain-vhost, DNS repoint, edge TLS).
 
 Per domain (teculiar.com first, **dezhost.com last** — it's the live site):
 
