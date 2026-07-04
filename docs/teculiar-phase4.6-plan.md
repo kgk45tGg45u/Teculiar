@@ -369,9 +369,14 @@ Each sub-phase updates [teculiar-architecture.md](./teculiar-architecture.md) +
 
 ## 14. Open decisions
 
-- **O-1 (blocking Stage B only):** edge topology — **B1 second IP (recommended)**, B2 Caddy-front, or B3
-  separate box. Not needed until the first external custom-domain customer.
-- **O-2:** default client-area placement for `blue_*` apex — apex path (recommended, no SSO) vs a dedicated
-  `client.` host (needs §5). Can be per-tenant.
-- **O-3:** do we offer `blue_selfhosted` at launch, or hosted-only first (drop the install script until
-  demand)? Hosted-only is less surface to secure initially.
+All three resolved 2026-07-04:
+- **O-1 ✅ = B1 via Hetzner floating IP** (`195.201.252.12`; Apache pinned to the primary IP). Stood up +
+  smoke-tested (see 4.6d).
+- **O-2 ✅ = per-tenant choice, apex path is the default.** `theirdomain.com/client` (same-origin, no SSO)
+  unless a tenant opts into a `client.` subdomain in the onboarding wizard — 4.6e (SSO handoff) is built
+  only when the first tenant picks that option.
+- **O-3 ✅ = self-hosted storefronts first** (Model B as designed): external customers run the storefront
+  via the install script; their `admin.`/`client.`/`api.` subdomains CNAME to the edge. Unblocks the
+  Caddyfile catch-all + 4.6f. Hosted/multiplexed storefronts revisit later if demanded.
+- **Dezhost cutover data ✅ = start fresh, blog posts only** (re-confirmed by the user 2026-07-04 with the
+  customer-loss consequence stated explicitly). `import-blog` CLI ships in the API image.

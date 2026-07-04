@@ -127,9 +127,38 @@ deliberately **not** part of this change.
 
 ### 6c. `dezhost.com` — the GATED cutover is now DNS-only (do LAST)
 
-**No Apache swap anymore** — `apache/dezhost.com.conf` in the Dezhost repo is deprecated (§8). When the gate
-clears (dezhost tenant verified at `dezhost.teculiar.net`, blog posts imported, Dezhost storefront container
-up on `:3021` per H.6):
+**No Apache swap anymore** — `apache/dezhost.com.conf` in the Dezhost repo is deprecated (§8). Data decision
+re-confirmed 2026-07-04: **start fresh, blog posts only** — live customers/orders/invoices/services do NOT
+carry over; the old prod stays read-only for records.
+
+**Pre-cutover checklist (all before any DNS change):**
+1. **Author the tenant.** Log into `https://dezhost.teculiar.net/admin` (bootstrap one-time password →
+   change it). Enable + configure **Virtualmin/ResellBiz** modules (re-enter creds from the old admin),
+   recreate the **catalog** (hosting/VPS/domain products + prices), payment **gateways**, **SMTP/email**
+   settings, languages/currencies, branding. None of this carries over — it's the start-fresh cost.
+2. **Import the blog** (ships in the `:edge` API image — pull first if the box predates it). Source URL =
+   the old prod `DATABASE_URL` from `/opt/dezhost/.env`, host rewritten for the container network:
+   ```bash
+   cd /opt/teculiar
+   docker compose exec api node apps/api/dist/tenancy/import-blog.js \
+     "mysql://<olduser>:<oldpw>@host.docker.internal:3306/<old_db_name>" dezhost
+   ```
+   Posts land authored by the dezhost tenant admin; re-runs are idempotent.
+3. **Copy the blog image files** (post bodies reference `/uploads/...`):
+   ```bash
+   docker volume ls | grep uploads          # find the old (dezhost_*) and new (teculiar_*) volume names
+   docker run --rm -v <old_uploads>:/from -v <new_uploads>:/to alpine sh -c 'cp -an /from/. /to/'
+   ```
+   (`-n` = never overwrite files the new stack already has.)
+4. **Deploy the Dezhost storefront container** (H.6): clone `kgk45tGg45u/Dezhost` →
+   `/opt/dezhost-storefront`, `cp .env.example .env`, `docker compose pull && up -d` → `:3021`.
+5. **Verify at `dezhost.teculiar.net`:** admin login, blog posts render (with images), storefront on
+   `127.0.0.1:3021` answers, a test order works.
+6. **Update the E2E credentials:** the repo `.env`'s `E2E_ADMIN_*`/`E2E_CLIENT_*` are OLD-system accounts;
+   start-fresh means they don't exist in the tenant. Set the new admin creds + register a test client
+   before running the post-cutover E2E.
+
+Then the cutover itself:
 1. Register the www host: `register-domain.js www.dezhost.com dezhost apex active`.
 2. **DNS:** `dezhost.com` + `www` → `195.201.252.12`.
 3. The old single-tenant prod **stays reachable on `178.104.82.146` the whole time** — clients migrate as
