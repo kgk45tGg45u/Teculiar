@@ -31,26 +31,43 @@
 
 # Shared routing for a tenant APEX host that serves storefront + /admin + /client + /api by path.
 # Arg {args[0]} = that tenant's storefront container port.
+# (Caddyfile syntax: a `{` must end its line — no one-line blocks.)
 (tenant_apex_routes) {
 	tls {
 		on_demand
 	}
 
 	# API + uploads → the API container (Host preserved → tenant resolved from tenant_domains).
-	handle /api/*     { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
-	handle /uploads/* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
+	handle /api/* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
+	}
+	handle /uploads/* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
+	}
 
 	# Dashboards (admin + client + login + reset) → the dashboards container.
-	handle /admin*          { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
-	handle /client*         { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
-	handle /login*          { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
-	handle /reset-password* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+	handle /admin* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
+	handle /client* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
+	handle /login* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
+	handle /reset-password* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
 
 	# Dashboard bundles: assetPrefix=/_dash → strip back to the dashboards' real /_next (handle_path strips).
-	handle_path /_dash/* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+	handle_path /_dash/* {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
 
 	# Everything else → this tenant's storefront container.
-	handle { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:{args[0]} }
+	handle {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:{args[0]}
+	}
 }
 
 # ── Smoke test (README Part 1, step 7): proves on-demand TLS + routing end-to-end WITHOUT touching any
@@ -83,11 +100,15 @@ dezhost.com, www.dezhost.com {
 # Example (self-hosted-storefront shape), enable when the model is chosen:
 #
 # https:// {
-# 	tls { on_demand }
-# 	@api    header_regexp Host ^api\.
-# 	@admin  header_regexp Host ^admin\.
-# 	@client header_regexp Host ^client\.
-# 	handle @api    { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
-# 	handle @admin  { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
-# 	handle @client { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+# 	tls {
+# 		on_demand
+# 	}
+# 	@api header_regexp Host ^api\.
+# 	handle @api {
+# 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
+# 	}
+# 	@dash header_regexp Host ^(admin|client)\.
+# 	handle @dash {
+# 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+# 	}
 # }
