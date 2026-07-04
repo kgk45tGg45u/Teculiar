@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
 import { ControlPlaneService } from "./control-plane.service";
+import { verificationCandidates } from "./domain-verification";
 
 /**
  * One-off CLI to map a custom hostname to a tenant + white-label surface (Phase 4.6). This is what
@@ -36,8 +38,20 @@ async function main(): Promise<void> {
       console.error(`No tenant with subdomain "${subdomain}". Provision it first (bootstrap-tenant).`);
       process.exit(1);
     }
-    const domain = await cp.registerDomain({ host, tenantId: tenant.id, surface, status });
+    // Pending = external-customer flow: generate the ownership token and print the TXT record the
+    // customer must publish; the host goes active via GET /api/v1/tenancy/verify-domain?host=...
+    const verifyToken = status === "pending" ? randomBytes(24).toString("hex") : undefined;
+    const domain = await cp.registerDomain({ host, tenantId: tenant.id, surface, status, verifyToken });
     console.log(`\n✅ ${domain.host} → tenant "${tenant.subdomain}" (surface=${domain.surface}, status=${domain.status}).\n`);
+    if (verifyToken) {
+      console.log(
+        `Ownership proof — have the customer publish this DNS TXT record (either name works):\n` +
+          verificationCandidates(domain.host)
+            .map((name) => `  ${name}  TXT  "${verifyToken}"`)
+            .join("\n") +
+          `\nThen activate with:\n  curl "https://teculiar.net/api/v1/tenancy/verify-domain?host=${domain.host}"\n`
+      );
+    }
   } finally {
     await app.close();
   }

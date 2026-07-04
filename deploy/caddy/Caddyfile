@@ -90,25 +90,63 @@ dezhost.com, www.dezhost.com {
 	import tenant_apex_routes 3021
 }
 
-# ── External customer custom domains (dynamic, on-demand TLS) ───────────────────────────────────────────
-# TODO(before onboarding the first external customer): finalize the hosting model (open decision O-2 +
-# apexMode). Two shapes:
-#   • Self-hosted storefront (install-script): only admin.<domain>/client.<domain>/api.<domain> point HERE;
-#     the apex storefront runs on the customer's own box. Route api.* → :4001, admin.*/client.* → :3010.
-#   • Hosted storefront: the apex points here too and needs a per-tenant (or Host-multiplexed) storefront
-#     container — not yet built. Until then, external tenants use a `*.teculiar.net` subdomain or self-host.
-# Example (self-hosted-storefront shape), enable when the model is chosen:
-#
-# https:// {
-# 	tls {
-# 		on_demand
-# 	}
-# 	@api header_regexp Host ^api\.
-# 	handle @api {
-# 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
-# 	}
-# 	@dash header_regexp Host ^(admin|client)\.
-# 	handle @dash {
-# 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
-# 	}
-# }
+# ── External customer custom domains (dynamic, on-demand TLS; O-3 = SELF-HOSTED storefront) ─────────────
+# The customer's APEX storefront runs on THEIR box (install script); only their per-surface subdomains
+# point here: api.<domain> (whole host = the API), admin.<domain> / client.<domain> (hosted dashboards).
+# Every host must be a registered ACTIVE tenant_domains row (the on_demand ask gate enforces it, and the
+# API resolves the tenant from the Host). Named sites above always win over this catch-all.
+https:// {
+	tls {
+		on_demand
+	}
+
+	# api.<domain> — the whole host is the hosted API (the self-hosted storefront's same-domain API base).
+	@apiHost header_regexp Host "^api\."
+	handle @apiHost {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
+	}
+
+	# admin./client.<domain> — hosted dashboards, white-label. The dashboards app serves its pages under
+	# /admin,/client,/login, so the bare root redirects to the right section.
+	@adminRoot {
+		header_regexp Host "^admin\."
+		path /
+	}
+	redir @adminRoot /admin
+
+	@clientRoot {
+		header_regexp Host "^client\."
+		path /
+	}
+	redir @clientRoot /client
+
+	# The dashboard pages call their own origin: /api + /uploads must reach the API from these hosts too.
+	@dashApi {
+		header_regexp Host "^(admin|client)\."
+		path /api/* /uploads/*
+	}
+	handle @dashApi {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
+	}
+
+	# Dashboard bundles (assetPrefix /_dash) — strip back to the app's real /_next.
+	@dashAssets {
+		header_regexp Host "^(admin|client)\."
+		path /_dash/*
+	}
+	handle @dashAssets {
+		uri strip_prefix /_dash
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
+
+	@dashHost header_regexp Host "^(admin|client)\."
+	handle @dashHost {
+		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010
+	}
+
+	# A registered host that is none of the known surfaces (e.g. a customer apex pointed here by
+	# mistake — self-hosted apexes belong on the CUSTOMER's box): refuse clearly instead of guessing.
+	handle {
+		respond "This hostname is not a Teculiar surface (expected api./admin./client. subdomain)." 404
+	}
+}

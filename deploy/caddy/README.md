@@ -197,4 +197,39 @@ When a small cloud box becomes available, the edge moves off eu01 **without cust
 
 ---
 
+## Part 6 — Onboarding an EXTERNAL customer (manual runbook, v1)
+
+Model (O-2/O-3 decisions): the customer **self-hosts the Blue storefront on their apex** (install script);
+their **`admin.` / `client.` / `api.` subdomains CNAME to the edge** (the Caddyfile catch-all routes them);
+client area defaults to the apex path. The admin Setup-Wizard UI automates this later — until then:
+
+1. **Tecreator provisions the tenant** on purchase (or `bootstrap-tenant.js` manually) → `<sub>.teculiar.net`.
+2. **Register their hosts as PENDING** (generates + prints the ownership TXT record):
+   ```bash
+   docker compose exec api node apps/api/dist/tenancy/register-domain.js api.acmehost.com    acme api    pending
+   docker compose exec api node apps/api/dist/tenancy/register-domain.js admin.acmehost.com  acme admin  pending
+   docker compose exec api node apps/api/dist/tenancy/register-domain.js client.acmehost.com acme client pending
+   ```
+   All three share one proof: a single `_teculiar-verify.acmehost.com TXT "<token>"` covers every subdomain
+   (the checker walks up the labels). Send the customer the TXT record + the three CNAMEs.
+3. **Customer DNS:** the TXT record above, plus `api./admin./client.acmehost.com` → CNAME `edge.teculiar.net`
+   (an A record to the floating IP works too).
+4. **Activate** once the TXT resolves (idempotent; poll until `ok:true`):
+   ```bash
+   curl "https://teculiar.net/api/v1/tenancy/verify-domain?host=api.acmehost.com"
+   curl "https://teculiar.net/api/v1/tenancy/verify-domain?host=admin.acmehost.com"
+   curl "https://teculiar.net/api/v1/tenancy/verify-domain?host=client.acmehost.com"
+   ```
+   From then on the edge issues each host's cert on first request — nothing else on our side.
+5. **Customer installs the storefront** on their own server:
+   ```bash
+   TENANT=acme DOMAIN=acmehost.com bash <(curl -fsSL https://get.teculiar.com/install.sh)
+   ```
+   (Serve `deploy/storefront-install/install.sh` at that URL from the teculiar.net vhost.
+   ⚠️ First make the `dezhost-storefront` ghcr package **public**, or customers cannot pull the image.)
+6. **Verify:** `https://acmehost.com` (their box) shows the storefront; `https://client.acmehost.com` shows
+   the portal white-label; a password-reset email links to their domain (per-tenant URLs, 4.6b).
+
+---
+
 Caddy is free (Apache-2.0), including on-demand TLS — no license, no per-tenant fee, at any scale.

@@ -154,6 +154,15 @@ export class ControlPlaneService implements OnModuleDestroy {
     return host;
   }
 
+  /** Flip a verified host to ACTIVE (routable + TLS-issuable) and drop its cached deny decisions. */
+  async activateDomain(host: string): Promise<TenantDomain> {
+    const key = host.toLowerCase();
+    const domain = await this.db().tenantDomain.update({ where: { host: key }, data: { status: "active" } });
+    this.activeHostCache.delete(key);
+    this.apexCache.delete(domain.tenantId);
+    return domain;
+  }
+
   async listDomains(tenantId?: string): Promise<TenantDomain[]> {
     if (!this.enabled) {
       return [];

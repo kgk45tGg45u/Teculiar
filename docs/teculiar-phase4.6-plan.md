@@ -357,10 +357,24 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   Runbook incl. change ledger/revert/migration/B3 exit: `deploy/caddy/README.md`. ⛔ Still to build before
   the FIRST external customer: the Caddyfile catch-all (needs **O-2**: self-hosted vs hosted external
   storefront) + DNS-TXT ownership verify (pairs with 4.6f).
-- **4.6e — SSO handoff:** endpoints + `/sso/handoff` `/sso/callback` pages + PKCE + returnTo validation.
-- **4.6f — Onboarding wizard:** admin Setup Wizard (domain, apexMode, subdomains, DNS records, verify
-  polling, optional install one-liner); install script `get.teculiar.com/install.sh`.
-- **4.6g — Convert the box:** Part U + new bring-up; prod E2E on the new hosts.
+- **4.6e — SSO handoff — 💤 DEFERRED BY DECISION (O-2):** default client-area placement is the apex path
+  (same-origin, no SSO needed); the `client.` subdomain is a per-tenant opt-in. Build 4.6e when the first
+  tenant actually opts in — not before.
+- **4.6f — External onboarding ✅ BACKEND + SCRIPT DONE (2026-07-04); wizard UI deferred:** Caddyfile
+  **catch-all enabled** (self-hosted shape per O-3: `api.*` → API host-whole; `admin.*`/`client.*` →
+  dashboards with root-redirect + `/_dash` strip + same-origin `/api`; unknown surfaces 404);
+  **DNS-TXT ownership verification** (`domain-verification.ts` walk-up candidates + injected-resolver
+  matching; `GET /tenancy/verify-domain?host=` flips pending→active only on proof; `register-domain` CLI
+  generates + prints the TXT record for `pending`); **install script**
+  `deploy/storefront-install/install.sh` (Docker + compose + runtime `TECULIAR_UPSTREAM=https://api.<domain>`
+  + web-server instructions). ⚠️ OP ITEM before first customer: make the ghcr storefront image PUBLIC (it's
+  private; customers can't pull). The **admin Setup Wizard UI** is deferred until Tecreator sales open —
+  onboarding v1 is the manual runbook (deploy/caddy/README.md Part 6) + these CLIs.
+- **4.6g — Convert the box + prod verification ✅ DONE (2026-07-04):** the box converted organically during
+  4.6d (Part U superseded — nothing left to undo; ledger in deploy/caddy/README.md Part 2). Production
+  state verified: **teculiar.com fully on the edge** (Caddy TLS + white-label routing), **dezhost.com
+  untouched on the old single-tenant stack** pending its gated cutover (server-migration §6c), teculiar.net
+  on Apache H.4. Full dezhost prod E2E runs at the §6c cutover per CLAUDE.md (new-tenant creds).
 
 Each sub-phase updates [teculiar-architecture.md](./teculiar-architecture.md) +
 [teculiar-operations.md](./teculiar-operations.md) as it lands, per CLAUDE.md.
