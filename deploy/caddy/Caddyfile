@@ -1,50 +1,70 @@
-# Teculiar edge — Caddy (Phase 4.6d, topology B1: Caddy on eu01's SECOND IP).
+# Teculiar edge — Caddy (Phase 4.6d, topology B1: Caddy on eu01's floating IP, Apache keeps the primary IP).
 #
-# Apache keeps the FIRST IP :443 (Virtualmin hosting customers + the current teculiar.net/.com/dezhost.com
-# vhosts). Caddy binds the SECOND IP :443 and terminates TLS for tenant domains whose DNS points at it.
-# Caddy preserves the client Host header by default, so the API resolves the tenant from `tenant_domains`
-# exactly as through Apache.
+# Apache stays on the PRIMARY IP :80/:443 (all Virtualmin hosting customers + the own-domain Apache
+# bootstrap + their Let's Encrypt). Caddy binds ONLY the FLOATING IP and terminates TLS for Teculiar
+# tenant domains whose DNS points at it. Caddy preserves the client Host header by default, so the API
+# resolves the tenant from `tenant_domains` exactly as through Apache.
 #
-# ⚠️ Untested template — run `caddy validate --config Caddyfile` and test on teculiar.com BEFORE dezhost.com.
-# Replace 203.0.113.2 with eu01's real second IPv4 (or use the IPv6). Container ports match /opt/teculiar
-# (.env): API 4001, dashboards 3010, teculiar storefront 3011, dezhost storefront 3021.
+# EVERY site here uses on-demand TLS: Caddy attempts NO certificates at startup — a cert is only issued
+# when a TLS handshake actually arrives at the floating IP AND the API's tls-allowed endpoint approves the
+# hostname. So this config is completely inert for a domain until you point its DNS at the floating IP.
+#
+# ⚠️ Run `sudo caddy validate --config /etc/caddy/Caddyfile` after every edit. Full runbook: ./README.md.
+# Container ports match /opt/teculiar/.env: API 4001, dashboards 3010, teculiar storefront 3011,
+# dezhost storefront 3021.
+#
+# {$TECULIAR_BACKEND_HOST:127.0.0.1}: on the one-box setup the containers are local (default). If Caddy
+# later moves to a dedicated edge box (README Part 5), set TECULIAR_BACKEND_HOST=<eu01 private IP> via
+# `systemctl edit caddy` → [Service] Environment=... — same file, no other change.
 
 {
-	# Bind every site below to the second IP so Apache keeps the first IP untouched.
-	default_bind 203.0.113.2
+	# Bind ONLY the floating IP (195.201.252.12) so Apache keeps the primary IP untouched.
+	default_bind 195.201.252.12
 
-	# On-demand TLS for UNKNOWN (external customer) hosts: before issuing a cert, ask the API whether the
-	# host is a registered ACTIVE tenant domain. Only a 2xx allows issuance → the edge never mints certs for
-	# arbitrary hostnames pointed at this IP (anti-abuse + Let's-Encrypt-quota gate). Named sites below get
-	# their certs the normal way and do not hit this.
+	# On-demand TLS gate: before issuing a cert for a hostname, ask the API whether it is a registered
+	# ACTIVE tenant domain (tenant_domains). Only a 2xx allows issuance → the edge never mints certs for
+	# arbitrary hostnames pointed at this IP (anti-abuse + Let's-Encrypt-quota protection).
 	on_demand_tls {
-		ask http://127.0.0.1:4001/api/v1/tenancy/tls-allowed
-		interval 2m
-		burst 5
+		ask http://{$TECULIAR_BACKEND_HOST:127.0.0.1}:4001/api/v1/tenancy/tls-allowed
 	}
 }
 
 # Shared routing for a tenant APEX host that serves storefront + /admin + /client + /api by path.
 # Arg {args[0]} = that tenant's storefront container port.
 (tenant_apex_routes) {
+	tls {
+		on_demand
+	}
+
 	# API + uploads → the API container (Host preserved → tenant resolved from tenant_domains).
-	handle /api/*     { reverse_proxy 127.0.0.1:4001 }
-	handle /uploads/* { reverse_proxy 127.0.0.1:4001 }
+	handle /api/*     { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
+	handle /uploads/* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
 
 	# Dashboards (admin + client + login + reset) → the dashboards container.
-	handle /admin*          { reverse_proxy 127.0.0.1:3010 }
-	handle /client*         { reverse_proxy 127.0.0.1:3010 }
-	handle /login*          { reverse_proxy 127.0.0.1:3010 }
-	handle /reset-password* { reverse_proxy 127.0.0.1:3010 }
+	handle /admin*          { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+	handle /client*         { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+	handle /login*          { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+	handle /reset-password* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
 
 	# Dashboard bundles: assetPrefix=/_dash → strip back to the dashboards' real /_next (handle_path strips).
-	handle_path /_dash/* { reverse_proxy 127.0.0.1:3010 }
+	handle_path /_dash/* { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
 
 	# Everything else → this tenant's storefront container.
-	handle { reverse_proxy 127.0.0.1:{args[0]} }
+	handle { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:{args[0]} }
 }
 
-# ── Own domains (Part L dogfood): named sites, normal auto-HTTPS, explicit storefront port ──
+# ── Smoke test (README Part 1, step 7): proves on-demand TLS + routing end-to-end WITHOUT touching any
+# live domain. Needs: (a) DNS A record edge-test.teculiar.net → the floating IP (overrides the wildcard),
+# (b) `register-domain.js edge-test.teculiar.net teculiar apex active`. Then browse it. Remove or keep —
+# it is inert while its DNS/registration are absent.
+edge-test.teculiar.net {
+	import tenant_apex_routes 3011
+}
+
+# ── Own domains (Part L dogfood): DORMANT until their DNS is repointed at the floating IP — on-demand TLS
+# means no startup issuance, so these blocks are safe to keep while Apache still serves the domains.
+# ⚠️ Before flipping DNS for the www hosts, also register them:
+#    register-domain.js www.teculiar.com teculiar apex active   (and www.dezhost.com dezhost apex active)
 teculiar.com, www.teculiar.com {
 	import tenant_apex_routes 3011
 }
@@ -62,12 +82,12 @@ dezhost.com, www.dezhost.com {
 #     container — not yet built. Until then, external tenants use a `*.teculiar.net` subdomain or self-host.
 # Example (self-hosted-storefront shape), enable when the model is chosen:
 #
-# *.<matches any registered host via on_demand ask> {
+# https:// {
 # 	tls { on_demand }
 # 	@api    header_regexp Host ^api\.
 # 	@admin  header_regexp Host ^admin\.
 # 	@client header_regexp Host ^client\.
-# 	handle @api    { reverse_proxy 127.0.0.1:4001 }
-# 	handle @admin  { reverse_proxy 127.0.0.1:3010 }   # dashboards serve /admin — confirm the URL/asset story
-# 	handle @client { reverse_proxy 127.0.0.1:3010 }
+# 	handle @api    { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001 }
+# 	handle @admin  { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
+# 	handle @client { reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:3010 }
 # }
