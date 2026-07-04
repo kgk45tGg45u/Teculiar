@@ -16,7 +16,6 @@
 # {$TECULIAR_BACKEND_HOST:127.0.0.1}: on the one-box setup the containers are local (default). If Caddy
 # later moves to a dedicated edge box (README Part 5), set TECULIAR_BACKEND_HOST=<eu01 private IP> via
 # `systemctl edit caddy` → [Service] Environment=... — same file, no other change.
-
 {
 	# Bind ONLY the floating IP (195.201.252.12) so Apache keeps the primary IP untouched.
 	default_bind 195.201.252.12
