@@ -119,10 +119,12 @@ Once the A record resolves (`dig +short edge-test.teculiar.net` → `195.201.252
 ```bash
 curl -sI https://edge-test.teculiar.net | head -3
 ```
-First request: Caddy asks `tls-allowed` (allowed — you registered it), gets a Let's Encrypt cert via
-HTTP-01 on the floating IP, and serves the teculiar storefront. Browser check: valid padlock,
-`/admin` + `/client` load. `journalctl -u caddy -e` shows the issuance. **This proves the entire pipeline —
-on-demand gate, ACME, tenant resolution, container routing — with zero risk to live domains.**
+First request: Caddy asks `tls-allowed` (allowed — you registered it), gets a Let's Encrypt cert (HTTP-01
+or TLS-ALPN-01, both land on the floating IP), and serves the teculiar storefront. Expect **`307`** on the
+bare apex — that's the storefront's locale redirect (`/` → `/de`); add `-L` to follow it to the `200`.
+Browser check: valid padlock, `/admin` + `/client` load. `journalctl -u caddy -e` shows the issuance.
+**This proves the entire pipeline — on-demand gate, ACME, tenant resolution, container routing — with zero
+risk to live domains.** *(Verified on eu01 2026-07-04: teculiar.com issued in ~3 s via tls-alpn-01.)*
 
 Negative test (the abuse gate): point any unregistered hostname you control at the floating IP and curl it —
 the TLS handshake must **fail** (ask → 404 → no cert). 

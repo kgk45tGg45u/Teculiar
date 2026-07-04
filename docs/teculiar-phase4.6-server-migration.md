@@ -110,10 +110,14 @@ deliberately **not** part of this change.
    IP hit the Apache block (still in place), clients on the new IP hit Caddy.
 4. **Verify via Caddy explicitly** (before propagation finishes):
    ```bash
-   curl -sI --resolve teculiar.com:443:195.201.252.12 https://teculiar.com | head -3
+   curl -sIL --resolve teculiar.com:443:195.201.252.12 https://teculiar.com | grep HTTP
+   # first line 307 (the storefront's locale redirect, / → /de) then 200 — both expected
    journalctl -u caddy -e     # shows the Let's Encrypt issuance for teculiar.com on first hit
    ```
    Browser: storefront + `/admin` + `/client` load with a valid padlock, URL stays teculiar.com.
+   ⚠️ Do the DNS change (step 2) BEFORE this curl: `--resolve` only redirects *your* curl — Let's Encrypt
+   validates against real public DNS, so issuance fails (curl hangs) until the A record points at the edge,
+   and failed validations are rate-limited (5/hostname/hour).
 5. **Remove the interim Apache block:** Virtualmin → teculiar.com vhost → Edit Directives → delete the §6b
    `ProxyPreserveHost`/`ProxyPass` lines → reload Apache. (Only after propagation — removing early breaks
    clients still resolving the old IP.)
