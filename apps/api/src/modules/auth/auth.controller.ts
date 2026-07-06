@@ -5,6 +5,7 @@ import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { SsoExchangeDto, SsoRedeemDto } from "./dto/sso.dto";
 import { VerifyTotpDto } from "./dto/verify-totp.dto";
 
 @Controller("auth")
@@ -45,6 +46,26 @@ export class AuthController {
   @Post("logout")
   logout(@Body() dto: RefreshTokenDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  // Cross-origin session handoff (Phase 4.6e): mint a one-time code on the origin that HAS the session…
+  @UseGuards(JwtAuthGuard)
+  @Post("sso/exchange")
+  ssoExchange(
+    @Req() request: Request & { user: { sub: string; email: string; roles?: string[] } },
+    @Body() dto: SsoExchangeDto
+  ) {
+    return this.auth.ssoExchange(
+      { id: request.user.sub, email: request.user.email, roles: request.user.roles ?? [] },
+      dto.targetOrigin,
+      dto.codeChallenge
+    );
+  }
+
+  // …and redeem it (with the PKCE verifier) on the target origin for fresh host-local tokens.
+  @Post("sso/redeem")
+  ssoRedeem(@Body() dto: SsoRedeemDto, @Req() request: Request) {
+    return this.auth.ssoRedeem(dto.code, dto.codeVerifier, request.headers.host, request.ip, request.header("user-agent"));
   }
 
   @UseGuards(JwtAuthGuard)

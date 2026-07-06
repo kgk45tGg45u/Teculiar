@@ -1,13 +1,17 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Optional, UnauthorizedException } from "@nestjs/common";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { EmailService } from "../email/email.service";
 import { UsersRepository } from "../users/users.repository";
+import { ControlPlaneService } from "../../tenancy/control-plane.service";
 import { accessSecret } from "../../tenancy/jwt-secrets";
+import { getTenantContext } from "../../tenancy/tenant-context";
 import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
+import { allowedOrigins } from "../../cors-origin";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { originHostname, sha256Base64Url, SsoHandoffStore } from "./sso-handoff";
 
 type TokenUser = {
   id: string;
@@ -17,10 +21,14 @@ type TokenUser = {
 
 @Injectable()
 export class AuthService {
+  // In-memory one-time codes for the cross-origin SSO handoff (Phase 4.6e; single API instance).
+  private readonly ssoStore = new SsoHandoffStore();
+
   constructor(
     private readonly jwt: JwtService,
     private readonly users: UsersRepository,
-    private readonly emails?: EmailService
+    @Optional() private readonly emails?: EmailService,
+    @Optional() private readonly controlPlane?: ControlPlaneService
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
@@ -221,6 +229,84 @@ export class AuthService {
     }
     await this.users.enableTotp(userId);
     return { enabled: true };
+  }
+
+  /**
+   * SSO handoff step 1 (Phase 4.6e): mint a one-time code for carrying the CURRENT session to another
+   * origin of the SAME tenant (e.g. storefront apex → client.theirdomain.com). The code is bound to the
+   * user, tenant, exact target host and a PKCE challenge; the token itself never leaves this origin.
+   */
+  async ssoExchange(user: TokenUser, targetOrigin: string, codeChallenge: string) {
+    if (user.id === "emergency-admin") {
+      throw new BadRequestException("The emergency session cannot be handed off");
+    }
+    if (!codeChallenge || codeChallenge.length < 20) {
+      throw new BadRequestException("codeChallenge is required (base64url sha256 of the verifier)");
+    }
+    const targetHost = originHostname(targetOrigin);
+    if (!targetHost) {
+      throw new BadRequestException("targetOrigin must be a valid origin URL");
+    }
+    const tenant = getTenantContext()?.tenant ?? null;
+    if (!(await this.isTenantOrigin(targetHost, tenant))) {
+      throw new ForbiddenException("targetOrigin does not belong to this tenant");
+    }
+    const code = this.ssoStore.mint({
+      userId: user.id,
+      email: user.email,
+      tenantId: tenant?.id ?? null,
+      targetHost,
+      codeChallenge
+    });
+    return { code, expiresIn: 30 };
+  }
+
+  /**
+   * SSO handoff step 2: redeem the one-time code ON the target origin for fresh tokens. Requires the
+   * PKCE verifier, must arrive on the exact host the code was minted for, within the same tenant.
+   */
+  async ssoRedeem(code: string, codeVerifier: string, requestHost: string | undefined, ipAddress?: string, userAgent?: string) {
+    const grant = this.ssoStore.consume(code ?? "");
+    if (!grant) {
+      throw new UnauthorizedException("Invalid or expired code");
+    }
+    if (!codeVerifier || sha256Base64Url(codeVerifier) !== grant.codeChallenge) {
+      throw new UnauthorizedException("Verification failed");
+    }
+    const host = (requestHost ?? "").split(":")[0]?.trim().toLowerCase() ?? "";
+    if (!host || host !== grant.targetHost) {
+      throw new UnauthorizedException("Code was issued for a different origin");
+    }
+    const tenant = getTenantContext()?.tenant ?? null;
+    if ((tenant?.id ?? null) !== grant.tenantId) {
+      throw new UnauthorizedException("Tenant mismatch");
+    }
+    // Fresh lookup (roles may have changed since the grant was minted).
+    const user = await this.users.findByEmail(grant.email.toLowerCase());
+    if (!user || user.id !== grant.userId) {
+      throw new UnauthorizedException("Unknown user");
+    }
+    const roles = user.userRoles.map((userRole) => userRole.role.slug);
+    void this.users.createAuditLog({
+      action: "user.sso_handoff_redeemed",
+      actorId: user.id,
+      metadata: { email: user.email, targetHost: host, ipAddress, userAgent },
+      subject: "user",
+      subjectId: user.id
+    }).catch(() => undefined);
+    return this.issueTokens({ id: user.id, email: user.email, roles }, ipAddress, userAgent);
+  }
+
+  /** A host is a legal handoff target when it belongs to the request's tenant (or, in single-tenant fallback, to the configured origins). */
+  private async isTenantOrigin(host: string, tenant: { id: string; subdomain: string } | null): Promise<boolean> {
+    if (tenant) {
+      if (host === `${tenant.subdomain}.teculiar.net`.toLowerCase()) {
+        return true;
+      }
+      const domain = await this.controlPlane?.findDomainByHost(host);
+      return Boolean(domain && domain.status === "active" && domain.tenantId === tenant.id);
+    }
+    return allowedOrigins().some((origin) => originHostname(origin) === host);
   }
 
   private async issueTokens(user: TokenUser, ipAddress?: string, userAgent?: string) {

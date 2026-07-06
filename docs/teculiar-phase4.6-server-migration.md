@@ -152,8 +152,12 @@ carry over; the old prod stays read-only for records.
    (`-n` = never overwrite files the new stack already has.)
 4. **Deploy the Dezhost storefront container** (H.6): clone `kgk45tGg45u/Dezhost` →
    `/opt/dezhost-storefront`, `cp .env.example .env`, `docker compose pull && up -d` → `:3021`.
-5. **Verify at `dezhost.teculiar.net`:** admin login, blog posts render (with images), storefront on
-   `127.0.0.1:3021` answers, a test order works.
+5. **Verify.** Note `dezhost.teculiar.net` serves ONLY the API + dashboards (H.4) — **storefront routes
+   (blog, impressum, marketing pages) 404 there by design**; they live in the `:3021` container and go
+   live on dezhost.com at the flip. So: admin login at `dezhost.teculiar.net/admin` (use `/admin`, not the
+   client `/login`); imported posts visible in admin → Blog; public rendering via the container directly:
+   `curl -s http://127.0.0.1:3021/de/blog | grep -o "<title>[^<]*"` (and an `/de/impressum` spot-check);
+   a test order through the storefront container.
 6. **Update the E2E credentials:** the repo `.env`'s `E2E_ADMIN_*`/`E2E_CLIENT_*` are OLD-system accounts;
    start-fresh means they don't exist in the tenant. Set the new admin creds + register a test client
    before running the post-cutover E2E.

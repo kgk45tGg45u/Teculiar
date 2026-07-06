@@ -102,10 +102,12 @@ async function resolveSlug(locale: string, rest: string): Promise<SlugAction> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Hosted parts are reverse-proxied (next.config rewrites) — don't touch them here.
+  // Hosted parts are reverse-proxied (next.config rewrites) — don't touch them here. /sso is the
+  // locale-less session-handoff utility page (Phase 4.6e), never locale-redirected.
   if (
     PROXIED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/sso/") ||
     PUBLIC_FILE.test(pathname)
   ) {
     return NextResponse.next();

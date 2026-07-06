@@ -3,6 +3,7 @@ import { ThemeModule } from "../modules/theme/theme.module";
 import { UsersModule } from "../modules/users/users.module";
 import { ControlPlaneService } from "./control-plane.service";
 import { TenancyController } from "./tenancy.controller";
+import { TenantDomainsController } from "./tenant-domains.controller";
 import { TenantMiddleware } from "./tenant.middleware";
 import { TenantProvisioningService } from "./tenant-provisioning.service";
 
@@ -15,7 +16,7 @@ import { TenantProvisioningService } from "./tenant-provisioning.service";
  */
 @Module({
   imports: [ThemeModule, UsersModule],
-  controllers: [TenancyController],
+  controllers: [TenancyController, TenantDomainsController],
   providers: [ControlPlaneService, TenantProvisioningService, TenantMiddleware],
   exports: [ControlPlaneService, TenantProvisioningService, TenantMiddleware]
 })

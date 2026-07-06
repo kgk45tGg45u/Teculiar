@@ -82,6 +82,7 @@ function buildSettingsNav(c: AdminDict): NavEntry {
     label: c.settings,
     children: [
       { href: "/admin/settings", label: c.view.generalSettings },
+      { href: "/admin/domains", label: c.view.domainSetup },
       { href: "/admin/settings/seo", label: c.view.seoSocial },
       { href: "/admin/settings/cron", label: c.view.cronSettings },
       { href: "/admin/settings/admins", label: c.view.admins },

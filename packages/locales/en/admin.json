@@ -91,7 +91,8 @@
     "modules": "Modules",
     "admins": "Admins & Roles",
     "newTicket": "New Ticket",
-    "departments": "Departments"
+    "departments": "Departments",
+    "domainSetup": "Domains & White-Label"
   },
   "btn": {
     "newPost": "New Post",
@@ -1228,5 +1229,45 @@
       "eyebrowIcon": "Eyebrow icon",
       "imageUrl": "Image URL"
     }
+  },
+  "domains": {
+    "title": "White-label",
+    "subtitle": "Domains & setup",
+    "yourDomain": "Your domain",
+    "domainPlaceholder": "yourdomain.com",
+    "apexModeTitle": "How should your website run?",
+    "apexExternal": "I keep my own website on my domain",
+    "apexExternalHelp": "Your site stays on your server; only the customer/admin areas run on Teculiar subdomains.",
+    "apexSelfhosted": "I host the Teculiar storefront theme on my own server",
+    "apexSelfhostedHelp": "You run the storefront with our install script; dashboards and API stay hosted.",
+    "apexHosted": "Point my whole domain to Teculiar",
+    "apexHostedHelp": "We serve everything — you only change DNS.",
+    "dashboardsTitle": "Where should the admin & customer areas live?",
+    "dashSubdomains": "On subdomains (e.g. client.yourdomain.com)",
+    "dashSubdomainsHelp": "One CNAME per area; the label for the customer area is yours to pick.",
+    "dashApexPaths": "Under my domain paths (yourdomain.com/client)",
+    "dashApexPathsHelp": "Only possible when your domain points to Teculiar.",
+    "clientLabelTitle": "Customer-area subdomain label",
+    "clientLabelHelp": "Default \"client\" — e.g. \"portal\" gives portal.yourdomain.com.",
+    "hostedNote": "Fully hosted storefronts are set up by our team after you save — the DNS records below prepare everything.",
+    "generate": "Save plan & register hosts",
+    "saving": "Saving…",
+    "hosts": "Your hosts",
+    "host": "Host",
+    "surface": "Purpose",
+    "status": "Status",
+    "dnsRecord": "DNS record to add",
+    "txtRecord": "Ownership TXT record",
+    "verify": "Verify",
+    "verifying": "Checking…",
+    "active": "Active",
+    "pending": "Waiting for DNS",
+    "stillPending": "TXT record not found yet — DNS may still be propagating.",
+    "installTitle": "Install the storefront on your server",
+    "installHelp": "Run this on your server once the api host above is Active:",
+    "notMultiTenant": "Custom domains are managed by the platform and are not available on this installation.",
+    "addFailed": "Could not register",
+    "verifyFailed": "Verification failed",
+    "savedPlan": "Setup saved"
   }
 }

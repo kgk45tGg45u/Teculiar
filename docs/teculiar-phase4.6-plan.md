@@ -357,19 +357,29 @@ on 4.6's origin-allowlist + verification + handoff. No rework.
   Runbook incl. change ledger/revert/migration/B3 exit: `deploy/caddy/README.md`. ⛔ Still to build before
   the FIRST external customer: the Caddyfile catch-all (needs **O-2**: self-hosted vs hosted external
   storefront) + DNS-TXT ownership verify (pairs with 4.6f).
-- **4.6e — SSO handoff — 💤 DEFERRED BY DECISION (O-2):** default client-area placement is the apex path
-  (same-origin, no SSO needed); the `client.` subdomain is a per-tenant opt-in. Build 4.6e when the first
-  tenant actually opts in — not before.
-- **4.6f — External onboarding ✅ BACKEND + SCRIPT DONE (2026-07-04); wizard UI deferred:** Caddyfile
-  **catch-all enabled** (self-hosted shape per O-3: `api.*` → API host-whole; `admin.*`/`client.*` →
-  dashboards with root-redirect + `/_dash` strip + same-origin `/api`; unknown surfaces 404);
-  **DNS-TXT ownership verification** (`domain-verification.ts` walk-up candidates + injected-resolver
-  matching; `GET /tenancy/verify-domain?host=` flips pending→active only on proof; `register-domain` CLI
-  generates + prints the TXT record for `pending`); **install script**
-  `deploy/storefront-install/install.sh` (Docker + compose + runtime `TECULIAR_UPSTREAM=https://api.<domain>`
-  + web-server instructions). ⚠️ OP ITEM before first customer: make the ghcr storefront image PUBLIC (it's
-  private; customers can't pull). The **admin Setup Wizard UI** is deferred until Tecreator sales open —
-  onboarding v1 is the manual runbook (deploy/caddy/README.md Part 6) + these CLIs.
+- **4.6e — SSO handoff ✅ BUILT (2026-07-05, user directed):** `POST /auth/sso/exchange` (Bearer; PKCE
+  challenge; target origin must be an ACTIVE host of the SAME tenant or its `<sub>.teculiar.net`) +
+  `POST /auth/sso/redeem` (verifier + exact-host + tenant binding; single-use 30 s codes; fresh tokens;
+  audited). Pages: storefront `/sso/handoff?to=…` (token never leaves the source origin; verifier rides
+  the URL fragment) + dashboards `/sso/callback`. In-memory code store = single API instance (LB later
+  needs a shared store). 4/4 unit tests. Enables the per-tenant `client.`-subdomain opt-in from O-2.
+- **4.6f — External onboarding ✅ COMPLETE incl. WIZARD UI (2026-07-05):** everything from before
+  (catch-all, DNS-TXT verify, `verify-domain` endpoint, install script, runbook) **plus**: the Caddyfile
+  catch-all now treats **any non-api/non-admin label as the CLIENT surface** — tenants pick their own
+  client subdomain label (`portal.`, `kunde.`, …); **tenant self-service wizard API**
+  (`/admin/tenant-domains`: overview+DNS instructions / register-pending with cross-tenant-claim guard /
+  verify / `whitelabel.config` in tenant SystemSetting) and the **admin Domains panel**
+  (`/admin/domains`, sidebar under Settings): apex mode (own website | self-hosted Blue | fully hosted),
+  dashboards placement (subdomains | apex paths — apex paths blocked for external apexes), custom client
+  label, generated DNS+TXT records, per-host verify button, install one-liner. de+en locale packs.
+  E2E spec `tests/e2e/specs/domain-wizard.spec.ts` (runs against a tenant admin host after deploy).
+  ⚠️ OP ITEMS: ghcr storefront image still PRIVATE; `blue_hosted` apexes for external tenants remain
+  ops-manual (per-tenant storefront container).
+- **Tenant-pinned SSR FIXED (2026-07-05, found via the dezhost admin login bounce):** dashboards' SSR
+  (`web-core/lib/server-api.ts`) fetched a STATIC env upstream (`TECULIAR_UPSTREAM` leaked from the shared
+  env file → always the teculiar tenant), so every other tenant's admin token was verified against the
+  wrong per-tenant JWT secret → 401 → login loop. `serverApiBase()` now derives the SSR API base from the
+  REQUEST Host (falls back to env off-request/local); `apiGetAuth` + the three layout fetches use it.
 - **4.6g — Convert the box + prod verification ✅ DONE (2026-07-04):** the box converted organically during
   4.6d (Part U superseded — nothing left to undo; ledger in deploy/caddy/README.md Part 2). Production
   state verified: **teculiar.com fully on the edge** (Caddy TLS + white-label routing), **dezhost.com

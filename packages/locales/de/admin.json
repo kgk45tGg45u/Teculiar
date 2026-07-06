@@ -91,7 +91,8 @@
     "modules": "Module",
     "admins": "Admins & Rollen",
     "newTicket": "Neues Ticket",
-    "departments": "Abteilungen"
+    "departments": "Abteilungen",
+    "domainSetup": "Domains & White-Label"
   },
   "btn": {
     "newPost": "Neuer Beitrag",
@@ -1228,5 +1229,45 @@
       "eyebrowIcon": "Augenbrauen-Symbol",
       "imageUrl": "Bild-URL"
     }
+  },
+  "domains": {
+    "title": "White-Label",
+    "subtitle": "Domains & Einrichtung",
+    "yourDomain": "Ihre Domain",
+    "domainPlaceholder": "ihredomain.de",
+    "apexModeTitle": "Wie soll Ihre Website laufen?",
+    "apexExternal": "Ich behalte meine eigene Website auf meiner Domain",
+    "apexExternalHelp": "Ihre Seite bleibt auf Ihrem Server; nur Kunden-/Adminbereiche laufen auf Teculiar-Subdomains.",
+    "apexSelfhosted": "Ich hoste das Teculiar-Storefront-Theme auf meinem eigenen Server",
+    "apexSelfhostedHelp": "Sie betreiben die Storefront mit unserem Installationsskript; Dashboards und API bleiben gehostet.",
+    "apexHosted": "Meine gesamte Domain auf Teculiar zeigen lassen",
+    "apexHostedHelp": "Wir liefern alles aus — Sie ändern nur DNS.",
+    "dashboardsTitle": "Wo sollen Admin- & Kundenbereich liegen?",
+    "dashSubdomains": "Auf Subdomains (z. B. client.ihredomain.de)",
+    "dashSubdomainsHelp": "Ein CNAME pro Bereich; das Label für den Kundenbereich wählen Sie selbst.",
+    "dashApexPaths": "Unter meinen Domain-Pfaden (ihredomain.de/client)",
+    "dashApexPathsHelp": "Nur möglich, wenn Ihre Domain auf Teculiar zeigt.",
+    "clientLabelTitle": "Subdomain-Label für den Kundenbereich",
+    "clientLabelHelp": "Standard \"client\" — z. B. \"kunde\" ergibt kunde.ihredomain.de.",
+    "hostedNote": "Voll gehostete Storefronts richtet unser Team nach dem Speichern ein — die DNS-Einträge unten bereiten alles vor.",
+    "generate": "Plan speichern & Hosts registrieren",
+    "saving": "Speichern…",
+    "hosts": "Ihre Hosts",
+    "host": "Host",
+    "surface": "Zweck",
+    "status": "Status",
+    "dnsRecord": "Anzulegender DNS-Eintrag",
+    "txtRecord": "Inhaberschafts-TXT-Eintrag",
+    "verify": "Prüfen",
+    "verifying": "Prüfung…",
+    "active": "Aktiv",
+    "pending": "Wartet auf DNS",
+    "stillPending": "TXT-Eintrag noch nicht gefunden — DNS verbreitet sich evtl. noch.",
+    "installTitle": "Storefront auf Ihrem Server installieren",
+    "installHelp": "Führen Sie dies auf Ihrem Server aus, sobald der api-Host oben Aktiv ist:",
+    "notMultiTenant": "Eigene Domains werden von der Plattform verwaltet und sind auf dieser Installation nicht verfügbar.",
+    "addFailed": "Registrierung fehlgeschlagen",
+    "verifyFailed": "Prüfung fehlgeschlagen",
+    "savedPlan": "Einrichtung gespeichert"
   }
 }

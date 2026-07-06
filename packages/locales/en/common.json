@@ -56,5 +56,7 @@
     "apply": "Apply",
     "close": "Close",
     "open": "Language and currency"
-  }
+  },
+  "ssoRedirecting": "Signing you in…",
+  "ssoFailed": "Sign-in handoff failed. Please log in again."
 }
