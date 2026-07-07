@@ -1,4 +1,4 @@
-import { cycleLabel, invoiceDisplayNumber, money, type ApiOrder, type AuthUser } from "@dezhost/web-core/lib/api";
+import { cycleLabel, invoiceDisplayNumber, isAdminRole, money, type ApiOrder, type AuthUser } from "@dezhost/web-core/lib/api";
 import { orderStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
@@ -20,7 +20,7 @@ type AdminOrder = Omit<ApiOrder, "items"> & {
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
   const { orderId } = await params;

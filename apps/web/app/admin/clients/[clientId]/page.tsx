@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { formatCustomerNumber, invoiceDisplayNumber, money, type ApiClient, type AuthUser } from "@dezhost/web-core/lib/api";
+import { formatCustomerNumber, invoiceDisplayNumber, isAdminRole, money, type ApiClient, type AuthUser } from "@dezhost/web-core/lib/api";
 import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
@@ -12,7 +12,7 @@ import { invoiceStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/st
 
 export default async function AdminClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
   const { clientId } = await params;

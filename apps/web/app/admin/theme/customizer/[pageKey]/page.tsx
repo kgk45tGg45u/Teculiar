@@ -1,4 +1,4 @@
-import type { AuthUser } from "@dezhost/web-core/lib/api";
+import { isAdminRole, type AuthUser } from "@dezhost/web-core/lib/api";
 import { CustomizerBuilder } from "../../../../../components/admin/customizer/builder";
 import type { CustomizerPageData } from "../../../../../components/admin/customizer/api";
 import type { AdminThemeData } from "../../../../../components/admin/theme/types";
@@ -16,7 +16,7 @@ export default async function CustomizerPage({ params }: { params: Promise<{ pag
     apiGetAuth<AdminThemeData>("/admin/dev/theme")
   ]);
 
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
 

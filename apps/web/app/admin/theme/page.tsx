@@ -1,4 +1,4 @@
-import type { AuthUser } from "@dezhost/web-core/lib/api";
+import { isAdminRole, type AuthUser } from "@dezhost/web-core/lib/api";
 import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { AdminSidebar } from "../../../components/admin/admin-sidebar";
 import { ThemeBuilder } from "../../../components/admin/theme/theme-builder";
@@ -29,7 +29,7 @@ export default async function ThemePage() {
     apiGetAuth<BlueThemeSettings>("/admin/dev/theme/settings").then((r) => r ?? { blue: {} })
   ]);
 
-  if (!user?.roles.some((r) => r === "admin" || r === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
 

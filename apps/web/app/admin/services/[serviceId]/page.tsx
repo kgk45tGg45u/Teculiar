@@ -1,4 +1,4 @@
-import { cycleLabel, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "@dezhost/web-core/lib/api";
+import { cycleLabel, isAdminRole, money, serviceUnitPriceCents, type ApiService, type AuthUser } from "@dezhost/web-core/lib/api";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
@@ -10,7 +10,7 @@ import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 
 export default async function AdminServicePage({ params }: { params: Promise<{ serviceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
   const { serviceId } = await params;

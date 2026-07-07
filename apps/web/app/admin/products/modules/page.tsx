@@ -6,7 +6,7 @@ import { Button } from "@dezhost/web-core/components/ui/button";
 import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import type { AuthUser, ApiDomainPrice } from "@dezhost/web-core/lib/api";
+import { isAdminRole, type AuthUser, type ApiDomainPrice } from "@dezhost/web-core/lib/api";
 import { Suspense } from "react";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 
@@ -14,7 +14,7 @@ export default async function AdminModulesPage() {
   const locale = await requestLocale();
   const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
 

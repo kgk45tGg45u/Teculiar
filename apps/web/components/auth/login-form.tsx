@@ -3,7 +3,7 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { API_BASE_URL, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
+import { API_BASE_URL, isAdminRole, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import type { Locale } from "@dezhost/web-core/lib/i18n";
 import { notify } from "@dezhost/web-core/components/ui/toast-provider";
@@ -39,7 +39,7 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
       notify.error(copy.loginFailed);
       return;
     }
-    if (admin && !payload.user.roles.some((role) => role === "admin" || role === "staff")) {
+    if (admin && !isAdminRole(payload.user.roles)) {
       setError(copy.adminRequired);
       notify.error(copy.adminRequired);
       return;

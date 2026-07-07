@@ -58,7 +58,7 @@ export class BillingController {
     response.send(pdf);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("invoices")
   createInvoice(@Body() dto: CreateInvoiceDto) {
     return this.billing.createInvoice(dto);
@@ -127,43 +127,43 @@ export class BillingController {
     return this.billing.deletePaymentMethod(request.user.sub, id);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("invoices/:id/mark-paid")
   markInvoicePaid(@Param("id") id: string, @Body() body: { actorId?: string }) {
     return this.billing.markInvoicePaid(id, { actorId: body.actorId, source: "admin" });
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("invoices/:id/mark-unpaid")
   markInvoiceUnpaid(@Param("id") id: string, @Body() body: { actorId?: string; reason?: string }) {
     return this.billing.markInvoiceUnpaid(id, body);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("invoices/:id/refund")
   refundInvoice(@Param("id") id: string, @Body() body: { actorId?: string; reason?: string }) {
     return this.billing.refundInvoice(id, body);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Delete("invoices/:id")
   deleteInvoice(@Param("id") id: string) {
     return this.billing.deleteInvoice(id);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("subscriptions")
   createSubscription(@Body() dto: CreateSubscriptionDto) {
     return this.billing.createSubscription(dto);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("subscriptions/:id/renew")
   renewSubscription(@Param("id") id: string) {
     return this.billing.renewSubscription(id);
   }
 
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Get("reports/revenue")
   revenueReport() {
     return this.billing.revenueReport();

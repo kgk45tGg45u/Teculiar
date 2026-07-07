@@ -1,4 +1,4 @@
-import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, money, type ApiInvoice, type AuthUser } from "@dezhost/web-core/lib/api";
+import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, isAdminRole, money, type ApiInvoice, type AuthUser } from "@dezhost/web-core/lib/api";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { invoiceStatusLabel } from "@dezhost/web-core/lib/status-labels";
@@ -11,7 +11,7 @@ import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
   const { invoiceId } = await params;

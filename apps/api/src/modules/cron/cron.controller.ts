@@ -19,7 +19,7 @@ export class CronController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff")
+  @Roles("admin", "staff", "super_admin")
   @Post("admin/run")
   runAdmin() {
     return this.cron.run();

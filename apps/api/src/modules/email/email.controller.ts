@@ -7,7 +7,7 @@ import type { EmailLayoutBlock } from "./email-layouts";
 import { EmailService } from "./email.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff")
+@Roles("admin", "staff", "super_admin")
 @Controller("admin/dev/emails")
 export class EmailAdminController {
   constructor(private readonly emails: EmailService) {}

@@ -695,6 +695,17 @@ export type AuthUser = {
   roles: string[];
 };
 
+/**
+ * Roles that may reach the admin dashboard (front-end gate). Single source of truth so the login
+ * gate, the SSR page guards and the dashboard shell never drift — `super_admin` was missing from
+ * several of them, locking the new super-admin out. `staff` is a legacy slug kept for safety.
+ */
+export const ADMIN_ROLES = ["admin", "staff", "super_admin"] as const;
+
+export function isAdminRole(roles: readonly string[] | undefined | null): boolean {
+  return !!roles?.some((role) => (ADMIN_ROLES as readonly string[]).includes(role));
+}
+
 export type AuthPayload = {
   accessToken: string;
   refreshToken: string;

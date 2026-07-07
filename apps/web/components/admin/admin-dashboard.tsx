@@ -6,6 +6,7 @@ import {
   cycleLabel,
   dateLabel as formatDate,
   invoiceDisplayNumber,
+  isAdminRole,
   money,
   serviceUnitPriceCents,
   type ApiClient,
@@ -74,7 +75,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
   const locale = await requestLocale();
   const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
-  if (!user?.roles.some((role) => role === "admin" || role === "staff")) {
+  if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }
 
