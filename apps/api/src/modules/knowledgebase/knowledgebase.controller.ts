@@ -27,7 +27,7 @@ export class KnowledgebaseController {
 }
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "editor")
+@Roles("admin", "staff", "editor", "super_admin", "support_agent")
 @Controller("admin/dev/knowledgebase")
 export class KnowledgebaseAdminController {
   constructor(private readonly knowledgebase: KnowledgebaseService) {}
