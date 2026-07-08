@@ -513,13 +513,24 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
    edge (`docs/teculiar-phase4.6-server-migration.md` §6c — no Apache swap; rollback = revert DNS). Keep the
    old single-tenant instance reachable read-only until satisfied.
 
-> ### ⛔ Do NOT merge `feat/teculiar-phase4-separation` into `main` yet
-> `main` auto-deploys `:latest` into the LIVE `/opt/dezhost` (`deploy.yml`, `if: refs/heads/main`). The
-> Phase-4 web image defaults `DASHBOARD_ASSET_PREFIX=/_dash`, moving dashboard bundles to `/_dash/_next`,
-> which the **current** dezhost.com Apache does not strip — merging now would break the live dashboards, and
-> the synced compose would also start a storefront container the live box isn't wired for. The whole
-> Teculiar go-live runs on the **`:edge`** stack in `/opt/teculiar`; live prod stays on `:latest` and is
-> untouched. Merge to `main` only at the very end of Part F, when `/opt/dezhost` itself is converted to the
-> multi-tenant stack (or retired in favour of `/opt/teculiar` + the Dezhost storefront).
+> ### ✅ `main` is the production deploy channel (post-cutover, 2026-07-08)
+> The cutover is done: dezhost.com runs on the stack in `/opt/teculiar` (API + dashboards + teculiar.com
+> storefront) + `/opt/dezhost-storefront` (dezhost.com's public storefront) behind the Caddy edge; the old
+> single-tenant `/opt/dezhost` Apache path is retired (containers torn down 2026-07-07). `deploy.yml` has
+> been **repointed** (master-plan **0.6**): `main` → build `:latest` → deploy **/opt/teculiar** *and*
+> **/opt/dezhost-storefront**. Two prerequisites before the first `main` merge:
+> 1. **Flip the box onto the `:latest` channel** (one-time — a workflow can't edit server `.env`):
+>    ```bash
+>    sed -i 's/^IMAGE_TAG=edge/IMAGE_TAG=latest/' /opt/teculiar/.env /opt/dezhost-storefront/.env
+>    ```
+>    Both compose files already use `${IMAGE_TAG:-latest}`.
+> 2. **The repointed `deploy.yml` must be in the merge** — Actions runs the workflow at the merged ref, so
+>    land it on the branch first (done), then merge.
+>
+> After that, every merge to `main` updates the whole stack — **updating Teculiar updates the Dezhost
+> storefront**, which pulls the same monorepo-built `dezhost-storefront` image. ⚠️ The first merge overwrites
+> ghcr `:latest` (today's old single-tenant build) with the multi-tenant build — intended, single-tenant is
+> being retired. Keep `:edge` (feature-branch builds, no deploy) as an optional pre-prod channel. The
+> dezhost→teculiar image/scope **rename** is a separate deliberate change (master-plan **9.1**), not part of this.
 
 _This runbook is updated as each sub-phase lands._

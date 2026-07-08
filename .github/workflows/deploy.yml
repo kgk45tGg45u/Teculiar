@@ -1,8 +1,9 @@
 name: Build & Deploy
 
-# main → build `:latest` + deploy to the LIVE prod (/opt/dezhost).
-# feat/teculiar-phase4-separation (or manual dispatch) → build `:edge` only, NO deploy. This lets the
-# multi-tenant Teculiar stack be built + pulled onto the box without touching the live single-tenant prod.
+# main → build `:latest` + deploy the LIVE multi-tenant stack: /opt/teculiar (API + dashboards +
+#   teculiar.com storefront) AND /opt/dezhost-storefront (dezhost.com's public storefront).
+# feat/teculiar-phase4-separation (or manual dispatch) → build `:edge` only, NO deploy (pre-prod channel;
+#   pull onto the box by hand). Requires the box's IMAGE_TAG=latest so it follows `:latest` (ops doc, Part G).
 on:
   push:
     branches: [main, feat/teculiar-phase4-separation]
@@ -95,8 +96,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: production
-    # Only main auto-deploys to the LIVE prod. Branch/dispatch builds `:edge` and stop after push,
-    # so the Teculiar stack is pulled onto the box by hand (docs/teculiar-operations.md Part H).
+    # Only main auto-deploys. Branch/dispatch builds `:edge` and stops after push (pulled by hand).
+    # Requires a one-time `IMAGE_TAG=latest` in /opt/teculiar/.env + /opt/dezhost-storefront/.env so the
+    # box follows the `:latest` channel main publishes (docs/teculiar-operations.md Part G).
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -116,18 +118,23 @@ jobs:
       # docker login is NOT done here — credentials are stored permanently on
       # the server after a one-time setup (see DEPLOYMENT.md step 2.9).
       # This keeps secrets out of every deploy run entirely.
-      - name: Sync compose file to server
+      - name: Sync compose file to the Teculiar stack
         run: |
           scp -i ~/.ssh/deploy_key \
             docker-compose.prod.yml \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/dezhost/docker-compose.prod.yml"
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/teculiar/docker-compose.prod.yml"
 
       - name: Deploy via SSH
         run: |
           ssh -i ~/.ssh/deploy_key \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
             "set -e
-            cd /opt/dezhost
+            # Hosted API + dashboards + teculiar.com storefront (reads /opt/teculiar/.env → IMAGE_TAG=latest).
+            cd /opt/teculiar
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # dezhost.com public storefront — separate stack, compose from the Dezhost repo (no scp needed).
+            cd /opt/dezhost-storefront
+            docker compose pull
+            docker compose up -d
             docker image prune -f"
