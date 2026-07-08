@@ -88,6 +88,47 @@ export class TenantProvisioningService {
     return { subdomain, dbName, url: `https://${subdomain}.teculiar.net`, adminEmail, adminPassword };
   }
 
+  /**
+   * Ops rescue: reset (or create) a tenant's admin login when the provisioning password was lost or
+   * never took effect. Reuses the same control-plane lookup + connection registry that live requests
+   * use, so it writes to the exact DB `auth/login` authenticates against. Returns the tenant's existing
+   * admin emails (for visibility) plus the email/password to log in with.
+   */
+  async resetTenantAdmin(
+    subdomain: string,
+    email: string,
+    newPassword?: string
+  ): Promise<{ subdomain: string; adminEmail: string; adminPassword: string; existingAdmins: string[]; created: boolean }> {
+    const sub = subdomain.trim().toLowerCase();
+    if (!this.controlPlane.enabled) {
+      throw new BadRequestException("Control-plane is not configured (CONTROL_PLANE_DATABASE_URL is unset).");
+    }
+    const tenant = await this.controlPlane.findBySubdomain(sub);
+    if (!tenant) {
+      throw new BadRequestException(`Tenant "${sub}" not found in the control-plane.`);
+    }
+    const prisma = this.registry.clientFor(tenant.dbUrl);
+    const adminEmail = email.trim().toLowerCase();
+    const adminPassword = newPassword ?? randomBytes(12).toString("base64url");
+    const passwordHash = await hash(adminPassword, 10);
+    return runWithTenant({ tenant: null, prisma, jwtSecrets: { access: "", refresh: "" } }, async () => {
+      const admins = await prisma.user.findMany({
+        where: { userRoles: { some: { role: { slug: { in: ["admin", "super_admin"] } } } } },
+        select: { email: true }
+      });
+      const existing = await prisma.user.findFirst({ where: { email: adminEmail }, select: { id: true } });
+      let created = false;
+      if (existing) {
+        await prisma.user.update({ where: { id: existing.id }, data: { passwordHash } });
+      } else {
+        // No user with that email yet → create it as an admin (also fixes "wrong/absent admin email").
+        await this.users.createUserWithRole({ email: adminEmail, name: "Administrator", passwordHash }, "admin");
+        created = true;
+      }
+      return { subdomain: sub, adminEmail, adminPassword, existingAdmins: admins.map((a) => a.email), created };
+    });
+  }
+
   /** Build the tenant's least-privilege connection string from the admin URL's host. */
   private tenantDbUrl(dbName: string, dbUser: string, dbPassword: string): string {
     const adminUrl = process.env.TENANT_ADMIN_DATABASE_URL;
