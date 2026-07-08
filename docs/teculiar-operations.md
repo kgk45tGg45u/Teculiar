@@ -518,13 +518,18 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
 > storefront) + `/opt/dezhost-storefront` (dezhost.com's public storefront) behind the Caddy edge; the old
 > single-tenant `/opt/dezhost` Apache path is retired (containers torn down 2026-07-07). `deploy.yml` has
 > been **repointed** (master-plan **0.6**): `main` → build `:latest` → deploy **/opt/teculiar** *and*
-> **/opt/dezhost-storefront**. Two prerequisites before the first `main` merge:
-> 1. **Flip the box onto the `:latest` channel** (one-time — a workflow can't edit server `.env`):
+> **/opt/dezhost-storefront**. Prerequisites (one-time on the box) before the first `main` merge:
+> 1. **The `deploy` user must own both target dirs** (as `/opt/dezhost` was — DEPLOYMENT.md `chown
+>    deploy:deploy /opt/dezhost`): `sudo chown -R deploy:deploy /opt/teculiar /opt/dezhost-storefront`.
+>    `/opt/teculiar` was `sudo mkdir`'d (root-owned), so without this the compose `scp` fails
+>    `Permission denied` (seen 2026-07-08 on the first main deploy — build succeeded, deploy job failed
+>    at the scp step, prod untouched).
+> 2. **Flip the box onto the `:latest` channel** (a workflow can't edit server `.env`):
 >    ```bash
 >    sed -i 's/^IMAGE_TAG=edge/IMAGE_TAG=latest/' /opt/teculiar/.env /opt/dezhost-storefront/.env
 >    ```
 >    Both compose files already use `${IMAGE_TAG:-latest}`.
-> 2. **The repointed `deploy.yml` must be in the merge** — Actions runs the workflow at the merged ref, so
+> 3. **The repointed `deploy.yml` must be in the merge** — Actions runs the workflow at the merged ref, so
 >    land it on the branch first (done), then merge.
 >
 > After that, every merge to `main` updates the whole stack — **updating Teculiar updates the Dezhost

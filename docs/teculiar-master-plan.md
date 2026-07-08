@@ -170,7 +170,9 @@ never touch the live stacks. To get "merge to `main` → update everything" (the
 1. **Repoint the deploy job** off `/opt/dezhost`: scp `docker-compose.prod.yml` → `/opt/teculiar/`, then
    `cd /opt/teculiar && docker compose pull && up -d --remove-orphans`; then
    `cd /opt/dezhost-storefront && docker compose pull && up -d` (its compose comes from the `Dezhost` repo —
-   no scp). One main-merge then updates API + dashboards + both storefronts.
+   no scp). One main-merge then updates API + dashboards + both storefronts. **The `deploy` user must own
+   both dirs** — `sudo chown -R deploy:deploy /opt/teculiar /opt/dezhost-storefront` — or the scp fails
+   `Permission denied` (`/opt/teculiar` is `sudo mkdir`'d root-owned by default).
 2. **Flip the release channel** `:edge` → `:latest` (one-time, on the box, since a workflow can't edit server
    `.env`): `sed -i 's/^IMAGE_TAG=edge/IMAGE_TAG=latest/' /opt/teculiar/.env /opt/dezhost-storefront/.env`.
    Both composes already use `${IMAGE_TAG:-latest}`. (`:latest` currently holds the OLD single-tenant build;
