@@ -531,6 +531,11 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
 >    Both compose files already use `${IMAGE_TAG:-latest}`.
 > 3. **The repointed `deploy.yml` must be in the merge** — Actions runs the workflow at the merged ref, so
 >    land it on the branch first (done), then merge.
+> 4. **Pin the host ports in the box `.env`s.** The deploy re-syncs the *parameterized*
+>    `docker-compose.prod.yml` (ports = `${API_PORT:-4000}` / `${WEB_PORT:-3000}` / `${STOREFRONT_PORT:-3001}`),
+>    so the box `.env` must set the ports the Apache/Caddy proxies expect, or the containers bind the
+>    defaults and the proxies 502/503 (seen 2026-07-08). `/opt/teculiar/.env`: `API_PORT=4001`,
+>    `WEB_PORT=3010`, `STOREFRONT_PORT=3011`; `/opt/dezhost-storefront/.env`: `STOREFRONT_PORT=3021`.
 >
 > After that, every merge to `main` updates the whole stack — **updating Teculiar updates the Dezhost
 > storefront**, which pulls the same monorepo-built `dezhost-storefront` image. ⚠️ The first merge overwrites
