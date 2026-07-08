@@ -1,14 +1,18 @@
 # Teculiar — Phase 4.6 plan: per-subdomain white-label + edge TLS (replaces the Apache-proxy model)
 
-Status: **PLANNED** (not started). Supersedes the H.4/H.5 Apache reverse-proxy onboarding in
-[teculiar-operations.md](./teculiar-operations.md) with a per-surface subdomain model, an on-demand-TLS
+Status: **IMPLEMENTED** — 4.6a–f committed (`7d01c77`, `ac511a5`); the Caddy edge is **live** on the
+floating IP (`195.201.252.12`) serving dezhost.com. Supersedes the H.4/H.5 Apache reverse-proxy onboarding
+in [teculiar-operations.md](./teculiar-operations.md) with a per-surface subdomain model, an on-demand-TLS
 edge, redirect-based cross-origin SSO, and per-tenant URL emission. Durable design lives in
 [teculiar-architecture.md](./teculiar-architecture.md); this file is the executable plan + the box
-undo/convert steps.
+undo/convert steps. **Remaining wiring/polish** (consuming `whitelabel.config` for clean-URL per-surface
+subdomains + surface-aware links + cross-origin SSO on "My Account") is
+[teculiar-master-plan.md](./teculiar-master-plan.md) **Phase 2**.
 
-> ⚠️ Do this **after** the current go-live (Part F) or instead of it — but the `:edge` stack is **not yet
-> serving tenants** (H.7 not run), so converting it now is low-risk. Live single-tenant `/opt/dezhost`
-> stays untouched throughout, exactly as today.
+> ✅ **Done (2026-07-06):** the `:edge` stack is now **live and serving dezhost.com** as an apex-path tenant
+> behind Caddy on the floating IP — the cutover (Part F / 4.4) is complete. The old single-tenant
+> `/opt/dezhost` Apache path is bypassed and being retired (its `:3000`/`:4000` containers were torn down
+> 2026-07-07; DB kept read-only for the retention window).
 
 ---
 

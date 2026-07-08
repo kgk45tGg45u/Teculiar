@@ -510,6 +510,17 @@ only differences between tenants are (a) **which modules they enable** and (b) *
 **Teculiar.com is the marketing website for the Teculiar app — NOT a hosting provider**; it is a dogfood
 tenant whose catalog is the Teculiar plans and which runs the **Tecreator** provisioning module.
 
+> **Status update (2026-07-07 — reconciled from [teculiar-master-plan.md](./teculiar-master-plan.md)):**
+> the **Dezhost cutover (4.4) is DONE** — dezhost.com DNS points at the Caddy floating IP
+> (`195.201.252.12`) and is served by the `:edge` `/opt/teculiar` stack as an **apex-path tenant**; the old
+> single-tenant `/opt/dezhost` stack is bypassed (its `:3000`/`:4000` containers torn down 2026-07-07, old
+> DB kept read-only for the retention window). **Phase 4.6a–f are committed** (`7d01c77`, `ac511a5`).
+> **Carried forward** into the consolidated master plan: **4.5** release-sync + tenant Updates panel (→ its
+> **Phase 8**); and the 4.1/4.6 follow-ups — cron tenant-context (→ Phase 3), `ThemeRepository.mirrorsSeeded`
+> per-tenant (→ Phase 3), per-surface-subdomain link/SSO/URL-emission polish (→ Phase 2), and
+> secrets-manager/LB/object-storage (→ Deferred backlog). The active phase-ordered plan now lives in the
+> master plan; this file remains the durable design reference.
+
 **Locked decisions (2026-07-01 design session):**
 1. **Tenancy = shared API + DB-per-tenant** (tenant resolved by subdomain `userNNNN.teculiar.net`; each
    tenant DB is a clone of today's schema). Adds a **control-plane DB** (tenant registry) + **per-request
@@ -654,7 +665,7 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > pass; full API suite back at the **15-failure baseline** (a 4.2 fallout — `apps/api/test` reading moved
 > web files by path — was also fixed here by remapping those refs to `packages/web-core`/`apps/storefront`).
 
-> **Sub-phase 4.4 — Dezhost as first tenant + cutover: DEPLOYMENT IN PROGRESS (2026-07-02).** The code is
+> **Sub-phase 4.4 — Dezhost as first tenant + cutover: ✅ DONE (cutover complete 2026-07-06).** The code is
 > done and the `:edge` stack is up on eu01 (api 4001, dashboards 3010, teculiar.com storefront 3011);
 > operator work through **H.5** (env, containers, Apache for teculiar.net + teculiar.com) is complete. The
 > **two repos are populated**: `Teculiar` (this monorepo, builds all 3 images) and `Dezhost` (thin
@@ -669,6 +680,14 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > whole go-live runs on `:edge` in `/opt/teculiar`. **Open decision for the operator:** the locked plan is
 > "Dezhost starts fresh — import blog posts only" (customers/orders/invoices/domains do NOT carry over);
 > confirm before cutting over, since it drops the live customer base from the new tenant.
+>
+> **✅ Resolution (2026-07-06/07):** cutover executed — dezhost.com is now served by the `:edge` stack as an
+> apex-path tenant behind the Caddy edge on the floating IP; the old `:3000`/`:4000` `/opt/dezhost`
+> containers were torn down (2026-07-07) and the old DB kept **read-only** for the retention window per the
+> master plan's "0.5-later" teardown checklist. The **start-fresh + blog-import-only** decision was taken
+> (customers/orders/invoices/domains not migrated). The old-stack DROP DATABASE / `rm -rf /opt/dezhost`
+> teardown is scheduled for 2–4 weeks post-cutover. ⛔ still applies to any `main` merge: the go-live runs
+> on `:edge`; merge/deploy to `main`/`:latest` only deliberately (see the master plan's global testing rule).
 
 > **Sub-phase 4.5 — Update distribution (reversible): DOCUMENTED (2026-07-02).** Model recorded in ops
 > **Part G**: API + dashboards are hosted/single-version (update = deploy new images, every tenant current
@@ -676,8 +695,17 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > from each tenant's admin **Updates** panel (auto or one-click, one-step revert). The Dezhost storefront
 > updates by pulling the new published image. The generalized `release-sync` publish command (from
 > `scripts/i18n-sync.ts`) is the remaining code piece, deferred until after cutover.
+>
+> **Carried forward (2026-07-07):** the `release-sync` publisher + tenant **Updates** panel are scheduled as
+> **Phase 8** of [teculiar-master-plan.md](./teculiar-master-plan.md) (Distribution, updates & SEO).
 
-### Phase 4.6 — per-subdomain white-label + edge TLS *(planned)*
+### Phase 4.6 — per-subdomain white-label + edge TLS — ✅ **implemented (4.6a–f committed `7d01c77`, `ac511a5`)**
+> **Status (2026-07-07):** the code for 4.6a–f (edge/white-label/SSO handoff/onboarding wizard/install) is
+> committed and the Caddy edge is **live** on the floating IP serving dezhost.com as an apex-path tenant.
+> Remaining **wiring/polish** (consuming `whitelabel.config` for clean-URL per-surface subdomains,
+> surface-aware links front+back, cross-origin SSO on the "My Account" link) is carried into
+> [teculiar-master-plan.md](./teculiar-master-plan.md) **Phase 2**.
+
 Replaces the H.4/H.5 **Apache reverse-proxy** onboarding with **DNS-only** onboarding: each tenant points
 **one hostname per surface** (`admin.`/`client.`/`api.`/apex) at our edge; we serve everything white-label.
 Adds a `TenantDomain` map + full-host tenant/surface resolution (replacing the first-label
