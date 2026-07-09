@@ -1104,6 +1104,19 @@ export class BillingService {
     });
   }
 
+  // A per-order, internal FIXED coupon used to carry an admin-entered discount (excl. VAT) onto an
+  // invoice — and, for recurring discounts, onto a subscription so `renewSubscription` re-applies it
+  // to every future renewal invoice. It has no public code redemption path (inactive, unguessable
+  // code, unlimited redemptions), so it never surfaces as a usable storefront coupon.
+  async createAdHocDiscountCoupon(amountCents: number) {
+    const code = `ADHOC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    return this.billing.createCoupon({ active: false, amountCents, code, maxRedemptions: null, type: "FIXED" });
+  }
+
+  attachSubscriptionCoupon(subscriptionId: string, couponId: string) {
+    return this.billing.attachSubscriptionCoupon(subscriptionId, couponId);
+  }
+
   async renewSubscription(id: string) {
     const subscription = await this.billing.findSubscription(id);
     if (!subscription) {
@@ -1117,6 +1130,36 @@ export class BillingService {
     const serviceRecurringCents = Number((subscription.service as { recurringAmountCents?: number } | null)?.recurringAmountCents ?? 0);
     const renewalUnitAmountCents = serviceRecurringCents > 0 ? serviceRecurringCents : subscription.productPrice.amountCents;
 
+    const lines: Parameters<typeof this.createInvoice>[0]["lines"] = [
+      {
+        description: `${(subscription.service.product as { name?: string } | null)?.name ?? (subscription.service.productSnapshot as { name?: string } | null)?.name ?? "Service"} renewal`,
+        billingCycle: subscription.billingCycle,
+        lifecycleAction: "renew",
+        quantity: 1,
+        type: "SERVICE_RENEWAL",
+        unitAmountCents: renewalUnitAmountCents,
+        serviceId: subscription.serviceId,
+        servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
+        servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
+      }
+    ];
+
+    // A discount carried by the subscription (an admin recurring discount, stored as a coupon) is billed
+    // as its own flat discount line — never distributed into the renewal line, and with NO VAT (vatRate 0)
+    // so a €1 discount takes exactly €1 off the renewal total — exactly like the first invoice. Capped at
+    // the renewal net.
+    const discountNetCents = couponDiscountCents(subscription.coupon, renewalUnitAmountCents);
+    if (discountNetCents > 0) {
+      const main = (await this.i18nLanguages()).main;
+      lines.push({
+        description: main === "de" ? "Rabatt" : "Discount",
+        quantity: 1,
+        type: "DISCOUNT",
+        unitAmountCents: -discountNetCents,
+        vatRate: 0
+      });
+    }
+
     const invoice = await this.createInvoice({
       userId: subscription.userId,
       dueAt: subscription.nextInvoiceAt.toISOString(),
@@ -1124,20 +1167,7 @@ export class BillingService {
       buyerCountryCode: subscription.user.countryCode,
       buyerVatId: subscription.user.vatId ?? undefined,
       isBusinessCustomer: subscription.user.customerType === "BUSINESS",
-      couponCode: subscription.coupon?.code,
-      lines: [
-        {
-          description: `${(subscription.service.product as { name?: string } | null)?.name ?? (subscription.service.productSnapshot as { name?: string } | null)?.name ?? "Service"} renewal`,
-          billingCycle: subscription.billingCycle,
-          lifecycleAction: "renew",
-          quantity: 1,
-          type: "SERVICE_RENEWAL",
-          unitAmountCents: renewalUnitAmountCents,
-          serviceId: subscription.serviceId,
-          servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
-          servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
-        }
-      ]
+      lines
     });
 
     await this.billing.advanceSubscription(id, addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle));
@@ -2566,6 +2596,19 @@ export class BillingService {
 function positiveSetting(value: unknown, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+// The NET discount amount a coupon yields against a base net amount, capped at that base. FIXED coupons
+// give their flat amount; PERCENTAGE coupons a share of the base. Used to bill a subscription's discount
+// as its own line on renewal invoices instead of distributing it across the renewal line.
+function couponDiscountCents(coupon: { type?: string; amountCents?: number; percent?: number } | null | undefined, baseNetCents: number): number {
+  if (!coupon || baseNetCents <= 0) {
+    return 0;
+  }
+  const raw = coupon.type === "PERCENTAGE"
+    ? Math.round((baseNetCents * Number(coupon.percent ?? 0)) / 100)
+    : Number(coupon.amountCents ?? 0);
+  return Math.max(0, Math.min(baseNetCents, raw));
 }
 
 // ── Modular i18n / currency config (stored as JSON in SystemSetting) ──

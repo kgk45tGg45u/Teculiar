@@ -198,14 +198,14 @@ healthcheck-probe issue, tracked as **Phase 3.6**. The `get.teculiar.com/install
 
 Each is small and independent; batch on one branch but commit per fix. Prod-test after each.
 
-### 1.1 Email currency garble `3,99� AC` → `3,99 €`  *(HIGH — every invoice/order email)*
+### 1.1 Email currency garble `3,99� AC` → `3,99 €`  *(HIGH — every invoice/order email)*  ✅ DONE (2026-07-08 — QP now encodes UTF-8 bytes; verified in prod)
 - Root cause: `toQuotedPrintable` in `apps/api/src/modules/email/email.service.ts:886-925` encodes
   **UTF-16 code units** (`line.charCodeAt(i)` → `=20AC`, `=A0`) under a `charset="UTF-8"` part.
 - Fix: encode **UTF-8 bytes** — iterate `Buffer.from(char, "utf8")` for any code point > 126 (or the
   whole line via `Buffer.from(line, "utf8")`), emitting each byte as `=XX`; keep the tab/space and
   soft-wrap logic. Add a unit test asserting `€`/NBSP round-trip through a QP decoder.
 
-### 1.2 Super-admin lockout  *(HIGH — the new super_admin can't log in)*
+### 1.2 Super-admin lockout  *(HIGH — the new super_admin can't log in)*  ✅ DONE (2026-07-08 — super_admin login + admin actions verified in prod)
 - Root cause: front-end gates + login accept only `admin`/`staff`; several APIs `@Roles("admin","staff")`.
 - Front-end: widen the role check to include `super_admin` in `apps/web/components/auth/login-form.tsx:42`,
   `apps/web/components/admin/admin-dashboard.tsx:77`, and the SSR gates in
@@ -217,7 +217,7 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   `apps/api/src/modules/email/email.controller.ts`, `apps/api/src/modules/cron/cron.controller.ts`.
 - Verify: create a `super_admin` via `POST /admin/dev/admins`, log in, hit products/invoices/services.
 
-### 1.3 Admin new-order recurring domain  *(user wants ASAP)*
+### 1.3 Admin new-order recurring domain  *(user wants ASAP)*  ✅ DONE (2026-07-09 — local verify green: typecheck + `next build` + unit tests; deployed via GitHub Actions)
 - Today (`NewOrderForm` in `apps/web/components/admin/admin-forms.tsx` ~1700-1940 → `POST /orders/admin`):
   the domain line uses `defaultDomainProduct.prices[0]?.id` — a single price whose cycle is independent of
   the hosting item; backend `orders.service.ts` already gives domains an annual cadence
@@ -232,6 +232,36 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   - Guard: reject a MONTHLY domain cycle server-side (`orders.service.ts`) with a clear 400.
 - Verify: place a recurring hosting+domain order in admin; confirm the domain gets a yearly `Subscription`
   + renews on its own annual cadence; confirm the storefront checkout path is unaffected.
+- **Follow-up (custom price + discount now reflected on the created artifacts):** the admin form computed
+  custom pricing and discounts in the preview only — the discount was never sent to the backend and the
+  custom price fields were ignored by `priceItem`. Fixed so:
+  - **Custom price** overrides the order item's `unitAmountCents`/`billingCycle` (`priceItem`), flowing to
+    the order item, first invoice, and `Service.recurringAmountCents` → Cron renewals. `applyCustomToRenewals`
+    off keeps renewals at the list price (via `configuration.renewalAmountCents`).
+  - **Discount** (flat) → billed as its **own invoice line** with **no VAT** (`vatRate: 0`): a €1 discount
+    takes exactly €1 off the total; VAT stays computed on the full product/domain lines, which are **never
+    reduced/distributed into**. Applies to the **whole order**. One-time = first invoice only; recurring =
+    the amount is stored on the primary product `Subscription` (as an internal coupon) and `renewSubscription`
+    re-adds an equivalent discount line to every renewal invoice. Shows as a *Discount* line on the order,
+    both invoice sheets, and the PDF. (Superseded two earlier approaches: coupon distribution across lines,
+    then a VAT-carrying discount line.)
+  - **Invoice VAT rule**: all entered/looked-up prices are net; VAT is **added** on top of every product
+    line (hosting + domain), never extracted. The admin preview mirrors the engine so preview = invoice = order.
+  - **"Apply custom price to renewals" fix**: `activateItem` (Run-modules / legacy-payment path) used to
+    create a *duplicate* service (recurringAmountCents 0) + subscription, so renewals silently billed the
+    list price. It now reuses the pending-entities service; `createServiceForItem` captures the renewal
+    amount + billing cycle for any legacy path; the renewals opt-out falls back to the **cycle-matched**
+    list price; `createDomainRecord` upserts (no unique-domain crash on activation). Orders created with
+    *Run modules* **before** this fix may carry orphaned duplicate services/subscriptions — check and
+    cancel manually.
+  - See `docs/ordering-and-invoices.md` → *Admin Order Creation* + *Reverse charge & 0% VAT*. Storefront
+    checkout still sends neither custom price nor discount.
+  - **Preview/renewal-invoice sync fix**: the *"Apply custom price to renewals"* checkbox was uncontrolled
+    (`defaultChecked`, no state), so toggling it never updated the preview, and the *Next renewal* row
+    always showed the custom price regardless of the toggle. Made the checkbox controlled state and had
+    the preview's renewal line mirror `priceItem`'s own fallback exactly (custom price when applied;
+    otherwise the list price matching the custom cycle) — verified numerically against the compiled
+    backend for both toggle states.
 
 ### 1.4 N- invoice "not a final invoice" note
 - Pending invoices carry a temporary `N-` number; final sequential number on payment
@@ -277,6 +307,15 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
 - `apps/storefront/app/[locale]/blog/page.tsx:33` fetches **all** tags via `/cms/post-tags`. Add a
   usage-count threshold/limit at the source (`apps/api/src/modules/cms` `post-tags` → return top-N by post
   count) so the chip cloud shows only popular tags; per-post tag rows stay full.
+
+### 1.11 Local dev: storefront not reachable
+- On local dev only `admin` and `client` open — those are the `apps/web` app on **`localhost:3000`**. The
+  **storefront** is a *separate* app (`apps/storefront`) on **`localhost:3001`**, and the root dev scripts
+  (`dev`, `dev:web`, `dev:full`) only start `apps/web` + API — none starts `apps/storefront`. Storefront
+  routing is also host/tenant-based, so a bare `localhost:3001` may not resolve to a tenant. Add a
+  `dev:storefront` (and a `dev:all` that runs web + storefront + API) script and document the local
+  host/tenant setup so the storefront is openable locally. Until then, verify storefront changes on prod
+  (`https://www.dezhost.com`) per `CLAUDE.md`.
 
 ### Verify (Phase 1)
 Local: `node --test` for the QP encoder + any new units; `next build`; `i18n-sync --check`. Prod

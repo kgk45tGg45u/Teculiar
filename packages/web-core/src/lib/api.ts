@@ -91,9 +91,11 @@ export type ApiOrder = {
   placedAt: string;
   user?: { email: string; name: string };
   invoice?: {
+    discountCents?: number;
     finalInvoiceNumber?: string | null;
     id: string;
     invoiceNumber: string;
+    items?: Array<{ description: string; type?: string | null; totalCents: number }>;
     status: string;
     tempInvoiceNumber?: string | null;
     totalCents: number;

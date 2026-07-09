@@ -8,7 +8,7 @@
 - With every change in admin dashboard, client dashboard, API, backend, common, meta or storefront, check all the locale packages and make sure they work with the new changes. If you add features or remove features or text, make sure the locale packages are aware of them and provide translation if needed.
 
 
-## Testing — always test on production
+## Testing — always test on production (In the end of each phase)
 After making a change, verify it on the live site **https://www.dezhost.com** using Playwright Chromium. When you come to tests that are old, read and update them to reflect the new code.
 
 Set `E2E_BASE_URL=https://www.dezhost.com` and `E2E_API_URL=https://www.dezhost.com/api/v1`.

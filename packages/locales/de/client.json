@@ -89,6 +89,7 @@
   "invoiceVat": "USt.",
   "invoiceLineTotal": "Summe",
   "invoiceSubtotal": "Zwischensumme",
+  "invoiceDiscount": "Rabatt",
   "invoiceGrandTotal": "Gesamt",
   "invoiceDate": "Rechnungsdatum",
   "invoiceDueDate": "Fällig am",

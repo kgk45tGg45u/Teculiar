@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BillingCycle, DomainStatus, InvoiceStatus, OrderItemStatus, OrderStatus, PaymentMethodType, Prisma, ServiceStatus, TransactionStatus } from "@prisma/client";
+import { BillingCycle, CouponType, DomainStatus, InvoiceStatus, OrderItemStatus, OrderStatus, PaymentMethodType, Prisma, ServiceStatus, TransactionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { addBillingCycle, formatFinalInvoiceNumber, formatTemporaryInvoiceNumber } from "./platform-rules";
 
@@ -12,6 +12,23 @@ export class BillingRepository {
       return null;
     }
     return this.prisma.coupon.findUnique({ where: { code } });
+  }
+
+  createCoupon(input: { code: string; type: "FIXED" | "PERCENTAGE"; amountCents?: number; percent?: number; active?: boolean; maxRedemptions?: number | null }) {
+    return this.prisma.coupon.create({
+      data: {
+        code: input.code,
+        type: input.type as CouponType,
+        amountCents: input.amountCents ?? 0,
+        percent: input.percent ?? 0,
+        active: input.active ?? true,
+        maxRedemptions: input.maxRedemptions ?? null
+      }
+    });
+  }
+
+  attachSubscriptionCoupon(subscriptionId: string, couponId: string) {
+    return this.prisma.subscription.update({ where: { id: subscriptionId }, data: { couponId } });
   }
 
   async createInvoice(input: {

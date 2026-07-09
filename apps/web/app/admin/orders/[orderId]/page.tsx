@@ -83,6 +83,14 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
                 <td>{item.service ? <a href={`/admin/services/${item.service.id}`}>{item.service.product?.name ?? item.service.id}</a> : "-"}</td>
                 <td>{money(item.totalCents ?? 0, order.currency, locale)}</td>
               </tr>
+            ))}
+            {/* Whole-order discount rides on the invoice as its own line, not as an order item. */}
+            {(order.invoice?.items ?? []).filter((line) => line.type === "DISCOUNT").map((line, index) => (
+              <tr key={`discount-${index}`}>
+                <td>{line.description}</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td>
+                <td>{money(line.totalCents ?? 0, order.currency, locale)}</td>
+              </tr>
             ))}</tbody>
           </table>
         </section>

@@ -148,6 +148,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
 
                 <div className={styles.invoiceTotals}>
                   <span>{copy.invoiceSubtotal} <strong>{fmt(invoice.subtotalCents ?? invoice.totalCents)}</strong></span>
+                  {(invoice.discountCents ?? 0) > 0 ? <span>{copy.invoiceDiscount} <strong>−{fmt(invoice.discountCents ?? 0)}</strong></span> : null}
                   {showVat ? <span>{copy.invoiceVat} <strong>{fmt(invoice.taxAmountCents ?? 0)}</strong></span> : null}
                   <strong>{copy.invoiceGrandTotal} {fmt(invoice.totalCents)}</strong>
                 </div>

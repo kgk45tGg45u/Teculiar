@@ -21,6 +21,22 @@ export class OrderItemDto {
   @IsOptional()
   @IsObject()
   configuration?: Record<string, unknown>;
+
+  // Admin custom pricing: override the list price with an admin-entered amount (excl. VAT) and
+  // billing cycle. `applyCustomToRenewals` (default true) also carries the custom amount onto the
+  // service so Cron renewal invoices bill it; when false, only the first invoice uses it.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  customAmountCents?: number;
+
+  @IsOptional()
+  @IsIn([...billingCycles])
+  customBillingCycle?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  applyCustomToRenewals?: boolean;
 }
 
 export class OrderCustomerDto {
@@ -86,6 +102,17 @@ export class AdminCreateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Order-level discount (excl. VAT). "one-time" applies only to the first invoice; "recurring"
+  // also carries onto the primary product's subscription so every renewal invoice keeps it.
+  @IsOptional()
+  @IsIn(["one-time", "recurring"])
+  discountType?: "one-time" | "recurring";
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  discountAmountCents?: number;
 
   @IsOptional()
   @IsString()

@@ -12,6 +12,9 @@ export type PricedOrderItem = {
   productPriceId: string;
   productSnapshot: { name: string; type: string; slug: string; provisioningModule?: string | null; freeDomainBillingCycle?: string | null };
   quantity: number;
+  // The amount billed on renewal invoices. Equals unitAmountCents for normal items, but may differ
+  // when an admin sets a custom first-invoice price that must NOT carry onto renewals.
+  recurringAmountCents?: number;
   setupFeeCents: number;
   totalCents: number;
   type: string;
@@ -134,13 +137,20 @@ export class OrdersRepository {
     });
   }
 
-  async createPendingEntitiesForOrder(order: { id: string; items: Array<Record<string, any>>; userId?: string }, invoiceId: string) {
+  async createPendingEntitiesForOrder(
+    order: { id: string; items: Array<Record<string, any>>; userId?: string },
+    invoiceId: string,
+    options?: { recurringCouponId?: string }
+  ) {
     const invoiceItems = await this.prisma.invoiceItem.findMany({
       where: { invoiceId },
       orderBy: { createdAt: "asc" }
     });
     const items = [...order.items].sort((a, b) => pendingEntityPriority(a) - pendingEntityPriority(b));
     const moduleByProductId = await this.productModulesForItems(items);
+    // A recurring discount attaches to the primary (first non-domain) product subscription only, so
+    // every renewal invoice for that service re-applies it. Domains renew at full price.
+    let recurringCouponApplied = false;
 
     for (const item of items) {
       const configuration = isRecord(item.configuration) ? item.configuration : {};
@@ -166,7 +176,7 @@ export class OrdersRepository {
             productId: String(item.productId),
             productPriceId: String(item.productPriceId),
             productSnapshot: productSnapshot as Prisma.InputJsonValue,
-            recurringAmountCents: Number(item.unitAmountCents ?? 0),
+            recurringAmountCents: renewalAmountCents(item),
             renewsAt,
             setupFeeCents: Number(item.setupFeeCents ?? 0),
             status: "PENDING",
@@ -176,15 +186,20 @@ export class OrdersRepository {
         serviceId = service.id;
         await this.prisma.orderItem.update({ where: { id: String(item.id) }, data: { serviceId } });
         if (item.billingCycle !== "ONE_TIME") {
+          const recurringCouponId = options?.recurringCouponId && !recurringCouponApplied ? options.recurringCouponId : undefined;
           await this.prisma.subscription.create({
             data: {
               billingCycle: item.billingCycle as BillingCycle,
+              couponId: recurringCouponId,
               nextInvoiceAt: renewsAt ?? addBillingCycle(new Date(), String(item.billingCycle)),
               productPriceId: String(item.productPriceId),
               serviceId: service.id,
               userId: String(order.userId)
             }
           });
+          if (recurringCouponId) {
+            recurringCouponApplied = true;
+          }
         }
       }
 
@@ -345,18 +360,23 @@ export class OrdersRepository {
   }
 
   async createServiceForItem(
-    item: { id: string; billingCycle: string; configuration: unknown; productId?: string | null; productPriceId: string },
+    item: { id: string; billingCycle: string; configuration: unknown; productId?: string | null; productPriceId: string; setupFeeCents?: number | null; unitAmountCents?: number | null },
     userId: string,
     status: string
   ) {
     const moduleName = item.productId ? await this.moduleNameForProductId(item.productId) : null;
     const service = await this.prisma.service.create({
       data: {
+        billingCycle: item.billingCycle as BillingCycle,
         configuration: (item.configuration ?? {}) as Prisma.InputJsonValue,
         moduleName: moduleName ?? null,
         productId: item.productId,
         productPriceId: item.productPriceId,
+        // Renewals bill the captured order price (incl. admin custom pricing) — without this the
+        // service defaulted to 0 and renewals silently fell back to the product list price.
+        recurringAmountCents: renewalAmountCents(item),
         renewsAt: addBillingCycle(new Date(), item.billingCycle),
+        setupFeeCents: Number(item.setupFeeCents ?? 0),
         startedAt: status === "ACTIVE" ? new Date() : undefined,
         status: status as ServiceStatus,
         userId
@@ -380,16 +400,21 @@ export class OrdersRepository {
     status: "ACTIVE" | "FAILED" | "PENDING";
     userId: string;
   }) {
-    return this.prisma.domainRecord.create({
-      data: {
-        dnsRecords: input.raw as Prisma.InputJsonValue,
-        domain: input.domain,
-        externalId: input.externalId,
-        registrarModule: input.registrarModule,
-        serviceId: input.serviceId,
-        status: input.status,
-        userId: input.userId
-      }
+    // The pending-entities step may already have created this domain's record (status PENDING);
+    // activation then updates it in place instead of violating the unique domain key.
+    const domain = input.domain.toLowerCase().trim();
+    const record = {
+      dnsRecords: input.raw as Prisma.InputJsonValue,
+      externalId: input.externalId,
+      registrarModule: input.registrarModule,
+      serviceId: input.serviceId,
+      status: input.status,
+      userId: input.userId
+    };
+    return this.prisma.domainRecord.upsert({
+      where: { domain },
+      create: { domain, ...record },
+      update: record
     });
   }
 
@@ -471,6 +496,16 @@ export class OrdersRepository {
 
 function pendingEntityPriority(item: Record<string, any>) {
   return item.type !== "DOMAIN" && serviceDomainName(isRecord(item.configuration) ? item.configuration : {}) ? 0 : 1;
+}
+
+// Renewals bill the captured order price. An admin custom price that opted out of renewals stashes
+// the list renewal amount on the item configuration; otherwise the first-invoice unit amount recurs.
+function renewalAmountCents(item: Record<string, any>) {
+  const config = isRecord(item.configuration) ? item.configuration : {};
+  if (typeof config.renewalAmountCents === "number") {
+    return config.renewalAmountCents;
+  }
+  return Number(item.unitAmountCents ?? 0);
 }
 
 function moduleNameForProductType(type: string) {

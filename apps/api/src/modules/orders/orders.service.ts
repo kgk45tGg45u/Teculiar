@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
-import { billingCycles } from "@dezhost/shared";
+import { billingCycles, domainCycleFor, isYearlyCycle } from "@dezhost/shared";
 import { formatMoney } from "../../common/i18n";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
@@ -220,6 +220,33 @@ export class OrdersService implements OnModuleInit {
     const taxAmountCents = Math.round(taxableCents * (vat.rate / 100));
     const snapshot = customerSnapshotFromUser(user);
     const defaultDueAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
+    // Order-level discount: a flat amount billed as its own invoice line (never distributed into the
+    // product/domain lines, which keep their full price + VAT). The line carries NO VAT (vatRate 0) —
+    // a €1 discount reduces the invoice total by exactly €1 while VAT stays computed on the full
+    // product lines. A "recurring" discount is additionally stored as an internal coupon on the primary
+    // product subscription so every Cron renewal invoice re-applies the same line. The discount is
+    // capped at the order's net so the total never goes negative.
+    const discount = orderDiscount(dto);
+    const discountCoupon = discount?.type === "recurring" ? await this.billing.createAdHocDiscountCoupon(discount.amountCents) : undefined;
+    const invoiceLines: Parameters<BillingService["createInvoice"]>[0]["lines"] = items.map((item) => ({
+      billingCycle: item.billingCycle,
+      description: item.description,
+      lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
+      quantity: invoiceLineQuantity(item),
+      type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
+      unitAmountCents: invoiceLineUnitAmount(item)
+    }));
+    if (discount) {
+      const netTotalCents = invoiceLines.reduce((sum, line) => sum + line.quantity * line.unitAmountCents, 0);
+      const discountNetCents = Math.min(netTotalCents, discount.amountCents);
+      invoiceLines.push({
+        description: await this.discountLineLabel(),
+        quantity: 1,
+        type: "DISCOUNT",
+        unitAmountCents: -discountNetCents,
+        vatRate: 0
+      });
+    }
     const invoice = await this.billing.createInvoice({
       buyerCountryCode: user.countryCode ?? "DE",
       buyerVatId: user.vatId ?? undefined,
@@ -227,14 +254,7 @@ export class OrdersService implements OnModuleInit {
       dueAt: dto.firstDueAt ? new Date(dto.firstDueAt).toISOString() : defaultDueAt,
       issuedAt: dto.placedAt ? new Date(dto.placedAt).toISOString() : undefined,
       isBusinessCustomer: user.customerType === "BUSINESS",
-      lines: items.map((item) => ({
-        billingCycle: item.billingCycle,
-        description: item.description,
-        lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
-        quantity: invoiceLineQuantity(item),
-        type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
-        unitAmountCents: invoiceLineUnitAmount(item)
-      })),
+      lines: invoiceLines,
       orderSnapshot: {
         adminNotes: dto.notes,
         items,
@@ -258,9 +278,10 @@ export class OrdersService implements OnModuleInit {
       userId: user.id
     });
     if (typeof (this.orders as unknown as { createPendingEntitiesForOrder?: unknown }).createPendingEntitiesForOrder === "function") {
-      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string) => Promise<unknown> }).createPendingEntitiesForOrder(
+      await (this.orders as unknown as { createPendingEntitiesForOrder: (order: unknown, invoiceId: string, options?: { recurringCouponId?: string }) => Promise<unknown> }).createPendingEntitiesForOrder(
         order,
-        invoice.id
+        invoice.id,
+        { recurringCouponId: discount?.type === "recurring" ? discountCoupon?.id : undefined }
       );
     }
     await this.billing.recordAction?.({
@@ -278,7 +299,7 @@ export class OrdersService implements OnModuleInit {
     if (dto.runModules) {
       const serviceByBundledDomain = new Map<string, string>();
       const activationItems = (
-        (order as unknown as { items: Array<{ billingCycle: string; configuration: unknown; domainName?: string | null; id: string; productId: string; productPriceId: string; type: string }> }).items ?? []
+        (order as unknown as { items: Array<{ billingCycle: string; configuration: unknown; domainName?: string | null; id: string; productId: string; productPriceId: string; serviceId?: string | null; setupFeeCents?: number | null; type: string; unitAmountCents?: number | null }> }).items ?? []
       ).sort((a, b) => activationPriority(a) - activationPriority(b));
       for (const item of activationItems) {
         try {
@@ -524,6 +545,12 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
+  // Label for the discount invoice line, in the invoice's frozen main language.
+  private async discountLineLabel() {
+    const main = (await this.billing.i18nLanguages()).main;
+    return main === "de" ? "Rabatt" : "Discount";
+  }
+
   private async priceItem(item: OrderItemDto): Promise<PricedOrderItem> {
     const product = await this.orders.findProduct(item.productId);
     if (!product) {
@@ -531,30 +558,41 @@ export class OrdersService implements OnModuleInit {
     }
 
     const configuration = item.configuration ?? {};
-    const requestedCycle = product.type === "DOMAIN" ? requestedDomainCycle(configuration) : undefined;
     const configuredPrice = item.productPriceId
       ? product.prices.find((candidate) => candidate.id === item.productPriceId)
       : product.prices[0];
+    // Domains register/renew yearly. Map whatever cycle the item carries (an explicit domain cycle,
+    // or the hosting cycle it was bundled with) onto a domain-appropriate yearly cycle so the domain
+    // never inherits a monthly/one-time hosting cadence, then price by that resolved cycle.
+    const requestedCycle =
+      product.type === "DOMAIN"
+        ? domainCycleFor(configuredDomainCycle(configuration) ?? configuredPrice?.billingCycle)
+        : undefined;
     const requestedPrice = requestedCycle
       ? product.prices.find((candidate) => candidate.billingCycle === requestedCycle) ??
         (await this.orders.findDomainProductPrice(product.id, requestedCycle))
       : undefined;
-    const price =
+    let price =
       requestedPrice ??
       configuredPrice ??
       (product.type === "DOMAIN"
-        ? await this.orders.findDomainProductPrice(product.id, requestedDomainCycle(item.configuration) ?? "YEAR_1")
+        ? await this.orders.findDomainProductPrice(product.id, requestedCycle ?? "YEAR_1")
         : undefined);
     if (!price) {
       throw new BadRequestException(`No active price for ${product.name}`);
     }
 
     let quantity = item.quantity ?? 1;
-    const billingCycle = requestedCycle ?? price.billingCycle;
+    let billingCycle: string = requestedCycle ?? price.billingCycle;
     let unitAmountCents = price.amountCents;
+    // Renewals bill this (captured on the service). Defaults to the first-invoice amount.
+    let recurringAmountCents = unitAmountCents;
     let description = product.name;
 
     if (product.type === "DOMAIN") {
+      if (!isYearlyCycle(billingCycle)) {
+        throw new BadRequestException("Domains can only be ordered on a yearly billing cycle (e.g. YEAR_1).");
+      }
       if (!item.domainName) {
         throw new BadRequestException("Domain orders need a domain name");
       }
@@ -562,9 +600,34 @@ export class OrdersService implements OnModuleInit {
       const years = yearsFromCycle(billingCycle);
       const livePrice = await this.domainPricing.priceFor(item.domainName, price.amountCents, action, years);
       unitAmountCents = livePrice.amountCents;
+      recurringAmountCents = unitAmountCents;
       quantity = years;
       description = `${item.domainName} domain ${action}`;
       configuration.domainPricing = livePrice;
+    } else {
+      // Admin custom pricing (never applied to domains — those are priced live from resell.biz):
+      // override the unit amount and, if given, the billing cycle. When the admin opts out of
+      // applying the custom price to renewals, the service keeps billing the product list price.
+      const custom = customPricing(item);
+      if (custom) {
+        // The form sends no productPriceId with custom pricing, so `price` is an arbitrary first
+        // price. Anchor the item (and its subscription's product price) to the list price matching
+        // the custom cycle when one exists, so a renewals opt-out falls back to the right list amount.
+        if (custom.billingCycle && !item.productPriceId) {
+          price = product.prices.find((candidate) => candidate.billingCycle === custom.billingCycle) ?? price;
+        }
+        unitAmountCents = custom.amountCents;
+        if (custom.billingCycle) {
+          billingCycle = custom.billingCycle;
+        }
+        recurringAmountCents = custom.applyToRenewals ? custom.amountCents : price.amountCents;
+        // Persist the renewal amount only when it diverges from the first-invoice price (custom price
+        // opted out of renewals). Order-item rows have no dedicated column, so it rides on the
+        // configuration JSON, where `createPendingEntitiesForOrder` reads it for Service.recurringAmountCents.
+        if (recurringAmountCents !== unitAmountCents) {
+          configuration.renewalAmountCents = recurringAmountCents;
+        }
+      }
     }
 
     return {
@@ -582,6 +645,7 @@ export class OrdersService implements OnModuleInit {
         freeDomainBillingCycle: product.freeDomainBillingCycle ?? null
       },
       quantity,
+      recurringAmountCents,
       setupFeeCents: price.setupFeeCents,
       totalCents: unitAmountCents * quantity + price.setupFeeCents,
       type: product.type,
@@ -596,18 +660,28 @@ export class OrdersService implements OnModuleInit {
     id: string;
     productId?: string | null;
     productPriceId: string;
+    serviceId?: string | null;
+    setupFeeCents?: number | null;
     type: string;
+    unitAmountCents?: number | null;
   }, customerSnapshot?: unknown, linkedServiceId?: string) {
     const product = item.productId ? await this.orders.findProduct(item.productId) : null;
     const moduleName = product ? effectiveModule(product) : undefined;
+    // The order's pending-entities step (createPendingEntitiesForOrder) already created this item's
+    // service + subscription, carrying the captured order price (incl. admin custom pricing). Reuse it —
+    // creating a second service here dropped recurringAmountCents (renewals silently billed the list
+    // price, breaking "apply custom price to renewals") and double-billed via a duplicate subscription.
+    const existingServiceId = typeof item.serviceId === "string" && item.serviceId ? item.serviceId : undefined;
     const service = linkedServiceId
       ? { id: linkedServiceId }
-      : await this.orders.createServiceForItem(
-          item,
-          userId,
-          ["DOMAIN", "SHARED_HOSTING"].includes(item.type) ? "PROVISIONING" : "ACTIVE"
-        );
-    if (!linkedServiceId) {
+      : existingServiceId
+        ? { id: existingServiceId }
+        : await this.orders.createServiceForItem(
+            item,
+            userId,
+            ["DOMAIN", "SHARED_HOSTING"].includes(item.type) ? "PROVISIONING" : "ACTIVE"
+          );
+    if (!linkedServiceId && !existingServiceId) {
       await this.billing.createSubscription({
         billingCycle: item.billingCycle,
         nextInvoiceAt: nextBillingDate(new Date(), item.billingCycle).toISOString(),
@@ -846,6 +920,28 @@ function applyFreeDomainDiscount(items: PricedOrderItem[]) {
   });
 }
 
+// Read admin custom-pricing off an order item, if present. Only meaningful for non-domain products;
+// the caller guards that. `applyToRenewals` defaults to true (the common case: custom price sticks).
+function customPricing(item: OrderItemDto): { amountCents: number; applyToRenewals: boolean; billingCycle?: string } | undefined {
+  if (typeof item.customAmountCents !== "number") {
+    return undefined;
+  }
+  return {
+    amountCents: item.customAmountCents,
+    applyToRenewals: item.applyCustomToRenewals !== false,
+    billingCycle: typeof item.customBillingCycle === "string" && item.customBillingCycle ? item.customBillingCycle : undefined
+  };
+}
+
+// Read the order-level discount off an admin create-order request, if a positive amount was set.
+function orderDiscount(dto: AdminCreateOrderDto): { amountCents: number; type: "one-time" | "recurring" } | undefined {
+  const amountCents = typeof dto.discountAmountCents === "number" ? dto.discountAmountCents : 0;
+  if (!dto.discountType || amountCents <= 0) {
+    return undefined;
+  }
+  return { amountCents, type: dto.discountType };
+}
+
 function invoiceLineQuantity(item: PricedOrderItem) {
   return item.setupFeeCents > 0 ? 1 : item.quantity;
 }
@@ -974,8 +1070,11 @@ function domainAction(configuration: unknown) {
   return "transfer";
 }
 
-function requestedDomainCycle(configuration: unknown) {
-  if (!isRecord(configuration) || typeof configuration.billingCycle !== "string" || !configuration.billingCycle.startsWith("YEAR_")) {
+// The cycle an order item requested for its domain, if any — the hosting cycle it was bundled with
+// (storefront) or the domain cycle the admin form resolved. `domainCycleFor` normalizes it to a
+// yearly cadence; a missing/blank value falls back to the configured domain price's own cycle.
+function configuredDomainCycle(configuration: unknown) {
+  if (!isRecord(configuration) || typeof configuration.billingCycle !== "string" || !configuration.billingCycle) {
     return undefined;
   }
 

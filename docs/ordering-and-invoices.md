@@ -179,8 +179,82 @@ Admin-created orders support:
 - Backdating (`placedAt`)
 - Custom due dates
 - Optional email dispatch
+- **Custom pricing** (per item) — override the product list price
+- **Discounts** (per order) — one-time or recurring
 
 The same duplicate check applies to admin-created orders.
+
+### Prices are net; VAT is added on top
+
+Every entered or looked-up price in the system is **net (VAT-excluded)** — product list prices, admin
+custom prices, and domain prices alike. The invoice engine (`BillingEngineService.createDraft`)
+**adds** VAT on top of each product line at the buyer's resolved rate (`resolveVat`), including the domain
+line; it never extracts VAT from a price. The one exception is the **discount line**, which is a flat
+amount carrying **no VAT** (see *Discounts*).
+
+The admin new-order **pricing preview** mirrors this exactly — net lines, per-line VAT (hosting *and*
+domain), and a flat discount as its own line — so the preview total equals the created invoice and order
+total. The storefront checkout estimate follows the same rule (`previewOrder` taxes the full net subtotal,
+domain included). Buyers who resolve to 0% VAT (EU reverse charge, non-EU export, VAT disabled) simply see
+the net price as the total, with nothing added — see **Reverse charge & 0% VAT** below.
+
+### Custom pricing
+
+When the admin ticks *Use custom pricing*, the order item carries `customAmountCents`,
+`customBillingCycle`, and `applyCustomToRenewals` (default on). `OrdersService.priceItem` overrides the
+priced item's `unitAmountCents` and `billingCycle` with these values (never for `DOMAIN` items — those
+are always priced live from resell.biz), anchoring the item to the product list price **matching the
+custom cycle** when one exists. The custom amount therefore flows to the created order item, the first
+invoice line, and — because renewals bill `Service.recurringAmountCents` — to every Cron renewal invoice.
+When *apply to renewals* is unticked, the first invoice uses the custom price while the service keeps the
+cycle-matched product list price for renewals (the divergent amount rides on the order item's
+`configuration.renewalAmountCents`, which `createPendingEntitiesForOrder` reads).
+
+Every activation path preserves the captured price: `createPendingEntitiesForOrder` writes it to
+`Service.recurringAmountCents` up front, and `activateItem` (the *Run modules on create* / legacy payment
+path) **reuses** that service instead of creating a second one — previously it created a duplicate
+service with `recurringAmountCents` 0 plus a duplicate subscription, so renewals silently billed the list
+price and the *apply to renewals* toggle appeared to do nothing.
+
+### Discounts
+
+The admin sets a **flat** discount amount and a type (*one-time* or *recurring*). The discount applies to
+the **whole order**, never to a specific product/domain line, and is **never distributed** into the item
+lines (which keep their full net + VAT). It is billed as its **own invoice line** with **no VAT**
+(`vatRate: 0`): a €1 discount reduces the invoice total by exactly €1, while VAT stays computed on the
+full product/domain lines. Because it is a real line, it renders automatically wherever invoice items
+render (PDF + on-screen admin/client sheets); the admin **order detail** surfaces it by reading the
+`DISCOUNT` line from the linked invoice. It is capped at the order net so the total never goes negative.
+
+- **One-time** — the discount line is added to the first invoice only; renewals are unaffected.
+- **Recurring** — the discount line is added to the first invoice, and its amount is stored on the
+  **primary (first non-domain) product** `Subscription` as an internal `FIXED` `Coupon`
+  (`createAdHocDiscountCoupon`). `renewSubscription` reads that coupon and re-adds an equivalent discount
+  line to every future renewal invoice (`couponDiscountCents`). Domains renew at full price.
+
+> The coupon here is used only as **storage** of the recurring amount; renewals do **not** go through the
+> engine's coupon-distribution path (`couponCode`). That distribution path still exists for legacy/manual
+> coupon invoices but is no longer used by admin orders or renewals.
+
+The storefront checkout path passes neither custom pricing nor discounts, so it is unchanged.
+
+### Reverse charge & 0% VAT
+
+VAT is resolved per buyer by `resolveVat` (`packages/shared/src/tax.ts`), the single source of truth for
+both the API (invoice/order creation) and the web checkout estimate:
+
+- **EU B2B cross-border with a valid VAT ID** → **reverse charge**: 0% VAT here, the buyer self-accounts
+  (`taxReason` = "EU reverse charge").
+- **Non-EU buyer** → **export**: 0% German VAT ("Non-EU export").
+- **VAT globally disabled** in admin tax settings → 0% everywhere ("VAT disabled").
+- Otherwise the buyer country's rate applies (its own rate, else the configured default country's rate,
+  else the German standard 19%).
+
+At 0%, no VAT line is added and the net price is the total. This behaviour is intentional and kept as-is;
+the invoice records the `taxReason` so the 0% is explained on the document. Note the admin new-order
+**preview** uses the tenant's global VAT rate (a single number), so for a buyer who resolves to a
+different rate (e.g. reverse charge) the preview VAT can differ from the created invoice, which always
+uses the buyer-specific resolution.
 
 ---
 

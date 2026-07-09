@@ -6,6 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { domainCycleFor } from "@dezhost/shared";
 import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@dezhost/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
 import type { Locale } from "@dezhost/web-core/lib/i18n";
@@ -1721,6 +1722,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const [useCustomPricing, setUseCustomPricing] = useState(false);
   const [customAmountEur, setCustomAmountEur] = useState<number>(0);
   const [customBillingCycle, setCustomBillingCycle] = useState("MONTHLY");
+  const [applyToRenewals, setApplyToRenewals] = useState(true);
   const [discountType, setDiscountType] = useState<"none" | "one-time" | "recurring">("none");
   const [discountAmountEur, setDiscountAmountEur] = useState<number>(0);
   const [addDomain, setAddDomain] = useState(false);
@@ -1750,16 +1752,37 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const selectedPrice = selectedProduct?.prices.find((p) => p.id === selectedPriceId) ?? selectedProduct?.prices[0];
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
-  // Compute preview values
+  // Compute preview values. All entered/looked-up prices are NET (VAT-excluded); VAT is added on top of
+  // every product line — hosting AND domain — mirroring the invoice engine (BillingEngineService.createDraft)
+  // so the pricing preview equals the created invoice and order. The discount is billed as its OWN flat
+  // line (never distributed into the product lines) and carries NO VAT: a €1 discount reduces the total
+  // by exactly €1, while VAT stays computed on the full product lines.
   const baseAmountCents = useCustomPricing ? Math.round(customAmountEur * 100) : (selectedPrice?.amountCents ?? 0);
   const billingCycle = useCustomPricing ? customBillingCycle : (selectedPrice?.billingCycle ?? "MONTHLY");
   const vatRate = vatPercent;
-  const vatCents = Math.round(baseAmountCents * vatRate / 100);
-  const subtotalCents = baseAmountCents;
-  const discountCents = discountType !== "none" ? Math.round(discountAmountEur * 100) : 0;
   const domainTld = addDomain && domainNameInput.includes(".") ? domainNameInput.split(".").slice(1).join(".").toLowerCase() : "";
   const domainPriceCents = domainTld ? (domainPriceLookup.get(domainTld) ?? null) : null;
-  const totalCents = subtotalCents + vatCents + (domainPriceCents ?? 0) - discountCents;
+  // The domain always renews yearly on its own cadence, independent of the hosting cycle.
+  const domainCycle = domainCycleFor(billingCycle);
+  const lineVat = (net: number) => Math.round((net * vatRate) / 100);
+
+  // First invoice: product NET lines + their VAT, minus a flat discount line (capped at the product net).
+  const productNetCents = baseAmountCents + (domainPriceCents ?? 0);
+  const discountCents = Math.min(productNetCents, discountType !== "none" ? Math.round(discountAmountEur * 100) : 0);
+  const subtotalCents = productNetCents - discountCents;
+  const vatCents = lineVat(baseAmountCents) + (domainPriceCents !== null ? lineVat(domainPriceCents) : 0);
+  const totalCents = subtotalCents + vatCents;
+
+  // Renewals (VAT-inclusive): hosting renews on its cycle keeping any recurring discount (flat, no VAT);
+  // the domain renews yearly at full price (recurring discounts attach to the primary product only).
+  // The renewal NET mirrors priceItem: the custom price only recurs while "apply to renewals" is ticked —
+  // otherwise renewals fall back to the list price matching the custom cycle (first price as last resort,
+  // like the backend's configuredPrice fallback).
+  const cycleListCents = selectedProduct?.prices.find((p) => p.billingCycle === customBillingCycle)?.amountCents ?? selectedProduct?.prices[0]?.amountCents ?? 0;
+  const renewalNetCents = useCustomPricing && !applyToRenewals ? cycleListCents : baseAmountCents;
+  const hostingRenewalDiscountCents = discountType === "recurring" ? Math.min(renewalNetCents, Math.round(discountAmountEur * 100)) : 0;
+  const hostingRenewalGrossCents = renewalNetCents + lineVat(renewalNetCents) - hostingRenewalDiscountCents;
+  const domainRenewalGrossCents = domainPriceCents !== null ? domainPriceCents + lineVat(domainPriceCents) : null;
 
   async function submit(formData: FormData) {
     const clientId = String(formData.get("userId") ?? "");
@@ -1782,16 +1805,33 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
       } : {})
     }];
     if (addDomain) {
+      // The domain line renews yearly on its own cadence — map the hosting cycle to a domain
+      // cycle (never monthly) and register the matching domain price so the backend bills it
+      // recurringly instead of as a one-off inheriting the hosting cadence.
+      const hostingCycle = customPricingOn
+        ? String(formData.get("customBillingCycle") ?? "MONTHLY")
+        : (product?.prices.find((p) => p.id === priceId)?.billingCycle ?? "MONTHLY");
+      const domainCycle = domainCycleFor(hostingCycle);
+      const domainPrice =
+        defaultDomainProduct.prices.find((p) => p.billingCycle === domainCycle) ??
+        defaultDomainProduct.prices.find((p) => p.billingCycle.startsWith("YEAR_")) ??
+        defaultDomainProduct.prices[0];
       items.push({
-        configuration: { domainAction: String(formData.get("domainAction") ?? "register") },
+        configuration: { billingCycle: domainCycle, domainAction: String(formData.get("domainAction") ?? "register") },
         domainName: String(formData.get("domainName") ?? ""),
         productId: defaultDomainProduct.id,
-        productPriceId: defaultDomainProduct.prices[0]?.id,
+        productPriceId: domainPrice?.id,
         quantity: 1
       });
     }
+    const discountTypeValue = String(formData.get("discountType") ?? "none");
+    const discountCents = Math.round(Number(formData.get("discountAmountEur") ?? 0) * 100);
+    const discountFields = discountTypeValue !== "none" && discountCents > 0
+      ? { discountAmountCents: discountCents, discountType: discountTypeValue }
+      : {};
     const response = await fetch(`${API_BASE_URL}/orders/admin`, {
       body: JSON.stringify({
+        ...discountFields,
         firstDueAt: firstDueAt ? new Date(firstDueAt).toISOString() : undefined,
         items,
         notes: String(formData.get("notes") ?? ""),
@@ -1867,7 +1907,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                 </select>
               </label>
               <label className={styles.formSpan2}>
-                <span><input defaultChecked name="applyToRenewals" type="checkbox" /> {c.applyToRenewals}</span>
+                <span><input checked={applyToRenewals} name="applyToRenewals" type="checkbox" onChange={(e) => setApplyToRenewals(e.target.checked)} /> {c.applyToRenewals}</span>
               </label>
             </>
           )}
@@ -1934,13 +1974,12 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                 <span>{cycleLabel(billingCycle, locale)}</span>
               </div>
               <div className={styles.orderPreviewRow}>
-                <span>{c.basePrice}</span>
+                <span>{c.basePrice} <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{c.exclVat}</span></span>
                 <strong>{money(baseAmountCents, "EUR", locale)}</strong>
               </div>
-              {vatPercent > 0 ? <div className={styles.orderPreviewRow}><span>{c.vat} ({vatPercent}%)</span><span>{money(vatCents, "EUR", locale)}</span></div> : null}
               {addDomain ? (
                 <div className={styles.orderPreviewRow}>
-                  <span>Domain (.{domainTld || "?"})</span>
+                  <span>Domain (.{domainTld || "?"}) · {cycleLabel(domainCycle, locale)} <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{c.exclVat}</span></span>
                   {domainPriceLoading ? (
                     <span style={{ color: "var(--muted)", fontSize: "0.82rem" }}>…</span>
                   ) : domainPriceCents !== null ? (
@@ -1956,6 +1995,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                   <span>− {money(discountCents, "EUR", locale)}</span>
                 </div>
               ) : null}
+              {vatPercent > 0 ? <div className={styles.orderPreviewRow}><span>{c.vat} ({vatPercent}%)</span><span>{money(vatCents, "EUR", locale)}</span></div> : null}
               <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "6px 0" }} />
               <div className={styles.orderPreviewTotal}>
                 <span>{c.firstInvoiceTotal}</span>
@@ -1963,8 +2003,14 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
               </div>
               {billingCycle !== "ONE_TIME" ? (
                 <div className={styles.orderPreviewRenewal}>
-                  <span>{c.nextRenewal}</span>
-                  <span>{money(subtotalCents + vatCents - (discountType === "recurring" ? discountCents : 0), "EUR", locale)} / {cycleLabel(billingCycle, locale)}</span>
+                  <span>{c.nextRenewal} <span style={{ fontSize: "0.78rem" }}>{c.inclVat}</span></span>
+                  <span>{money(hostingRenewalGrossCents, "EUR", locale)} / {cycleLabel(billingCycle, locale)}</span>
+                </div>
+              ) : null}
+              {addDomain && domainRenewalGrossCents !== null ? (
+                <div className={styles.orderPreviewRenewal}>
+                  <span>{c.domainRenewal} <span style={{ fontSize: "0.78rem" }}>{c.inclVat}</span></span>
+                  <span>{money(domainRenewalGrossCents, "EUR", locale)} / {cycleLabel(domainCycle, locale)}</span>
                 </div>
               ) : null}
             </div>

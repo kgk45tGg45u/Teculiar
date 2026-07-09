@@ -47,3 +47,29 @@ test("renewal falls back to product list price for legacy services without a cap
   await service.renewSubscription("sub-domain");
   assert.equal(capturedLine().unitAmountCents, 1499);
 });
+
+// A recurring admin discount rides on the subscription (stored as a coupon). renewSubscription must bill
+// it as its OWN negative discount line on every renewal invoice — never distributed into the renewal line
+// and never via the engine's coupon distribution — so the discount keeps applying on future Cron invoices.
+test("recurring discount is billed as its own discount line on each renewal invoice", async () => {
+  const subscription = domainSubscription({ recurringAmountCents: 2000 });
+  subscription.coupon = { id: "cpn-1", code: "ADHOC-ABC123", type: "FIXED", amountCents: 500 };
+  const billingRepo = {
+    findSubscription: async () => subscription,
+    advanceSubscription: async () => undefined
+  };
+  const service = new BillingService(billingRepo, {}, {});
+  let capturedDto;
+  service.createInvoice = async (dto) => {
+    capturedDto = dto;
+    return { id: "inv-1", ...dto };
+  };
+  service.i18nLanguages = async () => ({ main: "en", others: [] });
+  await service.renewSubscription("sub-domain");
+  // No coupon distribution — the discount is an explicit line instead.
+  assert.equal(capturedDto.couponCode, undefined);
+  const discountLine = capturedDto.lines.find((line) => line.type === "DISCOUNT");
+  assert.ok(discountLine, "expected a discount line on the renewal invoice");
+  assert.equal(discountLine.unitAmountCents, -500); // FIXED €5.00 flat, capped at the €20.00 renewal net
+  assert.equal(discountLine.vatRate, 0); // flat discount — carries no VAT
+});

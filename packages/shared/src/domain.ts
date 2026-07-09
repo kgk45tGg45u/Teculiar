@@ -17,6 +17,22 @@ export const billingCycles = [
 
 export type BillingCycle = (typeof billingCycles)[number];
 
+// A domain registration always bills on a yearly term — never monthly/quarterly. This maps the
+// cycle an order item carries (the hosting cycle it was bundled with, or an explicitly chosen
+// domain cycle) to a domain-appropriate yearly cycle: multi-year hosting (YEAR_2…) keeps its
+// matching multi-year domain term, while anything shorter (monthly/quarterly/semi-annual/one-time)
+// registers the domain annually (YEAR_1). Shared by the admin order form and the API so the UI
+// preview and the priced/activated domain item always agree on the cadence.
+export function domainCycleFor(cycle: string | null | undefined): BillingCycle {
+  return isYearlyCycle(cycle) ? (cycle as BillingCycle) : "YEAR_1";
+}
+
+// True for YEAR_1…YEAR_10 (a recurring yearly domain cycle), false for MONTHLY/QUARTERLY/
+// SEMI_ANNUAL/ONE_TIME. Used to guard that domains are only ever ordered on a yearly cadence.
+export function isYearlyCycle(cycle: string | null | undefined): boolean {
+  return /^YEAR_\d+$/.test(String(cycle ?? ""));
+}
+
 export const invoiceStatuses = [
   "PENDING",
   "PAID",

@@ -89,6 +89,7 @@
   "invoiceVat": "VAT",
   "invoiceLineTotal": "Total",
   "invoiceSubtotal": "Subtotal",
+  "invoiceDiscount": "Discount",
   "invoiceGrandTotal": "Total",
   "invoiceDate": "Invoice Date",
   "invoiceDueDate": "Due Date",
