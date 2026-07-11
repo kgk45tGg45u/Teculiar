@@ -120,6 +120,46 @@ test("email dispatch renders modular event layouts inside the main template", as
   assert.match(logs[0].payload.html, /49\.00 EUR/);
 });
 
+test("email header renders the configured brand logo as an absolute <img>", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", fromName: "Dezhost", adminEmails: [] }],
+    ["emailEventConfigs", { welcome: { enabled: true, recipients: ["client"] } }],
+    // Stored as a relative upload path — the email must make it absolute (external mail clients
+    // can't resolve /uploads/...).
+    ["siteLogoUrl", "/uploads/site-logo-1.svg"]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  await email.dispatch("welcome", { user: { email: "client@example.test", id: "user-1", name: "Ada" } });
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0].payload.html, /<img src="https?:\/\/[^"]+\/uploads\/site-logo-1\.svg" alt="Dezhost"/);
+});
+
+test("email header falls back to the favicon, then to brand-name text when no logo is set", async () => {
+  const logs = [];
+  // No siteLogoUrl → favicon is used.
+  const withFavicon = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", fromName: "Dezhost", adminEmails: [] }],
+    ["emailEventConfigs", { welcome: { enabled: true, recipients: ["client"] } }],
+    ["faviconUrl", "https://cdn.example.test/favicon.png"]
+  ]);
+  const email = new EmailService(fakePrisma(withFavicon, logs));
+  await email.dispatch("welcome", { user: { email: "client@example.test", id: "user-1", name: "Ada" } });
+  assert.match(logs[0].payload.html, /<img src="https:\/\/cdn\.example\.test\/favicon\.png"/);
+
+  // Neither configured → no <img>, the header keeps the brand-name text only.
+  const noLogo = [];
+  const plain = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", fromName: "Dezhost", adminEmails: [] }],
+    ["emailEventConfigs", { welcome: { enabled: true, recipients: ["client"] } }]
+  ]);
+  const emailPlain = new EmailService(fakePrisma(plain, noLogo));
+  await emailPlain.dispatch("welcome", { user: { email: "client@example.test", id: "user-1", name: "Ada" } });
+  assert.doesNotMatch(noLogo[0].payload.html, /<img src=/);
+});
+
 test("email dispatch localizes subject and default layout by the recipient's User.locale", async () => {
   const logs = [];
   const settings = new Map([

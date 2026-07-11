@@ -60,7 +60,7 @@ export class EmailService {
     const [mainLang, mainCurrency] = await Promise.all([this.mainLanguage(), this.mainCurrency()]);
     const dict = loadDictionary(mainLang).email;
     const sampleVars = defaultTestVariables(mainCurrency, mainLang);
-    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, activeModules] = await Promise.all([
+    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, activeModules, brandLogoUrl] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
       this.layoutConfigs(),
@@ -68,10 +68,12 @@ export class EmailService {
       this.settingJson<Record<string, unknown>>("emailTestVariables", sampleVars),
       Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, mainLang))),
       this.listLogs(100),
-      this.activeModules()
+      this.activeModules(),
+      this.emailBrandLogoUrl()
     ]);
 
     return {
+      brandLogoUrl,
       events: EMAIL_EVENTS.map((event, index) => ({
         ...event,
         enabled: eventConfigs[event.key]?.enabled ?? true,
@@ -191,12 +193,13 @@ export class EmailService {
     const mainLang = await this.mainLanguage();
     const recipientLocale = resolveLocale(input.user?.locale, mainLang);
     const dict = loadDictionary(recipientLocale).email;
-    const [smtp, configs, layoutConfigs, templateHtml, template] = await Promise.all([
+    const [smtp, configs, layoutConfigs, templateHtml, template, brandLogoUrl] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.templateFor(eventKey, recipientLocale)
+      this.templateFor(eventKey, recipientLocale),
+      this.emailBrandLogoUrl()
     ]);
     const config = configs[eventKey] ?? { enabled: true, recipients: definition.defaultRecipients };
     if (config.enabled === false) {
@@ -213,7 +216,7 @@ export class EmailService {
     const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
     const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
     const content = renderEmailLayout(layoutBlocks, context);
-    const html = renderShell(templateHtml, { ...context, content, subject });
+    const html = renderShell(templateHtml, { ...context, brand_logo: brandLogoImg(brandLogoUrl, context.brand_name), content, subject });
     const text = stripHtml(content);
     const recipients = this.recipients(config.recipients ?? definition.defaultRecipients, input.user, smtp);
 
@@ -300,11 +303,12 @@ export class EmailService {
     const mainLang = await this.mainLanguage();
     const recipientLocale = resolveLocale(user.locale, mainLang);
     const dict = loadDictionary(recipientLocale).email;
-    const [smtp, layoutConfigs, templateHtml, template] = await Promise.all([
+    const [smtp, layoutConfigs, templateHtml, template, brandLogoUrl] = await Promise.all([
       this.smtpSettings(),
       this.layoutConfigs(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.templateFor(eventKey, recipientLocale)
+      this.templateFor(eventKey, recipientLocale),
+      this.emailBrandLogoUrl()
     ]);
     const context = normalizeContext({
       brand_name: smtp.fromName || "Dezhost",
@@ -315,7 +319,7 @@ export class EmailService {
     const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
     const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
     const content = renderEmailLayout(layoutBlocks, context);
-    const html = renderShell(templateHtml, { ...context, content, subject });
+    const html = renderShell(templateHtml, { ...context, brand_logo: brandLogoImg(brandLogoUrl, context.brand_name), content, subject });
     const text = stripHtml(content);
     const delivery = await this.deliver({ html, recipient: user.email, smtp, subject, text });
     return [await this.prisma.emailLog.create({
@@ -336,10 +340,11 @@ export class EmailService {
     if (!user?.email) {
       return [];
     }
-    const [smtp, templateHtml, mainLang] = await Promise.all([
+    const [smtp, templateHtml, mainLang, brandLogoUrl] = await Promise.all([
       this.smtpSettings(),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
-      this.mainLanguage()
+      this.mainLanguage(),
+      this.emailBrandLogoUrl()
     ]);
     const context = normalizeContext({
       brand_name: smtp.fromName || "Dezhost",
@@ -349,7 +354,7 @@ export class EmailService {
     });
     const resolvedSubject = renderText(subject, context);
     const content = renderText(body, context);
-    const html = renderShell(templateHtml, { ...context, content, subject: resolvedSubject });
+    const html = renderShell(templateHtml, { ...context, brand_logo: brandLogoImg(brandLogoUrl, context.brand_name), content, subject: resolvedSubject });
     const text = stripHtml(content);
     const delivery = await this.deliver({ html, recipient: user.email, smtp, subject: resolvedSubject, text });
     return [await this.prisma.emailLog.create({
@@ -545,6 +550,13 @@ export class EmailService {
     return typeof setting?.value === "string" ? setting.value : fallback;
   }
 
+  // Absolute URL of the tenant's brand logo for the email header — the same logo admins configure
+  // on the settings page (`siteLogoUrl`), falling back to the favicon. Empty when neither is set.
+  private async emailBrandLogoUrl(): Promise<string> {
+    const raw = (await this.settingString("siteLogoUrl")) || (await this.settingString("faviconUrl"));
+    return absoluteAssetUrl(raw) ?? "";
+  }
+
   private async settingJson<T>(key: string, fallback: T): Promise<T> {
     const setting = await this.prisma.systemSetting.findUnique({ where: { key } });
     return isRecord(setting?.value) || Array.isArray(setting?.value) ? setting.value as T : fallback;
@@ -605,8 +617,37 @@ function renderText(template: string, context: Record<string, string>) {
 }
 
 function renderShell(template: string, context: Record<string, string>) {
+  // `content` and `brand_logo` are trusted HTML fragments (the rendered body and the logo <img>),
+  // so they are injected raw; every other placeholder is HTML-escaped.
   const content = context.content ?? "";
-  return template.replace(/\{\{\s*content\s*\}\}/g, content).replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => escapeHtml(context[key] ?? ""));
+  const brandLogo = context.brand_logo ?? "";
+  return template
+    .replace(/\{\{\s*content\s*\}\}/g, content)
+    .replace(/\{\{\s*brand_logo\s*\}\}/g, brandLogo)
+    .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => escapeHtml(context[key] ?? ""));
+}
+
+// Absolute URL for a stored asset path. Uploaded logos/favicons are saved as relative
+// `/uploads/...` paths; emails render in external clients, so they must be absolute — we prefix
+// the current tenant's web base URL. Already-absolute (http/https/data) URLs pass through unchanged.
+function absoluteAssetUrl(value: string | undefined): string | undefined {
+  const raw = stringValue(value);
+  if (!raw) {
+    return undefined;
+  }
+  if (/^(https?:|data:)/i.test(raw)) {
+    return raw;
+  }
+  return `${tenantWebBaseUrl()}/${raw.replace(/^\/+/, "")}`;
+}
+
+// The email header logo as an <img> tag, or "" when no logo/favicon is configured (the header then
+// falls back to the {{brand_name}} text). Rendered raw by renderShell, so the URL + alt are escaped here.
+function brandLogoImg(url: string, brandName: string | undefined): string {
+  if (!url) {
+    return "";
+  }
+  return `<img src="${escapeHtml(url)}" alt="${escapeHtml(brandName || "")}" style="max-height:40px;max-width:200px;display:block;margin:0 0 12px;border:0;" />`;
 }
 
 function stripHtml(value: string) {

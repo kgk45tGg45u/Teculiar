@@ -26,6 +26,7 @@ export type EmailPlaceholder = {
 
 export const CORE_EMAIL_PLACEHOLDERS: EmailPlaceholder[] = [
   { key: "brand_name", group: "general", description: "Public brand name from email settings." },
+  { key: "brand_logo", group: "general", description: "Brand logo image (falls back to the favicon, then to the brand name text)." },
   { key: "current_date", group: "general", description: "Current date." },
   { key: "customer_name", group: "customer", description: "Client name." },
   { key: "customer_email", group: "customer", description: "Client email address." },

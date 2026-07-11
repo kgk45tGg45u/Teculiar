@@ -382,6 +382,7 @@ export type ApiEmailLayoutBlock = {
 
 export type ApiEmailAdminSettings = {
   blockLibrary?: Array<{ description: string; label: string; type: ApiEmailLayoutBlock["type"] }>;
+  brandLogoUrl?: string;
   events: Array<{
     body: string;
     defaultRecipients: Array<"admin" | "client">;

@@ -186,7 +186,7 @@ function EmailTemplateEditor({ save, settings }: {
   const [templateHtml, setTemplateHtml] = useState(settings.templateHtml);
   const [previewKey, setPreviewKey] = useState(settings.events[0]?.key ?? "");
   const sampleEvent = settings.events.find((event) => event.key === previewKey) ?? settings.events[0];
-  const previewHtml = renderEmailPreview(templateHtml, sampleEvent?.layoutBlocks ?? [], sampleEvent?.subject ?? "Email Preview", settings.testVariables);
+  const previewHtml = renderEmailPreview(templateHtml, sampleEvent?.layoutBlocks ?? [], sampleEvent?.subject ?? "Email Preview", settings.testVariables, settings.brandLogoUrl);
 
   async function submit() {
     await save({ templateHtml });
@@ -214,7 +214,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
   const [events, setEvents] = useState(settings.events);
   const [selectedKey, setSelectedKey] = useState(settings.events[0]?.key ?? "");
   const selected = events.find((event) => event.key === selectedKey) ?? events[0];
-  const previewHtml = selected ? renderEmailPreview(settings.templateHtml, selected.layoutBlocks, selected.subject, settings.testVariables) : "";
+  const previewHtml = selected ? renderEmailPreview(settings.templateHtml, selected.layoutBlocks, selected.subject, settings.testVariables, settings.brandLogoUrl) : "";
 
   function updateSelected(patch: Partial<EmailEvent>) {
     if (!selected) {
@@ -585,7 +585,7 @@ function createBlock(type: ApiEmailLayoutBlock["type"]): ApiEmailLayoutBlock {
   return { content: "Hello {{customer_name}},", id, type };
 }
 
-function renderEmailPreview(template: string, blocks: ApiEmailLayoutBlock[], subject: string, variables: Record<string, unknown>) {
+function renderEmailPreview(template: string, blocks: ApiEmailLayoutBlock[], subject: string, variables: Record<string, unknown>, brandLogoUrl?: string) {
   const context = Object.fromEntries(Object.entries({
     brand_name: "Dezhost",
     current_date: new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date()),
@@ -593,8 +593,14 @@ function renderEmailPreview(template: string, blocks: ApiEmailLayoutBlock[], sub
     ...variables
   }).map(([key, value]) => [key, value === undefined || value === null ? "" : String(value)]));
   const content = renderBlocks(blocks, context);
+  // Mirror the backend shell: `content` and `brand_logo` are trusted HTML injected raw; the logo
+  // <img> is rebuilt from the resolved brand-logo URL (empty → the header falls back to the name).
+  const brandLogo = brandLogoUrl
+    ? `<img src="${escapeHtml(brandLogoUrl)}" alt="${escapeHtml(String(context.brand_name ?? ""))}" style="max-height:40px;max-width:200px;display:block;margin:0 0 12px;border:0;" />`
+    : "";
   return template
     .replace(/\{\{\s*content\s*\}\}/g, content)
+    .replace(/\{\{\s*brand_logo\s*\}\}/g, brandLogo)
     .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => escapeHtml(String(context[key] ?? "")));
 }
 

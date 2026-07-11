@@ -118,6 +118,7 @@ export const DEFAULT_EMAIL_TEMPLATE_HTML = `<!doctype html>
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #dde5ef;border-radius:8px;overflow:hidden;">
             <tr>
               <td style="padding:24px 28px;background:#10223d;color:#ffffff;">
+                {{brand_logo}}
                 <div style="font-size:14px;letter-spacing:0;text-transform:uppercase;opacity:.78;">{{brand_name}}</div>
                 <h1 style="margin:8px 0 0;font-size:24px;line-height:1.25;">{{subject}}</h1>
               </td>
