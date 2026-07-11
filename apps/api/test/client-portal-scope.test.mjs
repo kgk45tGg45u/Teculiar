@@ -11,7 +11,7 @@ test("admin login does not replace the client portal token", async () => {
 
   assert.match(api, /CLIENT_AUTH_COOKIE = "dezhost_client_access_token"/);
   assert.match(api, /ADMIN_AUTH_COOKIE = "dezhost_admin_access_token"/);
-  assert.match(loginForm, /storeAuth\(payload as AuthPayload, admin \? "admin" : "client"\)/);
+  assert.match(loginForm, /storeAuth\(payload as AuthPayload, admin \? "admin" : "client", rememberMe\)/);
   assert.match(serverApi, /ADMIN_AUTH_COOKIE/);
   assert.match(middleware, /CLIENT_AUTH_COOKIE/);
   assert.match(middleware, /ADMIN_AUTH_COOKIE/);
@@ -33,5 +33,7 @@ test("client add funds form is always available", async () => {
 
   assert.doesNotMatch(clientDashboard, /You must have at least one active order before adding funds\./);
   assert.doesNotMatch(clientDashboard, /activeServices \?/);
-  assert.match(clientDashboard, /<Button icon=\{CreditCard\} type="submit">Add Funds<\/Button>/);
+  // Localized submit button (copy.addFundsSubmit); disabled only while submitting / SEPA IBAN empty.
+  assert.match(clientDashboard, /icon=\{CreditCard\} type="submit"/);
+  assert.match(clientDashboard, /copy\.addFundsSubmit/);
 });

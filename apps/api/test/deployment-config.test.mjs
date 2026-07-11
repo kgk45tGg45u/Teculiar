@@ -17,11 +17,15 @@ test("production deployment files describe GitHub Actions and server Docker wiri
   assert.match(workflow, /docker compose -f docker-compose\.prod\.yml pull/);
   assert.match(workflow, /docker compose -f docker-compose\.prod\.yml up -d --remove-orphans/);
 
-  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-api:latest/);
-  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-web:latest/);
-  assert.match(compose, /127\.0\.0\.1:4000:4000/);
-  assert.match(compose, /127\.0\.0\.1:3000:3000/);
-  assert.match(compose, /\/opt\/dezhost\/\.env/);
+  // Images follow the box's release channel (IMAGE_TAG=latest live / edge pre-prod); host
+  // ports + bind host are parameterized so two stacks can coexist on the box.
+  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-api:\$\{IMAGE_TAG:-latest\}/);
+  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-web:\$\{IMAGE_TAG:-latest\}/);
+  assert.match(compose, /\$\{BIND_HOST:-127\.0\.0\.1\}:\$\{API_PORT:-4000\}:4000/);
+  assert.match(compose, /\$\{BIND_HOST:-127\.0\.0\.1\}:\$\{WEB_PORT:-3000\}:3000/);
+  // The deploy job updates the live multi-tenant stack + the Dezhost storefront stack.
+  assert.match(workflow, /\/opt\/teculiar/);
+  assert.match(workflow, /\/opt\/dezhost-storefront/);
 
   assert.match(apiDockerfile, /prisma migrate deploy --schema prisma\/schema\.prisma/);
   assert.match(webDockerfile, /ARG NEXT_PUBLIC_API_URL/);
@@ -44,7 +48,10 @@ test("api exposes a deployment health endpoint", async () => {
   assert.match(controller, /@Controller\("health"\)/);
   assert.match(controller, /status:\s*"ok"/);
   assert.match(appModule, /HealthController/);
-  assert.match(main, /CORS_ORIGINS/);
+  // CORS moved out of main.ts: makeCorsOrigin merges CORS_ORIGINS + tenant suffixes + custom domains.
+  assert.match(main, /makeCorsOrigin/);
+  const corsOrigin = await readFile(new URL("../src/cors-origin.ts", import.meta.url), "utf8");
+  assert.match(corsOrigin, /CORS_ORIGINS/);
   assert.match(main, /0\.0\.0\.0/);
 });
 

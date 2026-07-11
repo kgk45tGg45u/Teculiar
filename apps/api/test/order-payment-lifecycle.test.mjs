@@ -19,11 +19,13 @@ test("new storefront checkout stores order under pending checkout user, not clie
   const pendingUser = { id: "pending-user", email: "pending-checkout@dezhost.local" };
   const item = pricedHostingItem();
   const orders = {
-    createOrder: async (input) => {
-      calls.push(["createOrder", input.userId]);
-      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    // Order creation is deferred to payment confirmation — checkout must NOT create it.
+    createOrder: async () => {
+      throw new Error("checkout created an order before payment");
     },
-    createPendingEntitiesForOrder: async (order) => calls.push(["createPendingEntitiesForOrder", order.userId]),
+    createPendingEntitiesForOrder: async () => {
+      throw new Error("checkout created pending entities before payment");
+    },
     findActiveDomainRecord: async () => null,
     findActiveHostingServiceByDomain: async () => null
   };
@@ -46,13 +48,11 @@ test("new storefront checkout stores order under pending checkout user, not clie
   const service = new OrdersService(orders, billing, {}, users, domainPricing());
   service.priceItems = async () => [item];
 
-  await service.checkout({ customer, items: [{ productId: "hosting" }] });
+  const result = await service.checkout({ customer, items: [{ productId: "hosting" }] });
 
-  assert.deepEqual(calls, [
-    ["createInvoice", "pending-user", "bijans@test.com"],
-    ["createOrder", "pending-user"],
-    ["createPendingEntitiesForOrder", "pending-user"]
-  ]);
+  assert.deepEqual(calls, [["createInvoice", "pending-user", "bijans@test.com"]]);
+  // The invoice id doubles as the checkout session id until payment succeeds.
+  assert.equal(result.order.id, "invoice-1");
 });
 
 test("new storefront checkout normalizes email before user lookup and snapshot", async () => {
@@ -60,9 +60,8 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
   const pendingUser = { id: "pending-user", email: "pending-checkout@dezhost.local" };
   const item = pricedHostingItem();
   const orders = {
-    createOrder: async (input) => {
-      calls.push(["createOrder", input.customerSnapshot.email]);
-      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    createOrder: async () => {
+      throw new Error("checkout created an order before payment");
     },
     createPendingEntitiesForOrder: async () => undefined,
     findActiveDomainRecord: async () => null,
@@ -91,8 +90,7 @@ test("new storefront checkout normalizes email before user lookup and snapshot",
 
   assert.deepEqual(calls, [
     ["findByEmail", "bijans+new@test.com"],
-    ["createInvoice", "pending-user", "bijans+new@test.com"],
-    ["createOrder", "bijans+new@test.com"]
+    ["createInvoice", "pending-user", "bijans+new@test.com"]
   ]);
 });
 
@@ -101,9 +99,8 @@ test("logged-in storefront checkout can reuse the account email without password
   const existingUser = { customerNumber: 123, id: "real-user", email: "bijans@test.com", passwordHash: "stored-hash" };
   const item = pricedHostingItem();
   const orders = {
-    createOrder: async (input) => {
-      calls.push(["createOrder", input.userId]);
-      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    createOrder: async () => {
+      throw new Error("checkout created an order before payment");
     },
     createPendingEntitiesForOrder: async () => undefined,
     findActiveDomainRecord: async () => null,
@@ -140,8 +137,7 @@ test("logged-in storefront checkout can reuse the account email without password
 
   assert.deepEqual(calls, [
     ["findById", "real-user"],
-    ["createInvoice", "real-user", undefined],
-    ["createOrder", "real-user"]
+    ["createInvoice", "real-user", undefined]
   ]);
 });
 
@@ -186,9 +182,8 @@ test("logged-in storefront checkout uses token account over autofilled email", a
   const wrongUser = { customerNumber: 111, email: "bijans@gmail.com", id: "wrong-user", passwordHash: "wrong-hash" };
   const item = pricedHostingItem();
   const orders = {
-    createOrder: async (input) => {
-      calls.push(["createOrder", input.userId, input.customerSnapshot.email, input.customerSnapshot.customerNumber]);
-      return { id: "order-1", items: [{ ...item, id: "order-item-1" }], userId: input.userId };
+    createOrder: async () => {
+      throw new Error("checkout created an order before payment");
     },
     createPendingEntitiesForOrder: async () => undefined,
     findActiveDomainRecord: async () => null,
@@ -223,8 +218,7 @@ test("logged-in storefront checkout uses token account over autofilled email", a
 
   assert.deepEqual(calls, [
     ["findById", "new-user"],
-    ["createInvoice", "new-user", "new-client@example.test", 777],
-    ["createOrder", "new-user", "new-client@example.test", 777]
+    ["createInvoice", "new-user", "new-client@example.test", 777]
   ]);
 });
 
@@ -405,7 +399,8 @@ test("client dashboard puts combined feed below services", async () => {
   const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
   const feedIndex = source.indexOf("<DashboardKnowledgeFeed");
   const servicesIndex = source.indexOf("<ServicesTable");
-  const overviewIndex = source.indexOf('aria-label="Overview"');
+  // The overview label moved into the localized client pack (copy.dash.overviewAria).
+  const overviewIndex = source.indexOf('aria-label={copy.dash.overviewAria}');
 
   assert.ok(overviewIndex > 0);
   assert.ok(servicesIndex > overviewIndex);

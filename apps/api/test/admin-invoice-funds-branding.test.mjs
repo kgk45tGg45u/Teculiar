@@ -29,7 +29,10 @@ test("add funds uses profile snapshot and sandbox token for sandbox gateway", as
 
   const result = await service.addFunds("user-1", { amountCents: 2500, method: "SANDBOX" });
 
-  assert.equal(result.invoiceId, "paid-invoice");
+  // addFunds returns the created deposit invoice's id (payInvoice updates that same invoice)
+  // together with the payment result's status.
+  assert.equal(result.invoiceId, "invoice-1");
+  assert.equal(result.status, "PAID");
   assert.deepEqual(calls[0][1].customerSnapshot, {
     address: { city: "Berlin", line1: "Main 1", postalCode: "10115", state: "BE" },
     countryCode: "DE",

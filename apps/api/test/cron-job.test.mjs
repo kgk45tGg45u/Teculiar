@@ -32,6 +32,10 @@ test("cron runs due timed actions only and always runs idempotent due-date check
       lastRuns.set(key, date);
     },
     recordAction: async (input) => calls.push(["audit", input.action]),
+    notifyPendingActivations: async () => {
+      calls.push(["activationEmails"]);
+      return { notified: 0 };
+    },
     runAdminMaintenance: async (date) => {
       calls.push(["billing", date.toISOString()]);
       return { generatedInvoices: 1 };
@@ -55,13 +59,15 @@ test("cron runs due timed actions only and always runs idempotent due-date check
     importMailboxTickets: async () => calls.push(["mailboxes"])
   };
 
-  // cms is 2nd arg (added for AI blog); settings have no aiBlogEnabled so cms is never called
+  // cms is 2nd arg (added for AI blog); settings have no aiBlogEnabled so cms is never called.
+  // theme (sitemap regeneration) sits between products and tickets.
   const cms = {};
-  const result = await new CronService(billing, cms, orders, products, tickets).run(now);
+  const theme = {};
+  const result = await new CronService(billing, cms, orders, products, theme, tickets).run(now);
 
   assert.deepEqual(
     calls.filter((call) => !["mark", "audit"].includes(call[0])).map((call) => call[0]),
-    ["domainExpirations", "domainStatuses", "billing", "reminders", "ticketsClose", "mailboxes"]
+    ["domainExpirations", "domainStatuses", "billing", "reminders", "ticketsClose", "activationEmails", "mailboxes"]
   );
   assert.equal(result.ran.some((item) => item.name === "domainPrices"), false);
   assert.equal(result.ran.some((item) => item.name === "hostingStatuses"), false);
@@ -76,6 +82,7 @@ test("cron secret is not JWT auth but must match configured secret", async () =>
     {}, // cms
     {}, // orders
     {}, // products
+    {}, // theme
     {}  // tickets
   );
   service.run = async () => ({ ok: true, ran: [], skipped: [] });
@@ -89,7 +96,7 @@ test("admin cron endpoint is role protected and runs without cron secret", async
   const cronController = await readFile(new URL("../src/modules/cron/cron.controller.ts", import.meta.url), "utf8");
 
   assert.match(cronController, /UseGuards\(JwtAuthGuard, RolesGuard\)/);
-  assert.match(cronController, /@Roles\("admin", "staff"\)/);
+  assert.match(cronController, /@Roles\("admin", "staff", "super_admin"\)/);
   assert.match(cronController, /@Post\("admin\/run"\)/);
   assert.match(cronController, /runAdmin\(\)/);
   assert.match(cronController, /this\.cron\.run\(\)/);

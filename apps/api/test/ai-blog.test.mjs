@@ -55,12 +55,8 @@ test("generateArticle creates a post when Deepseek returns valid JSON", async ()
       return { id: `tag-${name}`, name };
     },
     createContent: async (dto, authorId) => {
-      calls.push(["createContent", dto.title, authorId]);
+      calls.push(["createContent", dto.title, authorId, dto.locale]);
       return { id: "post-1", title: dto.title };
-    },
-    createTranslation: async (input) => {
-      calls.push(["createTranslation", input.targetLocale]);
-      return { id: "trans-1" };
     }
   };
 
@@ -95,8 +91,11 @@ test("generateArticle creates a post when Deepseek returns valid JSON", async ()
   assert.ok(calls.some(([action]) => action === "findOrCreateTag"), "Tags should be resolved");
   // Content was created with the right author
   assert.ok(calls.some(([action, , authorId]) => action === "createContent" && authorId === "author-1"));
-  // Translation was created
-  assert.ok(calls.some(([action]) => action === "createTranslation"), "Translation should be created");
+  // The translation is saved as a second full post in the opposite locale (en source → de)
+  assert.ok(
+    calls.some(([action, , , locale]) => action === "createContent" && locale === "de"),
+    "Translation post should be created in the target locale"
+  );
 });
 
 test("generateArticle handles invalid JSON from Deepseek gracefully", async () => {
@@ -127,7 +126,8 @@ test("generateAiBlogPost skips when daily limit is reached", async () => {
   const { CmsService } = await import("../dist/modules/cms/cms.service.js");
 
   const cms = {
-    countAiPostsToday: async () => 3,
+    // Each article = source post + translation, so 6 rows today = 3 articles (the daily target).
+    countAiPostsToday: async () => 6,
     listAdminPosts: async () => [],
     createContent: async () => assert.fail("should not create content"),
     // other stubs
@@ -166,7 +166,7 @@ test("generateAiBlogPost skips when daily limit is reached", async () => {
   const result = await service.generateAiBlogPost({ aiBlogArticlesPerDay: 3 }, "system");
 
   assert.equal(result.skipped, true);
-  assert.match(result.reason, /Daily limit/);
+  assert.match(result.reason, /Daily target/);
 });
 
 test("generateAiBlogPost skips when no admin user exists", async () => {
@@ -220,7 +220,7 @@ test("generateAiBlogPost resolves system to first admin and calls generateArticl
   const aiBlog = {
     generateArticle: async (settings, authorId) => {
       calls.push(["generateArticle", authorId]);
-      return { id: "post-1" };
+      return { id: "post-1", title: "Post One" };
     }
   };
   const billing = { cronSettings: async () => ({}) };
@@ -228,8 +228,10 @@ test("generateAiBlogPost resolves system to first admin and calls generateArticl
   const service = new CmsService(cms, translations, aiBlog, billing);
   const result = await service.generateAiBlogPost({ deepseekApiKey: "sk-test", aiBlogTopicsPool: "Hosting" }, "system");
 
+  // The run reports the generated titles; the count stub never advances, so the
+  // catch-up loop stops after the first article.
   assert.equal(result.ok, true);
-  assert.equal(result.id, "post-1");
+  assert.deepEqual(result.titles, ["Post One"]);
   assert.ok(calls.includes("findFirstAdminId"), "Should look up the first admin");
   assert.ok(calls.some(([action, authorId]) => action === "generateArticle" && authorId === "admin-user-1"), "Should pass resolved admin ID");
 });
@@ -257,9 +259,9 @@ test("CMS controller exposes AI blog generate endpoint", async () => {
 test("AI blog service endpoints are admin-only", async () => {
   const controller = await readFile(new URL("../src/modules/cms/cms.controller.ts", import.meta.url), "utf8");
 
-  // The generate endpoint must be guarded
+  // The generate endpoint must be guarded (staff roles allowed; never public)
   assert.match(controller, /UseGuards\(JwtAuthGuard, RolesGuard\)/);
-  assert.match(controller, /@Roles\("admin", "super_admin"\)/);
+  assert.match(controller, /@Roles\("admin", "super_admin", "support_agent"\)\s*\n\s*@Post\("admin\/dev\/ai-blog\/generate"\)/);
 });
 
 test("AiBlogService uses json_object mode for article writing", async () => {
