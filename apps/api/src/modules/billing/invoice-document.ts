@@ -18,6 +18,9 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
   const inv = dict.invoice;
   const currency = stringValue(invoice.currency) ?? "EUR";
   const number = stringValue(invoice.finalInvoiceNumber) ?? stringValue(invoice.tempInvoiceNumber) ?? stringValue(invoice.invoiceNumber) ?? invoice.id;
+  // A pending invoice carries a temporary "N-" number (final sequential number is assigned on
+  // payment). Flag it so the document warns the customer it is not yet a final invoice.
+  const isPending = !invoice.finalInvoiceNumber && String(number).startsWith("N-");
   const issuedAt = formatDate(invoice.issuedAt, locale);
   const dueAt = formatDate(invoice.dueAt, locale);
   const paidAt = invoice.paidAt ? formatDate(invoice.paidAt, locale) : "";
@@ -145,6 +148,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
       <div><span>${escapeHtml(inv.totals.grandTotal)}</span><strong>${escapeHtml(fmtMoney(numberValue(invoice.totalCents), currency, locale))}</strong></div>
     </section>
 
+    ${isPending ? `<section class="note">${escapeHtml(inv.pendingNotice)}</section>` : ""}
     ${taxReason ? `<section class="note">${escapeHtml(taxReason)}</section>` : ""}
     ${(paymentInstructions || bankDetails) ? `<section class="note">${paymentInstructions ? `${escapeHtml(paymentInstructions)}<br />` : ""}${bankDetails ? escapeHtml(bankDetails) : ""}</section>` : ""}
     ${footerLines.length ? `<footer class="footer">${footerLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</footer>` : ""}

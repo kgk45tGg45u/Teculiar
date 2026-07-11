@@ -152,6 +152,33 @@ test("invoice localizes labels by the resolved locale (English)", () => {
   assert.doesNotMatch(en.html, /USt-IdNr\./);
 });
 
+test("pending invoices (temporary N- number) warn they are not a final invoice", () => {
+  const pending = renderInvoiceDocument({
+    ...invoice,
+    finalInvoiceNumber: null,
+    tempInvoiceNumber: "N-100001",
+    invoiceNumber: "N-100001",
+    paidAt: null,
+    status: "PENDING"
+  });
+  assert.match(pending.html, /Rechnung N-100001/);
+  assert.match(pending.html, /Dies ist keine endgültige Rechnung\./);
+
+  const pendingEn = renderInvoiceDocument({
+    ...invoice,
+    finalInvoiceNumber: null,
+    tempInvoiceNumber: "N-100001",
+    invoiceNumber: "N-100001",
+    paidAt: null,
+    status: "PENDING"
+  }, { locale: "en" });
+  assert.match(pendingEn.html, /This is not a final invoice\./);
+
+  // A final (numbered) invoice never carries the pending warning.
+  const final = renderInvoiceDocument(invoice);
+  assert.doesNotMatch(final.html, /endgültige Rechnung wird nach erfolgreicher Zahlung/);
+});
+
 test("invoice money formats use the invoice's stored currency, not the live toggle", () => {
   const usd = renderInvoiceDocument({ ...invoice, currency: "USD", totalCents: 11900, subtotalCents: 11900 }, { locale: "en" });
   assert.match(usd.html, /\$119\.00/);

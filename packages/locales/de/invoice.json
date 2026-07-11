@@ -2,6 +2,7 @@
   "title": "Rechnung",
   "intro": "Vielen Dank für Ihren Auftrag. Wir berechnen die folgenden Leistungen gemäß Ihrer Bestellung.",
   "vatId": "USt-IdNr.",
+  "pendingNotice": "Dies ist keine endgültige Rechnung. Eine endgültige Rechnung wird nach erfolgreicher Zahlung ausgestellt.",
   "meta": {
     "invoiceDate": "Rechnungsdatum",
     "dueDate": "Fällig am",

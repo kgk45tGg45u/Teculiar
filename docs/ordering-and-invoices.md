@@ -97,6 +97,12 @@ The label is resolved live (not snapshotted onto the invoice), so renaming a gat
 also updates how the method reads on previously paid invoices. The underlying
 `Transaction.method` enum is immutable.
 
+For **pending** invoices (those still carrying a temporary `N-` number, i.e. no
+`finalInvoiceNumber` yet) the document renders a note near the totals: *"This is not a
+final invoice. A final invoice will be issued after successful payment."* The text is
+localized via the `invoice.pendingNotice` key (`packages/locales/{de,en}/invoice.json`)
+and disappears once the invoice is paid and gets its final sequential number.
+
 ### Invoice vs. Order: Key Differences
 
 | Aspect | Order | Invoice |

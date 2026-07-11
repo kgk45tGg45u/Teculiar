@@ -2,6 +2,7 @@
   "title": "Invoice",
   "intro": "Thank you for your order. We are charging the following services as per your order.",
   "vatId": "VAT ID",
+  "pendingNotice": "This is not a final invoice. A final invoice will be issued after successful payment.",
   "meta": {
     "invoiceDate": "Invoice Date",
     "dueDate": "Due Date",
