@@ -144,7 +144,13 @@
 
 @media (max-width: 600px) {
   .links {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* The CTA block (heading + blurb + button) is too wide for a half column;
+     let it span the full row below the two menu columns. */
+  .ctaBlock {
+    grid-column: 1 / -1;
   }
 
   .bottom {
