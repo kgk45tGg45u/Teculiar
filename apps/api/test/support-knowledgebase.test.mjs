@@ -104,6 +104,6 @@ test("admin support UI can CRUD KB and insert KB body into replies", async () =>
   assert.match(dashboard, /view === "knowledgebase"/);
   assert.match(dashboard, /KnowledgebasePanel/);
   assert.match(dashboard, /admin\/dev\/knowledgebase/);
-  assert.match(support, /Insert article/);
+  assert.match(support, /\{c\.insertArticle\}/); // localized "Insert article" label on the KB picker
   assert.match(support, /\/tickets\/\$\{ticket\.id\}\/replies/);
 });
