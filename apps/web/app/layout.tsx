@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "react-toastify/dist/ReactToastify.css";
+import { CookieBanner } from "@dezhost/web-core/components/layout/cookie-banner";
 import { ToastProvider } from "@dezhost/web-core/components/ui/toast-provider";
 import { serverApiGet } from "@dezhost/web-core/lib/server-api";
 import { DEFAULT_LOCALE } from "@dezhost/web-core/lib/supported-locales";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeBootstrap />
         <ToastProvider />
         {children}
+        <CookieBanner locale={DEFAULT_LOCALE} />
       </body>
     </html>
   );

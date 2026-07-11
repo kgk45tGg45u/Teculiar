@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
+import { CookieBanner } from "@dezhost/web-core/components/layout/cookie-banner";
 import { CurrencyConfigInit } from "@dezhost/web-core/components/layout/currency-config-init";
 import { SiteFooter } from "@dezhost/web-core/components/layout/site-footer";
 import { SiteHeader } from "@dezhost/web-core/components/layout/site-header";
@@ -88,6 +89,7 @@ export default async function PublicLayout({
       <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
       <SiteFooter brandLogo={brandLogo} locale={locale} theme={theme} />
+      <CookieBanner locale={locale} />
     </div>
   );
 }

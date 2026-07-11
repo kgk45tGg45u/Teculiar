@@ -58,5 +58,12 @@
     "open": "Language and currency"
   },
   "ssoRedirecting": "Signing you in…",
-  "ssoFailed": "Sign-in handoff failed. Please log in again."
+  "ssoFailed": "Sign-in handoff failed. Please log in again.",
+  "cookieBanner": {
+    "title": "Cookies",
+    "message": "We use cookies to run this site and improve your experience.",
+    "accept": "Accept",
+    "settings": "Settings",
+    "deny": "Deny"
+  }
 }

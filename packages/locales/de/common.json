@@ -58,5 +58,12 @@
     "open": "Sprache und Währung"
   },
   "ssoRedirecting": "Sie werden angemeldet…",
-  "ssoFailed": "Anmeldeübergabe fehlgeschlagen. Bitte melden Sie sich erneut an."
+  "ssoFailed": "Anmeldeübergabe fehlgeschlagen. Bitte melden Sie sich erneut an.",
+  "cookieBanner": {
+    "title": "Cookies",
+    "message": "Wir verwenden Cookies, um diese Website zu betreiben und Ihr Erlebnis zu verbessern.",
+    "accept": "Akzeptieren",
+    "settings": "Einstellungen",
+    "deny": "Ablehnen"
+  }
 }
