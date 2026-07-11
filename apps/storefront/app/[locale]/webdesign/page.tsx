@@ -2,8 +2,15 @@ import { ArrowRight, CheckCircle, Globe, Layers, MessageCircle, Palette, Search,
 import { apiGet } from "@dezhost/web-core/lib/api";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import type { Metadata } from "next";
+import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./webdesign.module.css";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata("webdesign", locale);
+}
 
 export default async function WebdesignPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;

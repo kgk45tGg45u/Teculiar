@@ -2,7 +2,9 @@
 // footer and (Stage B) router read their menus/pages/footer from GET /storefront/theme instead of
 // hard-coded arrays. Per-locale text resolves to the active locale, falling back to the main language
 // then any available value.
+import type { Metadata } from "next";
 import { apiGet } from "./api";
+import { getLocale } from "./i18n";
 
 export type LocaleMap = Record<string, string>;
 
@@ -44,6 +46,38 @@ export function localized(map: LocaleMap | null | undefined, locale: string, mai
     return "";
   }
   return map[locale] || map[mainLocale] || Object.values(map).find(Boolean) || "";
+}
+
+/**
+ * Per-page SEO for a storefront theme route's `generateMetadata`. Reads the admin-editable Page SEO
+ * (`seoTitle`/`seoDescription`, per-locale) from GET /storefront/theme and returns a Next `Metadata`
+ * with the localized title + description. Anything the page leaves blank is omitted so Next inherits
+ * the site-wide default from the layout (title template + fallback description). Without this, theme
+ * routes render only the layout default and per-page meta descriptions never reach the HTML.
+ */
+export async function pageMetadata(pageKey: string, rawLocale: string): Promise<Metadata> {
+  const [settings, theme] = await Promise.all([
+    apiGet<{ languages?: { main?: string } }>("/storefront/settings"),
+    fetchStorefrontTheme()
+  ]);
+  const locale = getLocale(rawLocale);
+  const mainLocale = getLocale(settings?.languages?.main);
+  const page = theme?.pages.find((entry) => entry.key === pageKey);
+  if (!page) {
+    return {};
+  }
+  const metadata: Metadata = {};
+  const title = localized(page.seoTitle, locale, mainLocale);
+  if (title) {
+    // A plain string flows through the layout's title template (`%s | siteName`); an absolute-looking
+    // title the admin already suffixed is theirs to control via the SEO field.
+    metadata.title = title;
+  }
+  const description = localized(page.seoDescription, locale, mainLocale);
+  if (description) {
+    metadata.description = description;
+  }
+  return metadata;
 }
 
 function hrefFor(item: ThemeMenuItem, locale: string, mainLocale: string): string | null {

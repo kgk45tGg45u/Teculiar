@@ -5,7 +5,14 @@ import { PlatformSection } from "@dezhost/web-core/components/marketing/platform
 import { ProductGrid } from "@dezhost/web-core/components/marketing/product-grid";
 import { CustomPageGate } from "../../components/customizer/custom-page";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import type { Metadata } from "next";
+import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
 import styles from "./home.module.css";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata("home", locale);
+}
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;

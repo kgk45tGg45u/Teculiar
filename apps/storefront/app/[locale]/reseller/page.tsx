@@ -5,6 +5,8 @@ import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { Price } from "@dezhost/web-core/components/marketing/price";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import type { Metadata } from "next";
+import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./reseller.module.css";
 
@@ -30,6 +32,11 @@ function configValue(product: ApiProduct, key: string): string | undefined {
   if (!config) return undefined;
   const first = Array.isArray(config.values) ? config.values[0] : config.values;
   return first === undefined || first === null ? undefined : String(first);
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata("reseller", locale);
 }
 
 export default async function ResellerPage({ params }: { params: Promise<{ locale: string }> }) {

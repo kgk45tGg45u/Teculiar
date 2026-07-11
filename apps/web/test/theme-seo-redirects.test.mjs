@@ -25,6 +25,23 @@ test("storefront-theme exposes localized-slug + hreflang helpers", () => {
   assert.match(themeLib, /x-default/);
 });
 
+test("theme routes emit per-page SEO via a pageMetadata generateMetadata", () => {
+  // The shared helper reads the admin-editable Page SEO (seoTitle/seoDescription) from the theme.
+  assert.match(themeLib, /export async function pageMetadata/);
+  assert.match(themeLib, /page\.seoTitle/);
+  assert.match(themeLib, /page\.seoDescription/);
+
+  // Representative theme routes export generateMetadata wired to pageMetadata with their page key,
+  // so each page's <meta name="description"> comes from its Page SEO (not just the site default).
+  const home = read("../../storefront/app/[locale]/page.tsx");
+  const webhosting = read("../../storefront/app/[locale]/webhosting/page.tsx");
+  const legalAgb = read("../../storefront/app/[locale]/legal/agb/page.tsx");
+  for (const [src, key] of [[home, "home"], [webhosting, "webhosting"], [legalAgb, "legal-agb"]]) {
+    assert.match(src, /export async function generateMetadata/);
+    assert.match(src, new RegExp(`pageMetadata\\("${key}", locale\\)`));
+  }
+});
+
 test("sitemap emits per-locale slugs with hreflang alternates and a theme fallback", () => {
   assert.match(sitemap, /\/storefront\/theme/);
   assert.match(sitemap, /pagePath\(/);

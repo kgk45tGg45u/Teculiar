@@ -2,10 +2,17 @@ import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, Shie
 import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import type { Metadata } from "next";
+import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { HostingPackages } from "./hosting-packages";
 import { WebhostingFaq } from "./webhosting-faq";
 import styles from "./webhosting.module.css";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata("webhosting", locale);
+}
 
 export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;

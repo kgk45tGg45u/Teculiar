@@ -3,8 +3,15 @@ import { apiGet } from "@dezhost/web-core/lib/api";
 import { DomainSearch } from "@dezhost/web-core/components/marketing/domain-search";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import type { Metadata } from "next";
+import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./domains.module.css";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return pageMetadata("domains", locale);
+}
 
 export default async function DomainsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;
