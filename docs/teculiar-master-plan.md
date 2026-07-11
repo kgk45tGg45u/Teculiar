@@ -263,20 +263,20 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
     otherwise the list price matching the custom cycle) — verified numerically against the compiled
     backend for both toggle states.
 
-### 1.4 N- invoice "not a final invoice" note
+### 1.4 N- invoice "not a final invoice" note  ✅ DONE (2026-07-11 — pending `N-` invoices render the localized note; unit test added; local verify green)
 - Pending invoices carry a temporary `N-` number; final sequential number on payment
   (`docs/ordering-and-invoices.md`). In `apps/api/src/modules/billing/invoice-document.ts`
   `renderInvoiceDocument()`, when the number starts `N-` (pending), render a note: "This is not a final
   invoice. A final invoice will be issued after successful payment." Localize via the `invoice` pack
   (`packages/locales/{de,en}/invoice.json`).
 
-### 1.5 Emails get a logo/favicon icon
+### 1.5 Emails get a logo/favicon icon  ✅ DONE (2026-07-11 — `{{brand_logo}}` header <img> from `siteLogoUrl`→`faviconUrl`, absolute URL; editor preview + tests; caveat: SVG logos may not render in Gmail/Outlook)
 - Default shell `DEFAULT_EMAIL_TEMPLATE_HTML` (`apps/api/src/modules/email/email-events.ts:112-140`) is
   text-only. Add an `<img>` header using the tenant's brand logo/favicon (reuse the storefront `brandLogo`
   source / a `SystemSetting`), embedded as an absolute `https://<tenant>/...` URL (emails can't use
   relative/`cid` easily here). Keep it overridable via the `emailTemplateHtml` setting.
 
-### 1.6 Per-page meta descriptions actually emitted
+### 1.6 Per-page meta descriptions actually emitted  ✅ DONE (2026-07-11 — shared `pageMetadata(pageKey, locale)` helper + `generateMetadata` on all 14 CustomPageGate theme routes; test added; typecheck green)
 - `Page.seoTitle`/`seoDescription` (per-locale JSON) are stored + admin-editable
   (`apps/web/components/admin/theme/pages-tab.tsx`) but theme routes render only `<CustomPageGate>` with
   **no `generateMetadata`**, so they inherit the site-wide default (`apps/storefront/app/[locale]/layout.tsx`).
