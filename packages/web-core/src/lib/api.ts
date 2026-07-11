@@ -24,6 +24,7 @@ export type ApiProduct = {
   type: "DOMAIN" | "SHARED_HOSTING" | "VPS" | string;
   description: string;
   homepageVisible?: boolean;
+  featured?: boolean;
   minimumPriceCents?: number;
   provisioningModule?: string | null;
   domainRequirement?: "NECESSARY" | "OPTIONAL" | "NOT_NEEDED" | string;

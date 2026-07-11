@@ -29,6 +29,10 @@ export class CreateProductDto {
   homepageVisible?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  featured?: boolean;
+
+  @IsOptional()
   @IsString()
   provisioningModule?: string;
 

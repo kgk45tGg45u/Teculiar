@@ -338,6 +338,7 @@ model Product {
   description String          @db.Text
   active      Boolean         @default(true)
   homepageVisible Boolean     @default(true)
+  featured    Boolean         @default(false)
   provisioningModule String?
   domainRequirement String     @default("NOT_NEEDED")
   freeDomainBillingCycle String?

@@ -211,5 +211,6 @@
     "question": "Was ist {a} + {b}?",
     "tooFast": "Bitte warten Sie einen Moment, bevor Sie absenden.",
     "wrongAnswer": "Bitte beantworten Sie die Sicherheitsfrage korrekt."
-  }
+  },
+  "popularBadge": "Beliebt"
 }

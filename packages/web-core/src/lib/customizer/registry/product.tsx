@@ -6,6 +6,7 @@ import { ArrowRight, Check, Package } from "lucide-react";
 import { apiGet, money, type ApiProduct } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
+import { featuredCardClass, PopularBadge } from "../../../components/marketing/popular-badge";
 import type { Locale } from "../../i18n";
 import { newId } from "../id";
 import { stringProp, textOf } from "../resolve";
@@ -91,8 +92,10 @@ function ProductCard({ product, locale, ctaLabel }: { product: ApiProduct; local
   const price = product.prices.find((entry) => entry.billingCycle === "MONTHLY") ?? product.prices[0];
   const specs = (product.configs ?? []).filter((config) => !config.key.startsWith("virtualmin_")).slice(0, 5);
   const period = price?.billingCycle === "MONTHLY" ? (locale === "de" ? "/Monat" : "/month") : "";
+  const featured = product.featured === true;
   return (
-    <Card>
+    <Card className={featured ? featuredCardClass : undefined}>
+      {featured ? <PopularBadge locale={locale} /> : null}
       <h3>{product.name}</h3>
       {price ? (
         <div className={productStyles.price}>

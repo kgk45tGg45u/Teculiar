@@ -211,5 +211,6 @@
     "question": "What is {a} + {b}?",
     "tooFast": "Please wait a moment before submitting.",
     "wrongAnswer": "Please answer the security question correctly."
-  }
+  },
+  "popularBadge": "Popular"
 }

@@ -1,0 +1,21 @@
+/* The single shared "popular/beliebt" badge (adopted from the reseller card) plus the
+   featured outline for the card that carries it. Data-driven via Product.featured. */
+.featuredCard {
+  position: relative;
+  border-color: var(--dezhost);
+  box-shadow: 0 0 0 1px var(--dezhost);
+}
+
+.badge {
+  position: absolute;
+  top: -10px;
+  right: 18px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--dezhost);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

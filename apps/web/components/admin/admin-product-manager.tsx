@@ -186,6 +186,7 @@ export function AdminProductManager() {
           description: String(formData.get("description") ?? ""),
           domainRequirement: String(formData.get("domainRequirement") ?? "NOT_NEEDED"),
           freeDomainBillingCycle: String(formData.get("freeDomainBillingCycle") ?? "") || null,
+          featured: formData.get("featured") === "on",
           name: String(formData.get("name") ?? ""),
           prices,
           slug: String(formData.get("slug") ?? ""),
@@ -331,6 +332,10 @@ export function AdminProductManager() {
               </label>
               <label>{c.sortOrder}<input defaultValue={editing?.sortOrder ?? 0} name="sortOrder" type="number" min="0" placeholder="0" /></label>
               <label>{c.customFields}<input defaultValue={customFieldsValue(editing)} name="customFields" placeholder="Hostname, PHP Version" /></label>
+              <label className={styles.checkboxRow}>
+                <input defaultChecked={editing?.featured ?? false} name="featured" type="checkbox" />
+                {c.featuredBadge}
+              </label>
             </div>
             <label>{c.description}<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
           </fieldset>

@@ -113,30 +113,9 @@
   align-content: start;
 }
 
-.packageFeatured {
-  border-color: var(--dezhost);
-  background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
-}
-
 .packageCard h3 {
   margin: 0;
   font-size: 1.05rem;
-}
-
-.packageBadge {
-  position: absolute;
-  top: -1px;
-  left: 20px;
-  display: inline-block;
-  padding: 4px 10px;
-  background: var(--dezhost);
-  color: white;
-  font-size: 0.72rem;
-  font-weight: 760;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: 0 0 6px 6px;
-  width: fit-content;
 }
 
 .packagePrice {

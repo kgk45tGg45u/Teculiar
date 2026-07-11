@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { cycleLabel, money, type ApiProduct } from "@dezhost/web-core/lib/api";
+import { featuredCardClass, PopularBadge } from "@dezhost/web-core/components/marketing/popular-badge";
 import type { Locale } from "@dezhost/web-core/lib/i18n";
 import styles from "./webhosting.module.css";
 
@@ -30,21 +31,19 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
           </div>
         </div>
         <div className={styles.packageGrid}>
-          {products.map((product, i) => {
+          {products.map((product) => {
             const price = selectedPrice(product, cycle);
             const setupFee = price?.setupFeeCents ?? 0;
             const specs = (product.configs ?? [])
               .filter((c) => !c.key.startsWith("virtualmin_"))
               .slice(0, 5);
-            const isFeatured = i === 1;
+            const isFeatured = product.featured === true;
             return (
               <div
-                className={`${styles.packageCard} ${isFeatured ? styles.packageFeatured : ""}`}
+                className={`${styles.packageCard} ${isFeatured ? featuredCardClass : ""}`}
                 key={product.id}
               >
-                {isFeatured && (
-                  <span className={styles.packageBadge}>{isDe ? "Beliebt" : "Popular"}</span>
-                )}
+                {isFeatured && <PopularBadge locale={locale as Locale} />}
                 <h3>{product.name}</h3>
                 {price ? (
                   <div className={styles.packagePrice}>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
 import { Button } from "@dezhost/web-core/components/ui/button";
+import { featuredCardClass, PopularBadge } from "@dezhost/web-core/components/marketing/popular-badge";
 import { Price } from "@dezhost/web-core/components/marketing/price";
 import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
 import type { Metadata } from "next";
@@ -55,11 +56,11 @@ async function ResellerPageBuiltIn({ locale }: { locale: Locale }) {
   const products = await apiGet<ApiProduct[]>("/storefront/products?category=reseller");
 
   const labels = isDe
-    ? { accounts: "Kundenkonten", disk: "NVMe-Speicher", cpu: "vCPU", ram: "RAM", traffic: "Traffic", trafficValue: "Unbegrenzt", perMonth: "/ Monat", order: "Jetzt bestellen", enquire: "Anfragen", popular: "Beliebt" }
-    : { accounts: "client accounts", disk: "NVMe storage", cpu: "vCPU", ram: "RAM", traffic: "Bandwidth", trafficValue: "Unlimited", perMonth: "/ month", order: "Order now", enquire: "Enquire", popular: "Popular" };
+    ? { accounts: "Kundenkonten", disk: "NVMe-Speicher", cpu: "vCPU", ram: "RAM", traffic: "Traffic", trafficValue: "Unbegrenzt", perMonth: "/ Monat", order: "Jetzt bestellen", enquire: "Anfragen" }
+    : { accounts: "client accounts", disk: "NVMe storage", cpu: "vCPU", ram: "RAM", traffic: "Bandwidth", trafficValue: "Unlimited", perMonth: "/ month", order: "Order now", enquire: "Enquire" };
 
   const cards = products && products.length > 0
-    ? products.map((product, index) => {
+    ? products.map((product) => {
         const price = product.prices.find((p) => p.billingCycle === "MONTHLY") ?? product.prices[0];
         return {
           key: product.id,
@@ -72,7 +73,7 @@ async function ResellerPageBuiltIn({ locale }: { locale: Locale }) {
           traffic: configValue(product, "bandwidth") ?? labels.trafficValue,
           href: `/${locale}/order/${product.id}`,
           orderLabel: labels.order,
-          featured: index === 2
+          featured: product.featured === true
         };
       })
     : FALLBACK.map((card) => ({
@@ -145,8 +146,8 @@ async function ResellerPageBuiltIn({ locale }: { locale: Locale }) {
 
           <div className={styles.productGrid}>
             {cards.map((card) => (
-              <div className={`${styles.productCard}${card.featured ? ` ${styles.featured}` : ""}`} key={card.key}>
-                {card.featured ? <span className={styles.popular}>{labels.popular}</span> : null}
+              <div className={`${styles.productCard}${card.featured ? ` ${featuredCardClass}` : ""}`} key={card.key}>
+                {card.featured ? <PopularBadge locale={locale} /> : null}
                 <div className={styles.productHeader}>
                   <Server aria-hidden size={22} className={styles.productIcon} />
                   <h3>{card.name}</h3>

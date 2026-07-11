@@ -674,6 +674,7 @@
     "slug": "Slug",
     "module": "Modul",
     "sortOrder": "Sortierreihenfolge",
+    "featuredBadge": "Beliebt-Badge (dieses Produkt hervorheben)",
     "description": "Beschreibung",
     "virtualmin": "Virtualmin",
     "resellbiz": "ResellBiz",
