@@ -56,7 +56,7 @@ test("client dashboard has professional loading state for counters and heavy pan
   assert.match(source, /<DashboardSummaryCard[\s\S]*loading=\{loading\.services\}/);
   assert.match(source, /<MetricValue loading=\{loading\}/);
   assert.match(source, /<LoadingSpinner label=\{copy\.loadingServices\} \/>/);
-  assert.match(source, /<LoadingBlock title="Invoice" \/>/);
+  assert.match(source, /<LoadingBlock title=\{c\.dash\.invoice\} \/>/);
   assert.match(css, /\.spinner\s*\{[\s\S]*animation:\s*portal-spin 780ms linear infinite/);
   assert.match(css, /@keyframes portal-spin/);
 });
@@ -90,7 +90,7 @@ test("service table shares overview rows while service detail can refresh hostin
   assert.match(source, /function serviceDetailUrl/);
   assert.match(source, /\/services\/\$\{serviceId\}\?refresh=1/);
   assert.doesNotMatch(source, /setInterval\(loadServices/);
-  assert.match(source, /<span>Domain<\/span>/);
+  assert.match(source, /<span>\{copy\.domain\}<\/span>/);
   assert.match(source, /serviceDomainLabel\(service\)/);
   assert.match(source, /service\?\.product\.type === "SHARED_HOSTING" && service\.status === "ACTIVE"/);
 });
@@ -124,8 +124,8 @@ test("invoice list and detail use formal paper layout and calmer actions", async
 
   assert.match(source, /className=\{styles\.invoicePaper\}/);
   assert.match(source, /className=\{styles\.invoiceActionBar\}/);
-  assert.match(source, /Download PDF/);
-  assert.match(source, /HTML ansehen/);
+  assert.match(source, /copy\.dash\.downloadPdf/);
+  assert.match(source, /copy\.dash\.viewHtml/);
   assert.match(css, /\.invoicePaper\s*\{/);
   assert.match(css, /\.invoiceActionBar\s*\{/);
   assert.match(css, /\.invoiceListStatus\s*\{/);
@@ -135,15 +135,18 @@ test("invoice list and detail use formal paper layout and calmer actions", async
 test("support tickets render as clickable cards and thread messages as conversation containers", async () => {
   const source = await readFile(dashboardUrl, "utf8");
   const css = await readFile(dashboardCssUrl, "utf8");
+  // The message thread moved into the shared TicketConversation component (bubbles + attachments).
+  const conversation = await readFile(new URL("../components/tickets/ticket-conversation.tsx", import.meta.url), "utf8");
+  const conversationCss = await readFile(new URL("../components/tickets/ticket-conversation.module.css", import.meta.url), "utf8");
 
   assert.match(source, /className=\{styles\.ticketCards\}/);
   assert.match(source, /className=\{styles\.ticketCard\}/);
   assert.match(source, /href=\{`\/client\/tickets\/\$\{ticket\.id\}`\}/);
-  assert.match(source, /function TicketMessage/);
-  assert.match(source, /<TicketMessage/);
-  assert.match(source, /Close Ticket/);
+  assert.match(source, /<TicketConversation/);
+  assert.match(source, /copy\.ticketClose/);
   assert.match(css, /\.ticketCards\s*\{/);
   assert.match(css, /\.ticketCard\s*\{/);
-  assert.match(css, /\.ticketMessage\s*\{/);
-  assert.match(css, /\.attachmentLinks\s*\{/);
+  assert.match(conversation, /<Attachments files=/);
+  assert.match(conversationCss, /\.bubble\s*\{/);
+  assert.match(conversationCss, /\.attachments\s*\{/);
 });

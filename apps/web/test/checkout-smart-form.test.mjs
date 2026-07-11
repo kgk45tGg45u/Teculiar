@@ -10,11 +10,12 @@ const apiService = readFileSync(new URL("../../api/src/modules/billing/billing.s
 const localizationDoc = readFileSync(new URL("../../../docs/localization.md", import.meta.url), "utf8");
 
 test("checkout has translated copy and admin-managed terms acceptance", () => {
-  assert.match(checkout, /checkoutCopy/);
+  assert.match(checkout, /buildCheckoutCopy/);
   assert.match(checkout, /termsUrl/);
   assert.match(checkout, /name="acceptedTerms"/);
   assert.match(checkout, /copy\.termsLink/);
-  assert.match(checkout, /\/\$\{checkoutLocale\(locale\)\}\/legal\/agb/);
+  // Falls back to the locale-prefixed AGB page when no admin termsUrl is configured.
+  assert.match(checkout, /termsUrl \|\| `\/\$\{locale\}\/legal\/agb`/);
   assert.match(apiController, /termsUrl\?: string/);
   assert.match(apiService, /settingString\("termsUrl"/);
   assert.match(apiService, /upsertSettingString\("termsUrl"/);
