@@ -32,8 +32,8 @@ export class CmsService {
     return this.cms.listPosts(locale, filters);
   }
 
-  listPostTags(locale: string) {
-    return this.cms.listPostTags(locale);
+  listPostTags(locale: string, limit?: number) {
+    return this.cms.listPostTags(locale, limit);
   }
 
   listAdminPosts() {

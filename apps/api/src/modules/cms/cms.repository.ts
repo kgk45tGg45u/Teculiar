@@ -56,9 +56,20 @@ export class CmsRepository {
     return tag ? posts.filter((post) => post.tags.some((item) => item.toLowerCase() === tag)) : posts;
   }
 
-  async listPostTags(locale: string) {
+  /** Chip-cloud tags for the blog front page: only frequently used ones — top-N by
+   *  published-post usage count (ties alphabetical). Per-post tag rows stay full. */
+  async listPostTags(locale: string, limit = 12) {
     const posts = await this.listPosts(locale);
-    return Array.from(new Set(posts.flatMap((post) => post.tags))).sort((a, b) => a.localeCompare(b));
+    const counts = new Map<string, number>();
+    for (const post of posts) {
+      for (const tag of post.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort(([tagA, countA], [tagB, countB]) => countB - countA || tagA.localeCompare(tagB))
+      .slice(0, limit)
+      .map(([tag]) => tag);
   }
 
   async listAdminPosts() {

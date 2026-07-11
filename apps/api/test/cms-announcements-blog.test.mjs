@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { CmsRepository } from "../dist/modules/cms/cms.repository.js";
 import { CmsService } from "../dist/modules/cms/cms.service.js";
 
 test("client announcements are user scoped and can be read or hidden", async () => {
@@ -47,6 +48,32 @@ test("blog listing accepts tag filters and stays separate from announcements", a
     ["posts", "de", { tag: "hosting" }],
     ["tags", "de"]
   ]);
+});
+
+test("post-tags chip cloud returns only frequently used tags (top-N by usage)", async () => {
+  const post = (slug, tags) => ({
+    id: slug,
+    slug,
+    type: "POST",
+    content: {},
+    blogCategories: [],
+    blogTags: tags.map((name) => ({ tag: { name }, tagId: name }))
+  });
+  const prisma = {
+    content: {
+      findMany: async () => [
+        post("a", ["hosting", "linux"]),
+        post("b", ["hosting", "wordpress"]),
+        post("c", ["hosting", "linux", "nextcloud"])
+      ]
+    }
+  };
+  const repo = new CmsRepository(prisma);
+
+  // Usage order: hosting (3), linux (2), then the count-1 tags alphabetically.
+  assert.deepEqual(await repo.listPostTags("de"), ["hosting", "linux", "nextcloud", "wordpress"]);
+  // The limit caps the chip cloud at the N most used; per-post tag rows are unaffected.
+  assert.deepEqual(await repo.listPostTags("de", 2), ["hosting", "linux"]);
 });
 
 test("cms schema and routes model announcements outside blog posts", async () => {

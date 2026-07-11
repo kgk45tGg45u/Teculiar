@@ -34,8 +34,9 @@ export class CmsController {
   }
 
   @Get("post-tags")
-  listPostTags(@Query("locale") locale = "de") {
-    return this.cms.listPostTags(locale);
+  listPostTags(@Query("locale") locale = "de", @Query("limit") limit?: string) {
+    const parsed = Number.parseInt(limit ?? "", 10);
+    return this.cms.listPostTags(locale, Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 50) : undefined);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
