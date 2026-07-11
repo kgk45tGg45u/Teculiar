@@ -284,18 +284,18 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   and export `generateMetadata` from each theme route (`webhosting`, `vps`, `reseller`, `domains`,
   `it-losungen`, home, about, contact, legal) reading the Page SEO (fallback → site default). Test one page.
 
-### 1.7 Footer mobile → two columns
+### 1.7 Footer mobile → two columns  ✅ DONE (2026-07-11 — ≤600px keeps the two menu columns side by side; the CTA block spans the full row below)
 - One CSS rule: `packages/web-core/src/components/layout/site-footer.module.css:145-148` — change the
   `max-width: 600px` `grid-template-columns: 1fr` → `1fr 1fr`. Check the CTA column wraps acceptably.
 
-### 1.8 Cookie banner (small, bottom, buttons that just dismiss)
+### 1.8 Cookie banner (small, bottom, buttons that just dismiss)  ✅ DONE (2026-07-11 — `CookieBanner` in web-core layout, rendered in storefront + dashboards root layouts; Accept/Settings/Deny all set `cookie_ack`; strings in the common pack de/en)
 - No banner exists (a `CookieConsent` DB model does, unused). Add a small horizontal bottom banner in
   `packages/web-core/src/components/layout/` (so both storefront + dashboards get it), rendered in the
   storefront root layout. Buttons **Accept / Settings / Deny** all just set a `cookie_ack` localStorage
   flag and dismiss (no real consent logic yet). Locale packs (`common`/`storefront`) get the strings.
   Must work regardless of the tenant's apex/subdomain setup (pure client component, no host assumptions).
 
-### 1.9 Unify the "popular"/"beliebt" badge → reseller style, everywhere in the customizer
+### 1.9 Unify the "popular"/"beliebt" badge → reseller style, everywhere in the customizer  ✅ DONE (2026-07-11 — `Product.featured` column + migration drives one shared `PopularBadge` (reseller style) on webhosting grid, reseller page, customizer productGrid; admin product form checkbox. NEW: `TenantMigrationsService` runs `migrate deploy` against every registered tenant DB at API boot so schema changes reach existing tenants. Post-deploy: flag the desired products in admin — until then no card shows the badge.)
 - Two implementations today: reseller `styles.popular` (`apps/storefront/app/[locale]/reseller/page.tsx:142`)
   vs home `styles.packageBadge` (`.../webhosting/hosting-packages.tsx:46`). The customizer `productGrid`
   element (`packages/web-core/src/lib/customizer/registry/product.tsx`) has **no** badge.
@@ -303,7 +303,7 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   the `productGrid` `ProductCard` and to the home grid, dropping the old `packageBadge`. Drive it off a
   product/price flag so admins control which card is highlighted.
 
-### 1.10 Blog front-end: only frequently-used tags
+### 1.10 Blog front-end: only frequently-used tags  ✅ DONE (2026-07-11 — `/cms/post-tags` returns top-N by published-post usage count, default 12, optional `?limit` ≤50; per-post tag rows unchanged; unit test added)
 - `apps/storefront/app/[locale]/blog/page.tsx:33` fetches **all** tags via `/cms/post-tags`. Add a
   usage-count threshold/limit at the source (`apps/api/src/modules/cms` `post-tags` → return top-N by post
   count) so the chip cloud shows only popular tags; per-post tag rows stay full.
