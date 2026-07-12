@@ -106,18 +106,39 @@ https:// {
 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
 	}
 
-	# Bare roots land on the right dashboard section: admin.* → /admin, any other label → /client.
+	# Clean URLs (Phase 2.1): a per-surface host serves its dashboard section at the HOST ROOT — the
+	# browser URL never shows the /admin or /client segment. INTERNAL rewrites (not redirects) prefix the
+	# path before proxying; already-prefixed paths (app redirects, legacy links) pass through untouched,
+	# so both URL styles keep working until the app emits surface-relative links (Phase 2.2).
+	#
+	# admin.<domain> → /admin/<path>. Root rewrites to exactly /admin (a trailing slash would make Next's
+	# 308 slash-redirect leak the segment into the URL bar). /reset-password + /sso (handoff callback)
+	# live at the app ROOT, and API/asset/wellknown paths must reach their own handlers — all excluded.
 	@adminRoot {
 		header_regexp Host "^admin\."
 		path /
 	}
-	redir @adminRoot /admin
+	rewrite @adminRoot /admin
 
+	@adminSurface {
+		header_regexp Host "^admin\."
+		not path / /admin* /reset-password* /sso* /api/* /uploads/* /og/* /_dash/* /_next/* /favicon.ico /robots.txt /sitemap.xml /.well-known/*
+	}
+	rewrite @adminSurface /admin{uri}
+
+	# Any other label (tenant-chosen client area: client./portal./kunde./…) → /client/<path>. The client
+	# login, reset + /sso pages live at the app root — kept unprefixed.
 	@clientRoot {
 		not header_regexp Host "^(api|admin)\."
 		path /
 	}
-	redir @clientRoot /client
+	rewrite @clientRoot /client
+
+	@clientSurface {
+		not header_regexp Host "^(api|admin)\."
+		not path / /client* /admin* /login* /reset-password* /sso* /api/* /uploads/* /og/* /_dash/* /_next/* /favicon.ico /robots.txt /sitemap.xml /.well-known/*
+	}
+	rewrite @clientSurface /client{uri}
 
 	# Dashboard pages call their own origin: /api + /uploads go to the API (Host preserved → tenant).
 	@dashApi path /api/* /uploads/*

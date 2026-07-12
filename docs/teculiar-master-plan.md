@@ -342,7 +342,7 @@ The config already exists (`whitelabel.config` = `{ apexMode, dashboards, client
 `admin|client|api|apex`. What's missing is **consuming** it: the edge doubles the segment and links are
 host-relative.
 
-### 2.1 Edge: strip the surface segment for per-surface hosts
+### 2.1 Edge: strip the surface segment for per-surface hosts  ✅ DONE (2026-07-12 — Caddyfile catch-all: root `redir`s replaced with internal `rewrite`s (`admin.<d>/x`→`/admin/x`, other-label→`/client/x`); already-prefixed paths pass through so app redirects/legacy links keep working until 2.2; `/reset-password`, `/sso`, `/login` (client), API/asset paths excluded; `caddy validate` green locally. Deploy: copy to eu01 `/etc/caddy/Caddyfile` → `caddy validate` → reload; live verify at phase end.)
 - In `deploy/caddy/Caddyfile` catch-all (`https://`), replace the root `redir @adminRoot /admin` /
   `redir @clientRoot /client` (which cause `admin.<d>/admin`) with **internal rewrites** that map the
   host's surface to the app's route prefix without changing the browser URL:
