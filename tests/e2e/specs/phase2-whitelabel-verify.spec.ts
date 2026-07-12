@@ -3,10 +3,13 @@
  *
  * PREREQUISITES (see the Phase 2 deploy runbook / docs/teculiar-master-plan.md → Verify (Phase 2)):
  *   - app deployed (middleware surface mapping) AND the new Caddyfile installed on eu01
- *   - hosts registered: register-domain.js admin.dezhost.com dezhost admin active
- *                       register-domain.js client.dezhost.com dezhost client active
- *   - DNS: admin.dezhost.com + client.dezhost.com → 195.201.252.12 (Let's Encrypt needs public DNS;
- *     if your local resolver hasn't caught up yet, set E2E_EDGE_IP=195.201.252.12 to pin it in Chromium)
+ *   - hosts registered: register-domain.js admin.dezhost.com  dezhost admin  active
+ *                       register-domain.js portal.dezhost.com dezhost client active
+ *     ("portal" = dezhost's chosen client label; any non-api/non-admin label works. Only ONE
+ *     client-surface row may be ACTIVE — clientBaseUrl picks the first.)
+ *   - DNS: admin.dezhost.com + portal.dezhost.com → CNAME edge.teculiar.net (or A 195.201.252.12).
+ *     Let's Encrypt needs public DNS; if your local resolver hasn't caught up yet, set
+ *     E2E_EDGE_IP=195.201.252.12 to pin the hosts in Chromium.
  *
  * Run:
  *   set -a && source .env && set +a
@@ -24,7 +27,7 @@ import { expect, test } from "@playwright/test";
 const BASE = (process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const API = (process.env.E2E_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 const ADMIN_HOST = (process.env.E2E_ADMIN_HOST_URL ?? "https://admin.dezhost.com").replace(/\/$/, "");
-const CLIENT_HOST = (process.env.E2E_CLIENT_HOST_URL ?? "https://client.dezhost.com").replace(/\/$/, "");
+const CLIENT_HOST = (process.env.E2E_CLIENT_HOST_URL ?? "https://portal.dezhost.com").replace(/\/$/, "");
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 const CLIENT_EMAIL = process.env.E2E_CLIENT_EMAIL ?? "";

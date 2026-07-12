@@ -395,15 +395,20 @@ Order matters: **app before Caddyfile** (new Caddyfile + old app = 404 on surfac
    confirm containers restarted (`docker ps` on eu01).
 2. **Register the surface hosts** (2.5; enables on-demand TLS for them):
    `cd /opt/teculiar && docker compose exec api node apps/api/dist/tenancy/register-domain.js admin.dezhost.com dezhost admin active`
-   (and the same with `client.dezhost.com dezhost client active`).
+   (and the same with `portal.dezhost.com dezhost client active` — "portal" is dezhost's chosen
+   client label). Only ONE client-surface row may be ACTIVE per tenant (`clientBaseUrl` picks the
+   first): if `client.dezhost.com` was registered earlier, disable it —
+   `register-domain.js client.dezhost.com dezhost client disabled`.
 3. **Install the Caddyfile:** `scp deploy/caddy/Caddyfile eu01:/tmp/` →
    `sudo caddy validate --config /tmp/Caddyfile` → backup `/etc/caddy/Caddyfile` → copy → `sudo systemctl reload caddy`.
 4. **Curl matrix** (works pre-DNS via `--resolve <host>:443:195.201.252.12` ONLY after DNS exists —
    Let's Encrypt needs public DNS to issue; so run after step 5, or accept cert errors): apex
-   `/de` 200 + `/admin` → `/admin/login` unchanged; `https://admin.dezhost.com/` → 307
+   `/de` 200 + `/admin` → `/admin/login` unchanged; `https://admin.dezhost.com/` (and portal.) → 307
    `/login?next=%2F`; legacy `admin.dezhost.com/admin/login` 200; spoofed `X-Teculiar-Surface`
    header on apex changes nothing.
-5. **DNS (2.5):** A records `admin.dezhost.com` + `client.dezhost.com` → `195.201.252.12`.
+5. **DNS (2.5):** `admin.dezhost.com` + `portal.dezhost.com` → CNAME `edge.teculiar.net` (or A
+   `195.201.252.12`); verify `dig +short edge.teculiar.net` → the floating IP. ✅ user set the
+   CNAMEs 2026-07-12.
 6. **Prod Playwright:** `tests/e2e/specs/phase2-whitelabel-verify.spec.ts` (7 tests: settings
    clientBaseUrl, apex unchanged, header spoof stripped, clean-URL admin + client login/nav,
    legacy passthrough, storefront→client SSO handoff). `set -a && source .env && set +a`, then
