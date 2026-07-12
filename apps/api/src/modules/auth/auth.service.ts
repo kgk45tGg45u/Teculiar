@@ -19,6 +19,13 @@ type TokenUser = {
   roles: string[];
 };
 
+/** Which portal a request comes from; maps onto the DB-level User.scope world. */
+type PortalScope = "admin" | "client";
+
+function userScope(scope: PortalScope): "CLIENT" | "STAFF" {
+  return scope === "admin" ? "STAFF" : "CLIENT";
+}
+
 @Injectable()
 export class AuthService {
   // In-memory one-time codes for the cross-origin SSO handoff (Phase 4.6e; single API instance).
@@ -33,7 +40,7 @@ export class AuthService {
 
   async register(dto: RegisterDto, ipAddress?: string) {
     const email = dto.email.trim().toLowerCase();
-    const existing = await this.users.findByEmail(email);
+    const existing = await this.users.findByEmail(email, "CLIENT");
     if (existing) {
       throw new BadRequestException("Email is already registered");
     }
@@ -72,7 +79,7 @@ export class AuthService {
     if (await this.users.adminExists()) {
       throw new BadRequestException("Admin already exists");
     }
-    const existing = await this.users.findByEmail(dto.email.toLowerCase());
+    const existing = await this.users.findByEmail(dto.email.trim().toLowerCase(), "STAFF");
     if (existing) {
       throw new BadRequestException("Email is already registered");
     }
@@ -100,9 +107,9 @@ export class AuthService {
     return this.issueTokens({ id: user.id, email: user.email, roles: ["admin"] }, ipAddress, userAgent);
   }
 
-  async requestPasswordReset(rawEmail: string) {
+  async requestPasswordReset(rawEmail: string, scope: PortalScope = "client") {
     const email = rawEmail.trim().toLowerCase();
-    const user = await this.users.findByEmail(email);
+    const user = await this.users.findByEmail(email, userScope(scope));
     if (!user) {
       return { ok: true };
     }
@@ -144,15 +151,20 @@ export class AuthService {
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
     const email = dto.email.trim().toLowerCase();
-    const user = await this.users.findByEmail(email);
+    const scope: PortalScope = dto.scope === "admin" ? "admin" : "client";
+    // Admin and client portals are separate credential worlds: a staff account can never log
+    // in through the client portal, and vice versa — even with the correct password.
+    const user = await this.users.findByEmail(email, userScope(scope));
     if (!user || !(await compare(dto.password, user.passwordHash))) {
-      const emergency = await this.tryEmergencyAdminLogin(email, dto.password, ipAddress, userAgent);
+      const emergency = scope === "admin"
+        ? await this.tryEmergencyAdminLogin(email, dto.password, ipAddress, userAgent)
+        : null;
       if (emergency) {
         return emergency;
       }
       void this.users.createAuditLog({
         action: "user.login_failed",
-        metadata: { email, ipAddress, userAgent },
+        metadata: { email, ipAddress, scope, userAgent },
         subject: "user"
       }).catch(() => undefined);
       throw new UnauthorizedException("Invalid credentials");
@@ -281,9 +293,10 @@ export class AuthService {
     if ((tenant?.id ?? null) !== grant.tenantId) {
       throw new UnauthorizedException("Tenant mismatch");
     }
-    // Fresh lookup (roles may have changed since the grant was minted).
-    const user = await this.users.findByEmail(grant.email.toLowerCase());
-    if (!user || user.id !== grant.userId) {
+    // Fresh lookup by id (roles may have changed since the grant was minted; email is only
+    // unique per scope, so it cannot identify a user on its own).
+    const user = await this.users.findAuthById(grant.userId);
+    if (!user) {
       throw new UnauthorizedException("Unknown user");
     }
     const roles = user.userRoles.map((userRole) => userRole.role.slug);
@@ -391,8 +404,8 @@ export class AuthService {
     if (!decoded.email || !decoded.id || !decoded.exp || decoded.exp < Date.now()) {
       throw new BadRequestException("Invalid password reset token.");
     }
-    const user = await this.users.findByEmail(decoded.email);
-    if (!user || user.id !== decoded.id) {
+    const user = await this.users.findAuthById(decoded.id);
+    if (!user || user.email !== decoded.email) {
       throw new BadRequestException("Invalid password reset token.");
     }
     const expected = this.passwordResetSignature(payload, user.passwordHash);

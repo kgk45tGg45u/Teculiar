@@ -28,7 +28,7 @@ type Product = {
 };
 
 async function adminToken(request: import("@playwright/test").APIRequestContext) {
-  const r = await request.post(`${API}/auth/login`, { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
+  const r = await request.post(`${API}/auth/login`, { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, scope: "admin" } });
   expect(r.ok(), `admin login: ${r.status()}`).toBeTruthy();
   return ((await r.json()) as { accessToken?: string }).accessToken ?? "";
 }

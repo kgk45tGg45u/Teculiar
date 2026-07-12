@@ -116,7 +116,7 @@ export class TenantProvisioningService {
         where: { userRoles: { some: { role: { slug: { in: ["admin", "super_admin"] } } } } },
         select: { email: true }
       });
-      const existing = await prisma.user.findFirst({ where: { email: adminEmail }, select: { id: true } });
+      const existing = await prisma.user.findFirst({ where: { email: adminEmail, scope: "STAFF" }, select: { id: true } });
       let created = false;
       if (existing) {
         await prisma.user.update({ where: { id: existing.id }, data: { passwordHash } });

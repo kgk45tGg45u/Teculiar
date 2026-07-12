@@ -2,13 +2,26 @@ import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
+export type UserScope = "CLIENT" | "STAFF";
+
+const staffRoleSlugs = ["admin", "super_admin", "support_agent", "sales_agent"];
+
 @Injectable()
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByEmail(email: string) {
+  // Admin (STAFF) and client (CLIENT) portals are separate auth worlds: the same email can
+  // exist once per scope, so every email lookup must say which world it means.
+  findByEmail(email: string, scope: UserScope) {
     return this.prisma.user.findUnique({
-      where: { email },
+      where: { email_scope: { email, scope } },
+      select: authUserSelect
+    });
+  }
+
+  findAuthById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
       select: authUserSelect
     });
   }
@@ -60,7 +73,7 @@ export class UsersRepository {
 
   findOrCreatePendingCheckoutUser() {
     return this.prisma.user.upsert({
-      where: { email: pendingCheckoutEmail },
+      where: { email_scope: { email: pendingCheckoutEmail, scope: "CLIENT" } },
       create: {
         countryCode: "DE",
         customerType: "BUSINESS",
@@ -138,6 +151,7 @@ export class UsersRepository {
     return this.prisma.user.create({
       data: {
         ...input,
+        scope: staffRoleSlugs.includes(roleSlug) ? "STAFF" : "CLIENT",
         userRoles: {
           create: {
             role: {
@@ -155,7 +169,7 @@ export class UsersRepository {
 
   listClients() {
     return this.prisma.user.findMany({
-      where: { userRoles: { some: { role: { slug: "client" } } } },
+      where: { scope: "CLIENT", userRoles: { some: { role: { slug: "client" } } } },
       select: clientSelect,
       orderBy: { createdAt: "desc" }
     });
@@ -163,7 +177,7 @@ export class UsersRepository {
 
   findClient(id: string) {
     return this.prisma.user.findFirst({
-      where: { id, userRoles: { some: { role: { slug: "client" } } } },
+      where: { id, scope: "CLIENT", userRoles: { some: { role: { slug: "client" } } } },
       select: clientSelect
     });
   }
@@ -317,6 +331,7 @@ export class UsersRepository {
   listAdminUsers() {
     return this.prisma.user.findMany({
       where: {
+        scope: "STAFF",
         userRoles: {
           some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
         }
@@ -330,6 +345,7 @@ export class UsersRepository {
     return this.prisma.user.findFirst({
       where: {
         id,
+        scope: "STAFF",
         userRoles: {
           some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
         }
@@ -349,6 +365,7 @@ export class UsersRepository {
         email: input.email.toLowerCase(),
         name: input.name,
         passwordHash: input.passwordHash,
+        scope: "STAFF",
         userRoles: { create: { roleId: role.id } }
       },
       select: adminUserSelect

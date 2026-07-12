@@ -30,11 +30,11 @@ function customer(email: string) {
 }
 const uniq = (p: string) => `${p}-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
 
-async function token(page: Page, email: string, pw: string) {
-  const r = await page.request.post(`${API}/auth/login`, { data: { email, password: pw } });
+async function token(page: Page, email: string, pw: string, scope: "admin" | "client" = "client") {
+  const r = await page.request.post(`${API}/auth/login`, { data: { email, password: pw, scope } });
   return r.ok() ? (await r.json() as { accessToken?: string }).accessToken ?? "" : "";
 }
-const adminToken = (page: Page) => token(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+const adminToken = (page: Page) => token(page, ADMIN_EMAIL, ADMIN_PASSWORD, "admin");
 
 async function invoiceOf(page: Page, id: string) {
   const tok = await adminToken(page);

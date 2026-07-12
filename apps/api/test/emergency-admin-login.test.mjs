@@ -21,7 +21,7 @@ test("emergency admin env login returns admin access token without DB session", 
   );
 
   try {
-    const result = await auth.login({ email: " owner@example.test ", password: "temporary-super-secret" }, "127.0.0.1", "node-test");
+    const result = await auth.login({ email: " owner@example.test ", password: "temporary-super-secret", scope: "admin" }, "127.0.0.1", "node-test");
 
     assert.equal(result.accessToken, "emergency-jwt");
     assert.match(result.refreshToken, /^emergency-/);
@@ -44,7 +44,7 @@ test("emergency admin env login rejects wrong password", async () => {
 
   try {
     await assert.rejects(
-      auth.login({ email: "owner@example.test", password: "wrong-password" }),
+      auth.login({ email: "owner@example.test", password: "wrong-password", scope: "admin" }),
       (error) => error instanceof UnauthorizedException && error.message === "Invalid credentials"
     );
   } finally {
@@ -61,7 +61,7 @@ test("emergency admin login stays disabled when env is missing", async () => {
 
   try {
     await assert.rejects(
-      auth.login({ email: "owner@example.test", password: "temporary-super-secret" }),
+      auth.login({ email: "owner@example.test", password: "temporary-super-secret", scope: "admin" }),
       (error) => error instanceof UnauthorizedException && error.message === "Invalid credentials"
     );
   } finally {

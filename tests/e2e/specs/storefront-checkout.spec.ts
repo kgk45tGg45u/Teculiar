@@ -306,7 +306,7 @@ test.describe("Admin order creation", () => {
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "admin@dezhost.local", password: "Dezhost-3f417f4248a568cfe6!" })
+        body: JSON.stringify({ email: "admin@dezhost.local", password: "Dezhost-3f417f4248a568cfe6!", scope: "admin" })
       });
       const data = await res.json() as { accessToken?: string };
       return data.accessToken ?? "";

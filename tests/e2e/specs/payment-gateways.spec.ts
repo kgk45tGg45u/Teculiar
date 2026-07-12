@@ -57,7 +57,7 @@ let _cachedAdminToken: string | undefined;
 async function adminToken(page: Page): Promise<string> {
   if (_cachedAdminToken) return _cachedAdminToken;
   const r = await page.request.post(`${API}/auth/login`, {
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, scope: "admin" }
   });
   if (!r.ok()) return "";
   const body = await r.json() as { accessToken?: string };

@@ -1029,7 +1029,7 @@ export class BillingRepository {
         create: { slug: "client", name: "Client" },
         update: {}
       });
-      let user = await tx.user.findUnique({ where: { email }, select: { customerNumber: true, email: true, id: true } });
+      let user = await tx.user.findUnique({ where: { email_scope: { email, scope: "CLIENT" } }, select: { customerNumber: true, email: true, id: true } });
       if (!user) {
         user = await tx.user.create({
           data: {

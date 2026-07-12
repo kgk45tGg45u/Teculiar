@@ -52,7 +52,7 @@ export const test = base.extend<Fixtures>({
 
   adminApi: async ({ request }, use) => {
     const api = client(request);
-    await api.login(env.admin.email, env.admin.password);
+    await api.login(env.admin.email, env.admin.password, "admin");
     await use(api);
   },
 

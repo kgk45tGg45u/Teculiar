@@ -26,7 +26,8 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       body: JSON.stringify({
         email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? "")
+        password: String(formData.get("password") ?? ""),
+        scope: admin ? "admin" : "client"
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST"
@@ -53,7 +54,7 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
   async function requestReset(formData: FormData) {
     setLoading(true);
     const response = await fetch(`${API_BASE_URL}/auth/password-reset/request`, {
-      body: JSON.stringify({ email: String(formData.get("resetEmail") ?? "") }),
+      body: JSON.stringify({ email: String(formData.get("resetEmail") ?? ""), scope: admin ? "admin" : "client" }),
       headers: { "Content-Type": "application/json" },
       method: "POST"
     });
