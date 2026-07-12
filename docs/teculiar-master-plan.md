@@ -194,7 +194,7 @@ healthcheck-probe issue, tracked as **Phase 3.6**. The `get.teculiar.com/install
 
 ---
 
-## Phase 1 — Customer-facing bug fixes (fast, high-impact, low-risk)
+## Phase 1 — Customer-facing bug fixes (fast, high-impact, low-risk)  ✅ PHASE DONE (2026-07-12 — all 11 items done; prod verify spec 4/4 green against www.dezhost.com)
 
 Each is small and independent; batch on one branch but commit per fix. Prod-test after each.
 
@@ -308,7 +308,7 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   usage-count threshold/limit at the source (`apps/api/src/modules/cms` `post-tags` → return top-N by post
   count) so the chip cloud shows only popular tags; per-post tag rows stay full.
 
-### 1.11 Local dev: storefront not reachable
+### 1.11 Local dev: storefront not reachable  ✅ DONE (2026-07-12 — `dev:storefront` + `dev:all` root scripts; README documents port 3001, `<tenant>.localhost` host-based tenant resolution, and the dev rewrites to :3000/:4000; boot smoke-tested — HTTP 200 on `/de`)
 - On local dev only `admin` and `client` open — those are the `apps/web` app on **`localhost:3000`**. The
   **storefront** is a *separate* app (`apps/storefront`) on **`localhost:3001`**, and the root dev scripts
   (`dev`, `dev:web`, `dev:full`) only start `apps/web` + API — none starts `apps/storefront`. Storefront
@@ -318,6 +318,10 @@ Each is small and independent; batch on one branch but commit per fix. Prod-test
   (`https://www.dezhost.com`) per `CLAUDE.md`.
 
 ### Verify (Phase 1)
+**2026-07-12: phase-end prod run green** — `tests/e2e/specs/phase1-bugfix-verify.spec.ts` 4/4 on
+www.dezhost.com (1.7 footer, 1.8 cookie banner, 1.9 featured badge, 1.10 tag cloud); 1.1–1.6 were
+prod-verified individually at their DONE dates. Note: E2E passwords in `.env` must be single-quoted —
+a `$` inside double quotes gets expanded by `source .env` and the login 401s.
 Local: `node --test` for the QP encoder + any new units; `next build`; `i18n-sync --check`. Prod
 (Playwright Chromium, `E2E_BASE_URL=https://www.dezhost.com`): send a test order/invoice email and eyeball
 the `€`; super_admin login + a products/invoice action; place an admin recurring hosting+domain order and
