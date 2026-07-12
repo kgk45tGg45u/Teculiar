@@ -7,6 +7,7 @@ import { OrderStatusForm } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 
 type AdminOrderItem = ApiOrder["items"][number] & {
   billingCycle?: string | null;
@@ -19,6 +20,7 @@ type AdminOrder = Omit<ApiOrder, "items"> & {
 };
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
+  const href = await surfaceHrefMapper();
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
@@ -45,7 +47,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/orders">{a.detail.backOrders}</a></span>
+            <span className="eyebrow"><a href={href("/admin/orders")}>{a.detail.backOrders}</a></span>
             <h1>{a.order} {order.orderNumber}</h1>
           </div>
           <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
@@ -63,7 +65,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
             <tbody>
               <tr><th>{a.detail.id}</th><td>{order.id}</td></tr>
               <tr><th>{a.status}</th><td>{orderStatusLabel(order.status, locale)}</td></tr>
-              <tr><th>{a.col.invoice}</th><td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td></tr>
+              <tr><th>{a.col.invoice}</th><td>{order.invoice ? <a href={href(`/admin/invoices/${order.invoice.id}`)}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td></tr>
               <tr><th>{a.total}</th><td>{money(order.totalCents, order.currency, locale)}</td></tr>
               <tr><th>{a.detail.created}</th><td>{dateLabel(order.createdAt)}</td></tr>
             </tbody>
@@ -80,7 +82,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
                 <td>{item.domainName ?? "-"}</td>
                 <td>{item.billingCycle ? cycleLabel(item.billingCycle, locale) : "-"}</td>
                 <td>{serviceStatusLabel(item.provisioningStatus, locale)}</td>
-                <td>{item.service ? <a href={`/admin/services/${item.service.id}`}>{item.service.product?.name ?? item.service.id}</a> : "-"}</td>
+                <td>{item.service ? <a href={href(`/admin/services/${item.service.id}`)}>{item.service.product?.name ?? item.service.id}</a> : "-"}</td>
                 <td>{money(item.totalCents ?? 0, order.currency, locale)}</td>
               </tr>
             ))}

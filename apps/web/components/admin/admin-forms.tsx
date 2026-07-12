@@ -18,13 +18,16 @@ import { Button } from "@dezhost/web-core/components/ui/button";
 import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
 import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
 
 export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  const href = useSurfaceHref();
   const c = getDictionary(locale).admin.forms;
   return (
     <div className={styles.clientList}>
       {clients.length ? clients.map((client) => (
-        <a className={styles.clientRow} href={`/admin/clients/${client.id}`} key={client.id}>
+        <a className={styles.clientRow} href={href(`/admin/clients/${client.id}`)} key={client.id}>
           <div>
             <strong>{client.name}</strong>
             <span>{formatCustomerNumber(client.customerNumber)}</span>
@@ -92,7 +95,7 @@ export function AddClientForm() {
     if (response.ok) {
       const payload = await response.json().catch(() => ({})) as { id?: string };
       if (payload.id) {
-        window.location.assign(`/admin/clients/${payload.id}`);
+        window.location.assign(surfaceHref(window.location.pathname, `/admin/clients/${payload.id}`));
         return;
       }
     }
@@ -158,6 +161,7 @@ export function AddClientForm() {
 }
 
 function ClientRow({ client, products }: { client: ApiClient; products: ApiProduct[] }) {
+  const href = useSurfaceHref();
   const locale = useLocale();
   const [message, setMessage] = useState("");
   const contact = client.contacts?.[0];
@@ -270,7 +274,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
     <details className={styles.clientRow}>
       <summary>
         <strong>{client.name}</strong>
-        <a href={`/admin/clients/${client.id}`}>Open</a>
+        <a href={href(`/admin/clients/${client.id}`)}>Open</a>
         <span>Kundennummer {formatCustomerNumber(client.customerNumber)}</span>
         <span>{client.email}</span>
         <span>{client.services?.filter((service) => service.status === "ACTIVE").length ?? 0} active services</span>
@@ -418,7 +422,7 @@ export function AdminClientDeleteButton({ clientId, clientName }: { clientId: st
     const ok = response.ok;
     setMessage(await notifyResponse(response, c.clientDeleted, c.clientDeleteFailed));
     if (ok) {
-      window.location.assign("/admin/clients");
+      window.location.assign(surfaceHref(window.location.pathname, "/admin/clients"));
     }
   }
 
@@ -1845,7 +1849,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
     });
     if (response.ok) {
       notify.success(c.orderCreated);
-      window.location.assign("/admin/orders");
+      window.location.assign(surfaceHref(window.location.pathname, "/admin/orders"));
       return;
     }
     setMessage(await notifyResponse(response, c.orderCreated, c.orderCreateFailed));
@@ -2201,7 +2205,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
     const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
     if (response.ok) {
       notify.success(c.clientDeleted);
-      window.location.assign("/admin/clients");
+      window.location.assign(surfaceHref(window.location.pathname, "/admin/clients"));
     } else {
       notify.error(c.clientDeleteFailed);
     }

@@ -8,6 +8,7 @@ import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "../admin-dashboard.module.css";
 import { TranslateField } from "./translate-field";
 import type { AdminPage, LocaleMap, TB } from "./types";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
 
 const lbl: React.CSSProperties = { display: "grid", gap: 4, fontSize: "0.84rem", color: "var(--muted)" };
 const badge: React.CSSProperties = { fontSize: "0.72rem", padding: "2px 8px", borderRadius: 999, background: "var(--border)", color: "var(--muted)" };
@@ -55,6 +56,7 @@ export function PagesTab({ pages, ...common }: Common & { pages: AdminPage[] }) 
 }
 
 function PageRow({ page, locales, adminLocale, canTranslate, t, reload }: Common & { page: AdminPage }) {
+  const href = useSurfaceHref();
   const [name, setName] = useState<LocaleMap>(page.name);
   const [slug, setSlug] = useState<LocaleMap>(page.slug);
   const [seoTitle, setSeoTitle] = useState<LocaleMap>(page.seoTitle);
@@ -105,7 +107,7 @@ function PageRow({ page, locales, adminLocale, canTranslate, t, reload }: Common
           <input checked={published} onChange={(e) => setPublished(e.target.checked)} style={{ width: "auto" }} type="checkbox" /> {t.colPublished}
         </label>
         <button className={styles.linkBtn} disabled={busy} onClick={() => void save()} type="button">{t.save}</button>
-        <a className={styles.linkBtn} href={`/admin/theme/customizer/${page.key}`} rel="noopener noreferrer" target="_blank">{t.customize}</a>
+        <a className={styles.linkBtn} href={href(`/admin/theme/customizer/${page.key}`)} rel="noopener noreferrer" target="_blank">{t.customize}</a>
         {page.isSystem ? null : <button className={styles.dangerLinkBtn} onClick={() => void remove()} type="button"><Trash2 size={14} /></button>}
       </div>
     </div>

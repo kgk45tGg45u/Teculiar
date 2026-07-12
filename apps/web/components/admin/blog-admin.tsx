@@ -10,6 +10,8 @@ import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-pr
 import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
 import { RichTextEditor } from "./admin-forms";
 import styles from "./admin-dashboard.module.css";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
 
 function slugify(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -23,6 +25,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 // ── BlogPostList ─────────────────────────────────────────────────────────────
 
 export function BlogPostList() {
+  const href = useSurfaceHref();
   const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [posts, setPosts] = useState<ApiBlogPost[]>([]);
   const [busy, setBusy] = useState(false);
@@ -69,7 +72,7 @@ export function BlogPostList() {
     return (
       <div className={styles.blogTable}>
         <p style={{ padding: "24px 16px", color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          {copy.emptyList} <a href="/admin/blog/new">{copy.writeFirst}</a>
+          {copy.emptyList} <a href={href("/admin/blog/new")}>{copy.writeFirst}</a>
         </p>
       </div>
     );
@@ -127,7 +130,7 @@ export function BlogPostList() {
                 </button>
                 {openMenu === post.id && (
                   <div className={styles.actionsMenu}>
-                    <a href={`/admin/blog/new?edit=${post.id}`} className={styles.actionsMenuItem}>{copy.edit}</a>
+                    <a href={href(`/admin/blog/new?edit=${post.id}`)} className={styles.actionsMenuItem}>{copy.edit}</a>
                     <a href={`/${post.locale}/blog/${post.slug}`} target="_blank" rel="noreferrer" className={styles.actionsMenuItem}>{copy.view}</a>
                     {post.publishedAt && (
                       <button type="button" className={styles.actionsMenuItem} disabled={busy} onClick={() => { setOpenMenu(null); void unpublish(post); }}>{copy.unpublish}</button>
@@ -147,6 +150,7 @@ export function BlogPostList() {
 // ── BlogPostForm ─────────────────────────────────────────────────────────────
 
 export function BlogPostForm({ editId }: { editId?: string }) {
+  const href = useSurfaceHref();
   const copy = getDictionary(useLocale()).admin.blogAdmin;
   const [editing, setEditing] = useState<ApiBlogPost | null>(null);
   const [locale, setLocale] = useState<"de" | "en">("de");
@@ -286,7 +290,7 @@ export function BlogPostForm({ editId }: { editId?: string }) {
 
     setMessage(await notifyResponse(res, copy.articleSaved, copy.articleSaveFailed));
     if (res.ok && !editing) {
-      window.location.href = "/admin/blog";
+      window.location.href = surfaceHref(window.location.pathname, "/admin/blog");
     }
   }
 
@@ -418,7 +422,7 @@ export function BlogPostForm({ editId }: { editId?: string }) {
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <Button icon={Save} type="submit">{editing ? copy.saveChanges : copy.publishArticle}</Button>
         {editing && (
-          <a href="/admin/blog/new" className={styles.rowBtn} style={{ padding: "6px 14px", fontSize: 13 }}>
+          <a href={href("/admin/blog/new")} className={styles.rowBtn} style={{ padding: "6px 14px", fontSize: 13 }}>
             {copy.newPost}
           </a>
         )}

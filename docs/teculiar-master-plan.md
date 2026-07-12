@@ -342,7 +342,7 @@ The config already exists (`whitelabel.config` = `{ apexMode, dashboards, client
 `admin|client|api|apex`. What's missing is **consuming** it: the edge doubles the segment and links are
 host-relative.
 
-### 2.1 Edge: strip the surface segment for per-surface hosts  ✅ DONE (2026-07-12 — Caddyfile catch-all: root `redir`s replaced with internal `rewrite`s (`admin.<d>/x`→`/admin/x`, other-label→`/client/x`); already-prefixed paths pass through so app redirects/legacy links keep working until 2.2; `/reset-password`, `/sso`, `/login` (client), API/asset paths excluded; `caddy validate` green locally. Deploy: copy to eu01 `/etc/caddy/Caddyfile` → `caddy validate` → reload; live verify at phase end.)
+### 2.1 Edge: strip the surface segment for per-surface hosts  ✅ DONE (2026-07-12 — approach evolved during 2.2: the edge does NOT path-rewrite (an external rewrite desyncs `usePathname()`/hydration — server would render `/admin/x` while the browser shows `/x`). Instead the Caddyfile catch-all only CLASSIFIES the host via the `X-Teculiar-Surface` request header (`admin.*`→admin, other label→client, `api.*`→delete; apex snippet deletes it, so it can't be spoofed; the three matchers are disjoint because Caddy reorders same-directive ops) and the dashboards middleware does the mapping (2.2). `caddy validate` green locally. Deploy: copy to eu01 `/etc/caddy/Caddyfile` → `caddy validate` → reload; live verify at phase end.)
 - In `deploy/caddy/Caddyfile` catch-all (`https://`), replace the root `redir @adminRoot /admin` /
   `redir @clientRoot /client` (which cause `admin.<d>/admin`) with **internal rewrites** that map the
   host's surface to the app's route prefix without changing the browser URL:
@@ -350,7 +350,7 @@ host-relative.
   `/api` + `/uploads` unchanged. Caddy `rewrite`/`handle` keeps the URL bar on `admin.<d>/...`.
 - Keep the apex-path block for named apex hosts as-is (dezhost.com today).
 
-### 2.2 App: serve dashboards at the subdomain root via surface-aware base paths
+### 2.2 App: serve dashboards at the subdomain root via surface-aware base paths  ✅ DONE (2026-07-12 — `apps/web/middleware.ts` maps clean surface-host paths to the internal `/admin`|`/client` routes with a Next rewrite (URL bar untouched; guards run on the internal path; login redirects + `next` stay surface-relative). Pure helpers in `packages/web-core/src/lib/surface.ts` (`internalPath`/`surfaceHref`/`hrefForSurface`) + `useSurfaceHref` hook (client components, derives shape from `usePathname`) + `surfaceHrefMapper`/`requestSurface` in `server-api.ts` (server components, reads the edge header). All `/admin`+`/client` link/redirect emitters in `apps/web` routed through them (~85 sites: sidebar, breadcrumbs, both dashboards, admin-forms/blog/support/departments/pages-tab/builder, server detail pages, payment pages, login/logout, `redirectToAdminLogin`). Apex-path hosts and local dev: no header → byte-identical behaviour. Local verify green: tsc (web/web-core/storefront), `next build`, `node --test` 90/90 (2 stale assertions updated), `i18n-sync --check`. Known 2.3 leftover: admin "view site" `/${locale}` link 404s on a surface host — needs the tenant apex URL from settings.)
 - The dashboards Next app (`apps/web`) serves `/admin` + `/client` from one app; a static `basePath`
   can't be per-host. Approach: keep the app routes at `/admin`/`/client`, let the edge rewrite handle
   the incoming URL (2.1), and make **all emitted links + redirects surface-relative** so the browser never

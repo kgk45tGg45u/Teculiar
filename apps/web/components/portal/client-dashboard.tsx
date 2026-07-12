@@ -25,6 +25,8 @@ import {
 } from "@dezhost/web-core/lib/api";
 import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
 import { type Locale } from "@dezhost/web-core/lib/i18n";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
@@ -134,6 +136,7 @@ const statusTone: Record<string, "good" | "warn" | "neutral"> = {
 };
 
 export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashboard" }: { invoiceId?: string; serviceId?: string; ticketId?: string; view?: ClientView }) {
+  const href = useSurfaceHref();
   const locale = currentLocale();
   const copy = getDictionary(locale).client;
   const [authChecked, setAuthChecked] = useState(false);
@@ -325,16 +328,16 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     <div className={styles.page}>
       <aside className={styles.sidebar}>
         <nav aria-label={copy.dash.navAria}>
-          <a aria-current={clientNavCurrent(view, "dashboard")} href="/client">{copy.overview}</a>
-          <a aria-current={clientNavCurrent(view, "services")} href="/client/services">{copy.services}</a>
-          <a aria-current={clientNavCurrent(view, "domains")} href="/client/domains">{copy.domains}</a>
-          <a aria-current={clientNavCurrent(view, "invoices")} href="/client/invoices">{copy.invoices}</a>
-          <a aria-current={clientNavCurrent(view, "add-funds")} className={styles.subNav} href="/client/billing/add-funds">{copy.addFunds}</a>
-          <a aria-current={clientNavCurrent(view, "payment")} href="/client/payments">{copy.payments}</a>
-          <a aria-current={clientNavCurrent(view, "knowledgebase")} href="/client/knowledgebase">{copy.knowledgebase}</a>
-          <a aria-current={clientNavCurrent(view, "tickets")} href="/client/tickets">{copy.tickets}</a>
-          <a aria-current={clientNavCurrent(view, "new-ticket")} className={styles.subNav} href="/client/tickets/new">{copy.newTicket}</a>
-          <a aria-current={clientNavCurrent(view, "profile")} href="/client/profile">{copy.profile}</a>
+          <a aria-current={clientNavCurrent(view, "dashboard")} href={href("/client")}>{copy.overview}</a>
+          <a aria-current={clientNavCurrent(view, "services")} href={href("/client/services")}>{copy.services}</a>
+          <a aria-current={clientNavCurrent(view, "domains")} href={href("/client/domains")}>{copy.domains}</a>
+          <a aria-current={clientNavCurrent(view, "invoices")} href={href("/client/invoices")}>{copy.invoices}</a>
+          <a aria-current={clientNavCurrent(view, "add-funds")} className={styles.subNav} href={href("/client/billing/add-funds")}>{copy.addFunds}</a>
+          <a aria-current={clientNavCurrent(view, "payment")} href={href("/client/payments")}>{copy.payments}</a>
+          <a aria-current={clientNavCurrent(view, "knowledgebase")} href={href("/client/knowledgebase")}>{copy.knowledgebase}</a>
+          <a aria-current={clientNavCurrent(view, "tickets")} href={href("/client/tickets")}>{copy.tickets}</a>
+          <a aria-current={clientNavCurrent(view, "new-ticket")} className={styles.subNav} href={href("/client/tickets/new")}>{copy.newTicket}</a>
+          <a aria-current={clientNavCurrent(view, "profile")} href={href("/client/profile")}>{copy.profile}</a>
         </nav>
         {(profile?.balanceCents ?? 0) > 0 ? (
           <div className={styles.balanceCard}>
@@ -359,10 +362,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
         </header>
 
         <section className={styles.overviewGrid} aria-label={copy.dash.overviewAria}>
-          <DashboardSummaryCard empty={copy.noActiveServices} href="/client/services" icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel={copy.loadingServices} value={serviceRows.length} />
-          <DashboardSummaryCard empty={copy.noDomains} href="/client/domains" icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel={copy.loadingDomains} value={domainRows.length} />
-          <DashboardSummaryCard empty={copy.noTickets} href="/client/tickets" icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel={copy.loadingTickets} value={openTickets} />
-          <DashboardSummaryCard empty={copy.noInvoices} href="/client/invoices" icon={FileText} items={invoiceSummaryItems} label={copy.openInvoices} loading={loading.invoices} loadingLabel={copy.loadingInvoices} value={openInvoices} />
+          <DashboardSummaryCard empty={copy.noActiveServices} href={href("/client/services")} icon={Server} items={serviceSummaryItems} label={copy.services} loading={loading.services} loadingLabel={copy.loadingServices} value={serviceRows.length} />
+          <DashboardSummaryCard empty={copy.noDomains} href={href("/client/domains")} icon={Globe} items={domainSummaryItems} label={copy.domains} loading={loading.services} loadingLabel={copy.loadingDomains} value={domainRows.length} />
+          <DashboardSummaryCard empty={copy.noTickets} href={href("/client/tickets")} icon={LifeBuoy} items={ticketSummaryItems} label={copy.openTickets} loading={loading.tickets} loadingLabel={copy.loadingTickets} value={openTickets} />
+          <DashboardSummaryCard empty={copy.noInvoices} href={href("/client/invoices")} icon={FileText} items={invoiceSummaryItems} label={copy.openInvoices} loading={loading.invoices} loadingLabel={copy.loadingInvoices} value={openInvoices} />
         </section>
 
         {(view === "dashboard" || view === "services") && !serviceId ? <ServicesTable loading={loading.services} services={serviceRows} /> : null}
@@ -607,6 +610,7 @@ function dashboardFeedItems(announcements: ApiAnnouncement[], articles: ApiKnowl
 }
 
 function ServicesTable({ loading, services }: { loading: boolean; services: ApiService[] }) {
+  const href = useSurfaceHref();
   const locale = currentLocale();
   const copy = getDictionary(locale).client;
   return (
@@ -631,7 +635,7 @@ function ServicesTable({ loading, services }: { loading: boolean; services: ApiS
                 {loading ? <tr><td colSpan={4}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingServices} />{copy.loadingServices}</span></td></tr> : null}
                 {!loading && services.map((service) => (
                   <tr key={service.id}>
-                    <td><a href={`/client/services/${service.id}`}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
+                    <td><a href={href(`/client/services/${service.id}`)}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
                     <td>{money(serviceUnitPriceCents(service), service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
                     <td>{dateLabel(service.renewsAt)}</td>
                     <td>
@@ -989,6 +993,7 @@ function loadHostingPanel(serviceId: string, setPanel: (panel: HostingPanel) => 
 }
 
 function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading: boolean }) {
+  const href = useSurfaceHref();
   const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.invoiceCards}>
@@ -999,7 +1004,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
           <article className={styles.invoiceCard} key={invoice.id}>
             <div className={styles.invoiceCardLead}>
               <span>{copy.invoiceDetail}</span>
-              <strong><a href={`/client/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></strong>
+              <strong><a href={href(`/client/invoices/${invoice.id}`)}>{invoiceDisplayNumber(invoice)}</a></strong>
               {invoice.status === "PAID" ? <small>{copy.paidAt} {dateLabel(invoice.paidAt)} · {paymentGateway(invoice)}</small> : null}
             </div>
             <div className={styles.invoiceCardMeta}><span>{copy.issuedAt}</span><strong>{dateLabel(invoice.issuedAt)}</strong></div>
@@ -1007,7 +1012,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
             <div className={styles.invoiceCardTotal}><span>{copy.total}</span><strong>{money(invoice.totalCents, invoice.currency)}</strong></div>
             <div className={styles.invoiceListAction}>
               {invoiceStatusVisible(invoice.status) ? <StatusPill label={invoiceStatusLabel(invoice.status, currentLocale())} tone={statusTone[invoice.status] ?? "neutral"} /> : null}
-              {payable ? <a className={styles.invoicePayLink} href={`/client/billing/payment?invoice=${invoice.id}`}><CreditCard size={13} />{copy.dash.payNow}</a> : null}
+              {payable ? <a className={styles.invoicePayLink} href={href(`/client/billing/payment?invoice=${invoice.id}`)}><CreditCard size={13} />{copy.dash.payNow}</a> : null}
             </div>
           </article>
         );
@@ -1018,6 +1023,7 @@ function InvoicesTable({ invoices, loading }: { invoices: ApiInvoice[]; loading:
 }
 
 function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: boolean }) {
+  const href = useSurfaceHref();
   if (!invoice) {
     const c = getDictionary(currentLocale()).client;
     return loading ? <LoadingBlock title={c.dash.invoice} /> : <section className={styles.module}><h2>{c.dash.invoice}</h2><p>{c.dash.invoiceNotFound}</p></section>;
@@ -1043,7 +1049,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
           <small>{copy.dueAt} {dateLabel(invoice.dueAt)}</small>
         </div>
         <div className={styles.invoiceActions}>
-          {payable ? <Button href={`/client/billing/payment?invoice=${invoice.id}`} icon={CreditCard}>{copy.dash.payInvoice}</Button> : null}
+          {payable ? <Button href={href(`/client/billing/payment?invoice=${invoice.id}`)} icon={CreditCard}>{copy.dash.payInvoice}</Button> : null}
           <InvoiceHtmlButton invoice={invoice} />
           <PdfDownloadButton invoice={invoice} />
         </div>
@@ -1207,18 +1213,19 @@ function PlanChange({ service }: { service: ApiService }) {
 }
 
 function TicketsTable({ loading, tickets }: { loading: boolean; tickets: ApiTicket[] }) {
+  const href = useSurfaceHref();
   const copy = getDictionary(currentLocale()).client;
   return (
     <section className={styles.block}>
       <div className={styles.blockHeader}>
         <div><span className="eyebrow">{copy.tickets}</span><h2>{copy.tickets}</h2></div>
-        <Button href="/client/tickets/new" icon={Send}>{copy.newTicket}</Button>
+        <Button href={href("/client/tickets/new")} icon={Send}>{copy.newTicket}</Button>
       </div>
       {loading ? <section className={styles.module}><span className={styles.loadingInline}><LoadingSpinner label={copy.loadingTickets} />{copy.loadingTickets}</span></section> : null}
       {!loading && tickets.length ? (
         <div className={styles.ticketCards}>
           {tickets.map((ticket) => (
-            <a className={styles.ticketCard} href={`/client/tickets/${ticket.id}`} key={ticket.id}>
+            <a className={styles.ticketCard} href={href(`/client/tickets/${ticket.id}`)} key={ticket.id}>
               <div>
                 <span>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()}</span>
                 <strong>{ticket.subject}</strong>
@@ -1278,7 +1285,7 @@ function NewTicket({ services }: { services: ApiService[] }) {
     const ticket = await response.clone().json().catch(() => undefined) as ApiTicket | undefined;
     if (response.ok && ticket?.id) {
       await uploadTicketFiles(ticket.id, filesFromForm(formData));
-      window.location.assign(`/client/tickets/${ticket.id}`);
+      window.location.assign(surfaceHref(window.location.pathname, `/client/tickets/${ticket.id}`));
       return;
     }
     setMessage(await notifyResponse(response, copy.dash.ticketOpened, copy.dash.ticketFailed));
@@ -1456,7 +1463,7 @@ function AddFunds() {
           return;
         }
         if (payload?.status === "PAID" && payload?.invoiceId) {
-          window.location.assign(`/client/invoices/${payload.invoiceId}`);
+          window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${payload.invoiceId}`));
           return;
         }
         if (payload?.status === "PENDING") {
@@ -1466,10 +1473,10 @@ function AddFunds() {
             return;
           }
           setMessage(copy.dash.sepaInitiated);
-          setTimeout(() => window.location.assign(`/client/invoices/${payload.invoiceId}`), 3000);
+          setTimeout(() => window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${payload.invoiceId}`)), 3000);
           return;
         }
-        window.location.assign("/client");
+        window.location.assign(surfaceHref(window.location.pathname, "/client"));
         return;
       }
       setMessage((payload as { message?: string } | undefined)?.message ?? copy.dash.addFundsFailed);
@@ -1501,7 +1508,7 @@ function AddFunds() {
           <div><strong>{copy.dash.bankReference}</strong> <code>{bankWireInfo.invoiceNumber}</code></div>
         </div>
         {cfg.referenceNote && <p style={{ fontSize: "13px", color: "#6b7280" }}>{cfg.referenceNote}</p>}
-        <Button icon={FileText} type="button" onClick={() => window.location.assign("/client/invoices")}>{copy.dash.viewInvoices}</Button>
+        <Button icon={FileText} type="button" onClick={() => window.location.assign(surfaceHref(window.location.pathname, "/client/invoices"))}>{copy.dash.viewInvoices}</Button>
       </div>
     );
   }

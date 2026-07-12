@@ -8,8 +8,10 @@ import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/portal/client-dashboard.module.css";
 import adminStyles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
+  const href = await surfaceHrefMapper();
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
@@ -57,7 +59,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
       <main className={adminStyles.main}>
         <header className={adminStyles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/invoices">{a.detail.backInvoices}</a></span>
+            <span className="eyebrow"><a href={href("/admin/invoices")}>{a.detail.backInvoices}</a></span>
             <h1>{copy.invoiceTitle} {invoiceDisplayNumber(invoice)}</h1>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

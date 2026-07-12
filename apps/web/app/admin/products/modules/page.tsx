@@ -9,8 +9,10 @@ import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { isAdminRole, type AuthUser, type ApiDomainPrice } from "@dezhost/web-core/lib/api";
 import { Suspense } from "react";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
+import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 
 export default async function AdminModulesPage() {
+  const href = await surfaceHrefMapper();
   const locale = await requestLocale();
   const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
@@ -45,7 +47,7 @@ export default async function AdminModulesPage() {
               <span className="eyebrow">Integrations</span>
               <h2>Active Modules</h2>
             </div>
-            <Button href="/admin/products" variant="secondary">← Products</Button>
+            <Button href={href("/admin/products")} variant="secondary">← Products</Button>
           </div>
           <p style={{ padding: "12px 16px 0", margin: 0, fontSize: "0.88rem", color: "var(--muted)" }}>
             Modules connect your platform to external service providers. Disabling a module removes automatic provisioning —

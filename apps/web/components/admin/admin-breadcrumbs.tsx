@@ -4,6 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import { internalPath, surfaceHref } from "@dezhost/web-core/lib/surface";
 import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
 import styles from "./admin-breadcrumbs.module.css";
 
@@ -65,7 +66,10 @@ function titleCase(segment: string) {
 // sidebar's sticky mobile header (mobile). CSS shows exactly one of them per breakpoint.
 export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sidebar" }) {
   const copy = getDictionary(useLocale()).admin;
-  const pathname = usePathname() ?? "/admin";
+  const browserPath = usePathname() ?? "/admin";
+  // On a per-surface host (Phase 2.2) the browser path has no /admin segment — the crumbs are
+  // built from the internal path and rendered back as surface-relative hrefs.
+  const pathname = internalPath(browserPath, "admin");
   if (!pathname.startsWith("/admin")) {
     return null;
   }
@@ -98,7 +102,7 @@ export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sideb
               {isLast ? (
                 <span aria-current="page" className={styles.current}>{crumb.label}</span>
               ) : (
-                <Link className={styles.link} href={crumb.href as Route}>{crumb.label}</Link>
+                <Link className={styles.link} href={surfaceHref(browserPath, crumb.href) as Route}>{crumb.label}</Link>
               )}
               {!isLast ? <span aria-hidden className={styles.separator}>/</span> : null}
             </li>

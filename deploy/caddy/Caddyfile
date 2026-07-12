@@ -36,6 +36,10 @@
 		on_demand
 	}
 
+	# Apex-path host: no per-surface header (and strip a spoofed one) → the dashboards app keeps
+	# its /admin + /client URL segments exactly as today (Phase 2.2).
+	request_header -X-Teculiar-Surface
+
 	# API + uploads → the API container (Host preserved → tenant resolved from tenant_domains).
 	handle /api/* {
 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
@@ -106,39 +110,21 @@ https:// {
 		reverse_proxy {$TECULIAR_BACKEND_HOST:127.0.0.1}:4001
 	}
 
-	# Clean URLs (Phase 2.1): a per-surface host serves its dashboard section at the HOST ROOT — the
-	# browser URL never shows the /admin or /client segment. INTERNAL rewrites (not redirects) prefix the
-	# path before proxying; already-prefixed paths (app redirects, legacy links) pass through untouched,
-	# so both URL styles keep working until the app emits surface-relative links (Phase 2.2).
-	#
-	# admin.<domain> → /admin/<path>. Root rewrites to exactly /admin (a trailing slash would make Next's
-	# 308 slash-redirect leak the segment into the URL bar). /reset-password + /sso (handoff callback)
-	# live at the app ROOT, and API/asset/wellknown paths must reach their own handlers — all excluded.
-	@adminRoot {
-		header_regexp Host "^admin\."
-		path /
-	}
-	rewrite @adminRoot /admin
+	# Clean URLs (Phase 2.1/2.2): a per-surface host serves its dashboard section at the HOST ROOT —
+	# the browser URL never shows the /admin or /client segment. The edge only CLASSIFIES the host
+	# (admin.* → admin surface, any other label → client surface) via the X-Teculiar-Surface request
+	# header; the dashboards app's own middleware does the actual path mapping (a Next-internal rewrite
+	# keeps usePathname()/hydration consistent, which an edge path-rewrite would break). `set` overwrites
+	# a spoofed incoming value; api. hosts get an explicit delete. The three matchers are DISJOINT —
+	# Caddy reorders same-directive ops, so exactly one op per host class keeps order irrelevant.
+	@adminHost header_regexp Host "^admin\."
+	request_header @adminHost X-Teculiar-Surface admin
 
-	@adminSurface {
-		header_regexp Host "^admin\."
-		not path / /admin* /reset-password* /sso* /api/* /uploads/* /og/* /_dash/* /_next/* /favicon.ico /robots.txt /sitemap.xml /.well-known/*
-	}
-	rewrite @adminSurface /admin{uri}
+	@clientHost not header_regexp Host "^(api|admin)\."
+	request_header @clientHost X-Teculiar-Surface client
 
-	# Any other label (tenant-chosen client area: client./portal./kunde./…) → /client/<path>. The client
-	# login, reset + /sso pages live at the app root — kept unprefixed.
-	@clientRoot {
-		not header_regexp Host "^(api|admin)\."
-		path /
-	}
-	rewrite @clientRoot /client
-
-	@clientSurface {
-		not header_regexp Host "^(api|admin)\."
-		not path / /client* /admin* /login* /reset-password* /sso* /api/* /uploads/* /og/* /_dash/* /_next/* /favicon.ico /robots.txt /sitemap.xml /.well-known/*
-	}
-	rewrite @clientSurface /client{uri}
+	@apiSurfaceHost header_regexp Host "^api\."
+	request_header @apiSurfaceHost -X-Teculiar-Surface
 
 	# Dashboard pages call their own origin: /api + /uploads go to the API (Host preserved → tenant).
 	@dashApi path /api/* /uploads/*

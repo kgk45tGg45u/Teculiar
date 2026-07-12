@@ -7,8 +7,10 @@ import { AdminServiceDueDateForm, AdminServiceStatusForm } from "../../../../com
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 
 export default async function AdminServicePage({ params }: { params: Promise<{ serviceId: string }> }) {
+  const href = await surfaceHrefMapper();
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
@@ -36,7 +38,7 @@ export default async function AdminServicePage({ params }: { params: Promise<{ s
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/services">{a.detail.backServices}</a></span>
+            <span className="eyebrow"><a href={href("/admin/services")}>{a.detail.backServices}</a></span>
             <h1>{domain ? `${service.product.name} — ${domain}` : service.product.name}</h1>
           </div>
           <StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} />

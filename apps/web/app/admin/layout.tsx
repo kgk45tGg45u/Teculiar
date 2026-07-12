@@ -6,7 +6,8 @@ import { SiteHeader } from "@dezhost/web-core/components/layout/site-header";
 import { SiteFooter } from "@dezhost/web-core/components/layout/site-footer";
 import { currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@dezhost/web-core/lib/api";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { serverApiGet } from "@dezhost/web-core/lib/server-api";
+import { requestSurface, serverApiGet } from "@dezhost/web-core/lib/server-api";
+import { hrefForSurface } from "@dezhost/web-core/lib/surface";
 
 export const metadata: Metadata = {
   title: "Teculiar Admin | Dezhost"
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
+  const brandHref = hrefForSurface(await requestSurface(), "/admin");
   const settings = (await serverApiGet<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings")) ?? {};
   const currencyConfig = currencyConfigFromSettings(settings);
   const i18nConfig = i18nConfigFromSettings(settings);
@@ -22,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <LocaleProvider locale={locale}>
       <Suspense>
-        <SiteHeader brandHref="/admin" brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
+        <SiteHeader brandHref={brandHref} brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
       </Suspense>
       <Suspense>
         <AdminBreadcrumbs />

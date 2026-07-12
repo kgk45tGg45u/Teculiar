@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ADMIN_AUTH_COOKIE, clearAuth } from "@dezhost/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
+import { internalPath, surfaceHref } from "@dezhost/web-core/lib/surface";
 import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
@@ -122,7 +123,11 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
   const copy = getDictionary(useLocale()).admin;
   const baseNav = buildBaseNav(copy);
   const settingsNav = buildSettingsNav(copy);
-  const pathname = usePathname();
+  const browserPath = usePathname();
+  // Nav entries carry the app's internal /admin/* paths; on a per-surface host (Phase 2.2) the
+  // browser path has no /admin segment — normalize for the active checks, strip for the hrefs.
+  const pathname = internalPath(browserPath, "admin");
+  const href = (target: string) => surfaceHref(browserPath, target);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nav, setNav] = useState<NavEntry[]>(baseNav);
 
@@ -165,7 +170,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
 
   function logout() {
     clearAuth("admin");
-    window.location.assign("/admin/login");
+    window.location.assign(href("/admin/login"));
   }
 
   return (
@@ -206,7 +211,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
               <a
                 aria-current={active ? "page" : undefined}
                 className={styles.navItem}
-                href={entry.href}
+                href={href(entry.href)}
                 key={entry.href}
               >
                 {entry.label}
@@ -221,7 +226,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
               <div className={styles.groupRow}>
                 <a
                   className={`${styles.groupLink}${hasActive ? ` ${styles.groupLinkActive}` : ""}`}
-                  href={entry.children[0]?.href ?? "#"}
+                  href={entry.children[0] ? href(entry.children[0].href) : "#"}
                 >
                   {entry.label}
                 </a>
@@ -248,7 +253,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
                     <a
                       aria-current={active ? "page" : undefined}
                       className={styles.subItem}
-                      href={child.href}
+                      href={href(child.href)}
                       key={child.href}
                     >
                       {child.label}

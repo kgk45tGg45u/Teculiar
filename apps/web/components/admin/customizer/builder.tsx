@@ -39,6 +39,7 @@ import { Palette } from "./palette";
 import { childrenOf, containsId, findNode, indexInContainer, insertNode, parentContainerId, removeNode, updateNode } from "./tree";
 import { VersionsModal } from "./versions-modal";
 import styles from "./customizer.module.css";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
 
 export type BuilderProps = {
   pageId: string;
@@ -54,6 +55,7 @@ export type BuilderProps = {
 };
 
 export function CustomizerBuilder(props: BuilderProps) {
+  const href = useSurfaceHref();
   const { pageId, pageKey, pageName, locales, mainLocale, canTranslate, initialDoc, draftUpdatedAt } = props;
   const uiLocale = useLocale();
   const t = getDictionary(uiLocale).admin.customizer;
@@ -261,7 +263,7 @@ export function CustomizerBuilder(props: BuilderProps) {
         sensors={sensors}
       >
         <div className={styles.topbar}>
-          <Button href="/admin/theme" icon={ArrowLeft} variant="ghost">{t.back}</Button>
+          <Button href={href("/admin/theme")} icon={ArrowLeft} variant="ghost">{t.back}</Button>
           <h1 className={styles.title}>{pageName}</h1>
           <span className={styles.badge}>{pageKey}</span>
           <span className={published ? `${styles.badge} ${styles.badgeLive}` : styles.badge}>

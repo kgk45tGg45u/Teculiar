@@ -8,6 +8,7 @@ import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
 
 // ── Departments management ─────────────────────────────────────────────────────
 
@@ -251,7 +252,7 @@ export function AdminNewTicketPanel() {
     }, "admin");
     const ticket = await response.clone().json().catch(() => undefined) as { id?: string } | undefined;
     if (response.ok && ticket?.id) {
-      window.location.assign(`/admin/tickets/${ticket.id}`);
+      window.location.assign(surfaceHref(window.location.pathname, `/admin/tickets/${ticket.id}`));
       return;
     }
     setMessage(await notifyResponse(response, c.ticketCreated, c.ticketCreateFailed));

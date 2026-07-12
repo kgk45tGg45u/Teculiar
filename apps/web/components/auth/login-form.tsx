@@ -6,10 +6,11 @@ import { useState } from "react";
 import { API_BASE_URL, isAdminRole, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { hrefForSurface, type SurfaceSection } from "@dezhost/web-core/lib/surface";
 import { notify } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./login-form.module.css";
 
-export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: Locale }) {
+export function LoginForm({ admin = false, locale, surface = null }: { admin?: boolean; locale: Locale; surface?: SurfaceSection | null }) {
   const params = useSearchParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +49,8 @@ export function LoginForm({ admin = false, locale }: { admin?: boolean; locale: 
 
     storeAuth(payload as AuthPayload, admin ? "admin" : "client", rememberMe);
     notify.success(copy.loginSuccess);
-    window.location.assign(safeNext(params.get("next"), admin ? "/admin" : "/client"));
+    // On a per-surface host (Phase 2.2) the section segment is implied by the host — land on "/".
+    window.location.assign(safeNext(params.get("next"), hrefForSurface(surface, admin ? "/admin" : "/client")));
   }
 
   async function requestReset(formData: FormData) {

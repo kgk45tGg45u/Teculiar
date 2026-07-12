@@ -5,6 +5,8 @@ import { Building2, CheckCircle, AlertCircle, CreditCard, Landmark, Loader, Wall
 import { API_BASE_URL, authHeaders, currentLocale, invoiceDisplayNumber, money, type ApiInvoice } from "@dezhost/web-core/lib/api";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import styles from "./payment.module.css";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
 
 type GatewayEntry = { config?: Record<string, string | undefined>; method: string; title: string };
 type PayPalNamespace = {
@@ -35,6 +37,7 @@ function methodLabels(c: ReturnType<typeof getDictionary>["client"]["pay"]): Rec
 }
 
 export default function InvoicePaymentPage() {
+  const href = useSurfaceHref();
   const c = getDictionary(currentLocale()).client.pay;
   const METHOD_LABELS = methodLabels(c);
   const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
@@ -123,10 +126,10 @@ export default function InvoicePaymentPage() {
     if (payload?.invoice?.status === "PENDING" || payload?.status === "PENDING") {
       setStatus("paid");
       setMessage(c.sepaInitiated);
-      setTimeout(() => window.location.assign(`/client/invoices/${invoiceId}`), 3000);
+      setTimeout(() => window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${invoiceId}`)), 3000);
       return;
     }
-    if (payload?.status === "PAID") { window.location.assign(`/client/invoices/${invoiceId}`); return; }
+    if (payload?.status === "PAID") { window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${invoiceId}`)); return; }
     setStatus("error");
     setMessage(c.paymentNotStarted);
   }
@@ -148,7 +151,7 @@ export default function InvoicePaymentPage() {
       <AlertCircle size={32} className={styles.iconError} />
       <h1>{c.error}</h1>
       <p>{message || c.somethingWrong}</p>
-      <a className={styles.back} href="/client/invoices">{c.backToInvoices}</a>
+      <a className={styles.back} href={href("/client/invoices")}>{c.backToInvoices}</a>
     </div></main>
   );
 
@@ -175,7 +178,7 @@ export default function InvoicePaymentPage() {
     const payload = await response.json().catch(() => ({}));
     if (response.ok && (payload?.status === "PAID" || payload?.invoice?.status === "PAID")) {
       setStatus("paid");
-      window.location.assign(`/client/invoices/${invoiceId}`);
+      window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${invoiceId}`));
       return;
     }
     setStatus("error");
@@ -316,7 +319,7 @@ export default function InvoicePaymentPage() {
               )}
             </div>
 
-            <a className={styles.back} href={`/client/invoices/${invoiceId}`}>{c.cancelGoBack}</a>
+            <a className={styles.back} href={href(`/client/invoices/${invoiceId}`)}>{c.cancelGoBack}</a>
           </>
         )}
       </div>
@@ -358,7 +361,7 @@ function renderPayPalButtons(invoiceId: string, setStatus: (s: Status) => void, 
       const payload = await response.json().catch(() => ({}));
       if (response.ok && payload.status === "PAID") {
         setStatus("paid");
-        setTimeout(() => { window.location.assign(`/client/invoices/${payload.invoice?.id ?? invoiceId}`); }, 1500);
+        setTimeout(() => { window.location.assign(surfaceHref(window.location.pathname, `/client/invoices/${payload.invoice?.id ?? invoiceId}`)); }, 1500);
       } else {
         setStatus("error");
         setMessage(payload?.message ?? c.paymentStatus.replace("{status}", String(payload?.status ?? "pending")));
@@ -376,6 +379,7 @@ function MethodIcon({ method }: { method: string }) {
 }
 
 function BankWirePanel({ bankWire, invoiceNumber, amount, invoiceId }: { amount: string; bankWire?: GatewayEntry; invoiceNumber: string; invoiceId: string }) {
+  const href = useSurfaceHref();
   const c = getDictionary(currentLocale()).client.pay;
   const cfg = bankWire?.config ?? {};
   const [claimed, setClaimed] = useState(false);
@@ -402,7 +406,7 @@ function BankWirePanel({ bankWire, invoiceNumber, amount, invoiceId }: { amount:
         <CheckCircle size={32} className={styles.iconSuccess} />
         <p style={{ fontWeight: 700, margin: "8px 0 4px" }}>{c.thankYouNoted}</p>
         <p className={styles.hint}>{c.teamNotified}</p>
-        <a className={styles.back} href="/client/invoices">{c.backToInvoices}</a>
+        <a className={styles.back} href={href("/client/invoices")}>{c.backToInvoices}</a>
       </div>
     );
   }

@@ -69,5 +69,6 @@ test("Admin > Theme has no Blue child; the old route redirects", () => {
   assert.doesNotMatch(sidebar, /\/admin\/theme\/blue/);
   assert.ok(existsSync(new URL("../app/admin/theme/page.tsx", import.meta.url)), "new /admin/theme page exists");
   const blue = read("../app/admin/theme/blue/page.tsx");
-  assert.match(blue, /redirect\("\/admin\/theme"/);
+  // Phase 2.2: the redirect target is surface-aware (clean URLs on per-surface hosts).
+  assert.match(blue, /redirect\(href\("\/admin\/theme"\)/);
 });

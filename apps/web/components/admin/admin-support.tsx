@@ -12,6 +12,7 @@ import { Button } from "@dezhost/web-core/components/ui/button";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
+import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
 
 export function KnowledgebasePanel({ articles: initialArticles }: { articles: ApiKnowledgebaseArticle[] }) {
   const a = getDictionary(useLocale()).admin;
@@ -194,6 +195,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
 // Client wrapper so the ticket thread renders inside the admin dashboard layout
 // (with the sidebar) — fetches the ticket + canned articles, then renders the thread.
 export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
+  const href = useSurfaceHref();
   const c = getDictionary(useLocale()).admin.support;
   const [ticket, setTicket] = useState<ApiTicket | null>(null);
   const [articles, setArticles] = useState<ApiKnowledgebaseArticle[]>([]);
@@ -217,12 +219,12 @@ export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
     return <section className={styles.panel}><p className={styles.formMessage}>{c.loadingTicket}</p></section>;
   }
   if (!ticket) {
-    return <section className={styles.panel}><p className={styles.formMessage}>{c.ticketNotFound} <a href="/admin/tickets">{c.backToTickets}</a></p></section>;
+    return <section className={styles.panel}><p className={styles.formMessage}>{c.ticketNotFound} <a href={href("/admin/tickets")}>{c.backToTickets}</a></p></section>;
   }
 
   return (
     <>
-      <div className={styles.inlineForm}><a href="/admin/tickets">{c.backToTicketsArrow}</a></div>
+      <div className={styles.inlineForm}><a href={href("/admin/tickets")}>{c.backToTicketsArrow}</a></div>
       <AdminTicketThread articles={articles} initialTicket={ticket} />
     </>
   );

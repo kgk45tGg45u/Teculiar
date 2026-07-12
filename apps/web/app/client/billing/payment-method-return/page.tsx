@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, currentLocale } from "@dezhost/web-core/lib/api";
 import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { surfaceHref } from "@dezhost/web-core/lib/surface";
 
 export default function PaymentMethodReturnPage() {
   const c = getDictionary(currentLocale()).client.pay;
@@ -14,7 +15,7 @@ export default function PaymentMethodReturnPage() {
       .then((methods) => {
         const pending = Array.isArray(methods) ? methods.find((method) => method.status === "PENDING") : undefined;
         if (!pending?.id) {
-          window.location.assign("/client/payments");
+          window.location.assign(surfaceHref(window.location.pathname, "/client/payments"));
           return;
         }
         return fetch(`${API_BASE_URL}/billing/payment-methods/${pending.id}/confirm`, {
@@ -27,7 +28,7 @@ export default function PaymentMethodReturnPage() {
           return;
         }
         if (response.ok) {
-          window.location.assign("/client/payments");
+          window.location.assign(surfaceHref(window.location.pathname, "/client/payments"));
           return;
         }
         setMessage(c.authNotConfirmed);

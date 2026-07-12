@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_AUTH_COOKIE, API_BASE_URL } from "./api";
+import { hrefForSurface } from "./surface";
 
 /**
  * SSR API base — resolved PER REQUEST from the Host header (Phase 4.6 multi-tenant fix).
@@ -60,5 +61,30 @@ export async function apiGetAuth<T>(path: string): Promise<T | null> {
 export async function redirectToAdminLogin(): Promise<never> {
   const requestHeaders = await headers();
   const currentPath = requestHeaders.get("x-pathname") ?? "/admin";
+  // On a per-surface host (admin.<domain>, Phase 2.2) the /admin segment is implied by the host:
+  // the login page sits at the host root and the next target stays the clean browser path.
+  if (requestHeaders.get("x-teculiar-surface") === "admin") {
+    const next = currentPath.replace(/^\/admin(?=\/|\?|$)/, "") || "/";
+    redirect(`/login?next=${encodeURIComponent(next)}` as never);
+  }
   redirect(`/admin/login?next=${encodeURIComponent(currentPath)}` as never);
+}
+
+/** The X-Teculiar-Surface header the edge tags per-surface hosts with (Phase 2.2), if any. */
+export async function requestSurface(): Promise<"admin" | "client" | null> {
+  try {
+    const value = (await headers()).get("x-teculiar-surface");
+    return value === "admin" || value === "client" ? value : null;
+  } catch {
+    return null; // outside a request (build-time)
+  }
+}
+
+/**
+ * Server-component href mapper (Phase 2.2): internal /admin|/client targets → hrefs matching the
+ * request's URL shape (section segment stripped on a per-surface host, kept on apex-path hosts).
+ */
+export async function surfaceHrefMapper(): Promise<(target: string) => string> {
+  const surface = await requestSurface();
+  return (target: string) => hrefForSurface(surface, target);
 }

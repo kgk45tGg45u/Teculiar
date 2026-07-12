@@ -9,8 +9,10 @@ import { Button } from "@dezhost/web-core/components/ui/button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
 import { invoiceStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
+import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 
 export default async function AdminClientPage({ params }: { params: Promise<{ clientId: string }> }) {
+  const href = await surfaceHrefMapper();
   const user = await apiGetAuth<AuthUser>("/users/me");
   if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
@@ -41,14 +43,14 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
-            <span className="eyebrow"><a href="/admin/clients">{a.detail.backClients}</a></span>
+            <span className="eyebrow"><a href={href("/admin/clients")}>{a.detail.backClients}</a></span>
             <h1>{client.name}</h1>
             <p style={{ margin: "2px 0 0", color: "var(--muted)", fontSize: "0.9rem" }}>
               {client.email} · {copy.client.customerNumber} {formatCustomerNumber(client.customerNumber)}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Button href={`/admin/orders/new?clientId=${client.id}`} variant="secondary">{a.view.newOrder}</Button>
+            <Button href={href(`/admin/orders/new?clientId=${client.id}`)} variant="secondary">{a.view.newOrder}</Button>
           </div>
         </header>
 
@@ -101,7 +103,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
               <tbody>
                 {client.services.map((service) => (
                   <tr key={service.id}>
-                    <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a></td>
+                    <td><a href={href(`/admin/services/${service.id}`)}>{service.product.name}</a></td>
                     <td>{service.domainRecords?.[0]?.domain ?? "—"}</td>
                     <td><StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} /></td>
                     <td>{dateLabel(service.renewsAt)}</td>
@@ -128,7 +130,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
               <tbody>
                 {client.invoices.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></td>
+                    <td><a href={href(`/admin/invoices/${invoice.id}`)}>{invoiceDisplayNumber(invoice)}</a></td>
                     <td><StatusPill label={invoiceStatusLabel(invoice.status, locale)} tone={invoice.status === "PAID" ? "good" : "warn"} /></td>
                     <td>{dateLabel(invoice.dueAt)}</td>
                     <td>{money(invoice.totalCents, invoice.currency, locale)}</td>
@@ -151,7 +153,7 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
               <tbody>
                 {client.orders.map((order) => (
                   <tr key={order.id}>
-                    <td><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></td>
+                    <td><a href={href(`/admin/orders/${order.id}`)}>{order.orderNumber}</a></td>
                     <td><StatusPill label={order.status.toLowerCase()} tone={order.status === "ACTIVE" ? "good" : "warn"} /></td>
                     <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {order.items?.map((item) => item.description).join(", ")}

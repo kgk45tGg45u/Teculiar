@@ -25,7 +25,7 @@ import { getDictionary } from "@dezhost/web-core/lib/dictionary";
 import { requestLocale } from "@dezhost/web-core/lib/server-locale";
 import { LanguageToggle } from "@dezhost/web-core/components/layout/language-toggle";
 import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { apiGetAuth, redirectToAdminLogin, surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
 import { Button } from "@dezhost/web-core/components/ui/button";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
@@ -72,6 +72,7 @@ type AdminView =
 export type EmailAdminSection = "emails" | "logs" | "settings" | "template";
 
 export async function AdminDashboard({ blogEditId, emailSection = "emails", preselectedClientId, ticketId, view = "home" }: { blogEditId?: string; emailSection?: EmailAdminSection; preselectedClientId?: string; ticketId?: string; view?: AdminView }) {
+  const href = await surfaceHrefMapper();
   const locale = await requestLocale();
   const copy = getDictionary(locale).admin;
   const user = await apiGetAuth<AuthUser>("/users/me");
@@ -128,19 +129,19 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
         </header>
 
         <section className={styles.metrics}>
-          <Link className="metric" href="/admin/invoices">
+          <Link className="metric" href={href("/admin/invoices")}>
             <strong>{money(stats.mrrCents, "EUR", locale)}</strong>
             <span>MRR</span>
           </Link>
-          <Link className="metric" href="/admin/services">
+          <Link className="metric" href={href("/admin/services")}>
             <strong>{stats.activeServices}</strong>
             <span>{copy.activeServices}</span>
           </Link>
-          <Link className="metric" href="/admin/tickets">
+          <Link className="metric" href={href("/admin/tickets")}>
             <strong>{stats.openTickets}</strong>
             <span>{copy.openTickets}</span>
           </Link>
-          <Link className="metric" href="/admin/invoices">
+          <Link className="metric" href={href("/admin/invoices")}>
             <strong>{stats.failedPayments}</strong>
             <span>{copy.failedPayments}</span>
           </Link>
@@ -228,7 +229,8 @@ function DomainPricesPanel({ locale, prices }: { locale: Locale; prices: ApiDoma
   );
 }
 
-function ModuleGrid({ locale }: { locale: Locale }) {
+async function ModuleGrid({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   const modules = [
     { title: copy.clients, body: copy.card.clientsBody, href: "/admin/clients", icon: UsersRound },
@@ -245,7 +247,7 @@ function ModuleGrid({ locale }: { locale: Locale }) {
   return (
     <section className="grid three">
       {modules.map((module) => (
-        <a className={styles.module} href={module.href} key={module.title}>
+        <a className={styles.module} href={href(module.href)} key={module.title}>
           <module.icon aria-hidden size={24} />
           <h2>{module.title}</h2>
           <p>{module.body}</p>
@@ -291,7 +293,8 @@ function EmailsPanel({ locale, section, settings, timezone }: { locale: Locale; 
   );
 }
 
-function BlogListPanel({ locale }: { locale: Locale }) {
+async function BlogListPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -300,14 +303,15 @@ function BlogListPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.cms}</span>
           <h2>{copy.view.blogPosts}</h2>
         </div>
-        <Button href="/admin/blog/new" variant="secondary">{copy.btn.newPost}</Button>
+        <Button href={href("/admin/blog/new")} variant="secondary">{copy.btn.newPost}</Button>
       </div>
       <BlogPostList />
     </section>
   );
 }
 
-function BlogNewPanel({ editId, locale }: { editId?: string; locale: Locale }) {
+async function BlogNewPanel({ editId, locale }: { editId?: string; locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -316,7 +320,7 @@ function BlogNewPanel({ editId, locale }: { editId?: string; locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.cms}</span>
           <h2>{editId ? copy.view.blogPostEdit : copy.view.blogPostNew}</h2>
         </div>
-        <Button href="/admin/blog" variant="secondary">{copy.btn.allPosts}</Button>
+        <Button href={href("/admin/blog")} variant="secondary">{copy.btn.allPosts}</Button>
       </div>
       <BlogPostForm editId={editId} />
     </section>
@@ -338,7 +342,8 @@ function BlogCategoriesPanel({ locale }: { locale: Locale }) {
   );
 }
 
-function BlogAiContentPanel({ locale }: { locale: Locale }) {
+async function BlogAiContentPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -347,14 +352,15 @@ function BlogAiContentPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.ai}</span>
           <h2>{copy.view.aiContent}</h2>
         </div>
-        <Button href="/admin/blog/ai-settings" variant="secondary">{copy.btn.jobSettings}</Button>
+        <Button href={href("/admin/blog/ai-settings")} variant="secondary">{copy.btn.jobSettings}</Button>
       </div>
       <AiContentManager />
     </section>
   );
 }
 
-function BlogAiSettingsPanel({ locale }: { locale: Locale }) {
+async function BlogAiSettingsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -363,14 +369,15 @@ function BlogAiSettingsPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.ai}</span>
           <h2>{copy.view.aiJobSettings}</h2>
         </div>
-        <Button href="/admin/blog/ai-content" variant="secondary">{copy.btn.aiContent}</Button>
+        <Button href={href("/admin/blog/ai-content")} variant="secondary">{copy.btn.aiContent}</Button>
       </div>
       <AiJobSettingsForm />
     </section>
   );
 }
 
-function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
+async function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   const sorted = [...orders].sort((a, b) => new Date(b.placedAt ?? b.createdAt).getTime() - new Date(a.placedAt ?? a.createdAt).getTime());
   return (
@@ -382,7 +389,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
           <StatusPill label={`${orders.length} ${copy.orders}`} tone={orders.length > 0 ? "good" : "neutral"} />
-          <Button href="/admin/orders/new" variant="secondary">{copy.btn.newOrder}</Button>
+          <Button href={href("/admin/orders/new")} variant="secondary">{copy.btn.newOrder}</Button>
         </div>
       </div>
       <table className="table">
@@ -403,7 +410,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
               <tr key={order.id}>
                 <td>
                   <details>
-                    <summary><a href={`/admin/orders/${order.id}`}>{order.orderNumber}</a></summary>
+                    <summary><a href={href(`/admin/orders/${order.id}`)}>{order.orderNumber}</a></summary>
                     <div className={styles.orderDetails}>
                       <p><strong>{copy.invoices}:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? copy.misc.noInvoice})</p>
                       <p><strong>{copy.status}:</strong> {orderStatusLabel(order.status, locale)}</p>
@@ -427,7 +434,7 @@ function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrder[] })
                 <td>
                   <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
                 </td>
-                <td>{order.invoice ? <a href={`/admin/invoices/${order.invoice.id}`}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td>
+                <td>{order.invoice ? <a href={href(`/admin/invoices/${order.invoice.id}`)}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td>
                 <td>{order.items.map((item) => item.description).join(", ")}</td>
                 <td>{money(order.totalCents, order.currency, locale)}</td>
               </tr>
@@ -458,7 +465,8 @@ function NewOrderPanel({ clients, locale, preselectedClientId, products, vatPerc
   );
 }
 
-function ServicesPanel({ locale, services }: { locale: Locale; services: ApiService[] }) {
+async function ServicesPanel({ locale, services }: { locale: Locale; services: ApiService[] }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -480,7 +488,7 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
         <tbody>
           {services.map((service) => (
             <tr key={service.id}>
-              <td><a href={`/admin/services/${service.id}`}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
+              <td><a href={href(`/admin/services/${service.id}`)}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
               <td>{money(serviceUnitPriceCents(service), service.productPrice.currency, locale)} / {cycleLabel(service.productPrice.billingCycle, locale)}</td>
               <td>{shortDateLabel(service.renewsAt, locale)}</td>
               <td>
@@ -494,7 +502,8 @@ function ServicesPanel({ locale, services }: { locale: Locale; services: ApiServ
   );
 }
 
-function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+async function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -505,7 +514,7 @@ function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; loc
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
           <StatusPill label={`${clients.length} ${copy.misc.clientsCount}`} tone={clients.length ? "good" : "neutral"} />
-          <Button href="/admin/clients/new" variant="secondary">{copy.btn.addClient}</Button>
+          <Button href={href("/admin/clients/new")} variant="secondary">{copy.btn.addClient}</Button>
         </div>
       </div>
       <ClientManager clients={clients} locale={locale} products={products} />
@@ -513,7 +522,8 @@ function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; loc
   );
 }
 
-function ClientsNewPanel({ locale }: { locale: Locale }) {
+async function ClientsNewPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -522,14 +532,15 @@ function ClientsNewPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.clients}</span>
           <h2>{copy.view.addClient}</h2>
         </div>
-        <Button href="/admin/clients" variant="secondary">{copy.btn.allClientsBack}</Button>
+        <Button href={href("/admin/clients")} variant="secondary">{copy.btn.allClientsBack}</Button>
       </div>
       <AddClientForm />
     </section>
   );
 }
 
-function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: Locale }) {
+async function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -554,7 +565,7 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
         <tbody>
           {invoices.map((invoice) => (
             <tr key={invoice.id}>
-              <td><a href={`/admin/invoices/${invoice.id}`}>{invoiceDisplayNumber(invoice)}</a></td>
+              <td><a href={href(`/admin/invoices/${invoice.id}`)}>{invoiceDisplayNumber(invoice)}</a></td>
               <td>{invoice.customerSnapshot?.name ?? "—"}</td>
               <td>{shortDateLabel(invoice.issuedAt, locale)}</td>
               <td>{shortDateLabel(invoice.status === "PAID" ? invoice.paidAt : invoice.dueAt, locale)}</td>
@@ -576,7 +587,8 @@ function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: L
   );
 }
 
-function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[] }) {
+async function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[] }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -586,8 +598,8 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
           <h2>{copy.view.supportTickets}</h2>
         </div>
         <div className={styles.inlineForm}>
-          <Button href="/admin/tickets/departments" variant="secondary">{copy.btn.departments}</Button>
-          <Button href="/admin/tickets/new" variant="secondary">{copy.btn.newTicket}</Button>
+          <Button href={href("/admin/tickets/departments")} variant="secondary">{copy.btn.departments}</Button>
+          <Button href={href("/admin/tickets/new")} variant="secondary">{copy.btn.newTicket}</Button>
         </div>
       </div>
       <table className="table">
@@ -603,7 +615,7 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
           {tickets.map((ticket) => (
             <tr key={ticket.id}>
               <td>{ticket.department?.name ?? ""}</td>
-              <td><a href={`/admin/tickets/${ticket.id}`}>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} {ticket.subject}</a></td>
+              <td><a href={href(`/admin/tickets/${ticket.id}`)}>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} {ticket.subject}</a></td>
               <td>
                 <StatusPill label={ticketStatusLabel(ticket.status, locale)} tone={ticketStatusTone(ticket.status)} />
               </td>
@@ -616,7 +628,8 @@ function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiTicket[
   );
 }
 
-function CronSettingsPanel({ locale }: { locale: Locale }) {
+async function CronSettingsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   const cron = copy.cron;
   const jobNames = ["domainPrices", "domainExpirations", "domainStatuses", "hostingStatuses", "billingMaintenance", "invoiceReminders", "ticketsClose", "mailboxes", "sitemap", "aiBlogPost"] as const;
@@ -628,8 +641,8 @@ function CronSettingsPanel({ locale }: { locale: Locale }) {
           <h2>{copy.view.cronSettings}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/logs" variant="secondary">{copy.btn.viewCronLogs}</Button>
-          <Button href="/admin/settings" variant="secondary">{copy.btn.generalSettingsBack}</Button>
+          <Button href={href("/admin/logs")} variant="secondary">{copy.btn.viewCronLogs}</Button>
+          <Button href={href("/admin/settings")} variant="secondary">{copy.btn.generalSettingsBack}</Button>
         </div>
       </div>
 
@@ -663,7 +676,8 @@ function CronSettingsPanel({ locale }: { locale: Locale }) {
   );
 }
 
-function ProductsPanel({ locale }: { locale: Locale }) {
+async function ProductsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -673,8 +687,8 @@ function ProductsPanel({ locale }: { locale: Locale }) {
           <h2>{copy.view.products}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/products/categories" variant="secondary">{copy.btn.categories}</Button>
-          <Button href="/admin/products/modules" variant="secondary">{copy.btn.modules}</Button>
+          <Button href={href("/admin/products/categories")} variant="secondary">{copy.btn.categories}</Button>
+          <Button href={href("/admin/products/modules")} variant="secondary">{copy.btn.modules}</Button>
         </div>
       </div>
       <AdminProductManager />
@@ -682,7 +696,8 @@ function ProductsPanel({ locale }: { locale: Locale }) {
   );
 }
 
-function ProductCategoriesPanel({ locale }: { locale: Locale }) {
+async function ProductCategoriesPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -691,15 +706,16 @@ function ProductCategoriesPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.products}</span>
           <h2>{copy.view.categories}</h2>
         </div>
-        <Button href="/admin/products" variant="secondary">{copy.btn.backToProducts}</Button>
+        <Button href={href("/admin/products")} variant="secondary">{copy.btn.backToProducts}</Button>
       </div>
       <AdminCategoryManager />
     </section>
   );
 }
 
-function ModulesRedirect(): never {
-  redirect("/admin/products/modules" as never);
+async function ModulesRedirect(): Promise<never> {
+  const href = await surfaceHrefMapper();
+  redirect(href("/admin/products/modules") as never);
 }
 
 function AnnouncementsPanel({ locale }: { locale: Locale }) {
@@ -717,7 +733,8 @@ function AnnouncementsPanel({ locale }: { locale: Locale }) {
   );
 }
 
-function SettingsPanel({ locale }: { locale: Locale }) {
+async function SettingsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -727,8 +744,8 @@ function SettingsPanel({ locale }: { locale: Locale }) {
           <h2>{copy.view.generalSettings}</h2>
         </div>
         <div className={styles.headerActions} style={{ gap: 8 }}>
-          <Button href="/admin/settings/seo" variant="secondary">{copy.btn.seoSettings}</Button>
-          <Button href="/admin/settings/cron" variant="secondary">{copy.btn.cronSettings}</Button>
+          <Button href={href("/admin/settings/seo")} variant="secondary">{copy.btn.seoSettings}</Button>
+          <Button href={href("/admin/settings/cron")} variant="secondary">{copy.btn.cronSettings}</Button>
         </div>
       </div>
       <SettingsForm />
@@ -736,7 +753,8 @@ function SettingsPanel({ locale }: { locale: Locale }) {
   );
 }
 
-function SeoSettingsPanel({ locale }: { locale: Locale }) {
+async function SeoSettingsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -745,7 +763,7 @@ function SeoSettingsPanel({ locale }: { locale: Locale }) {
           <span className="eyebrow">{copy.eyebrow.seo}</span>
           <h2>{copy.view.seoSocial}</h2>
         </div>
-        <Button href="/admin/settings" variant="secondary">{copy.btn.generalSettingsBack}</Button>
+        <Button href={href("/admin/settings")} variant="secondary">{copy.btn.generalSettingsBack}</Button>
       </div>
       <SeoSettingsForm />
     </section>

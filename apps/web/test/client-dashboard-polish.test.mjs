@@ -141,7 +141,8 @@ test("support tickets render as clickable cards and thread messages as conversat
 
   assert.match(source, /className=\{styles\.ticketCards\}/);
   assert.match(source, /className=\{styles\.ticketCard\}/);
-  assert.match(source, /href=\{`\/client\/tickets\/\$\{ticket\.id\}`\}/);
+  // Phase 2.2: the href goes through the surface mapper (clean URLs on per-surface hosts).
+  assert.match(source, /href=\{href\(`\/client\/tickets\/\$\{ticket\.id\}`\)\}/);
   assert.match(source, /<TicketConversation/);
   assert.match(source, /copy\.ticketClose/);
   assert.match(css, /\.ticketCards\s*\{/);
