@@ -704,7 +704,7 @@ export type AuthUser = {
  * gate, the SSR page guards and the dashboard shell never drift — `super_admin` was missing from
  * several of them, locking the new super-admin out. `staff` is a legacy slug kept for safety.
  */
-export const ADMIN_ROLES = ["admin", "staff", "super_admin"] as const;
+export const ADMIN_ROLES = ["admin", "staff", "super_admin", "support_agent", "sales_agent"] as const;
 
 export function isAdminRole(roles: readonly string[] | undefined | null): boolean {
   return !!roles?.some((role) => (ADMIN_ROLES as readonly string[]).includes(role));

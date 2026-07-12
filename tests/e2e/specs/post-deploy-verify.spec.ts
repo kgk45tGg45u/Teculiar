@@ -30,7 +30,7 @@ function guest(prefix: string) {
 }
 
 async function adminToken(page: import("@playwright/test").Page) {
-  const r = await page.request.post(`${API}/auth/login`, { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
+  const r = await page.request.post(`${API}/auth/login`, { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, scope: "admin" } });
   return (await r.json() as { accessToken?: string }).accessToken ?? "";
 }
 

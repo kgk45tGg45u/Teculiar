@@ -26,7 +26,7 @@ export default async function globalTeardown(): Promise<void> {
     const context = await request.newContext();
     try {
       const adminApi = new ApiClient(context);
-      await adminApi.login(env.admin.email, env.admin.password);
+      await adminApi.login(env.admin.email, env.admin.password, "admin");
       await restoreSandbox(adminApi);
       console.log("[global-teardown] SANDBOX gateway restored to prior state.");
     } catch (error) {

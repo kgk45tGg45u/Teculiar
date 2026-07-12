@@ -111,7 +111,7 @@ export class ApiClient {
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
-  async login(email: string, password: string): Promise<{ accessToken: string; refreshToken?: string; roles?: string[] }> {
+  async login(email: string, password: string, scope: "admin" | "client" = "client"): Promise<{ accessToken: string; refreshToken?: string; roles?: string[] }> {
     const cached = tokenCache.get(email);
     if (cached) {
       this.token = cached.accessToken;
@@ -119,7 +119,7 @@ export class ApiClient {
     }
     const res = await this.post<{ accessToken?: string; refreshToken?: string; user?: { roles?: string[] }; roles?: string[] }>(
       "/auth/login",
-      { email, password }
+      { email, password, scope }
     );
     if (!res.ok || !res.body.accessToken) {
       throw new Error(`Login failed for ${email} -> ${res.status}: ${JSON.stringify(res.body)}`);

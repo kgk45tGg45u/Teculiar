@@ -28,7 +28,7 @@ export default async function globalSetup(): Promise<void> {
   const context = await request.newContext();
   try {
     const adminApi = new ApiClient(context);
-    await adminApi.login(env.admin.email, env.admin.password);
+    await adminApi.login(env.admin.email, env.admin.password, "admin");
 
     if (env.flags.enableSandbox) {
       const { wasEnabled } = await ensureSandboxEnabled(adminApi);

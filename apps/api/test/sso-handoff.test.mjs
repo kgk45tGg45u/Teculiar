@@ -42,6 +42,8 @@ function makeService({ tenantDomains = {}, users = {} } = {}) {
   const sessions = [];
   const usersRepo = {
     findByEmail: async (email) => users[email] ?? null,
+    // Redeem looks users up by id now — email is only unique per scope (admin/client separation).
+    findAuthById: async (id) => Object.values(users).find((user) => user.id === id) ?? null,
     createAuditLog: async (entry) => audit.push(entry),
     createRefreshSession: async (s) => sessions.push(s)
   };

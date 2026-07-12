@@ -33,8 +33,8 @@ export class AuthController {
   }
 
   @Post("password-reset/request")
-  requestPasswordReset(@Body() body: { email: string }) {
-    return this.auth.requestPasswordReset(body.email ?? "");
+  requestPasswordReset(@Body() body: { email: string; scope?: string }) {
+    return this.auth.requestPasswordReset(body.email ?? "", body.scope === "admin" ? "admin" : "client");
   }
 
   @Post("password-reset/confirm")

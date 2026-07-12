@@ -28,7 +28,7 @@ const RUN_LIVE_TEST = process.env.MAIL_TESTER_TEST === "1";
 
 async function adminToken(page: Page): Promise<string> {
   const r = await page.request.post(`${API}/auth/login`, {
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASS }
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASS, scope: "admin" }
   });
   if (!r.ok()) return "";
   const body = await r.json() as { accessToken?: string };

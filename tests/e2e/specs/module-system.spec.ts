@@ -18,7 +18,7 @@ const API = env.apiURL;
 const BASE = env.baseURL;
 
 async function adminToken(page: import("@playwright/test").Page): Promise<string> {
-  const r = await page.request.post(`${API}/auth/login`, { data: { email: env.admin.email, password: env.admin.password } });
+  const r = await page.request.post(`${API}/auth/login`, { data: { email: env.admin.email, password: env.admin.password, scope: "admin" } });
   expect(r.ok(), `admin login failed: ${r.status()}`).toBeTruthy();
   return ((await r.json()) as { accessToken?: string }).accessToken ?? "";
 }

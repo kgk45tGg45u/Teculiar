@@ -52,14 +52,14 @@ export class TicketsRepository {
 
   findUserByEmail(email: string) {
     return this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email_scope: { email: email.toLowerCase(), scope: "CLIENT" } },
       select: { email: true, id: true, name: true }
     });
   }
 
   async findOrCreateGuestUser(name: string, email: string): Promise<{ id: string }> {
     const existing = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email_scope: { email: email.toLowerCase(), scope: "CLIENT" } },
       select: { id: true }
     });
     if (existing) {

@@ -134,7 +134,7 @@ export class OrdersService implements OnModuleInit {
       throw new UnauthorizedException("Invalid access token");
     }
     const email = authAccount?.email ?? submittedEmail;
-    const existingByEmail = authAccount ? null : await this.users.findByEmail(email);
+    const existingByEmail = authAccount ? null : await this.users.findByEmail(email, "CLIENT");
     const existing = authAccount ?? existingByEmail;
     const isLoggedInAccount = Boolean(authAccount);
     if (!isLoggedInAccount && !dto.customer.password) {

@@ -178,10 +178,16 @@ enum GdprRequestStatus {
   REJECTED
 }
 
+enum UserScope {
+  CLIENT
+  STAFF
+}
+
 model User {
   id              String           @id @default(cuid())
   customerNumber  Int              @unique @default(autoincrement())
-  email           String           @unique
+  email           String
+  scope           UserScope        @default(CLIENT)
   passwordHash    String
   name            String
   locale          String           @default("de")
@@ -219,6 +225,8 @@ model User {
   affiliate       Affiliate?
   gdprRequests    GdprRequest[]
   auditLogs       AuditLog[]
+
+  @@unique([email, scope])
 }
 
 model Role {

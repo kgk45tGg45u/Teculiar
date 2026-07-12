@@ -4,9 +4,14 @@ Base URL: `/api/v1`
 
 ## Auth
 
-- `POST /auth/register` - creates a client login. Required: `name`, `email`, `password`. Storefront signup may also send `phone`, `companyName`, `vatId`, `address` (`line1`, `postalCode`, `city`, optional `state`), `countryCode`, and `customerType` (`INDIVIDUAL` or `BUSINESS`).
+Admin and client are fully separate auth scopes (`User.scope`: `STAFF` vs `CLIENT`). An email is
+unique per scope, so the same address can hold an independent admin account and an independent
+client account; credentials from one scope never work on the other portal.
+
+- `POST /auth/register` - creates a client login (CLIENT scope only; an email already used by an admin is still free here). Required: `name`, `email`, `password`. Storefront signup may also send `phone`, `companyName`, `vatId`, `address` (`line1`, `postalCode`, `city`, optional `state`), `countryCode`, and `customerType` (`INDIVIDUAL` or `BUSINESS`).
 - `POST /auth/bootstrap-admin` - creates the first admin only while no admin exists.
-- `POST /auth/login`
+- `POST /auth/login` - body may include `scope`: `"admin"` (admin dashboard) or `"client"` (default; client portal + storefront checkout). Login only searches that scope's accounts.
+- `POST /auth/password-reset/request` - body: `email`, optional `scope` (`"admin"`/`"client"`, default client) choosing which scope's account gets the reset link.
 - `POST /auth/refresh`
 - `POST /auth/logout`
 - `POST /auth/2fa/setup`
