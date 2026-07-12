@@ -54,7 +54,7 @@ test("storefront settings expose clientBaseUrl + storefrontBaseUrl", async ({ re
   const r = await request.get(`${API}/storefront/settings`);
   expect(r.ok(), `settings: ${r.status()}`).toBeTruthy();
   const settings = (await r.json()) as { clientBaseUrl?: string; storefrontBaseUrl?: string };
-  expect(settings.clientBaseUrl).toBe(CLIENT_HOST);
+  expect((settings.clientBaseUrl ?? "").replace(/\/$/, "")).toBe(CLIENT_HOST);
   expect(settings.storefrontBaseUrl).toMatch(/^https:\/\/(www\.)?dezhost\.com$/);
 });
 
@@ -125,8 +125,10 @@ test("storefront account menu hands the session off to client.dezhost.com", asyn
   );
 
   await page.goto(`${BASE}/de`);
-  await page.click("details summary:has(svg)"); // account menu (logged-in variant renders after /users/me)
-  const dashboardLink = page.locator(`a[href^="/sso/handoff"]`);
+  // The header has several <details> (nav dropdowns, mobile menu) — open specifically the account
+  // menu, i.e. the one that contains the handoff link (rendered once /users/me confirms the token).
+  const dashboardLink = page.locator('a[href^="/sso/handoff"]');
+  await page.locator('details:has(a[href^="/sso/handoff"]) > summary').click();
   await expect(dashboardLink).toBeVisible();
   await dashboardLink.click();
   // handoff → exchange → client.dezhost.com/sso/callback → redeem → "/"

@@ -45,7 +45,8 @@ export function tenantSurfaceOrigin(surface: "admin" | "client"): string {
 export function tenantSurfaceUrl(surface: "admin" | "client", sectionPath = ""): string {
   const dedicated = getTenantContext()?.surfaceBaseUrls?.[surface];
   if (dedicated) {
-    return `${dedicated}${sectionPath || "/"}`;
+    // Bare origin for the section home — matches the apex form's no-trailing-slash shape.
+    return `${dedicated}${sectionPath}`;
   }
   return `${tenantWebBaseUrl()}/${surface}${sectionPath}`;
 }

@@ -37,7 +37,7 @@ test("dedicated per-surface hosts: clean URLs on the surface origin", () => {
   const surfaceBaseUrls = { admin: "https://admin.dezhost.com", client: "https://client.dezhost.com" };
   runWithTenant({ ...baseCtx(), surfaceBaseUrls }, () => {
     assert.equal(urls.tenantClientUrl("/invoices/42"), "https://client.dezhost.com/invoices/42");
-    assert.equal(urls.tenantClientUrl(), "https://client.dezhost.com/");
+    assert.equal(urls.tenantClientUrl(), "https://client.dezhost.com");
     assert.equal(urls.tenantSurfaceUrl("admin", "/settings"), "https://admin.dezhost.com/settings");
     // Root-level pages (reset-password) only swap the ORIGIN.
     assert.equal(urls.tenantSurfaceOrigin("client"), "https://client.dezhost.com");
