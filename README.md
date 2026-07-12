@@ -42,12 +42,34 @@ npm run dev:full
 - Public website: `http://localhost:3000/de`
 - Customer portal: `http://localhost:3000/client`
 - Admin panel: `http://localhost:3000/admin`
+- Storefront (marketing site, separate app): `http://localhost:3001/de`
 - REST API: `http://localhost:4000/api/v1`
+
+### Storefront local host/tenant setup
+
+The storefront (`apps/storefront`) is a separate Next.js app on port **3001** — none of the
+plain `dev`/`dev:web`/`dev:full` scripts start it. Use `npm run dev:storefront` (storefront only)
+or `npm run dev:all` (web + storefront + API).
+
+Tenant resolution is host-based (`apps/api/src/tenancy/tenant.middleware.ts`):
+
+- **No control-plane configured** (typical local dev): every host falls back to the single
+  tenant from `.env` (`DATABASE_URL`), so plain `http://localhost:3001/de` works as-is.
+- **Control-plane configured**: the API resolves the tenant from the first host label, so open
+  `http://<tenant>.localhost:3001` (e.g. `http://dezhost.localhost:3001/de`) — browsers resolve
+  `*.localhost` without `/etc/hosts` entries.
+
+In `next dev`, the storefront's `next.config.mjs` rewrites proxy `/api` + `/uploads` to
+`localhost:4000` and `/admin`, `/client`, `/login` to `localhost:3000`, so the whole platform is
+reachable same-origin from port 3001. Override targets with `TECULIAR_UPSTREAM` /
+`TECULIAR_API_UPSTREAM` if your ports differ.
 
 ## Native Scripts
 
 - `npm run dev` - starts only the website, no database required.
 - `npm run dev:full` - starts the website and API together; requires `DATABASE_URL`.
+- `npm run dev:storefront` - starts only the storefront (`apps/storefront`) on port 3001.
+- `npm run dev:all` - starts website, storefront and API together; requires `DATABASE_URL`.
 - `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
 - `npm --workspace @dezhost/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.

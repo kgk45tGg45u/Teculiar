@@ -1,4 +1,5 @@
 # Project Agent Instructions
+- Answer in Caveman 'ultra' skill': short, useful.
 
 ## Code style
 - Keep files small so reading and editing stays cheap.
