@@ -22,6 +22,13 @@ export interface RegisterDomainInput {
 /** A resolved TenantDomain row with its tenant eagerly loaded (for per-request routing). */
 export type TenantDomainWithTenant = TenantDomain & { tenant: Tenant };
 
+/** The tenant's ACTIVE hosts per white-label surface (Phase 2.3); null = no dedicated host. */
+export interface TenantSurfaceHosts {
+  apex: string | null;
+  admin: string | null;
+  client: string | null;
+}
+
 /**
  * Thin wrapper over the CONTROL-PLANE database (the tenant registry). It is the ONLY
  * place that talks to the control-plane; the client is created lazily and only when
@@ -122,36 +129,47 @@ export class ControlPlaneService implements OnModuleDestroy {
     return ok;
   }
 
-  // Per-tenant apex-host cache so building a link (reset/invoice/…) doesn't hit the control-plane on
-  // every email. Short TTL; invalidated on registerDomain. Keyed by tenant id.
-  private readonly apexCache = new Map<string, { host: string | null; exp: number }>();
+  // Per-tenant surface-host cache so building a link (reset/invoice/…) doesn't hit the control-plane
+  // on every email. Short TTL; invalidated on registerDomain/activateDomain. Keyed by tenant id.
+  private readonly apexCache = new Map<string, { hosts: TenantSurfaceHosts; exp: number }>();
 
   /**
-   * The tenant's primary (apex) white-label host — the ACTIVE `apex` TenantDomain, else the first
-   * active host, else null. Cached ~60s. Null when the control-plane is off or the table is absent,
-   * so callers fall back to <subdomain>.teculiar.net / the env base.
+   * The tenant's ACTIVE white-label hosts per surface (Phase 2.3). `apex` keeps the historical
+   * primary-host semantics (the active `apex` row, else the first active host); `admin`/`client`
+   * are only set when a dedicated per-surface host is registered. Cached ~60s. All-null when the
+   * control-plane is off or the table is absent, so callers fall back to <subdomain>.teculiar.net
+   * / the env base.
    */
-  async primaryApexHost(tenantId: string): Promise<string | null> {
+  async surfaceHosts(tenantId: string): Promise<TenantSurfaceHosts> {
     if (!this.enabled) {
-      return null;
+      return { apex: null, admin: null, client: null };
     }
     const now = Date.now();
     const cached = this.apexCache.get(tenantId);
     if (cached && cached.exp > now) {
-      return cached.host;
+      return cached.hosts;
     }
-    let host: string | null = null;
+    let hosts: TenantSurfaceHosts = { apex: null, admin: null, client: null };
     try {
       const domains = await this.db().tenantDomain.findMany({
         where: { tenantId, status: "active" },
         orderBy: { createdAt: "asc" }
       });
-      host = (domains.find((d) => d.surface === "apex") ?? domains[0])?.host ?? null;
+      hosts = {
+        apex: (domains.find((d) => d.surface === "apex") ?? domains[0])?.host ?? null,
+        admin: domains.find((d) => d.surface === "admin")?.host ?? null,
+        client: domains.find((d) => d.surface === "client")?.host ?? null
+      };
     } catch {
-      host = null; // table not pushed yet → fall back
+      // table not pushed yet → fall back
     }
-    this.apexCache.set(tenantId, { host, exp: now + 60_000 });
-    return host;
+    this.apexCache.set(tenantId, { hosts, exp: now + 60_000 });
+    return hosts;
+  }
+
+  /** The tenant's primary (apex) white-label host — see `surfaceHosts`. */
+  async primaryApexHost(tenantId: string): Promise<string | null> {
+    return (await this.surfaceHosts(tenantId)).apex;
   }
 
   /** Flip a verified host to ACTIVE (routable + TLS-issuable) and drop its cached deny decisions. */

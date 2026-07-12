@@ -80,7 +80,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
     await redirectToAdminLogin();
   }
 
-  const settings = (await apiGetAuth<{ adminTimezone?: string; siteLogoUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};
+  const settings = (await apiGetAuth<{ adminTimezone?: string; siteLogoUrl?: string; storefrontBaseUrl?: string; vatPercent?: number }>("/admin/dev/billing/settings")) ?? {};
   const adminTimezone = settings.adminTimezone || "UTC";
   const stats = (await apiGetAuth<{ mrrCents: number; activeServices: number; openTickets: number; failedPayments: number }>(
     "/admin/dev/billing/dashboard"
@@ -121,7 +121,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
             <Suspense>
               <LanguageToggle locale={locale} />
             </Suspense>
-            <Button href={`/${locale}`} variant="secondary">
+            <Button href={`${settings.storefrontBaseUrl ?? ""}/${locale}`} variant="secondary">
               {copy.website}
             </Button>
             <LogoutButton scope="admin" redirectTo="/admin/login" />

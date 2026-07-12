@@ -86,6 +86,34 @@ test("edge tags surface hosts with X-Teculiar-Surface instead of path-rewriting"
   assert.doesNotMatch(caddyfile, /redir @adminRoot|redir @clientRoot|rewrite @adminSurface|rewrite @clientSurface/);
 });
 
+test("client-area links resolve the tenant's client origin; cross-origin goes through SSO handoff (2.3/2.4)", () => {
+  const accountMenu = readFileSync(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
+  const handoffScreen = readFileSync(new URL("../../../packages/web-core/src/components/auth/sso-handoff-screen.tsx", import.meta.url), "utf8");
+  const webHandoffPage = readFileSync(new URL("../app/sso/handoff/page.tsx", import.meta.url), "utf8");
+  const storefrontHandoffPage = readFileSync(new URL("../../storefront/app/sso/handoff/page.tsx", import.meta.url), "utf8");
+  const tenantUrls = readFileSync(new URL("../../api/src/tenancy/tenant-urls.ts", import.meta.url), "utf8");
+  const billingService = readFileSync(new URL("../../api/src/modules/billing/billing.service.ts", import.meta.url), "utf8");
+  const authService = readFileSync(new URL("../../api/src/modules/auth/auth.service.ts", import.meta.url), "utf8");
+
+  // Account menu: clientBaseUrl from /storefront/settings; same-origin = plain link, cross-origin =
+  // /sso/handoff. The handoff screen is shared web-core; both apps mount it at /sso/handoff.
+  assert.match(accountMenu, /clientBaseUrl\?\.trim\(\) \|\| "\/client"/);
+  assert.match(accountMenu, /\/sso\/handoff\?to=\$\{encodeURIComponent\(clientHome\)\}/);
+  assert.match(handoffScreen, /auth\/sso\/exchange/);
+  assert.match(webHandoffPage, /SsoHandoffScreen/);
+  assert.match(storefrontHandoffPage, /SsoHandoffScreen/);
+
+  // API: every client-area link goes through tenantClientUrl (dedicated origin or apex path);
+  // the reset link uses the SCOPE's origin; the settings payload surfaces both bases.
+  assert.match(tenantUrls, /export function tenantClientUrl/);
+  assert.match(tenantUrls, /export function tenantSurfaceOrigin/);
+  assert.match(billingService, /clientBaseUrl: tenantClientUrl\(\)/);
+  assert.match(billingService, /storefrontBaseUrl: tenantWebBaseUrl\(\)/);
+  assert.match(billingService, /tenantClientUrl\(`\/invoices\/\$\{invoice\.id\}`\)/);
+  assert.doesNotMatch(billingService, /publicWebUrl/);
+  assert.match(authService, /tenantSurfaceOrigin\(scope\)/);
+});
+
 test("admin chrome renders surface-relative links and normalized active states", () => {
   assert.match(sidebar, /internalPath\(browserPath, "admin"\)/);
   assert.match(sidebar, /surfaceHref\(browserPath, target\)/);

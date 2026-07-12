@@ -15,14 +15,14 @@ export const metadata: Metadata = {
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
   const brandHref = hrefForSurface(await requestSurface(), "/client");
-  const settings = await serverApiGet<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings");
+  const settings = await serverApiGet<{ siteLogoUrl?: string; clientBaseUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings");
   const brandLogo = settings?.siteLogoUrl;
   const currencyConfig = currencyConfigFromSettings(settings);
   const i18nConfig = i18nConfigFromSettings(settings);
   return (
     <>
       <Suspense>
-        <SiteHeader brandHref={brandHref} brandLogo={brandLogo} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
+        <SiteHeader brandHref={brandHref} brandLogo={brandLogo} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} clientBaseUrl={settings?.clientBaseUrl} />
       </Suspense>
       <CurrencyConfigInit config={currencyConfig} />
       {children}

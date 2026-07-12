@@ -360,7 +360,7 @@ test("site header swaps account link for signed-in account menu with logout", as
   const header = await readFile(new URL("../../../packages/web-core/src/components/layout/site-header.tsx", import.meta.url), "utf8");
   const menu = await readFile(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
-  assert.match(header, /<AccountMenu \/>/);
+  assert.match(header, /<AccountMenu clientBaseUrl=\{clientBaseUrl\} \/>/); // Phase 2.3
   assert.match(menu, /Dashboard/);
   assert.match(menu, /Log out/);
   assert.match(menu, /clearAuth\("client"\)/);
@@ -372,7 +372,7 @@ test("portal and admin dashboards expose logout actions", async () => {
   const accountMenu = await readFile(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
   assert.match(accountMenu, /clearAuth\("client"\)/);
-  assert.match(client, /href="\/client\/profile"/);
+  assert.match(client, /href=\{href\("\/client\/profile"\)\}/); // Phase 2.2: surface-mapped href
   assert.match(admin, /<LogoutButton scope="admin"/);
 });
 

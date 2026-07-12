@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { BillingRepository } from "../billing.repository";
 import type { PaymentProcessor, PaymentRequest, PaymentResult } from "./payment-processor.interface";
-import { tenantWebBaseUrl } from "../../../tenancy/tenant-urls";
+import { tenantClientUrl } from "../../../tenancy/tenant-urls";
 
 @Injectable()
 export class AbstractPaymentService {
@@ -71,8 +71,8 @@ export class AbstractPaymentService {
           paypal: {
             vault_id: input.vaultId,
             experience_context: {
-              return_url: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`,
-              cancel_url: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`
+              return_url: tenantClientUrl(`/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`),
+              cancel_url: tenantClientUrl(`/billing/payment-return?invoiceId=${encodeURIComponent(input.invoiceId)}`)
             }
           }
         }
@@ -725,9 +725,6 @@ function paypalBaseUrl(config: Record<string, unknown>) {
   return stringConfig(config, "mode") === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 }
 
-function publicWebUrl() {
-  return tenantWebBaseUrl();
-}
 
 function approvalUrl(payload: unknown) {
   if (!isRecord(payload) || !Array.isArray(payload.links)) {

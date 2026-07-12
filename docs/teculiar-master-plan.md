@@ -360,7 +360,7 @@ host-relative.
   `apps/web/middleware.ts` (guards `/admin`,`/client`), `admin-sidebar.tsx`, `admin-dashboard.tsx`,
   and the `apps/web/app/admin/layout.tsx` `brandHref`.
 
-### 2.3 Surface-aware links (front + back)
+### 2.3 Surface-aware links (front + back)  ✅ DONE (2026-07-12 — API: `ControlPlaneService.surfaceHosts(tenantId)` (cached, supersedes `primaryApexHost` internals) → `TenantContext.surfaceBaseUrls` → `tenant-urls.ts` `tenantSurfaceOrigin`/`tenantSurfaceUrl`/`tenantClientUrl`; the `publicWebUrl()`/`appBaseUrl()` duplicates are gone and every generated link goes through the helpers: reset-password (scope's origin), invoice/service/domain emails, payment return/cancel urls, ticket urls. `/storefront/settings` now returns `clientBaseUrl`; `/admin/dev/billing/settings` returns `storefrontBaseUrl`. Front: `AccountMenu` links `clientBaseUrl` (threaded through `SiteHeader` from storefront + admin/client layouts); admin "view site" button uses `storefrontBaseUrl` (fixes the 2.2 leftover). Apex-path/single-tenant links byte-identical (unit-tested). Verify: API 223/223 incl. new `tenant-surface-urls.test.mjs`, web 92/92, builds + tsc + i18n green.)
 - **Client login/account link:** `packages/web-core/src/components/layout/account-menu.tsx` hardcodes
   `href="/client"`. Make it resolve the tenant's **client base URL** (apex `/client` vs
   `https://<clientLabel>.<domain>`) from a value surfaced by `/storefront/settings` (add `clientBaseUrl`
@@ -373,7 +373,7 @@ host-relative.
   (`tickets.service.ts:487`) through it. Reconcile the `publicWebUrl()` vs `tenantWebBaseUrl()`
   inconsistency (flagged) onto one helper.
 
-### 2.4 SSO handoff for the separate client origin + "My Account" links
+### 2.4 SSO handoff for the separate client origin + "My Account" links  ✅ DONE (2026-07-12 — the 4.6e handoff page moved into shared web-core (`SsoHandoffScreen`), mounted at `/sso/handoff` on BOTH apps (storefront + dashboards, so admin→client-origin also works; the route is in the middleware ROOT_PAGES so it is never surface-prefixed). `AccountMenu`'s logged-in Dashboard link engages `/sso/handoff?to=<clientBaseUrl>` only when the client origin differs from the current one (checked after mount — hydration-safe); same-origin stays a plain link, logged-out always links straight to the client base (login there). In-memory SSO store still single-instance — fine on the one box, LB revisit stays in the Deferred backlog.)
 - When the client area is a **different origin** than the storefront (`<clientLabel>.<domain>` vs apex),
   a same-origin cookie won't carry over. Wire the existing SSO handoff
   (`apps/api/src/modules/auth/sso-handoff.ts` + `auth.controller` `sso/exchange`/`sso/redeem`) into the

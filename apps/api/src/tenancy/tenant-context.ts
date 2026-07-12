@@ -42,6 +42,12 @@ export interface TenantContext {
    * Undefined in single-tenant fallback / when no tenant resolved → callers use the env base (today).
    */
   webBaseUrl?: string;
+  /**
+   * Dedicated per-surface ORIGINS (Phase 2.3), e.g. `https://client.dezhost.com`, when the tenant
+   * has registered admin./client. hosts. Null per surface without one — link builders then fall
+   * back to the apex-path form (`${webBaseUrl}/client/...`).
+   */
+  surfaceBaseUrls?: { admin: string | null; client: string | null };
 }
 
 const storage = new AsyncLocalStorage<TenantContext>();

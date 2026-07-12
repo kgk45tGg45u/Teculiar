@@ -7,7 +7,7 @@ import { UsersRepository } from "../users/users.repository";
 import { ControlPlaneService } from "../../tenancy/control-plane.service";
 import { accessSecret } from "../../tenancy/jwt-secrets";
 import { getTenantContext } from "../../tenancy/tenant-context";
-import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
+import { tenantSurfaceOrigin } from "../../tenancy/tenant-urls";
 import { allowedOrigins } from "../../cors-origin";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
@@ -114,7 +114,7 @@ export class AuthService {
       return { ok: true };
     }
 
-    const passwordResetLink = this.passwordResetLink(user);
+    const passwordResetLink = this.passwordResetLink(user, scope);
     void this.emails?.dispatch("password_reset", {
       context: {
         customer_email: user.email,
@@ -382,11 +382,13 @@ export class AuthService {
     return createHash("sha256").update(token).digest("hex");
   }
 
-  private passwordResetLink(user: { email: string; id: string; passwordHash: string }) {
+  private passwordResetLink(user: { email: string; id: string; passwordHash: string }, scope: PortalScope = "client") {
     const expiresAt = Date.now() + 1000 * 60 * 60;
     const payload = Buffer.from(JSON.stringify({ email: user.email, exp: expiresAt, id: user.id, nonce: randomUUID() })).toString("base64url");
     const signature = this.passwordResetSignature(payload, user.passwordHash);
-    const baseUrl = tenantWebBaseUrl();
+    // The reset page lives at the app root on every dashboard origin (Phase 2.2); link the scope's
+    // own origin so an admin reset lands on admin.<domain> and a client reset on the client host.
+    const baseUrl = tenantSurfaceOrigin(scope);
     return `${baseUrl}/reset-password?token=${encodeURIComponent(`${payload}.${signature}`)}`;
   }
 

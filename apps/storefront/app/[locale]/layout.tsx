@@ -12,6 +12,7 @@ import { getLocale } from "@dezhost/web-core/lib/i18n";
 type SiteSettings = {
   siteLogoUrl?: string;
   siteUrl?: string;
+  clientBaseUrl?: string;
   usdExchangeRate?: number;
   usdBufferCents?: number;
   currencyConfig?: StoredCurrencyConfig;
@@ -85,7 +86,7 @@ export default async function PublicLayout({
 
   return (
     <div className="shell">
-      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} theme={theme} />
+      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} theme={theme} clientBaseUrl={settings?.clientBaseUrl} />
       <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
       <SiteFooter brandLogo={brandLogo} locale={locale} theme={theme} />

@@ -16,7 +16,7 @@ import { PayInvoiceDto } from "./dto/pay-invoice.dto";
 import { renderInvoiceDocument, renderInvoicePdfFromHtml } from "./invoice-document";
 import { addBillingCycle } from "./platform-rules";
 import { AbstractPaymentService } from "./processors/abstract-payment.service";
-import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
+import { tenantClientUrl, tenantWebBaseUrl } from "../../tenancy/tenant-urls";
 
 @Injectable()
 export class BillingService {
@@ -142,7 +142,7 @@ export class BillingService {
       iban: input.iban,
       method: input.method,
       name: user.name || user.email,
-      redirectUrl: `${publicWebUrl()}/client/billing/payment-method-return`,
+      redirectUrl: tenantClientUrl("/billing/payment-method-return"),
       webhookUrl: gatewayWebhookUrl(input.method)
     }) as { mandateId?: string; paymentRedirectUrl?: string; providerReference: string; status: "FAILED" | "PENDING" | "SUCCEEDED" };
     const verified = setup.status === "SUCCEEDED";
@@ -378,7 +378,7 @@ export class BillingService {
         description: `Invoice ${invoice.invoiceNumber}`,
         iban: dto.iban ? validateAndNormalizeIban(dto.iban) : undefined,
         paymentMethodId: dto.paymentMethodId,
-        redirectUrl: `${publicWebUrl()}/client/billing/payment-return?invoiceId=${encodeURIComponent(id)}`,
+        redirectUrl: tenantClientUrl(`/billing/payment-return?invoiceId=${encodeURIComponent(id)}`),
         userId: invoice.userId,
         webhookUrl: gatewayWebhookUrl(dto.method)
       });
@@ -1572,6 +1572,11 @@ export class BillingService {
       ogImageStatic, ogTitleSuffix, siteName, siteLogoUrl, siteUrl, termsUrl, usdExchangeRate, usdBufferCents,
       vatPercent: defaultVatPercent, taxCountries,
       currencyConfig, languages,
+      // Phase 2.3: where this tenant's client area + storefront live — the account menu links the
+      // client base (dedicated client.<domain> origin when registered, else <apex>/client), the
+      // admin panel's "view site" uses the storefront base.
+      clientBaseUrl: tenantClientUrl(),
+      storefrontBaseUrl: tenantWebBaseUrl(),
       themeBlueHomeHeroImageUrl, themeBlueWebhostingHeroImageUrl, themeBlueDomainsHeroImageUrl,
       themeBlueItSolutionsHeroImageUrl, themeBlueContactHeroImageUrl, themeBlueAboutHeroImageUrl,
       themeBlueVirtualServersHeroImageUrl, themeBlueWebdesignHeroImageUrl,
@@ -1713,6 +1718,9 @@ export class BillingService {
 
     return {
       adminTimezone,
+      // Phase 2.3: the tenant's storefront origin for the admin "view site" link (an admin panel on
+      // a dedicated admin.<domain> host cannot use a relative link to reach the storefront).
+      storefrontBaseUrl: tenantWebBaseUrl(),
       currencyConfig,
       languages,
       taxCountries,
@@ -2316,7 +2324,7 @@ export class BillingService {
         customer_email: stringFrom(user.email) ?? stringFrom(snapshot.email),
         customer_name: stringFrom(user.name) ?? stringFrom(snapshot.name) ?? stringFrom(snapshot.email),
         invoice_due_date: invoice.dueAt ? formatDate(invoice.dueAt, locale) : "",
-        invoice_link: `${publicWebUrl()}/client/invoices/${invoice.id}`,
+        invoice_link: tenantClientUrl(`/invoices/${invoice.id}`),
         invoice_number: invoice.finalInvoiceNumber ?? invoice.tempInvoiceNumber ?? invoice.invoiceNumber,
         invoice_total_amount: formatMoney(invoice.totalCents, currency, locale),
         order_number: stringFrom(invoice.order?.orderNumber),
@@ -2366,7 +2374,7 @@ export class BillingService {
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain),
         service: serviceName,
-        service_link: `${publicWebUrl()}/client/services/${service.id}`
+        service_link: tenantClientUrl(`/services/${service.id}`)
       },
       teamId: service.teamId,
       user: {
@@ -2392,7 +2400,7 @@ export class BillingService {
         customer_email: stringFrom(user.email),
         customer_name: stringFrom(user.name) ?? stringFrom(user.email),
         domain: stringFrom(domain.domain),
-        domain_link: `${publicWebUrl()}/client/domains`,
+        domain_link: tenantClientUrl("/domains"),
         // Resell.biz module shortcodes (with legacy aliases for older saved layouts).
         resellbiz_domain_status: domainStatus,
         resellbiz_nameservers: nameservers,
@@ -2984,9 +2992,6 @@ function sandboxGateway() {
   return { config: {}, enabled: true, method: "SANDBOX" as const };
 }
 
-function publicWebUrl() {
-  return tenantWebBaseUrl();
-}
 
 function publicApiUrl() {
   return process.env.PUBLIC_API_URL ?? "http://localhost:4000/api/v1";

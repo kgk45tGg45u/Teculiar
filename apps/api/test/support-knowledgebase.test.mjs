@@ -85,7 +85,7 @@ test("client support UI shows KB, suggestions, uploads, ticket threads, and clos
   assert.ok(existsSync(new URL("../../web/app/client/tickets/[ticketId]/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../storefront/app/[locale]/knowledgebase/page.tsx", import.meta.url)));
   assert.ok(existsSync(new URL("../../storefront/app/[locale]/knowledgebase/[slug]/page.tsx", import.meta.url)));
-  assert.match(dashboard, /href="\/client\/knowledgebase"/);
+  assert.match(dashboard, /href=\{href\("\/client\/knowledgebase"\)\}/); // Phase 2.2: surface-mapped href
   assert.match(dashboard, /view === "knowledgebase"/);
   assert.match(dashboard, /\/knowledgebase\/suggest\?q=/);
   assert.match(dashboard, /accept="image\/png,image\/jpeg,image\/webp,application\/pdf"/);

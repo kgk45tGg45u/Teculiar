@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
   const brandHref = hrefForSurface(await requestSurface(), "/admin");
-  const settings = (await serverApiGet<{ siteLogoUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings")) ?? {};
+  const settings = (await serverApiGet<{ siteLogoUrl?: string; clientBaseUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings")) ?? {};
   const currencyConfig = currencyConfigFromSettings(settings);
   const i18nConfig = i18nConfigFromSettings(settings);
   // Seed every admin client component with the server-resolved (cookie) locale so they SSR and
@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <LocaleProvider locale={locale}>
       <Suspense>
-        <SiteHeader brandHref={brandHref} brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} />
+        <SiteHeader brandHref={brandHref} brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} clientBaseUrl={settings.clientBaseUrl} />
       </Suspense>
       <Suspense>
         <AdminBreadcrumbs />

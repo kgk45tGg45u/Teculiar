@@ -9,7 +9,7 @@ import { PublicInquiryDto } from "./dto/public-inquiry.dto";
 import { fetchUnreadImapMessages, type ImapMailboxConfig, type ImapMessage } from "./imap-mailbox";
 import { storeTicketFiles, type UploadedTicketFile } from "./ticket-files";
 import { TicketsRepository } from "./tickets.repository";
-import { tenantWebBaseUrl } from "../../tenancy/tenant-urls";
+import { tenantClientUrl } from "../../tenancy/tenant-urls";
 
 export type TicketActor = { id: string; roles?: string[] };
 
@@ -484,7 +484,7 @@ export class TicketsService {
         ticket_reply: stringValue(extra.ticket_reply),
         ticket_status: ticketStatusLabel(ticket.status),
         ticket_subject: ticket.subject,
-        ticket_url: `${appBaseUrl()}/client/tickets/${ticket.id}`,
+        ticket_url: tenantClientUrl(`/tickets/${ticket.id}`),
         ...extra
       },
       user: {
@@ -542,10 +542,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function appBaseUrl() {
-  return tenantWebBaseUrl();
 }
 
 function mailboxConfigs(settings: Record<string, unknown>): ImapMailboxConfig[] {

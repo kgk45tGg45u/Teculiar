@@ -25,3 +25,32 @@ export function envWebBaseUrl(): string {
 export function tenantWebBaseUrl(): string {
   return getTenantContext()?.webBaseUrl ?? envWebBaseUrl();
 }
+
+/**
+ * The ORIGIN serving a dashboard surface for the current tenant (Phase 2.3): the dedicated
+ * per-surface host (`https://client.<domain>`) when registered, else the apex base. For root-level
+ * pages that live outside the /admin|/client sections (`/reset-password`, `/sso/...`) — they keep
+ * the same path on either origin, only the host differs.
+ */
+export function tenantSurfaceOrigin(surface: "admin" | "client"): string {
+  return getTenantContext()?.surfaceBaseUrls?.[surface] ?? tenantWebBaseUrl();
+}
+
+/**
+ * A full URL into a dashboard SECTION for the current tenant (Phase 2.3). `sectionPath` is relative
+ * to the section root (e.g. `/invoices/42`, `""` for the section home). On a dedicated per-surface
+ * host the section segment is implied by the host (clean URLs, Phase 2.2); on apex-path tenants the
+ * historical `/admin|/client` segment is kept — byte-for-byte today's links.
+ */
+export function tenantSurfaceUrl(surface: "admin" | "client", sectionPath = ""): string {
+  const dedicated = getTenantContext()?.surfaceBaseUrls?.[surface];
+  if (dedicated) {
+    return `${dedicated}${sectionPath || "/"}`;
+  }
+  return `${tenantWebBaseUrl()}/${surface}${sectionPath}`;
+}
+
+/** Client-area URL shorthand — the one every invoice/service/ticket/payment link goes through. */
+export function tenantClientUrl(sectionPath = ""): string {
+  return tenantSurfaceUrl("client", sectionPath);
+}

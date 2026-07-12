@@ -21,9 +21,11 @@ type SiteHeaderProps = {
   languages?: string[];
   currencies?: string[];
   theme?: StorefrontTheme | null;
+  /** Where the tenant's client area lives (Phase 2.3) — forwarded to the account menu. */
+  clientBaseUrl?: string;
 };
 
-export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"], theme }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"], theme, clientBaseUrl }: SiteHeaderProps) {
   const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
@@ -60,7 +62,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", lan
           <Suspense>
             <LanguageToggle locale={locale} languages={languages} currencies={currencies} />
           </Suspense>
-          <AccountMenu />
+          <AccountMenu clientBaseUrl={clientBaseUrl} />
           <MobileMenu nav={nav} />
         </div>
       </div>

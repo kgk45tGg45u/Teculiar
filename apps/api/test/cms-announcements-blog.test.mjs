@@ -125,7 +125,7 @@ test("site chrome has collapsible mobile nav, panel branding, and refined client
   assert.match(header, /<MobileMenu/);
   assert.match(mobileMenu, /className=\{styles\.mobileMenu\}/);
   assert.match(mobileMenu, /aria-label=\{open \? "Close menu" : "Open menu"\}/);
-  assert.match(header, /<AccountMenu \/>/);
+  assert.match(header, /<AccountMenu clientBaseUrl=\{clientBaseUrl\} \/>/); // Phase 2.3: client area may live on its own origin
   assert.doesNotMatch(header, /<ThemeToggle/);
   assert.match(headerCss, /\.mobileMenu/);
   assert.match(headerCss, /position:\s*sticky/);
