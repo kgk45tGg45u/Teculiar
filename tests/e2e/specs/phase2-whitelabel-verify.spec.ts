@@ -84,6 +84,13 @@ test("admin.dezhost.com serves the admin panel at the host root", async ({ page 
   await page.click('a[href="/clients"]');
   await page.waitForURL(`${ADMIN_HOST}/clients`);
   expect(new URL(page.url()).pathname).not.toContain("/admin");
+  // Admin-scope fetches must keep working without the /admin pathname (surface cookie → admin
+  // token): the Settings page's own data call has to succeed, not silently render empty fields.
+  const settingsResponse = page.waitForResponse(
+    (r) => r.url().includes("/admin/dev/billing/settings") && r.request().method() === "GET"
+  );
+  await page.goto(`${ADMIN_HOST}/settings`);
+  expect((await settingsResponse).status(), "settings fetch must be authorized on the clean-URL host").toBe(200);
 });
 
 // 2.2 — legacy prefixed URLs on a surface host still route (passthrough), no doubled segment.

@@ -76,6 +76,20 @@ test("middleware rewrites surface hosts and keeps login redirects surface-relati
   assert.match(middleware, /surface === "client" && \(pathname === "\/login"/);
 });
 
+test("browser auth scope survives clean URLs via the surface cookie", () => {
+  const api = readFileSync(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
+  // The middleware names the host's surface in a JS-readable cookie on every response…
+  assert.match(middleware, /SURFACE_COOKIE = "dezhost_surface"/);
+  assert.match(middleware, /withSurfaceCookie/);
+  assert.match(middleware, /response\.cookies\.set\(SURFACE_COOKIE, surface/);
+  // …and is deleted on apex-path hosts so a stale value can't flip the scope there.
+  assert.match(middleware, /response\.cookies\.delete\(SURFACE_COOKIE\)/);
+  // currentScope() consults it before defaulting to "client" — otherwise every default-scope admin
+  // fetch on admin.<domain> (pathname without /admin) would send the client token and 401
+  // (the symptom: an empty admin Settings form while the site still renders the data).
+  assert.match(api, /readCookie\("dezhost_surface"\)/);
+});
+
 test("edge tags surface hosts with X-Teculiar-Surface instead of path-rewriting", () => {
   assert.match(caddyfile, /request_header @adminHost X-Teculiar-Surface admin/);
   assert.match(caddyfile, /request_header @clientHost X-Teculiar-Surface client/);

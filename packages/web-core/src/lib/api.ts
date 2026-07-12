@@ -842,7 +842,16 @@ function browserToken(scope: AuthScope) {
 }
 
 function currentScope(): AuthScope {
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) {
+  if (typeof window === "undefined") {
+    return "client";
+  }
+  if (window.location.pathname.startsWith("/admin")) {
+    return "admin";
+  }
+  // Clean-URL surface host (Phase 2.2): the pathname carries no /admin segment — the dashboards
+  // middleware names the host's surface in a cookie so admin fetches keep using the admin token.
+  const surface = readCookie("dezhost_surface");
+  if (surface === "admin") {
     return "admin";
   }
   return "client";
