@@ -84,28 +84,30 @@ test("cookie banner shows once and Accept dismisses it", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Cookies" })).toHaveCount(0);
 });
 
-// 1.9 — flag products via admin API (2nd webhosting, 3rd reseller — the old hardcoded cards),
-// then confirm the shared badge renders on both pages. The flags intentionally stay set.
-test("featured flag drives the Beliebt badge on webhosting and reseller grids", async ({ page, request }) => {
+// 1.9 — flag the 3rd reseller product via admin API (the card the old hardcoded index
+// highlighted), confirm the shared badge renders. Flag intentionally stays set. The
+// webhosting grid is covered too when that category has products (Dezhost prod: reseller only).
+test("featured flag drives the Beliebt badge on the reseller grid", async ({ page, request }) => {
   test.setTimeout(120_000);
   const token = await adminToken(request);
 
-  const hosting = (await (await request.get(`${API}/storefront/products?category=webhosting`)).json()) as Product[];
   const reseller = (await (await request.get(`${API}/storefront/products?category=reseller`)).json()) as Product[];
-  expect(hosting.length, "webhosting products present").toBeGreaterThan(1);
   expect(reseller.length, "reseller products present").toBeGreaterThan(2);
 
-  await setFeatured(request, token, hosting[1], true);
   await setFeatured(request, token, reseller[2], true);
 
-  const flagged = (await (await request.get(`${API}/storefront/products?category=webhosting`)).json()) as Product[];
-  expect(flagged.find((p) => p.id === hosting[1].id)?.featured, "featured persisted via API").toBe(true);
-
-  await page.goto(`${BASE}/de/webhosting`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Beliebt", { exact: true }).first()).toBeVisible();
+  const flagged = (await (await request.get(`${API}/storefront/products?category=reseller`)).json()) as Product[];
+  expect(flagged.find((p) => p.id === reseller[2].id)?.featured, "featured persisted via API").toBe(true);
 
   await page.goto(`${BASE}/de/reseller`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Beliebt", { exact: true }).first()).toBeVisible();
+
+  const hosting = (await (await request.get(`${API}/storefront/products?category=webhosting`)).json()) as Product[];
+  if (hosting.length > 1) {
+    await setFeatured(request, token, hosting[1], true);
+    await page.goto(`${BASE}/de/webhosting`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Beliebt", { exact: true }).first()).toBeVisible();
+  }
 });
 
 // 1.10 — tag cloud source returns only the top-N most used tags.
