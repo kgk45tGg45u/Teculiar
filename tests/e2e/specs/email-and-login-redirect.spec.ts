@@ -9,7 +9,7 @@
 import { expect, test } from "@playwright/test";
 
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@dezhost.local";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const ADMIN_COOKIE = "dezhost_admin_access_token";
 

@@ -28,7 +28,7 @@ const BASE = (process.env.E2E_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL ?? "ht
 const API  = (process.env.E2E_API_URL  ?? process.env.NEXT_PUBLIC_API_URL  ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 
 const ADMIN_EMAIL    = process.env.E2E_ADMIN_EMAIL    ?? "admin@dezhost.local";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 // A real client account created during previous sandbox checkout E2E runs
 const CLIENT_EMAIL    = process.env.E2E_CLIENT_EMAIL    ?? "e2e-checkout-1780472803163@dezhost.test";
 const CLIENT_PASSWORD = process.env.E2E_CLIENT_PASSWORD ?? "E2eTest9!aA";

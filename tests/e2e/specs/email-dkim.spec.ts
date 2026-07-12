@@ -23,7 +23,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const API           = (process.env.E2E_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api/v1").replace(/\/$/, "");
 const ADMIN_EMAIL   = process.env.E2E_ADMIN_EMAIL    ?? "admin@dezhost.local";
-const ADMIN_PASS    = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
+const ADMIN_PASS    = process.env.E2E_ADMIN_PASSWORD ?? "";
 const RUN_LIVE_TEST = process.env.MAIL_TESTER_TEST === "1";
 
 async function adminToken(page: Page): Promise<string> {

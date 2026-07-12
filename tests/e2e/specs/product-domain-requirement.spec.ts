@@ -15,7 +15,7 @@ import { expect, test, type Page } from "@playwright/test";
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const API = process.env.NEXT_PUBLIC_API_URL ?? process.env.E2E_API_URL ?? "http://127.0.0.1:4000/api/v1";
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@dezhost.local";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 
 // The "a domain is optional" note shown on the order form for OPTIONAL products (DE + EN).
 const DOMAIN_OPTIONAL_NOTE = /domain ist für diesen dienst optional|a domain is optional for this service/i;

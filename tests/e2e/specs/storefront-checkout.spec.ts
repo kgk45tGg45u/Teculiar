@@ -253,7 +253,7 @@ test.describe("Storefront checkout", () => {
 
 test.describe("Admin order creation", () => {
   const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@dezhost.local";
-  const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "Dezhost-3f417f4248a568cfe6!";
+  const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 
   async function loginAsAdmin(page: import("@playwright/test").Page) {
     await page.goto(`${BASE}/admin/login`);
@@ -302,15 +302,15 @@ test.describe("Admin order creation", () => {
   test("sequential admin orders get unique incrementing order numbers", async ({ page }) => {
     await loginAsAdmin(page);
 
-    const TOKEN = await page.evaluate(async (apiUrl) => {
+    const TOKEN = await page.evaluate(async ({ apiUrl, email, password }) => {
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "admin@dezhost.local", password: "Dezhost-3f417f4248a568cfe6!", scope: "admin" })
+        body: JSON.stringify({ email, password, scope: "admin" })
       });
       const data = await res.json() as { accessToken?: string };
       return data.accessToken ?? "";
-    }, API);
+    }, { apiUrl: API, email: process.env.E2E_ADMIN_EMAIL ?? "", password: process.env.E2E_ADMIN_PASSWORD ?? "" });
 
     if (!TOKEN) { test.skip(true, "Admin login failed"); return; }
 
