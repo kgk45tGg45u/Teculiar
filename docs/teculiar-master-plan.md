@@ -382,18 +382,38 @@ host-relative.
 - Note the in-memory SSO store (`sso-handoff.ts`) is single-instance — fine on the one box; the shared
   store is a Deferred-backlog (LB) item.
 
-### 2.5 dezhost.com model choice
+### 2.5 dezhost.com model choice  ✅ READY (2026-07-12 — decision was locked at plan time: dezhost.com moves to per-surface subdomains. No code: the move is `register-domain.js admin.dezhost.com dezhost admin active` + `client.dezhost.com dezhost client active` on eu01 plus DNS A records to the floating IP — steps 2+5 of the Verify runbook below. Apex-path URLs keep working in parallel (2.2 passthrough), and 2.3's `clientBaseUrl` flips to the client origin automatically once the host is registered.)
 - Per the decision, per-surface subdomains are available; dezhost.com can either stay apex-path (works
   today once the doubled-admin bug is gone) or move to `admin.dezhost.com`/`client.dezhost.com`. If moving,
   register the hosts (`register-domain.js admin.dezhost.com dezhost admin active`, `client.dezhost.com …
   client active`), point DNS at the floating IP, and rely on 2.1–2.4. Either way, the "doubled `/admin`"
   disappears.
 
-### Verify (Phase 2)
-`caddy validate` after the Caddyfile edit. Stand up a test tenant on the local stack with a client
-subdomain; confirm: `admin.<host>/settings` shows `admin.<host>/settings` in the URL bar (no `/admin`);
-storefront login sends a logged-in user to `<clientLabel>.<host>/` authenticated via SSO; reset-password
-+ invoice emails link to the right host; apex-path tenant unaffected. Then repeat against dezhost.com.
+### Verify (Phase 2) — deploy runbook (all code landed 2026-07-12; local verify green; prod pending)
+Order matters: **app before Caddyfile** (new Caddyfile + old app = 404 on surface hosts).
+1. **Deploy the app:** merge `feat/teculiar-phase2-whitelabel` → `main`, let GitHub Actions deploy;
+   confirm containers restarted (`docker ps` on eu01).
+2. **Register the surface hosts** (2.5; enables on-demand TLS for them):
+   `cd /opt/teculiar && docker compose exec api node apps/api/dist/tenancy/register-domain.js admin.dezhost.com dezhost admin active`
+   (and the same with `client.dezhost.com dezhost client active`).
+3. **Install the Caddyfile:** `scp deploy/caddy/Caddyfile eu01:/tmp/` →
+   `sudo caddy validate --config /tmp/Caddyfile` → backup `/etc/caddy/Caddyfile` → copy → `sudo systemctl reload caddy`.
+4. **Curl matrix** (works pre-DNS via `--resolve <host>:443:195.201.252.12` ONLY after DNS exists —
+   Let's Encrypt needs public DNS to issue; so run after step 5, or accept cert errors): apex
+   `/de` 200 + `/admin` → `/admin/login` unchanged; `https://admin.dezhost.com/` → 307
+   `/login?next=%2F`; legacy `admin.dezhost.com/admin/login` 200; spoofed `X-Teculiar-Surface`
+   header on apex changes nothing.
+5. **DNS (2.5):** A records `admin.dezhost.com` + `client.dezhost.com` → `195.201.252.12`.
+6. **Prod Playwright:** `tests/e2e/specs/phase2-whitelabel-verify.spec.ts` (7 tests: settings
+   clientBaseUrl, apex unchanged, header spoof stripped, clean-URL admin + client login/nav,
+   legacy passthrough, storefront→client SSO handoff). `set -a && source .env && set +a`, then
+   `E2E_BASE_URL=https://www.dezhost.com E2E_API_URL=https://www.dezhost.com/api/v1 npx playwright
+   test tests/e2e/specs/phase2-whitelabel-verify.spec.ts --project=chromium --workers=1`
+   (optional `E2E_EDGE_IP=195.201.252.12` pins the new hosts while local DNS caches catch up).
+7. **Email spot-check:** trigger a password reset from the client login → link points at
+   `https://client.dezhost.com/reset-password?...`; an invoice email links `client.dezhost.com/invoices/…`.
+Rollback: restore `/etc/caddy/Caddyfile.bak-<date>` + reload; app rolls back by redeploying the
+previous image tag. Registering/DNS-ing the hosts is additive — apex-path keeps working throughout.
 
 ---
 
