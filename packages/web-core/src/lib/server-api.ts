@@ -1,6 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ADMIN_AUTH_COOKIE, API_BASE_URL } from "./api";
+import { ADMIN_AUTH_COOKIE, API_BASE_URL, OLD_ADMIN_AUTH_COOKIE } from "./api";
 import { hrefForSurface } from "./surface";
 
 /**
@@ -43,7 +43,10 @@ export async function serverApiGet<T>(path: string): Promise<T | null> {
 export async function apiGetAuth<T>(path: string): Promise<T | null> {
   try {
     const base = await serverApiBase();
-    const token = (await cookies()).get(ADMIN_AUTH_COOKIE)?.value;
+    const store = await cookies();
+    // Old dezhost_* name still read (Phase 9.1 dual-read) so pre-rename admin sessions keep
+    // working server-side until web-core rewrites them under the new name.
+    const token = store.get(ADMIN_AUTH_COOKIE)?.value ?? store.get(OLD_ADMIN_AUTH_COOKIE)?.value;
     const response = await fetch(`${base}${path}`, {
       cache: "no-store",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined

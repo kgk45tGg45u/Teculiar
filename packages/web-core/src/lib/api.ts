@@ -734,7 +734,7 @@ export const ADMIN_REFRESH_COOKIE = "teculiar_admin_refresh_token";
 // names and clears these. Drop one release after the rename ships.
 const OLD_CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
 const OLD_CLIENT_REFRESH_COOKIE = "dezhost_client_refresh_token";
-const OLD_ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
+export const OLD_ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
 const OLD_ADMIN_REFRESH_COOKIE = "dezhost_admin_refresh_token";
 const LEGACY_AUTH_COOKIE = "dezhost_access_token";
 const LEGACY_REFRESH_COOKIE = "dezhost_refresh_token";
