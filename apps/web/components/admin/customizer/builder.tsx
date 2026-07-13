@@ -15,13 +15,13 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ArrowLeft, History, Trash2, UploadCloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getElementDef } from "@dezhost/web-core/lib/customizer/registry";
-import { asLayoutDoc, emptyLayout, type LayoutDoc, type Node } from "@dezhost/web-core/lib/customizer/types";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { localized } from "@dezhost/web-core/lib/storefront-theme";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { getElementDef } from "@teculiar/web-core/lib/customizer/registry";
+import { asLayoutDoc, emptyLayout, type LayoutDoc, type Node } from "@teculiar/web-core/lib/customizer/types";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { localized } from "@teculiar/web-core/lib/storefront-theme";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import { getPage, publish, saveDraft } from "./api";
 import { Canvas } from "./canvas";
 import {
@@ -39,7 +39,7 @@ import { Palette } from "./palette";
 import { childrenOf, containsId, findNode, indexInContainer, insertNode, parentContainerId, removeNode, updateNode } from "./tree";
 import { VersionsModal } from "./versions-modal";
 import styles from "./customizer.module.css";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
 
 export type BuilderProps = {
   pageId: string;

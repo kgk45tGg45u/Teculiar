@@ -1,4 +1,4 @@
-import { loadDictionary } from "@dezhost/locales";
+import { loadDictionary } from "@teculiar/locales";
 import type { Locale } from "./i18n";
 
 export function orderStatusLabel(status: string, locale: Locale = "en") {

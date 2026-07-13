@@ -2,7 +2,7 @@
 // language-pack manifest so middleware, the sitemap and the toggle never drift apart.
 // Imports only the tiny manifest.json (not the full pack bundle), so it stays edge-safe
 // for use inside middleware.
-import manifest from "@dezhost/locales/manifest.json";
+import manifest from "@teculiar/locales/manifest.json";
 
 export const SUPPORTED_LOCALES: string[] = manifest.languages;
 

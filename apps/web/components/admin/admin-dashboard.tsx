@@ -19,16 +19,16 @@ import {
   type ApiService,
   type ApiTicket,
   type AuthUser
-} from "@dezhost/web-core/lib/api";
-import { type Locale } from "@dezhost/web-core/lib/i18n";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { LanguageToggle } from "@dezhost/web-core/components/layout/language-toggle";
-import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin, surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
-import { Button } from "@dezhost/web-core/components/ui/button";
+} from "@teculiar/web-core/lib/api";
+import { type Locale } from "@teculiar/web-core/lib/i18n";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { LanguageToggle } from "@teculiar/web-core/components/layout/language-toggle";
+import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@teculiar/web-core/lib/status-labels";
+import { apiGetAuth, redirectToAdminLogin, surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
+import { Button } from "@teculiar/web-core/components/ui/button";
 import { LogoutButton } from "../auth/logout-button";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
 import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
@@ -667,7 +667,7 @@ async function CronSettingsPanel({ locale }: { locale: Locale }) {
 
         <h3 style={{ margin: "20px 0 10px", fontSize: "0.95rem" }}>{cron.activateHeading}</h3>
         <p style={{ color: "var(--muted)", fontSize: "0.88rem", margin: "0 0 8px", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: cron.activateIntroHtml }} />
-        <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`0 * * * * curl -s -X POST "https://www.dezhost.com/api/v1/cron?token=YOUR_SECRET" > /dev/null`}</pre>
+        <pre style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 16px", fontSize: "0.82rem", overflowX: "auto", margin: "0 0 8px" }}>{`0 * * * * curl -s -X POST "https://YOUR-DOMAIN/api/v1/cron?token=YOUR_SECRET" > /dev/null`}</pre>
         <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: 0, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: cron.replaceSecretHtml }} />
       </div>
 

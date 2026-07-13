@@ -8,7 +8,7 @@ first when resuming. The approved plan is at
 - **Branch:** `feat/teculiar-i18n-currency` (off `main`, pushed to origin 2026-06-21)
 - **Status:** Steps 1–8 implemented & committed; Phase 1 verified locally by the user (2026-06-21).
   **Follow-up batch COMPLETE (2026-06-22):** all user-visible **dashboard/checkout/auth chrome** is now
-  on the `@dezhost/locales` packs with German authored throughout — `typecheck`, `i18n-sync --check`, and
+  on the `@teculiar/locales` packs with German authored throughout — `typecheck`, `i18n-sync --check`, and
   the production `next build` are green. See
   [teculiar-roadmap.md → "Phase 1 — follow-up batch" item 4](./teculiar-roadmap.md#phase-1--follow-up-batch-in-progress-2026-06-21)
   for the full converted-component list, new pack groups, and the deliberately-skipped items
@@ -18,7 +18,7 @@ first when resuming. The approved plan is at
   `82fd3a9`, + checkout commit). Chrome i18n commits: `f33ca8b` → `9d4ce2f`.
 - **Scope clarified 2026-06-21 (the user):** the inline-copy work is **chrome only** — checkout
   (`checkout-form.tsx`), auth (`login-form.tsx`, `signup-form.tsx`) and the **admin + client dashboards**.
-  ALL user-visible strings there move onto `@dezhost/locales` (the `{de,en}` maps/ternaries **and** the
+  ALL user-visible strings there move onto `@teculiar/locales` (the `{de,en}` maps/ternaries **and** the
   bare English/German-only literals; thread `locale` into admin components that lack it). **NOT in Phase 1
   (owned by later phases — do not pack):** marketing/storefront **page content** (home, hosting, VPS,
   reseller, IT-Solutions prose, web-design, domains, about, contact, legal, blog post bodies) → **Phase 3
@@ -91,17 +91,17 @@ Local full-stack run (changes are NOT on prod yet, so test locally — see the
 ## Done so far (commits, newest last)
 | Commit | Step | What |
 |--------|------|------|
-| `0f2c52d` | 1 | `@dezhost/locales` workspace package: `manifest.json` + en/de packs (common/admin/client/storefront/email/invoice/meta), loader (`loadDictionary`/`loadNamespace`/`t`/`getMeta`, per-key English fallback, en-GB meta fallback), `packages/locales/README.md`, `scripts/i18n-sync.ts` (`--check` + DeepSeek fill). |
+| `0f2c52d` | 1 | `@teculiar/locales` workspace package: `manifest.json` + en/de packs (common/admin/client/storefront/email/invoice/meta), loader (`loadDictionary`/`loadNamespace`/`t`/`getMeta`, per-key English fallback, en-GB meta fallback), `packages/locales/README.md`, `scripts/i18n-sync.ts` (`--check` + DeepSeek fill). |
 | `db42ee6` | 2 | Web `Locale`/`Currency` → `string`; `Language`/`CurrencyDef` shapes; `apps/web/lib/supported-locales.ts` (manifest-derived, edge-safe) kills the duplicated de/en lists in middleware/sitemap/toggle; `apps/web/lib/dictionary.ts` `getDictionary`. Manifest is **primary-first** `["de","en"]`. |
 | `1f12c1d` | 3 | `getDictionary` reads the shared packs; inline `dictionary` deleted from `i18n.ts`; header `nav`, footer (storefront pack), `status-labels`, `api.cycleLabel` all read packs. String parity verified. |
 | `66d83fb` | 4 | Web currency → N currencies: `CurrencyConfig {main,currencies,rates}`, `convert()`, `money/frozenMoney/serverMoney` format via `getMeta` (bcp47); `currentLocale/currentCurrency` resolve from config; `CurrencyConfigInit` provider replaces `ExchangeRateInit`; `currencyConfigFromSettings` legacy-shim. **Fix:** `convert()` returns 0 for 0¢ everywhere (old `serverMoney` added buffer to free items). |
 | `ca792e7` | — | chore: gitignore local `.claude/settings*.json`. |
 | `636e6f8` | 5 | Backend `settingJson`/`upsertSettingJson`; `i18nLanguages()`/`currencyConfig()` readers w/ legacy `usd*`→USD shim; `languages`+`currencyConfig` in `publicSettings()` + admin settings payload; `updateSettings` + controller accept/sanitize them (keys `i18n.languages`, `currency.config`). Web `i18n-catalog.ts` (BCP-47 + ISO-4217 catalogs); admin `LanguageCurrencySettings` editor (main/other langs+currencies, per-currency rate + buffer); toggle = grouped selectors, hide-when-single, threaded via `SiteHeader` from all 3 layouts. |
 | `fb1f838` | fix | Locale routing accepts any well-formed code (admin-added langs route to `/it/…` instead of `/de/it/…`); `getLocale`/`currentLocale` no longer coerce to manifest packs only. |
-| `ad58238` | 6a | apps/api wired to `@dezhost/locales` (dep + prebuild/prestart hooks); `apps/api/src/common/i18n.ts` (`t`/`formatMoney`/`formatDate`); `invoice-document.ts` fully localized (labels from packs, money/date via meta, takes `locale`); `billing.service.invoiceLocale()` resolves invoice locale (snapshot → buyer `User.locale` → main). |
+| `ad58238` | 6a | apps/api wired to `@teculiar/locales` (dep + prebuild/prestart hooks); `apps/api/src/common/i18n.ts` (`t`/`formatMoney`/`formatDate`); `invoice-document.ts` fully localized (labels from packs, money/date via meta, takes `locale`); `billing.service.invoiceLocale()` resolves invoice locale (snapshot → buyer `User.locale` → main). |
 | `9d6e553` | 6b | Stored `currency:"EUR"` → main currency: `Invoice.currency` stamped at creation; transactions/charges use the invoice's own currency; previewOrder/DomainTldPrice/ProductPrice use main; `PaymentProcessor`/abstract-payment types `"EUR"`→`string`; `common/currency.ts` `readMainCurrency` + `mainCurrency()` on service/repo. **Tests:** `apps/api/test/i18n-currency.test.mjs` + invoice test updates. |
 | `bbc32c1` | 7a | Prisma migration: `User.locale`/`Content.locale`/`EmailTemplate.locale` `Locale` enum → `String`; new `Invoice.locale` (frozen at creation next to `currency`; final-invoice rebuild copies it). `Locale` enum kept only for deferred `Announcement.locale`/`Translation.targetLocale`. Migration `20260620120000_locale_to_string_and_invoice_locale` is MariaDB-idempotent (`MODIFY COLUMN` + `ADD COLUMN IF NOT EXISTS`); local syncs via `db push`. Dropped the email/cms `Locale` casts + the templateFor try/catch. **Tests:** invoice-locale stamping in `i18n-currency.test.mjs`. |
-| `0bb334b` | 8 | Docs: new `docs/i18n-currency.md` (authoritative — packs, `i18n.languages`/`currency.config` registry, currency model, locale resolution + persistence, immutable invoice snapshots, localized emails, String locale columns); `docs/localization.md` reduced to a pointer; README localization line + `packages/locales` entry. No e2e specs hard-coded breaking `de/en`/`EUR/USD` (only a still-valid `dezhost_locale=de` cookie in login.spec). |
+| `0bb334b` | 8 | Docs: new `docs/i18n-currency.md` (authoritative — packs, `i18n.languages`/`currency.config` registry, currency model, locale resolution + persistence, immutable invoice snapshots, localized emails, String locale columns); `docs/localization.md` reduced to a pointer; README localization line + `packages/locales` entry. No e2e specs hard-coded breaking `de/en`/`EUR/USD` (only a still-valid `teculiar_locale=de` cookie in login.spec). |
 | `abda7d7` | 7b | Client-locale persistence: `locale` on `PATCH /users/me` (validated to a well-formed code via `wellFormedLocale`) + exposed on `publicUser`/`publicUserSelect`. Web `persistClientLocale()` writes a signed-in client's choice from the toggle, and the client portal syncs the effective browser-derived locale when it drifts from the stored `profile.locale`. **Tests:** `apps/api/test/user-locale-persistence.test.mjs`. |
 | `17b5d25` | 6c | Email localization: dispatch/`sendEventToUser`/`sendCustomToUser` resolve recipient locale from up-to-date `User.locale` → main language (`common/currency.ts` `readMainLanguage`); subjects/bodies/layout-block text + admin block palette seeded from the `email` pack (`email-layouts.ts` `buildDefaultLayouts`/`emailLayoutBlockLibrary` take the localized dict); `templateFor`/admin editor key on the main language with per-locale DB overrides still winning (try/catch tolerates the pre-Step-7 enum); `current_date` + invoice money via `common/i18n` `formatDate`/`formatMoney`; the two `formatEuro()`/`formatDateLabel()` helpers in billing/orders dispatch now use the invoice's frozen currency + recipient locale; test-variable sample money localized. **Tests:** email localization (by `User.locale` + main fallback) in `email-module.test.mjs`; frozen-currency order-email money + `readMainLanguage` in `i18n-currency.test.mjs`; removed the stale `mailpit-preset` controller assertion. |
 
@@ -152,7 +152,7 @@ is MariaDB-only). After pulling, run `npm run db:generate` so the client types m
 - ✅ Root `README.md` localization line + `packages/locales` entry updated. `CLAUDE.md` had no stale
   i18n references.
 - ✅ Playwright specs: nothing hard-codes breaking `de/en`/`EUR/USD` (verified). `login.spec.ts`'s
-  `dezhost_locale=de` cookie is still valid.
+  `teculiar_locale=de` cookie is still valid.
 - ⏳ **Remaining (runtime, needs a running stack / deploy):**
   - Local matrix (plan §Verification 2–6): `npm run db:push` to sync the schema, then drive the
     local full-stack — toggle hides on single language+currency; admin-add a 3rd language/currency;
@@ -169,10 +169,10 @@ the main-currency-change admin guard, and a per-locale email-template editor. **
 ## Post-Phase-1 fixes (2026-06-22, found checking on local)
 - **Docker build was broken on `main`** (blocked deploy). Both `Dockerfile.api` and `Dockerfile.web`
   only copied `packages/shared` — never `packages/locales` — so `npm ci` couldn't find the
-  `@dezhost/locales` workspace and the api prebuild (`npm --workspace @dezhost/locales run build`)
+  `@teculiar/locales` workspace and the api prebuild (`npm --workspace @teculiar/locales run build`)
   failed with *"No workspaces found"*. Fix: copy `packages/locales/package.json` before `npm ci`, copy
   `packages/locales` source before building, build it (api), and copy `packages/locales` into the api
-  production stage (the api `require("@dezhost/locales")`s at runtime through the workspace symlink).
+  production stage (the api `require("@teculiar/locales")`s at runtime through the workspace symlink).
   The server only **pulls** prebuilt images (`docker-compose.prod.yml` uses `image:`, no `build:`), so
   no server-side change is needed — a green CI build + `docker compose pull` ships it.
 - **PDF/HTML invoices are now locale-aware.** They previously always rendered in the invoice's frozen
@@ -202,13 +202,13 @@ the main-currency-change admin guard, and a per-locale email-template editor. **
 ## Gotchas / notes for future-me
 - **API unit tests** (`apps/api/test/*.test.mjs`) are `node --test` files importing the **built
   `dist/`** with mocked deps (no DB). Run after building: from `apps/api/`,
-  `node --test test/<file>.test.mjs`. The repo `npm test -w @dezhost/api` does `build && node --test test/*.test.mjs`.
+  `node --test test/<file>.test.mjs`. The repo `npm test -w @teculiar/api` does `build && node --test test/*.test.mjs`.
 - **Pre-existing baseline failures**: 4 `order-payment-lifecycle.test.mjs` checkout tests fail at
   baseline too (network/env-dependent) — verified by stashing. Don't chase them; just don't ADD
   failures.
 - **Dev-server stale dist**: when verifying api `dist/` directly, the running `nest start --watch`
-  may not have recompiled — run `npm run build -w @dezhost/api` before requiring `dist/`.
-- **Packs in dist**: `@dezhost/locales` build copies JSON next to `dist/index.js`
+  may not have recompiled — run `npm run build -w @teculiar/api` before requiring `dist/`.
+- **Packs in dist**: `@teculiar/locales` build copies JSON next to `dist/index.js`
   (`scripts/copy-assets.mjs`); apps/api consumes the built dist, apps/web reads the `.ts` source via
   tsconfig path mapping. `dist` is gitignored.
 - **Local DB currently set** (for testing): `i18n.languages = {main:"de", others:["en","it"]}`,

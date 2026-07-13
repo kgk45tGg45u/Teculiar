@@ -2,13 +2,13 @@
 
 import { Wand2 } from "lucide-react";
 import { useState } from "react";
-import type { ElementDef } from "@dezhost/web-core/lib/customizer/registry";
-import type { PropField, TextSlot } from "@dezhost/web-core/lib/customizer/registry/types";
-import type { JsonValue, LocaleMap, Node } from "@dezhost/web-core/lib/customizer/types";
-import { localized } from "@dezhost/web-core/lib/storefront-theme";
+import type { ElementDef } from "@teculiar/web-core/lib/customizer/registry";
+import type { PropField, TextSlot } from "@teculiar/web-core/lib/customizer/registry/types";
+import type { JsonValue, LocaleMap, Node } from "@teculiar/web-core/lib/customizer/types";
+import { localized } from "@teculiar/web-core/lib/storefront-theme";
 import { localeName } from "../theme/types";
-import { Modal } from "@dezhost/web-core/components/ui/modal";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { Modal } from "@teculiar/web-core/components/ui/modal";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import { translateTexts } from "./api";
 import styles from "./customizer.module.css";
 import type { CustomizerT } from "./types";

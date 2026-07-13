@@ -444,7 +444,7 @@ async function createMolliePayment(
   const apiKey = requiredConfig(config, "apiKey", "Mollie API key is required.");
   const body: Record<string, unknown> = {
     amount: { currency: request.currency, value: centsToAmount(request.amountCents) },
-    description: request.description ?? `Dezhost payment ${request.invoiceId}`,
+    description: request.description ?? `Payment ${request.invoiceId}`,
     method: mollieMethod(method),
     redirectUrl: request.redirectUrl,
     webhookUrl: request.webhookUrl
@@ -484,7 +484,7 @@ async function createMollieFirstPayment(config: Record<string, unknown>, input: 
     body: JSON.stringify({
       amount: { currency: input.currency, value: "0.00" },
       customerId: input.customerId,
-      description: "Dezhost automatic payment authorization",
+      description: "Automatic payment authorization",
       method: mollieMethod(input.method),
       redirectUrl: input.redirectUrl,
       sequenceType: "first",

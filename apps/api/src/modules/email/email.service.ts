@@ -208,7 +208,7 @@ export class EmailService {
 
     const context = normalizeContext({
       ...input.context,
-      brand_name: smtp.fromName || stringValue(input.context?.brand_name) || "Dezhost",
+      brand_name: smtp.fromName || stringValue(input.context?.brand_name) || "Teculiar",
       current_date: formatDate(new Date(), recipientLocale),
       customer_email: input.user?.email ?? input.context?.customer_email,
       customer_name: input.user?.name ?? input.context?.customer_name ?? input.user?.email
@@ -311,7 +311,7 @@ export class EmailService {
       this.emailBrandLogoUrl()
     ]);
     const context = normalizeContext({
-      brand_name: smtp.fromName || "Dezhost",
+      brand_name: smtp.fromName || "Teculiar",
       current_date: formatDate(new Date(), recipientLocale),
       customer_email: user.email,
       customer_name: user.name ?? user.email
@@ -347,7 +347,7 @@ export class EmailService {
       this.emailBrandLogoUrl()
     ]);
     const context = normalizeContext({
-      brand_name: smtp.fromName || "Dezhost",
+      brand_name: smtp.fromName || "Teculiar",
       current_date: formatDate(new Date(), resolveLocale(user.locale, mainLang)),
       customer_email: user.email,
       customer_name: user.name ?? user.email
@@ -437,7 +437,7 @@ export class EmailService {
     try {
       const response = await sendSmtp({
         from: input.smtp.fromEmail || "no-reply@dezhost.local",
-        fromName: input.smtp.fromName || "Dezhost",
+        fromName: input.smtp.fromName || "Teculiar",
         html: input.html,
         recipient: input.recipient,
         smtp: input.smtp,
@@ -504,7 +504,7 @@ export class EmailService {
         ? normalizeEmailList(smtp.adminEmails)
         : normalizeEmailList(process.env.ADMIN_EMAIL || invoiceCompanyEmail || "admin@dezhost.local"),
       fromEmail: smtp.fromEmail || process.env.MAIL_FROM || invoiceCompanyEmail || "no-reply@dezhost.local",
-      fromName: smtp.fromName || "Dezhost"
+      fromName: smtp.fromName || "Teculiar"
     };
   }
 
@@ -535,7 +535,7 @@ export class EmailService {
       adminEmails: normalizeEmailList(input.adminEmails),
       enabled: Boolean(input.enabled),
       fromEmail: input.fromEmail ?? "",
-      fromName: input.fromName ?? "Dezhost",
+      fromName: input.fromName ?? "Teculiar",
       host: input.host ?? "",
       password: input.password === "********" ? current.password ?? "" : input.password ?? "",
       port: Number(input.port || 587),
@@ -590,7 +590,7 @@ function normalizeEmailList(value: unknown) {
 }
 
 function emailFrom(smtp: EmailSmtpSettings) {
-  const name = smtp.fromName || "Dezhost";
+  const name = smtp.fromName || "Teculiar";
   const email = smtp.fromEmail || "no-reply@dezhost.local";
   return `${name} <${email}>`;
 }

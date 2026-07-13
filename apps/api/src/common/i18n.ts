@@ -1,8 +1,8 @@
-// Backend i18n helper — a thin, dependency-free wrapper over the shared @dezhost/locales
+// Backend i18n helper — a thin, dependency-free wrapper over the shared @teculiar/locales
 // bundle so server-rendered artefacts (invoice PDFs, emails) localise the same way the web
 // app does. Locale-aware money/date formatting uses each locale's meta (BCP-47), with an
 // en-GB fallback for any locale whose meta is missing.
-import { getMeta, loadDictionary, t as packT, type Dictionary } from "@dezhost/locales";
+import { getMeta, loadDictionary, t as packT, type Dictionary } from "@teculiar/locales";
 
 export { loadDictionary };
 export type { Dictionary };

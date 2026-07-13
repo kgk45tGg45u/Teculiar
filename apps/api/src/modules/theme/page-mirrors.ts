@@ -65,7 +65,7 @@ export const PAGE_MIRRORS: Record<string, MirrorDoc> = {
     ], { base: 5, md: 2, sm: 1 }),
     domainSearch("home-domains"),
     featureGrid("home-why", {
-      eyebrow: L("Why us", "Warum Dezhost"),
+      eyebrow: L("Why us", "Warum wir"),
       title: L("Digital solutions without the corporate feel.", "Digitale Lösungen ohne Konzerngefühl.")
     }, [
       featureCard("home-why-1", "HandHeart", L("For associations & NGOs", "Für Vereine & NGOs"), L("We understand the challenges of small organisations.", "Wir kennen die Herausforderungen kleiner Organisationen.")),
@@ -176,8 +176,8 @@ export const PAGE_MIRRORS: Record<string, MirrorDoc> = {
       eyebrow: L("About us", "Über uns"),
       title: L("We explain everything. Really everything.", "Wir erklären alles. Wirklich alles."),
       subtitle: L(
-        "Dezhost is an independent hosting provider from Germany. We help associations, NGOs, political groups and small businesses become digitally visible.",
-        "Dezhost ist ein unabhängiger Hosting-Anbieter aus Deutschland. Wir unterstützen Vereine, NGOs, politische Gruppen und kleine Unternehmen dabei, digital sichtbar zu werden."
+        "We are an independent hosting provider from Germany. We help associations, NGOs, political groups and small businesses become digitally visible.",
+        "Wir sind ein unabhängiger Hosting-Anbieter aus Deutschland. Wir unterstützen Vereine, NGOs, politische Gruppen und kleine Unternehmen dabei, digital sichtbar zu werden."
       ),
       primaryCta: L("Get in touch", "Kontakt aufnehmen")
     }, { primaryHref: "/de/kontakt", eyebrowIcon: "Globe" }),

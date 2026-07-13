@@ -8,7 +8,7 @@ Production-grade SaaS foundation for a German hosting and IT services provider. 
 - `apps/api` - NestJS REST API with auth, billing, products, tickets, CMS, users, and provider abstraction modules.
 - `prisma` - MySQL schema covering accounts, teams, billing, products, services, domains, support, CMS, localization, permissions, and GDPR workflows. Use MySQL 8+ or a compatible MariaDB server.
 - `packages/shared` - shared enums and DTO-level contracts used by both web and API.
-- `packages/locales` - the shared language-pack bundle (`@dezhost/locales`) consumed by both web and API; see [docs/i18n-currency.md](docs/i18n-currency.md).
+- `packages/locales` - the shared language-pack bundle (`@teculiar/locales`) consumed by both web and API; see [docs/i18n-currency.md](docs/i18n-currency.md).
 
 ## Architecture Principles
 
@@ -72,7 +72,7 @@ reachable same-origin from port 3001. Override targets with `TECULIAR_UPSTREAM` 
 - `npm run dev:all` - starts website, storefront and API together; requires `DATABASE_URL`.
 - `npm run db:push` - syncs the Prisma schema to a local development database without creating a migration.
 - `npm run db:migrate` - creates and applies Prisma migrations when you want migration history.
-- `npm --workspace @dezhost/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
+- `npm --workspace @teculiar/api run resellbiz -- status example.com` - temporary Resell.biz domain admin script.
 - `npm run e2e` - runs Playwright browser scenarios from `tests/e2e/README.md`; setup notes live in `tests/e2e/RUN_TESTS.md`.
 
 ## Cron

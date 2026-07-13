@@ -2,7 +2,7 @@
  * Caddy on-demand-TLS `ask` endpoint (Phase 4.6d): only registered ACTIVE tenant hosts may get a cert,
  * so the edge never mints certificates for arbitrary hostnames pointed at its IP.
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/tls-allowed.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/tls-allowed.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before } from "node:test";

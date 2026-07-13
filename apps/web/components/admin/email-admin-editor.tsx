@@ -3,11 +3,11 @@
 import type { DragEvent } from "react";
 import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "@dezhost/web-core/lib/api";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "@teculiar/web-core/lib/api";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 type EmailDict = Dictionary["admin"]["emailEditor"];
@@ -152,7 +152,7 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
       <fieldset className={styles.lineEditor}>
         <legend>{c.smtp}</legend>
         <label><span><input defaultChecked={Boolean(settings.smtp.enabled)} name="smtpEnabled" type="checkbox" /> {c.enableSmtp}</span></label>
-        <label>{c.fromName}<input defaultValue={settings.smtp.fromName ?? "Dezhost"} name="fromName" /></label>
+        <label>{c.fromName}<input defaultValue={settings.smtp.fromName ?? "Teculiar"} name="fromName" /></label>
         <label>{c.fromEmail}<input defaultValue={settings.smtp.fromEmail ?? ""} name="fromEmail" type="email" /></label>
         <label>{c.replyTo}<input defaultValue={settings.smtp.replyTo ?? ""} name="replyTo" type="email" /></label>
         <label>{c.adminRecipients}<input defaultValue={(settings.smtp.adminEmails ?? []).join(", ")} name="adminEmails" placeholder="admin@example.com, billing@example.com" /></label>
@@ -587,7 +587,7 @@ function createBlock(type: ApiEmailLayoutBlock["type"]): ApiEmailLayoutBlock {
 
 function renderEmailPreview(template: string, blocks: ApiEmailLayoutBlock[], subject: string, variables: Record<string, unknown>, brandLogoUrl?: string) {
   const context = Object.fromEntries(Object.entries({
-    brand_name: "Dezhost",
+    brand_name: "Teculiar",
     current_date: new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date()),
     subject,
     ...variables

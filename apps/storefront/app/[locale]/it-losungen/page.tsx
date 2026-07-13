@@ -1,9 +1,9 @@
 import { ArrowRight, Bot, CheckCircle, Cloud, Database, Download, FileText, HardDrive, LifeBuoy, Lock, Monitor, Server, Settings, Users, Wrench } from "lucide-react";
-import { apiGet } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./it-losungen.module.css";
 

@@ -1,9 +1,9 @@
-import { loadDictionary, type Dictionary } from "@dezhost/locales";
+import { loadDictionary, type Dictionary } from "@teculiar/locales";
 
 export type { Dictionary };
 
 /**
- * Active dictionary for a locale, sourced from the shared @dezhost/locales packs with
+ * Active dictionary for a locale, sourced from the shared @teculiar/locales packs with
  * per-key English fallback baked in. Synchronous (static imports), so server and client
  * components call it the same way.
  *

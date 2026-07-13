@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { API_BASE_URL, authHeaders, currentLocale } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
 export default function PaymentMethodReturnPage() {
   const c = getDictionary(currentLocale()).client.pay;

@@ -153,7 +153,7 @@
     "heartbeatHtml": "Every trigger also writes a <code>cron.started</code> heartbeat and a <code>cron.completed</code> summary (with duration and per-job results), so you can confirm the cron is actually reaching the server. A wrong or missing secret is recorded as <code>cron.unauthorized</code>. See all of these under <a href=\"/admin/logs\">Settings → Logs</a> in the <strong>Cron logs</strong> tab.",
     "activateHeading": "How to Activate the Cron on Your Server",
     "activateIntroHtml": "The cron is triggered by a POST (or GET) request to <code>/api/v1/cron?token=YOUR_SECRET</code>. Set up a system cron job on your server to call this endpoint on your preferred interval (e.g. hourly):",
-    "replaceSecretHtml": "Replace <code>YOUR_SECRET</code> with the Cron Secret set below (the optional <code>CRON_SECRET</code> server env var is also accepted) and use your own domain. <strong> Use the www host.</strong> A request to the bare domain (<code>dezhost.com</code>) is redirected to <code>www.dezhost.com</code>; a plain <code>curl</code> does not follow the redirect, so the request is dropped and the cron silently does nothing. You can also trigger it manually using the \"Run Cron Now\" button below.",
+    "replaceSecretHtml": "Replace <code>YOUR_SECRET</code> with the Cron Secret set below (the optional <code>CRON_SECRET</code> server env var is also accepted) and use your own domain. <strong> Use the www host.</strong> A request to the bare domain (<code>your-domain.com</code>) is redirected to <code>www.your-domain.com</code>; a plain <code>curl</code> does not follow the redirect, so the request is dropped and the cron silently does nothing. You can also trigger it manually using the \"Run Cron Now\" button below.",
     "freq": {
       "domainPrices": "Every 24 h (configurable)",
       "domainExpirations": "Every 12 h (configurable)",
@@ -551,7 +551,7 @@
     "deepseekHint": "Used for AI blog content generation. Get your key at platform.deepseek.com.",
     "adminTimezone": "Admin timezone",
     "siteUrl": "Site URL",
-    "siteUrlHint": "Used for the XML sitemap and absolute URLs in emails. Include the protocol and no trailing slash (e.g. https://dezhost.com).",
+    "siteUrlHint": "Used for the XML sitemap and absolute URLs in emails. Include the protocol and no trailing slash (e.g. https://teculiar.com).",
     "aboutUs": "About Us",
     "founderPhoto": "Founder / team photo (About Us page)",
     "founderPhotoUrl": "Founder photo URL (or paste URL manually)",

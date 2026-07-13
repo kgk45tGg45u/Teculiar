@@ -2,7 +2,7 @@
  * DNS-TXT domain-ownership verification (Phase 4.6f): candidate-name walk-up, token matching with an
  * injected resolver, and the verify-domain endpoint flow (pending → active only on proof).
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/domain-verification.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/domain-verification.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before } from "node:test";

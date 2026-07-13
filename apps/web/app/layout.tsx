@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import "react-toastify/dist/ReactToastify.css";
-import { CookieBanner } from "@dezhost/web-core/components/layout/cookie-banner";
-import { ToastProvider } from "@dezhost/web-core/components/ui/toast-provider";
-import { serverApiGet } from "@dezhost/web-core/lib/server-api";
-import { DEFAULT_LOCALE } from "@dezhost/web-core/lib/supported-locales";
-import "@dezhost/web-core/globals.css";
+import { CookieBanner } from "@teculiar/web-core/components/layout/cookie-banner";
+import { ToastProvider } from "@teculiar/web-core/components/ui/toast-provider";
+import { serverApiGet } from "@teculiar/web-core/lib/server-api";
+import { DEFAULT_LOCALE } from "@teculiar/web-core/lib/supported-locales";
+import "@teculiar/web-core/globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await serverApiGet<{ faviconUrl?: string }>("/storefront/settings");
   const faviconUrl = settings?.faviconUrl;
   return {
-    title: "Dezhost",
+    title: "Teculiar",
     description: "German Webhosting and IT services",
     icons: faviconUrl ? { icon: faviconUrl, shortcut: faviconUrl } : undefined
   };

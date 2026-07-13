@@ -1,5 +1,5 @@
 // Shared types for the Customizer builder components (Phase 3c).
-import type { Dictionary } from "@dezhost/web-core/lib/dictionary";
+import type { Dictionary } from "@teculiar/web-core/lib/dictionary";
 
 /** The admin.customizer pack group (en is the source-of-truth shape). */
 export type CustomizerT = Dictionary["admin"]["customizer"];

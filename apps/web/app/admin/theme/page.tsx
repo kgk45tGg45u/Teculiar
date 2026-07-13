@@ -1,5 +1,5 @@
-import { isAdminRole, type AuthUser } from "@dezhost/web-core/lib/api";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { isAdminRole, type AuthUser } from "@teculiar/web-core/lib/api";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 import { AdminSidebar } from "../../../components/admin/admin-sidebar";
 import { ThemeBuilder } from "../../../components/admin/theme/theme-builder";
 import styles from "../../../components/admin/admin-dashboard.module.css";

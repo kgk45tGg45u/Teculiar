@@ -1,7 +1,7 @@
 // Parity seed for the GLOBAL storefront content — a faithful mirror of today's hard-coded
 // header (site-header.tsx), footer (site-footer.tsx) and pages. Content is theme-independent
 // (Phase 3a decoupling): pages/menus/footer carry no theme reference; a Theme is styling only.
-// Per-locale labels are pulled straight from the @dezhost/locales packs so de/en (and any 3rd
+// Per-locale labels are pulled straight from the @teculiar/locales packs so de/en (and any 3rd
 // language) stay in sync with what the live site renders today. Slugs are seeded identical across
 // locales because today's routes are NOT localized yet (both /en/it-losungen and /de/it-losungen
 // share one path); the admin localizes them later via the Pages tab, and the routing flip serves them.

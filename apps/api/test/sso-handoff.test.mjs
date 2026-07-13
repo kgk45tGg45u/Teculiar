@@ -2,7 +2,7 @@
  * Cross-origin SSO handoff (Phase 4.6e): one-time-code store semantics + the exchange/redeem flow
  * (PKCE binding, target-host binding, tenant binding, single-use).
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/sso-handoff.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/sso-handoff.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before } from "node:test";

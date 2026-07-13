@@ -51,7 +51,7 @@ slug, content and SEO** (Phase 2/3), and **Customizer element text** (Phase 3).
   the modal saves each language's value separately.
 - **Default language = the editing admin's own language.** The value shown inline (menu label, page
   title/slug/content, element text) is authored in **the current admin's language** — the language that
-  admin picked via their own toggle (`dezhost_admin_locale`). The modal collects the **other** languages'
+  admin picked via their own toggle (`teculiar_admin_locale`). The modal collects the **other** languages'
   values.
 - **Main-language fallback** for any language left blank (revised in the Phase 3 session, 2026-06-24:
   fallback is the **store's main language** from Admin > Settings, *not* hard-coded English, for all
@@ -90,7 +90,7 @@ the user referenced when reordering the deferred items.
    modal has two separate sections (Language, Currency) so the two axes are obvious. Labels in
    `common.preferences`.
 3a. ✅ **Scope-aware admin/client locale** (`8988b60`). Locale is now scoped like the auth tokens: the
-   admin panel uses a `dezhost_admin_locale` cookie, everything else keeps `dezhost_locale`.
+   admin panel uses a `teculiar_admin_locale` cookie, everything else keeps `teculiar_locale`.
    `requestLocale` (via `x-pathname`), `currentLocale`, `storeLocale` and `persistClientLocale` resolve
    the cookie/account by `currentScope()`, so a language picked in admin only affects the admin account.
    *Follow-up (minor):* on a fresh browser the saved `User.locale` isn't auto-seeded into the scope
@@ -112,7 +112,7 @@ the user referenced when reordering the deferred items.
    unsynced places (checkout `orderSummary` country-unaware with `vatPercent` defaulting to 0,
    `orders.service.previewOrder` flat, and the billing engine) — now collapsed onto the one shared
    country-aware resolver; the buyer country is threaded through checkout.
-4. ✅ **All user-visible *dashboard/checkout/auth* chrome moved onto the `@dezhost/locales` packs**
+4. ✅ **All user-visible *dashboard/checkout/auth* chrome moved onto the `@teculiar/locales` packs**
    (done 2026-06-22) so a 3rd configured language has **zero untranslated chrome**. Every converted
    component reads its strings from the shared packs (German authored for all of it); `i18n-sync --check`,
    `typecheck`, and the production `next build` are green. Converted: checkout-form; login/signup/bot-check;
@@ -161,7 +161,7 @@ Moved here at the user's request — pick up **after step 3 (country VAT)**:
 > **Status (2026-06-23): IMPLEMENTED on branch `feat/teculiar-theme-foundation`; locally verified; pending
 > deploy + prod E2E.** Prisma `Theme`/`Page`/`MenuItem` models + migration; API `theme` module
 > (`apps/api/src/modules/theme/`) with an idempotent "Blue" parity seed (labels pulled from
-> `@dezhost/locales`), public `GET /storefront/theme`, admin `GET /admin/dev/theme` + page/menu/footer CRUD
+> `@teculiar/locales`), public `GET /storefront/theme`, admin `GET /admin/dev/theme` + page/menu/footer CRUD
 > + `:key/activate`; Admin > Theme tabbed builder (`apps/web/components/admin/theme/`) with the one-glyph
 > translate-button modal (shown only when ≥2 languages). **Flip done in two stages:** (A) data-driven
 > header/footer (`site-header`/`site-footer`/`mobile-menu` read from `lib/storefront-theme.ts`, with a
@@ -470,7 +470,7 @@ architecture should be designed in a dedicated session before building.
 - **This phase owns the marketing/storefront copy i18n that Phase 1 deliberately left inline.** All
   home/web-hosting/VPS/reseller/IT-Solutions/web-design/domains/about/contact/legal page text (today's
   `isDe ? … : …` ternaries) becomes **per-element, per-language content** here — it is NOT moved onto the
-  `@dezhost/locales` packs. (Packs stay for dashboard/checkout/auth chrome + emails/invoices only.)
+  `@teculiar/locales` packs. (Packs stay for dashboard/checkout/auth chrome + emails/invoices only.)
 
 ### Storage — locked decision
 - Each page is a **versioned JSON layout document**: an ordered **tree of typed nodes** (sections →
@@ -594,20 +594,20 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > **Sub-phase 4.2 — split the web app: distributable storefront vs hosted dashboards: IMPLEMENTED &
 > locally verified (2026-07-02).** The single `apps/web` Next app became **three pieces** (the locked
 > "clean move" — no route duplication):
-> - **`packages/web-core`** (`@dezhost/web-core`) — the shared foundation both apps import: all of
+> - **`packages/web-core`** (`@teculiar/web-core`) — the shared foundation both apps import: all of
 >   `lib/*` (api types + currency/locale formatting + auth + i18n + customizer registry/`LayoutRenderer` +
 >   storefront-theme + dictionaries…), `components/ui/*`, `components/layout/*` (site-header/footer/mobile-menu/
 >   toggles), `components/marketing/*` (the customizer registry renders these, so they're shared), and
->   `globals.css`. Resolved from **source** via the existing tsconfig-path pattern (`@dezhost/web-core/*` →
+>   `globals.css`. Resolved from **source** via the existing tsconfig-path pattern (`@teculiar/web-core/*` →
 >   `packages/web-core/src/*`) + `transpilePackages`; a `typesVersions` map makes subpath types resolve under
 >   `next build`'s checker (which ignores tsconfig paths for node_modules-resolved workspace packages).
-> - **`apps/storefront`** (`@dezhost/storefront`) — the thin, **distributable Blue theme**: the moved
+> - **`apps/storefront`** (`@teculiar/storefront`) — the thin, **distributable Blue theme**: the moved
 >   `app/[locale]/*` + `sitemap.xml`, `components/{checkout,customizer/custom-page,auth/signup-form}`, a root
 >   layout, and a **locale/slug/redirect-only middleware**. Its `next.config.mjs` **reverse-proxies**
 >   `/api`,`/uploads`,`/admin`,`/client`,`/login`,`/reset-password` → `TECULIAR_UPSTREAM` (optional
 >   `TECULIAR_API_UPSTREAM` splits the API target for local dev). **Audited logic/secret-free** (only public
->   `apiGet`, non-secret tax/cycle display helpers from `@dezhost/shared`).
-> - **`apps/web`** (`@dezhost/web`) — now the **hosted dashboards only** (`app/admin`,`app/client`,`login`,
+>   `apiGet`, non-secret tax/cycle display helpers from `@teculiar/shared`).
+> - **`apps/web`** (`@teculiar/web`) — now the **hosted dashboards only** (`app/admin`,`app/client`,`login`,
 >   `reset-password`); its middleware is **auth-guard only**; it proxies `/api`,`/uploads` to the API for
 >   local same-origin dev and exposes `DASHBOARD_ASSET_PREFIX` so the storefront's `/admin` proxy loads
 >   dashboard assets from a browser-reachable origin (avoids `/_next` collision).
@@ -616,12 +616,12 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 >   `NEXT_PUBLIC_API_URL` for single-tenant fallback). One storefront artifact serves every tenant.
 > - **Docker/compose/CI:** new `Dockerfile.storefront` (port 3001, no API-URL arg); `Dockerfile.web` +
 >   `docker-compose.prod.yml` gained the `web-core` source + a **`storefront` service**; the CI builds
->   **three images** (`dezhost-api`/`dezhost-web`/`dezhost-storefront`).
+>   **three images** (`teculiar-api`/`teculiar-web`/`teculiar-storefront`).
 > - **Verified:** all 6 workspaces typecheck; **both apps `next build` green**; web `node --test` = **78 pass /
 >   5 fail = unchanged pre-existing baseline** (confirmed against a clean HEAD worktree — 0 new); storefront
 >   standalone boot + `/`→`/de` locale redirect + SSR render; **`/api` + `/uploads` same-origin proxy proven**
 >   against a mock upstream; `i18n-sync --check` OK (no new UI strings). **Deferred:** full `/admin`,`/client`
->   live-proxy + prod E2E run at the 4.4 cutover (needs the deployed multi-tenant stack); the `@dezhost/*` →
+>   live-proxy + prod E2E run at the 4.4 cutover (needs the deployed multi-tenant stack); the `@teculiar/*` →
 >   `@teculiar/*` package/repo rename stays with 4.0.
 
 > **Sub-phase 4.3 — Tecreator provisioning module: CODE IMPLEMENTED & tested (2026-07-02).** The module
@@ -670,7 +670,7 @@ dogfood + Tecreator module → 4.4 Dezhost as first tenant + cutover → 4.5 upd
 > operator work through **H.5** (env, containers, Apache for teculiar.net + teculiar.com) is complete. The
 > **two repos are populated**: `Teculiar` (this monorepo, builds all 3 images) and `Dezhost` (thin
 > storefront-only deploy — `docker-compose.yml` + `.env.example` + `apache/dezhost.com.conf`, consumes the
-> published `dezhost-storefront` image, `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`; local `~/code/Dezhost`).
+> published `teculiar-storefront` image, `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`; local `~/code/Dezhost`).
 > **Remaining (server-side, in `docs/teculiar-operations.md` H.7 + H.8/Part F):** provision the `teculiar`
 > + `dezhost` tenants; bring teculiar.com fully live (safe — new site); then the **gated dezhost.com
 > cutover** (provision + import blog posts + verify on `dezhost.teculiar.net` → deploy the Dezhost

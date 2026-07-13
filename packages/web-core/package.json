@@ -1,5 +1,5 @@
 {
-  "name": "@dezhost/web-core",
+  "name": "@teculiar/web-core",
   "private": true,
   "version": "0.1.0",
   "main": "src/index.ts",
@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dezhost/locales": "*",
-    "@dezhost/shared": "*",
+    "@teculiar/locales": "*",
+    "@teculiar/shared": "*",
     "lucide-react": "^1.14.0",
     "next": "^16.2.4",
     "react": "^19.2.5",

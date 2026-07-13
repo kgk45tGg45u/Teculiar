@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
-import { formatCustomerNumber, invoiceDisplayNumber, isAdminRole, money, type ApiClient, type AuthUser } from "@dezhost/web-core/lib/api";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { formatCustomerNumber, invoiceDisplayNumber, isAdminRole, money, type ApiClient, type AuthUser } from "@teculiar/web-core/lib/api";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { AdminClientActions } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
-import { Button } from "@dezhost/web-core/components/ui/button";
+import { Button } from "@teculiar/web-core/components/ui/button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
-import { invoiceStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
-import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { invoiceStatusLabel, serviceStatusLabel } from "@teculiar/web-core/lib/status-labels";
+import { surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 
 export default async function AdminClientPage({ params }: { params: Promise<{ clientId: string }> }) {
   const href = await surfaceHrefMapper();

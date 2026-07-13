@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { currentLocale, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { currentLocale, storeAuth, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 
 /**
  * SSO handoff — TARGET side (Phase 4.6e). Runs on the destination origin (e.g. client.theirdomain.com):

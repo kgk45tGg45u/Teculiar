@@ -2,12 +2,12 @@
 
 import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { API_BASE_URL, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
-import { createChallenge, type BotChallenge } from "@dezhost/web-core/lib/bot-challenge";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { BotCheck, validateBotCheck } from "@dezhost/web-core/components/ui/bot-check";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, storeAuth, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { createChallenge, type BotChallenge } from "@teculiar/web-core/lib/bot-challenge";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { BotCheck, validateBotCheck } from "@teculiar/web-core/components/ui/bot-check";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./signup-form.module.css";
 
 type Country = { code: string; flag: string; name: string };

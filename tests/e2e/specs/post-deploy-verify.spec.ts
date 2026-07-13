@@ -78,7 +78,7 @@ test("admin Logs page has System/Cron tabs, pagination and retention control", a
   test.setTimeout(60_000);
   const tok = await adminToken(page);
   const host = new URL(BASE).hostname;
-  await page.context().addCookies([{ name: "dezhost_admin_access_token", value: tok, domain: host, path: "/" }]);
+  await page.context().addCookies([{ name: "teculiar_admin_access_token", value: tok, domain: host, path: "/" }]);
   await page.goto(`${BASE}/admin/logs`);
   await page.waitForLoadState("networkidle");
   await expect(page.locator("body")).not.toContainText("Internal Server Error");

@@ -93,10 +93,10 @@ Then the page works like this:
 
 Use it:
 
-npm --workspace @dezhost/api run start:dev
+npm --workspace @teculiar/api run start:dev
 Open:
 
 http://localhost:4000/api/v1/virtualmin-client
 Build later, when you want:
 
-npm --workspace @dezhost/api run build
+npm --workspace @teculiar/api run build

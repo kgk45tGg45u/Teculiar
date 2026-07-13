@@ -36,7 +36,7 @@
 }
 
 .brand svg {
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .brandLogo {
@@ -119,7 +119,7 @@
 
 .navDropdownMenu a:hover {
   background: var(--surface);
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 
@@ -161,8 +161,8 @@
 }
 
 .languageToggle:hover {
-  color: var(--dezhost);
-  border-color: color-mix(in srgb, var(--dezhost) 40%, var(--border));
+  color: var(--teculiar);
+  border-color: color-mix(in srgb, var(--teculiar) 40%, var(--border));
 }
 
 .languageChevron {
@@ -208,11 +208,11 @@
 
 .languageOption:hover {
   background: var(--surface);
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .languageOptionActive {
-  color: var(--dezhost);
+  color: var(--teculiar);
   font-weight: 760;
 }
 
@@ -259,14 +259,14 @@
 }
 
 .prefsOption:hover {
-  border-color: color-mix(in srgb, var(--dezhost) 40%, var(--border));
-  color: var(--dezhost);
+  border-color: color-mix(in srgb, var(--teculiar) 40%, var(--border));
+  color: var(--teculiar);
 }
 
 .prefsOptionActive {
-  border-color: var(--dezhost);
-  color: var(--dezhost);
-  background: color-mix(in srgb, var(--dezhost) 8%, var(--surface));
+  border-color: var(--teculiar);
+  color: var(--teculiar);
+  background: color-mix(in srgb, var(--teculiar) 8%, var(--surface));
 }
 
 .prefsFooter {
@@ -278,8 +278,8 @@
   min-height: 44px;
   padding: 0 16px;
   color: #fff;
-  background: var(--dezhost);
-  border: 1px solid var(--dezhost);
+  background: var(--teculiar);
+  border: 1px solid var(--teculiar);
   border-radius: 10px;
   cursor: pointer;
   font: inherit;
@@ -288,7 +288,7 @@
 }
 
 .prefsApply:hover {
-  background: color-mix(in srgb, var(--dezhost) 88%, #000);
+  background: color-mix(in srgb, var(--teculiar) 88%, #000);
 }
 
 /* Client login button — circular */
@@ -307,8 +307,8 @@
 }
 
 .clientLogin:hover {
-  border-color: color-mix(in srgb, var(--dezhost) 42%, var(--border));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--dezhost) 16%, transparent);
+  border-color: color-mix(in srgb, var(--teculiar) 42%, var(--border));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--teculiar) 16%, transparent);
   transform: translateY(-1px);
 }
 
@@ -334,8 +334,8 @@
 }
 
 .accountMenu summary:hover {
-  border-color: color-mix(in srgb, var(--dezhost) 42%, var(--border));
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--dezhost) 16%, transparent);
+  border-color: color-mix(in srgb, var(--teculiar) 42%, var(--border));
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--teculiar) 16%, transparent);
   transform: translateY(-1px);
 }
 
@@ -379,7 +379,7 @@
 .accountDropdown a:hover,
 .accountDropdown button:hover {
   background: var(--surface);
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .mobileMenu {
@@ -456,7 +456,7 @@
 
 .mobileCloudToggle:hover,
 .mobileCloudToggle[aria-expanded="true"] {
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .mobileChevron {
@@ -484,7 +484,7 @@
 
 .mobileCloudChildren a:hover {
   background: var(--surface);
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 @media (max-width: 980px) {

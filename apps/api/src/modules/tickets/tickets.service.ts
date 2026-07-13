@@ -547,7 +547,7 @@ function stringValue(value: unknown) {
 function mailboxConfigs(settings: Record<string, unknown>): ImapMailboxConfig[] {
   return [
     {
-      address: stringValue(settings.supportMailboxAddress) ?? "support@dezhost.com",
+      address: stringValue(settings.supportMailboxAddress) ?? "support@teculiar.com",
       department: "support",
       enabled: Boolean(settings.supportImapEnabled),
       host: stringValue(settings.supportImapHost),

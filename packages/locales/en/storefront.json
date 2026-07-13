@@ -1,7 +1,7 @@
 {
   "footer": {
     "mission": "Secure hosting for associations, NGOs, initiatives and small businesses. Personal. Transparent. Reliable.",
-    "missionPanel": "Billing and automation panel for Dezhost services.",
+    "missionPanel": "Billing and automation panel for Teculiar services.",
     "servicesHeading": "Services",
     "legalHeading": "Legal",
     "ctaHeading": "Not sure yet?",
@@ -9,7 +9,7 @@
     "ctaButton": "Get consultation",
     "rightsReserved": "All rights reserved.",
     "tagline": "Hosting with values. Made in Germany.",
-    "taglinePanel": "Automation for Dezhost hosting.",
+    "taglinePanel": "Automation for Teculiar hosting.",
     "links": {
       "webhosting": "Web Hosting",
       "vps": "VPS",
@@ -132,7 +132,7 @@
     "termsRequired": "Please accept the terms and conditions.",
     "termsSuffix": ".",
     "total": "Total",
-    "transferDomain": "Transfer domain to Dezhost",
+    "transferDomain": "Transfer domain to us",
     "vat": "VAT",
     "vatId": "VAT ID",
     "year": "year",

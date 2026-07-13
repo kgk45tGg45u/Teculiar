@@ -1,10 +1,10 @@
 import { ArrowRight, Globe, Mail, Search, Settings } from "lucide-react";
-import { apiGet } from "@dezhost/web-core/lib/api";
-import { DomainSearch } from "@dezhost/web-core/components/marketing/domain-search";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet } from "@teculiar/web-core/lib/api";
+import { DomainSearch } from "@teculiar/web-core/components/marketing/domain-search";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./domains.module.css";
 

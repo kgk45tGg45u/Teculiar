@@ -9,7 +9,7 @@
  *  - JWT secrets follow the tenant context, with an env fallback;
  *  - Host → subdomain resolution matches *.teculiar.net / *.localhost / apex rules.
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/tenancy.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/tenancy.test.mjs
  */
 
 import assert from "node:assert/strict";

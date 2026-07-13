@@ -151,4 +151,4 @@ Done:
 ## Notes
 
 - Phase 1-6 restyle was visual-only. Checkout follow-up intentionally changed form behavior for logged-in users and AGB confirmation, without changing payment, invoice, provisioning, auth routing, or admin action flows.
-- `npm --workspace @dezhost/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.
+- `npm --workspace @teculiar/web run lint` currently fails before linting because `next lint` is not supported by this Next 16 setup.

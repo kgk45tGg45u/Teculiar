@@ -3,9 +3,9 @@
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { API_BASE_URL, money, type ApiDomainPrice } from "@dezhost/web-core/lib/api";
-import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { API_BASE_URL, money, type ApiDomainPrice } from "@teculiar/web-core/lib/api";
+import type { Locale } from "@teculiar/web-core/lib/i18n";
 import styles from "./domain-pricing.module.css";
 
 type Tab = "register" | "renew" | "transfer";

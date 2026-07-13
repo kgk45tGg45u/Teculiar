@@ -113,8 +113,8 @@ async function loginAsAdmin(page: Page) {
     if (!token) continue;
     const hostname = new URL(BASE).hostname;
     await page.context().addCookies([
-      { name: "dezhost_admin_access_token", value: token, domain: hostname, path: "/" },
-      { name: "dezhost_admin_refresh_token", value: "", domain: hostname, path: "/" }
+      { name: "teculiar_admin_access_token", value: token, domain: hostname, path: "/" },
+      { name: "teculiar_admin_refresh_token", value: "", domain: hostname, path: "/" }
     ]);
     await page.goto(`${BASE}/admin`);
     try {
@@ -139,8 +139,8 @@ async function loginAsClient(page: Page) {
   const hostname = new URL(BASE).hostname;
   if (body.accessToken) {
     await page.context().addCookies([
-      { name: "dezhost_client_access_token", value: body.accessToken, domain: hostname, path: "/" },
-      { name: "dezhost_client_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
+      { name: "teculiar_client_access_token", value: body.accessToken, domain: hostname, path: "/" },
+      { name: "teculiar_client_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
     ]);
   }
   await page.goto(`${BASE}/client`);

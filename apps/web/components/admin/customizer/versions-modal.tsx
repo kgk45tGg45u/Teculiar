@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Modal } from "@dezhost/web-core/components/ui/modal";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { Modal } from "@teculiar/web-core/components/ui/modal";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import { listVersions, revertTo, type PageVersionRow } from "./api";
 import styles from "./customizer.module.css";
 import type { CustomizerT } from "./types";

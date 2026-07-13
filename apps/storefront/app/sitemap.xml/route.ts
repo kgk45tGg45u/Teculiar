@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { SUPPORTED_LOCALES } from "@dezhost/web-core/lib/supported-locales";
-import { pagePath, type ThemePage } from "@dezhost/web-core/lib/storefront-theme";
+import { SUPPORTED_LOCALES } from "@teculiar/web-core/lib/supported-locales";
+import { pagePath, type ThemePage } from "@teculiar/web-core/lib/storefront-theme";
 
-const FALLBACK_SITE_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? process.env.SITE_URL ?? "https://dezhost.com").replace(/\/$/, "");
+const FALLBACK_SITE_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? process.env.SITE_URL ?? "https://www.teculiar.com").replace(/\/$/, "");
 // Server-side (this route runs on the storefront host): reach the hosted API directly at the tenant
 // upstream, never same-origin. Mirrors the storefront middleware's `apiBase()`.
 const UPSTREAM = process.env.TECULIAR_API_UPSTREAM ?? process.env.TECULIAR_UPSTREAM;

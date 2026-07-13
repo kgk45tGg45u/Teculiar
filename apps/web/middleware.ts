@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { internalPath, type SurfaceSection } from "@dezhost/web-core/lib/surface";
+import { internalPath, type SurfaceSection } from "@teculiar/web-core/lib/surface";
 
 // Hosted dashboards app (admin + client). This middleware is auth-guard only — the storefront app
 // owns locale/slug routing + redirects. Marketing routes are not served here.
@@ -10,13 +10,16 @@ import { internalPath, type SurfaceSection } from "@dezhost/web-core/lib/surface
 // /admin|/client route with a Next rewrite (URL bar untouched), run the auth guards against the
 // INTERNAL path, and keep login redirects surface-relative so the segment never leaks into the URL.
 // Without the header (apex-path hosts, local dev, single-tenant) behaviour is unchanged.
-const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
-const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
+// Old dezhost_* names still accepted (Phase 9.1 dual-read) so live sessions survive the rename;
+// web-core rewrites them under the teculiar_* names on the next login/refresh. Drop after one release.
+const CLIENT_AUTH_COOKIES = ["teculiar_client_access_token", "dezhost_client_access_token"];
+const ADMIN_AUTH_COOKIES = ["teculiar_admin_access_token", "dezhost_admin_access_token"];
 // Tells browser-side code which auth scope this HOST serves (Phase 2.2 fix): on a clean-URL surface
 // host the pathname carries no /admin|/client segment, so web-core's currentScope() would fall back
 // to "client" and admin fetches would send the wrong token (empty admin Settings form). Host-scoped,
 // readable by JS (not httpOnly) — it only names the surface, never carries secrets.
-const SURFACE_COOKIE = "dezhost_surface";
+const SURFACE_COOKIE = "teculiar_surface";
+const OLD_SURFACE_COOKIE = "dezhost_surface";
 const PUBLIC_FILE = /\.(.*)$/;
 
 // Pages that live at the app ROOT (outside /admin and /client) — never surface-prefixed.
@@ -48,6 +51,9 @@ function withSurfaceCookie<T extends NextResponse>(response: T, request: NextReq
     response.cookies.set(SURFACE_COOKIE, surface, { path: "/", sameSite: "lax" });
   } else if (!surface && current) {
     response.cookies.delete(SURFACE_COOKIE);
+  }
+  if (request.cookies.get(OLD_SURFACE_COOKIE)) {
+    response.cookies.delete(OLD_SURFACE_COOKIE);
   }
   return response;
 }
@@ -89,8 +95,8 @@ export function middleware(request: NextRequest) {
     return withSurfaceCookie(NextResponse.redirect(url), request, surface);
   }
 
-  const hasClientToken = Boolean(request.cookies.get(CLIENT_AUTH_COOKIE)?.value);
-  const hasAdminToken = Boolean(request.cookies.get(ADMIN_AUTH_COOKIE)?.value);
+  const hasClientToken = CLIENT_AUTH_COOKIES.some((name) => Boolean(request.cookies.get(name)?.value));
+  const hasAdminToken = ADMIN_AUTH_COOKIES.some((name) => Boolean(request.cookies.get(name)?.value));
 
   if (internal.startsWith("/admin") && internal !== "/admin/login") {
     if (!hasAdminToken) {

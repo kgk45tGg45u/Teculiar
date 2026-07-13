@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
-import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@dezhost/shared";
+import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@teculiar/shared";
 import { formatDate, formatMoney } from "../../common/i18n";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";

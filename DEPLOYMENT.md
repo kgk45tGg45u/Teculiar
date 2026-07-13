@@ -15,8 +15,8 @@ You push to GitHub main
         │
         ▼
 GitHub Actions builds two Docker images:
-  • dezhost-api   (NestJS + Prisma)
-  • dezhost-web   (Next.js)
+  • teculiar-api   (NestJS + Prisma)
+  • teculiar-web   (Next.js)
         │
         ▼
 Images are pushed to GitHub Container Registry (ghcr.io — free, private)
@@ -90,8 +90,8 @@ Open [docker-compose.prod.yml](docker-compose.prod.yml) and replace `YOUR_GITHUB
 
 ```yaml
 # Example — replace balsamico with your actual GitHub username
-image: ghcr.io/balsamico/dezhost-api:latest
-image: ghcr.io/balsamico/dezhost-web:latest
+image: ghcr.io/balsamico/teculiar-api:latest
+image: ghcr.io/balsamico/teculiar-web:latest
 ```
 
 ---
@@ -473,7 +473,7 @@ Every push is also tagged with its Git commit hash. To go back:
 ```bash
 # On the server — edit /opt/dezhost/docker-compose.prod.yml
 # Change :latest to the commit SHA you want, e.g.:
-#   image: ghcr.io/balsamico/dezhost-api:a3f9c12
+#   image: ghcr.io/balsamico/teculiar-api:a3f9c12
 docker compose -f /opt/dezhost/docker-compose.prod.yml up -d
 ```
 

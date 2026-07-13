@@ -1,8 +1,8 @@
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiGet, type ApiBlogPost } from "@dezhost/web-core/lib/api";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiBlogPost } from "@teculiar/web-core/lib/api";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import styles from "../blog.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   ]);
   const featureImage = post?.featureImage ?? post?.content?.featureImage ?? post?.content?.images?.[0];
   const ogImage = featureImage || settings?.ogImageBlog;
-  const siteName = settings?.siteName || "Dezhost";
+  const siteName = settings?.siteName || "Teculiar";
   const description = post?.excerpt ?? post?.content?.body?.replace(/<[^>]+>/g, "").slice(0, 155) ?? undefined;
   return {
     description,

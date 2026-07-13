@@ -3,9 +3,9 @@
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { cycleLabel, money, type ApiProduct } from "@dezhost/web-core/lib/api";
-import { featuredCardClass, PopularBadge } from "@dezhost/web-core/components/marketing/popular-badge";
-import type { Locale } from "@dezhost/web-core/lib/i18n";
+import { cycleLabel, money, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { featuredCardClass, PopularBadge } from "@teculiar/web-core/components/marketing/popular-badge";
+import type { Locale } from "@teculiar/web-core/lib/i18n";
 import styles from "./webhosting.module.css";
 
 export function HostingPackages({ isDe, locale, products }: { isDe: boolean; locale: string; products: ApiProduct[] }) {

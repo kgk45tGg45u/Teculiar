@@ -8,7 +8,7 @@ code change.
 > This document is the authoritative reference. [localization.md](./localization.md) is a short
 > pointer kept for backwards links.
 
-## Shared locale packs — `@dezhost/locales`
+## Shared locale packs — `@teculiar/locales`
 
 All translatable strings live in one workspace package, `packages/locales`, consumed by **both**
 `apps/web` and `apps/api` (and later by Teculiar buyer installs).
@@ -85,7 +85,7 @@ with English per-key fallback for codes without a pack.
 The saved preference is `User.locale`. The language toggle and the client portal persist the
 effective locale to the account via `PATCH /users/me` (`persistClientLocale`, validated server-side
 to a well-formed code), so **transactional emails read the up-to-date `User.locale`**. A guest's
-choice is stored only in the `dezhost_locale` cookie/localStorage until they sign in.
+choice is stored only in the `teculiar_locale` cookie/localStorage until they sign in.
 
 The **toggle is hidden** when exactly one language **and** one currency are configured; each selector
 hides on its own when only one option exists.
@@ -93,8 +93,8 @@ hides on its own when only one option exists.
 ### Scope-aware preferences (admin vs public/client)
 
 Both language **and** currency are scoped like the auth tokens. The admin panel reads/writes its own
-cookies (`dezhost_admin_locale`, `dezhost_admin_currency`); everything else (public site + client
-portal) uses `dezhost_locale` / `dezhost_currency`. So a dual-account admin can run admin in one
+cookies (`teculiar_admin_locale`, `teculiar_admin_currency`); everything else (public site + client
+portal) uses `teculiar_locale` / `teculiar_currency`. So a dual-account admin can run admin in one
 language/currency and the storefront in another, and **changing currency in `/admin` never leaks to
 the public site**. The active cookie is chosen by `currentScope()` (client) / the `x-pathname` header
 (server, via `requestLocale`).

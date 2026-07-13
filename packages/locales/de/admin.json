@@ -153,7 +153,7 @@
     "heartbeatHtml": "Jeder Auslöser schreibt außerdem einen <code>cron.started</code>-Heartbeat und eine <code>cron.completed</code>-Zusammenfassung (mit Dauer und Ergebnissen pro Job), sodass du bestätigen kannst, dass der Cron den Server tatsächlich erreicht. Ein falsches oder fehlendes Secret wird als <code>cron.unauthorized</code> protokolliert. Du findest all dies unter <a href=\"/admin/logs\">Einstellungen → Logs</a> im Tab <strong>Cron-Logs</strong>.",
     "activateHeading": "So aktivierst du den Cron auf deinem Server",
     "activateIntroHtml": "Der Cron wird durch eine POST- (oder GET-)Anfrage an <code>/api/v1/cron?token=YOUR_SECRET</code> ausgelöst. Richte auf deinem Server einen System-Cronjob ein, der diesen Endpunkt in deinem bevorzugten Intervall aufruft (z. B. stündlich):",
-    "replaceSecretHtml": "Ersetze <code>YOUR_SECRET</code> durch das unten festgelegte Cron-Secret (die optionale Server-Umgebungsvariable <code>CRON_SECRET</code> wird ebenfalls akzeptiert) und verwende deine eigene Domain. <strong> Verwende den www-Host.</strong> Eine Anfrage an die nackte Domain (<code>dezhost.com</code>) wird auf <code>www.dezhost.com</code> umgeleitet; ein einfaches <code>curl</code> folgt der Weiterleitung nicht, sodass die Anfrage verworfen wird und der Cron stillschweigend nichts tut. Du kannst ihn auch manuell über den Button „Run Cron Now“ unten auslösen.",
+    "replaceSecretHtml": "Ersetze <code>YOUR_SECRET</code> durch das unten festgelegte Cron-Secret (die optionale Server-Umgebungsvariable <code>CRON_SECRET</code> wird ebenfalls akzeptiert) und verwende deine eigene Domain. <strong> Verwende den www-Host.</strong> Eine Anfrage an die nackte Domain (<code>your-domain.com</code>) wird auf <code>www.your-domain.com</code> umgeleitet; ein einfaches <code>curl</code> folgt der Weiterleitung nicht, sodass die Anfrage verworfen wird und der Cron stillschweigend nichts tut. Du kannst ihn auch manuell über den Button „Run Cron Now“ unten auslösen.",
     "freq": {
       "domainPrices": "Alle 24 Std. (konfigurierbar)",
       "domainExpirations": "Alle 12 Std. (konfigurierbar)",
@@ -551,7 +551,7 @@
     "deepseekHint": "Wird für die KI-Blog-Inhaltsgenerierung verwendet. Holen Sie Ihren Schlüssel auf platform.deepseek.com.",
     "adminTimezone": "Admin-Zeitzone",
     "siteUrl": "Site-URL",
-    "siteUrlHint": "Wird für die XML-Sitemap und absolute URLs in E-Mails verwendet. Inklusive Protokoll und ohne abschließenden Schrägstrich (z. B. https://dezhost.com).",
+    "siteUrlHint": "Wird für die XML-Sitemap und absolute URLs in E-Mails verwendet. Inklusive Protokoll und ohne abschließenden Schrägstrich (z. B. https://teculiar.com).",
     "aboutUs": "Über uns",
     "founderPhoto": "Gründer-/Teamfoto (Über-uns-Seite)",
     "founderPhotoUrl": "Gründerfoto-URL (oder URL manuell einfügen)",

@@ -13,4 +13,4 @@ mkdirSync(dist, { recursive: true });
 for (const entry of ["manifest.json", "en", "de"]) {
   cpSync(join(pkgRoot, entry), join(dist, entry), { recursive: true });
 }
-console.log("[@dezhost/locales] copied JSON packs + manifest to dist/");
+console.log("[@teculiar/locales] copied JSON packs + manifest to dist/");

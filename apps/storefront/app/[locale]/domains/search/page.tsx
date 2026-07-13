@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { DomainSearch } from "@dezhost/web-core/components/marketing/domain-search";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getMeta } from "@dezhost/locales";
-import { apiGet, currencyConfigFromSettings, serverMoney, type ApiDomainSearch, type ApiDomainSearchResult, type ApiProduct, type CurrencyConfig } from "@dezhost/web-core/lib/api";
-import { CURRENCY_COOKIE, getLocale, type Currency, type Locale } from "@dezhost/web-core/lib/i18n";
+import { DomainSearch } from "@teculiar/web-core/components/marketing/domain-search";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getMeta } from "@teculiar/locales";
+import { apiGet, currencyConfigFromSettings, serverMoney, type ApiDomainSearch, type ApiDomainSearchResult, type ApiProduct, type CurrencyConfig } from "@teculiar/web-core/lib/api";
+import { CURRENCY_COOKIE, OLD_CURRENCY_COOKIE, getLocale, type Currency, type Locale } from "@teculiar/web-core/lib/i18n";
 import styles from "./domain-results.module.css";
 
 export default async function DomainSearchPage({
@@ -24,7 +24,7 @@ export default async function DomainSearchPage({
   }
 
   const cookieStore = await cookies();
-  const savedCurrency = cookieStore.get(CURRENCY_COOKIE)?.value;
+  const savedCurrency = cookieStore.get(CURRENCY_COOKIE)?.value ?? cookieStore.get(OLD_CURRENCY_COOKIE)?.value;
 
   const [result, settings, products] = await Promise.all([
     apiGet<ApiDomainSearch>(`/domains/search?domain=${encodeURIComponent(query)}`),

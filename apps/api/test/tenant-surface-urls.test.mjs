@@ -3,7 +3,7 @@
  * pick the dedicated admin./client. origin when the tenant has one, else fall back to the
  * apex-path form — byte-for-byte the historical links.
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/tenant-surface-urls.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/tenant-surface-urls.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before } from "node:test";

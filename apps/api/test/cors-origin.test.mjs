@@ -1,7 +1,7 @@
 /**
  * CORS origin decision (Phase 4.1 suffixes + 4.6 tenant-domain allowlist).
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/cors-origin.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/cors-origin.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before, beforeEach } from "node:test";

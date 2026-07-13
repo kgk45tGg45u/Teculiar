@@ -125,7 +125,7 @@ test("storefront account menu hands the session off to client.dezhost.com", asyn
   await page.addInitScript(
     ([origin, token]) => {
       if (window.location.origin === origin) {
-        window.localStorage.setItem("dezhost_client_access_token", token!);
+        window.localStorage.setItem("teculiar_client_access_token", token!);
       }
     },
     [storefrontOrigin, accessToken]

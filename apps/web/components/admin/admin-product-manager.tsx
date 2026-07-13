@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "@dezhost/web-core/lib/api";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "@teculiar/web-core/lib/api";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./admin-product-manager.module.css";
 
 type ProductsDict = Dictionary["admin"]["productMgr"];

@@ -1,5 +1,5 @@
 import { IsDateString, IsIn, IsOptional, IsString } from "class-validator";
-import { billingCycles } from "@dezhost/shared";
+import { billingCycles } from "@teculiar/shared";
 
 export class CreateSubscriptionDto {
   @IsString()

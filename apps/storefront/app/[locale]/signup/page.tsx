@@ -1,7 +1,7 @@
 import { SignupForm } from "../../../components/auth/signup-form";
-import { createChallenge } from "@dezhost/web-core/lib/bot-challenge";
-import { countriesForLocale } from "@dezhost/web-core/lib/countries";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { createChallenge } from "@teculiar/web-core/lib/bot-challenge";
+import { countriesForLocale } from "@teculiar/web-core/lib/countries";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 
 export default async function SignupPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: rawLocale } = await params;

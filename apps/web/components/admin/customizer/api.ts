@@ -1,8 +1,8 @@
 // Typed client for the admin Customizer API (Phase 3c). Mutations return the raw Response so callers
 // can pass it to notifyResponse (surfacing the server's message, incl. the clean 502 from a failed
 // auto-translate); reads return parsed data. All calls use the admin auth scope (token auto-refresh).
-import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
-import type { LayoutDoc } from "@dezhost/web-core/lib/customizer/types";
+import { API_BASE_URL, authFetch } from "@teculiar/web-core/lib/api";
+import type { LayoutDoc } from "@teculiar/web-core/lib/customizer/types";
 
 const base = `${API_BASE_URL}/admin/dev/customizer`;
 const jsonInit = (method: string, body: unknown): RequestInit => ({

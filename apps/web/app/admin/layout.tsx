@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AdminBreadcrumbs } from "../../components/admin/admin-breadcrumbs";
-import { LocaleProvider } from "@dezhost/web-core/components/layout/locale-provider";
-import { SiteHeader } from "@dezhost/web-core/components/layout/site-header";
-import { SiteFooter } from "@dezhost/web-core/components/layout/site-footer";
-import { currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@dezhost/web-core/lib/api";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { requestSurface, serverApiGet } from "@dezhost/web-core/lib/server-api";
-import { hrefForSurface } from "@dezhost/web-core/lib/surface";
+import { LocaleProvider } from "@teculiar/web-core/components/layout/locale-provider";
+import { SiteHeader } from "@teculiar/web-core/components/layout/site-header";
+import { SiteFooter } from "@teculiar/web-core/components/layout/site-footer";
+import { currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@teculiar/web-core/lib/api";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { requestSurface, serverApiGet } from "@teculiar/web-core/lib/server-api";
+import { hrefForSurface } from "@teculiar/web-core/lib/surface";
 
 export const metadata: Metadata = {
-  title: "Teculiar Admin | Dezhost"
+  title: "Teculiar Admin"
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

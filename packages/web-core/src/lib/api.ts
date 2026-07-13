@@ -1,6 +1,6 @@
-import { formatCustomerNumber } from "@dezhost/shared";
-import { loadDictionary, getMeta } from "@dezhost/locales";
-import { ADMIN_CURRENCY_COOKIE, ADMIN_LOCALE_COOKIE, CURRENCY_COOKIE, LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
+import { formatCustomerNumber } from "@teculiar/shared";
+import { loadDictionary, getMeta } from "@teculiar/locales";
+import { ADMIN_CURRENCY_COOKIE, ADMIN_LOCALE_COOKIE, CURRENCY_COOKIE, LOCALE_COOKIE, OLD_ADMIN_CURRENCY_COOKIE, OLD_ADMIN_LOCALE_COOKIE, OLD_CURRENCY_COOKIE, OLD_LOCALE_COOKIE, browserLocale, type Currency, type Locale } from "./i18n";
 
 // Fired whenever the visitor changes their display language/currency, so live client consumers
 // (the header toggle, every <Price>) re-read the preference instead of showing a stale snapshot.
@@ -629,7 +629,10 @@ export function currentLocale(): Locale {
   // toggle. localStorage is only a fallback — otherwise a stale localStorage value can override a
   // newer cookie (e.g. set by visiting /de), showing a DE toggle but an EN dashboard.
   const cookie = localeCookieForScope();
-  const saved = readCookie(cookie) ?? window.localStorage.getItem(cookie);
+  const oldCookie = cookie === ADMIN_LOCALE_COOKIE ? OLD_ADMIN_LOCALE_COOKIE : OLD_LOCALE_COOKIE;
+  const saved =
+    readCookie(cookie) ?? window.localStorage.getItem(cookie) ??
+    readCookie(oldCookie) ?? window.localStorage.getItem(oldCookie);
   if (isLocaleCode(saved)) {
     return saved!.toLowerCase();
   }
@@ -673,7 +676,10 @@ export function currentCurrency(): Currency {
     return _currencyConfig.main;
   }
   const cookie = currencyCookieForScope();
-  const saved = readCookie(cookie) ?? window.localStorage.getItem(cookie);
+  const oldCookie = cookie === ADMIN_CURRENCY_COOKIE ? OLD_ADMIN_CURRENCY_COOKIE : OLD_CURRENCY_COOKIE;
+  const saved =
+    readCookie(cookie) ?? window.localStorage.getItem(cookie) ??
+    readCookie(oldCookie) ?? window.localStorage.getItem(oldCookie);
   if (saved && _currencyConfig.currencies.includes(saved)) {
     return saved;
   }
@@ -719,10 +725,17 @@ export type AuthPayload = {
 
 export type AuthScope = "admin" | "client";
 
-export const CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
-export const CLIENT_REFRESH_COOKIE = "dezhost_client_refresh_token";
-export const ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
-export const ADMIN_REFRESH_COOKIE = "dezhost_admin_refresh_token";
+export const CLIENT_AUTH_COOKIE = "teculiar_client_access_token";
+export const CLIENT_REFRESH_COOKIE = "teculiar_client_refresh_token";
+export const ADMIN_AUTH_COOKIE = "teculiar_admin_access_token";
+export const ADMIN_REFRESH_COOKIE = "teculiar_admin_refresh_token";
+// Pre-rebrand dezhost_* names (Phase 9.1 dual-read): still READ so live sessions survive the
+// rename, never written — the first refresh/login rewrites the session under the teculiar_*
+// names and clears these. Drop one release after the rename ships.
+const OLD_CLIENT_AUTH_COOKIE = "dezhost_client_access_token";
+const OLD_CLIENT_REFRESH_COOKIE = "dezhost_client_refresh_token";
+const OLD_ADMIN_AUTH_COOKIE = "dezhost_admin_access_token";
+const OLD_ADMIN_REFRESH_COOKIE = "dezhost_admin_refresh_token";
 const LEGACY_AUTH_COOKIE = "dezhost_access_token";
 const LEGACY_REFRESH_COOKIE = "dezhost_refresh_token";
 
@@ -746,13 +759,20 @@ export async function refreshAccessToken(scope: AuthScope = currentScope()): Pro
   const refreshToken =
     window.localStorage.getItem(names.refresh) ??
     window.sessionStorage.getItem(names.refresh) ??
-    readCookie(names.refresh);
+    readCookie(names.refresh) ??
+    window.localStorage.getItem(names.oldRefresh) ??
+    window.sessionStorage.getItem(names.oldRefresh) ??
+    readCookie(names.oldRefresh);
   if (!refreshToken) {
     return false;
   }
   // Remember whether the session was "remembered" (localStorage) so the refreshed tokens land in
   // the same storage rather than silently downgrading to session-only.
-  const remember = window.localStorage.getItem(names.auth) !== null || window.localStorage.getItem(names.refresh) !== null;
+  const remember =
+    window.localStorage.getItem(names.auth) !== null ||
+    window.localStorage.getItem(names.refresh) !== null ||
+    window.localStorage.getItem(names.oldAuth) !== null ||
+    window.localStorage.getItem(names.oldRefresh) !== null;
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       body: JSON.stringify({ refreshToken }),
@@ -795,14 +815,23 @@ export function storeAuth(payload: AuthPayload, scope: AuthScope = "client", rem
   const storage = remember ? window.localStorage : window.sessionStorage;
   storage.setItem(names.auth, payload.accessToken);
   storage.setItem(names.refresh, payload.refreshToken);
-  storage.setItem(`${scope}_dezhost_roles`, payload.user.roles.join(","));
+  storage.setItem(`${scope}_teculiar_roles`, payload.user.roles.join(","));
   if (!remember) {
     window.localStorage.removeItem(names.auth);
     window.localStorage.removeItem(names.refresh);
-    window.localStorage.removeItem(`${scope}_dezhost_roles`);
+    window.localStorage.removeItem(`${scope}_teculiar_roles`);
   }
   setCookie(names.auth, payload.accessToken);
   setCookie(names.refresh, payload.refreshToken);
+  // Migrate pre-rebrand sessions: the fresh tokens live under teculiar_* now, so the dezhost_*
+  // copies are stale — remove them everywhere or dual-read would resurrect an expired session.
+  for (const store of [window.localStorage, window.sessionStorage]) {
+    store.removeItem(names.oldAuth);
+    store.removeItem(names.oldRefresh);
+    store.removeItem(`${scope}_dezhost_roles`);
+  }
+  expireCookie(names.oldAuth);
+  expireCookie(names.oldRefresh);
   expireCookie(LEGACY_AUTH_COOKIE);
   expireCookie(LEGACY_REFRESH_COOKIE);
 }
@@ -814,14 +843,18 @@ export function clearAuth(scope?: AuthScope) {
   const scopes = scope ? [scope] : ["admin", "client"] as AuthScope[];
   for (const item of scopes) {
     const names = authCookieNames(item);
-    window.localStorage.removeItem(names.auth);
-    window.localStorage.removeItem(names.refresh);
-    window.localStorage.removeItem(`${item}_dezhost_roles`);
-    window.sessionStorage.removeItem(names.auth);
-    window.sessionStorage.removeItem(names.refresh);
-    window.sessionStorage.removeItem(`${item}_dezhost_roles`);
+    for (const store of [window.localStorage, window.sessionStorage]) {
+      store.removeItem(names.auth);
+      store.removeItem(names.refresh);
+      store.removeItem(`${item}_teculiar_roles`);
+      store.removeItem(names.oldAuth);
+      store.removeItem(names.oldRefresh);
+      store.removeItem(`${item}_dezhost_roles`);
+    }
     expireCookie(names.auth);
     expireCookie(names.refresh);
+    expireCookie(names.oldAuth);
+    expireCookie(names.oldRefresh);
   }
   window.localStorage.removeItem("dezhost_roles");
   window.sessionStorage.removeItem("dezhost_roles");
@@ -837,7 +870,10 @@ function browserToken(scope: AuthScope) {
   return (
     window.localStorage.getItem(names.auth) ??
     window.sessionStorage.getItem(names.auth) ??
-    readCookie(names.auth)
+    readCookie(names.auth) ??
+    window.localStorage.getItem(names.oldAuth) ??
+    window.sessionStorage.getItem(names.oldAuth) ??
+    readCookie(names.oldAuth)
   );
 }
 
@@ -850,7 +886,8 @@ function currentScope(): AuthScope {
   }
   // Clean-URL surface host (Phase 2.2): the pathname carries no /admin segment — the dashboards
   // middleware names the host's surface in a cookie so admin fetches keep using the admin token.
-  const surface = readCookie("dezhost_surface");
+  // Old dezhost_surface name still read (Phase 9.1 dual-read) until the middleware has re-set it.
+  const surface = readCookie("teculiar_surface") ?? readCookie("dezhost_surface");
   if (surface === "admin") {
     return "admin";
   }
@@ -859,8 +896,8 @@ function currentScope(): AuthScope {
 
 function authCookieNames(scope: AuthScope) {
   return scope === "admin"
-    ? { auth: ADMIN_AUTH_COOKIE, refresh: ADMIN_REFRESH_COOKIE }
-    : { auth: CLIENT_AUTH_COOKIE, refresh: CLIENT_REFRESH_COOKIE };
+    ? { auth: ADMIN_AUTH_COOKIE, refresh: ADMIN_REFRESH_COOKIE, oldAuth: OLD_ADMIN_AUTH_COOKIE, oldRefresh: OLD_ADMIN_REFRESH_COOKIE }
+    : { auth: CLIENT_AUTH_COOKIE, refresh: CLIENT_REFRESH_COOKIE, oldAuth: OLD_CLIENT_AUTH_COOKIE, oldRefresh: OLD_CLIENT_REFRESH_COOKIE };
 }
 
 function setCookie(name: string, value: string) {

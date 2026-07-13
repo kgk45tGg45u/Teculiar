@@ -22,7 +22,7 @@ const API_BASE = (process.env.E2E_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@dezhost.local";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 
-const TOKEN_KEY = "dezhost_admin_access_token";
+const TOKEN_KEY = "teculiar_admin_access_token";
 
 async function adminLogin(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never) {
   await page.goto(`${BASE}/admin/login`);

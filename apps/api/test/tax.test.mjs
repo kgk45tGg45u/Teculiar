@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { resolveVat, sanitizeTaxCountryConfig, vatPercentForCountry } from "@dezhost/shared";
+import { resolveVat, sanitizeTaxCountryConfig, vatPercentForCountry } from "@teculiar/shared";
 
 const config = { enabled: true, default: "DE", rates: { DE: 19, AT: 20 } };
 

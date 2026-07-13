@@ -171,7 +171,7 @@ async function oldCustomerCheckout(page: Page, method: string, extra: Record<str
   const tok = await token(page, CLIENT_EMAIL, CLIENT_PASSWORD);
   expect(tok, "client login").toBeTruthy();
   const host = new URL(BASE).hostname;
-  await page.context().addCookies([{ name: "dezhost_client_access_token", value: tok, domain: host, path: "/" }]);
+  await page.context().addCookies([{ name: "teculiar_client_access_token", value: tok, domain: host, path: "/" }]);
   const co = await page.request.post(`${API}/orders/checkout`, {
     headers: { Authorization: `Bearer ${tok}` },
     data: { customer: customer(CLIENT_EMAIL), items: [{ ...VPS, quantity: 1, configuration: { hostname: uniq("h") } }] }
@@ -235,7 +235,7 @@ test("RENEW · existing customer pays a renewal invoice via Mollie Credit Card",
   // The logged-in client pays the renewal invoice via Mollie Credit Card.
   const tok = await token(page, CLIENT_EMAIL, CLIENT_PASSWORD);
   const host = new URL(BASE).hostname;
-  await page.context().addCookies([{ name: "dezhost_client_access_token", value: tok, domain: host, path: "/" }]);
+  await page.context().addCookies([{ name: "teculiar_client_access_token", value: tok, domain: host, path: "/" }]);
   const pay = await page.request.post(`${API}/billing/invoices/${renewalInvoiceId}/pay`, { headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, data: { method: "CREDIT_CARD", paymentMethodId: "mollie" } });
   const payBody = await pay.json() as { paymentRedirectUrl?: string; message?: string };
   if (payBody.message?.includes("Mollie API key")) { test.skip(true, "Mollie not configured"); return; }

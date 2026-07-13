@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { apiGet } from "@dezhost/web-core/lib/api";
-import { LayoutRenderer } from "@dezhost/web-core/lib/customizer/layout-renderer";
-import { asLayoutDoc } from "@dezhost/web-core/lib/customizer/types";
+import { apiGet } from "@teculiar/web-core/lib/api";
+import { LayoutRenderer } from "@teculiar/web-core/lib/customizer/layout-renderer";
+import { asLayoutDoc } from "@teculiar/web-core/lib/customizer/types";
 
 // The live render gate for the Customizer (Phase 3e). A storefront route wraps its built-in renderer
 // in this gate: once a layout doc has been published for the page (`publishedLayout` is non-null), the

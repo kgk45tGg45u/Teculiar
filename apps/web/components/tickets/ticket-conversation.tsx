@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Paperclip } from "lucide-react";
-import type { ApiTicket, ApiTicketAttachment, ApiTicketReply } from "@dezhost/web-core/lib/api";
+import type { ApiTicket, ApiTicketAttachment, ApiTicketReply } from "@teculiar/web-core/lib/api";
 import styles from "./ticket-conversation.module.css";
 
 type Perspective = "staff" | "client";

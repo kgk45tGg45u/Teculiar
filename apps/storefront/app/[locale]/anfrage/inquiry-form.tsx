@@ -3,8 +3,8 @@
 import { ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { API_BASE_URL } from "@dezhost/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { API_BASE_URL } from "@teculiar/web-core/lib/api";
 import styles from "./anfrage.module.css";
 
 type FormState = "idle" | "submitting" | "success" | "error";

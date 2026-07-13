@@ -161,7 +161,7 @@ mysqldump --single-transaction <old_db_name> | gzip > ~/dezhost-old-$(date +%F).
 `DROP DATABASE <old_db_name>;` (after the backup in 0.2c), `sudo rm -rf /opt/dezhost`, remove old ghcr
 `:latest` deploy hooks if the box no longer runs the single-tenant path.
 
-### 0.6 Make `main` the production deploy channel (post-cutover) — *pending user confirmation*
+### 0.6 Make `main` the production deploy channel (post-cutover)  ✅ DONE (2026-07-08 — `28b6256` repointed deploy.yml at `/opt/teculiar` + `/opt/dezhost-storefront`; main deploys green since (scp works ⇒ dir ownership fixed); Phase 1+2 prod-verified on www.dezhost.com off main-built images ⇒ box follows `:latest`. Step 3 landed via direct main merges instead of the old phase4-separation branch. Leftover: workflow still builds `:edge` on pushes to the dormant `feat/teculiar-phase4-separation` branch — retire or repoint when convenient.)
 The cutover left the deploy pipeline pointing at the retired stack. `.github/workflows/deploy.yml` today:
 `main` → build `:latest` → SSH-deploy into **`/opt/dezhost`** (the OLD single-tenant stack, now torn down).
 But the live site is `:edge` in **`/opt/teculiar`** (api/web/teculiar.com-storefront) + **`/opt/dezhost-storefront`**
@@ -389,7 +389,7 @@ host-relative.
   client active`), point DNS at the floating IP, and rely on 2.1–2.4. Either way, the "doubled `/admin`"
   disappears.
 
-### Verify (Phase 2) — deploy runbook (all code landed 2026-07-12; local verify green; prod pending)
+### Verify (Phase 2) — deploy runbook (all code landed 2026-07-12; local verify green; prod checked and good. Test 7 fails because of wrong client route (dezhost.com admin defined another client address label.))
 Order matters: **app before Caddyfile** (new Caddyfile + old app = 404 on surface hosts).
 1. **Deploy the app:** merge `feat/teculiar-phase2-whitelabel` → `main`, let GitHub Actions deploy;
    confirm containers restarted (`docker ps` on eu01).
@@ -720,7 +720,7 @@ Search Console / a validator and view it in a browser.
 
 ## Phase 9 — Rebrand & platform breadth
 
-### 9.1 Naming convention: "Teculiar" (the software) vs "Dezhost" (one tenant/website)
+### 9.1 Naming convention: "Teculiar" (the software) vs "Dezhost" (one tenant/website)  ✅ DONE (2026-07-13 — all four renames landed in one pass on `feat/teculiar-rebrand-9.1`: brand defaults → "Teculiar" (incl. `--dezhost`→`--teculiar` CSS var, locale packs, email `fromName`, invoice seller, PDF Creator); cookies `dezhost_*`→`teculiar_*` with dual-read (old names read + cleared, never written — drop the dual-read one release later); `@dezhost/*`→`@teculiar/*` (package.json names, imports, tsconfig, Dockerfiles, lockfile regenerated); ghcr images → `teculiar-{api,web,storefront}` in deploy.yml + compose + install.sh. Deliberate deviations: `DEFAULT_NAME_SERVERS` stays `ns5/ns6.dezhost.com` (real DNS infra, not brand); Mollie payment descriptions went brand-NEUTRAL ("Payment <id>") since they're customer-facing per-tenant; shared marketing "Why Dezhost" went neutral ("Why us"/"Warum wir") rather than "Why Teculiar" so no tenant storefront wears the wrong brand; built-in dezhost.com content pages (legal/über-uns/FAQ) keep "Dezhost" — tenant content, not software defaults. Transition: the storefront image is DUAL-PUBLISHED as `dezhost-storefront` (alias tags in deploy.yml) until the `Dezhost` repo compose on the box + old self-host installs are repointed at `teculiar-storefront` — then drop the alias. New ghcr packages `teculiar-*` may need one-time visibility fixes (make `teculiar-storefront` public for install.sh, like `dezhost-storefront` was).)
 
 **The rule (single source of truth for all naming):** anything that is *the software/platform* is named
 **`teculiar`**; anything that is *the specific Dezhost website* (a tenant that happens to be us) keeps

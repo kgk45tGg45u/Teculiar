@@ -1,4 +1,4 @@
-# @dezhost/locales — language-pack standard
+# @teculiar/locales — language-pack standard
 
 The single, canonical bundle of user-facing strings and locale/format rules for the
 whole platform. It is consumed by **both** `apps/web` and `apps/api`, and it is exactly
@@ -55,7 +55,7 @@ later Teculiar concern.)
 - `getMeta(locale)` → `{ bcp47, numberFormat, dateFormat, defaultCurrency }` (en-GB fallback).
 - `getManifest()`, `availableLocales()`, `hasPack(locale)`, `SOURCE_LOCALE`, `NAMESPACES`.
 
-`apps/web` imports the `.ts` source via the `@dezhost/locales` tsconfig path mapping (the
+`apps/web` imports the `.ts` source via the `@teculiar/locales` tsconfig path mapping (the
 bundler reads the JSON directly). `apps/api` consumes the built `dist/`, where the JSON is
 copied next to `index.js` by `scripts/copy-assets.mjs` during `npm run build`.
 

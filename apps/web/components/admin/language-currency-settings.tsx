@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import {
   currencyCatalog,
   currencyName,
@@ -10,7 +10,7 @@ import {
   languageCatalog,
   languageFlag,
   languageName
-} from "@dezhost/web-core/lib/i18n-catalog";
+} from "@teculiar/web-core/lib/i18n-catalog";
 
 export type LanguagesValue = { main: string; others: string[] };
 export type CurrencyRate = { rate: number; buffer: number; bufferEnabled: boolean };

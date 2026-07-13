@@ -2,16 +2,16 @@
 
 import { Bot, Edit2, Plus, Power, PowerOff, Save, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "@dezhost/web-core/lib/api";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
-import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
+import { API_BASE_URL, authHeaders, type ApiBlogCategory, type ApiBlogPost, type ApiBlogTag } from "@teculiar/web-core/lib/api";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notify, notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
+import { ImageUploader } from "@teculiar/web-core/components/ui/image-uploader";
 import { RichTextEditor } from "./admin-forms";
 import styles from "./admin-dashboard.module.css";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
 function slugify(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

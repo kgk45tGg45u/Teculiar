@@ -117,7 +117,7 @@
 .categoryForm select:focus,
 .categoryForm textarea:focus {
   outline: none;
-  border-color: var(--dezhost, #e53e3e);
+  border-color: var(--teculiar, #e53e3e);
 }
 
 .form textarea,
@@ -248,7 +248,7 @@
 }
 
 .ok { color: #157f3b; font-size: 0.85rem; }
-.error { color: var(--dezhost, #e53e3e); font-size: 0.85rem; }
+.error { color: var(--teculiar, #e53e3e); font-size: 0.85rem; }
 .loading, .idle { color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 760px) {

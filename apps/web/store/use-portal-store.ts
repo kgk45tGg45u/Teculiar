@@ -36,7 +36,7 @@ export const usePortalStore = create<PortalState>((set) => ({
     },
     {
       id: "svc_domain_01",
-      name: "dezhost.de",
+      name: "teculiar.de",
       kind: "Domain",
       status: "active",
       renewsAt: "2027-05-03"

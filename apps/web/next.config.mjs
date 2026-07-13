@@ -22,7 +22,7 @@ const nextConfig = {
   typedRoutes: false,
   assetPrefix: process.env.DASHBOARD_ASSET_PREFIX || undefined,
   // web-core is a source workspace package (React/CSS-module components); transpile it like app code.
-  transpilePackages: ["@dezhost/web-core"],
+  transpilePackages: ["@teculiar/web-core"],
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   async rewrites() {

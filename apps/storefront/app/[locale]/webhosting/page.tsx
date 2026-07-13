@@ -1,9 +1,9 @@
 import { ArrowRight, CheckCircle, HardDrive, Lock, Mail, RefreshCw, Server, ShieldCheck, Zap } from "lucide-react";
-import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { HostingPackages } from "./hosting-packages";
 import { WebhostingFaq } from "./webhosting-faq";

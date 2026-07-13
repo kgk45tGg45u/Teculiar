@@ -2,9 +2,9 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authFetch } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "../admin-dashboard.module.css";
 import type { AdminRedirect, TB } from "./types";
 
