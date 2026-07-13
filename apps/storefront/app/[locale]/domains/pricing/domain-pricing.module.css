@@ -51,7 +51,7 @@
 }
 
 .tab.active {
-  background: var(--dezhost);
+  background: var(--teculiar);
   color: white;
 }
 
@@ -116,7 +116,7 @@
 
 .tldCell strong {
   font-size: 0.95rem;
-  color: var(--dezhost);
+  color: var(--teculiar);
   font-weight: 700;
 }
 

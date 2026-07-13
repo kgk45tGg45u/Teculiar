@@ -1,11 +1,11 @@
 import { ArrowRight, Check, Cpu, HardDrive, Lock, Server, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
-import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { Price } from "@dezhost/web-core/components/marketing/price";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { Price } from "@teculiar/web-core/components/marketing/price";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import styles from "./virtual-servers.module.css";
 

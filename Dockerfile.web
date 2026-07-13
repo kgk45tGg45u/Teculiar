@@ -28,7 +28,7 @@ RUN npm ci
 # Copy source code
 COPY tsconfig.base.json  ./
 COPY packages/shared     ./packages/shared
-# apps/web resolves @dezhost/locales and @dezhost/web-core straight from their .ts/.tsx source via the
+# apps/web resolves @teculiar/locales and @teculiar/web-core straight from their .ts/.tsx source via the
 # tsconfig path mappings, so the source (locales JSON packs + manifest; web-core lib/components) must be
 # present for Turbopack to bundle it into the standalone output.
 COPY packages/locales    ./packages/locales
@@ -36,8 +36,8 @@ COPY packages/web-core   ./packages/web-core
 COPY apps/web            ./apps/web
 
 # Build shared lib → build Next.js app (produces .next/standalone)
-RUN npm run build --workspace @dezhost/shared
-RUN npm run build --workspace @dezhost/web
+RUN npm run build --workspace @teculiar/shared
+RUN npm run build --workspace @teculiar/web
 
 # ─── Production stage ─────────────────────────────────────────────────────────
 FROM node:24-alpine AS production

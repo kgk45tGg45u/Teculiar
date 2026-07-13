@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
-import { CookieBanner } from "@dezhost/web-core/components/layout/cookie-banner";
-import { CurrencyConfigInit } from "@dezhost/web-core/components/layout/currency-config-init";
-import { SiteFooter } from "@dezhost/web-core/components/layout/site-footer";
-import { SiteHeader } from "@dezhost/web-core/components/layout/site-header";
-import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@dezhost/web-core/lib/api";
-import { fetchStorefrontTheme, storefrontAlternates } from "@dezhost/web-core/lib/storefront-theme";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { CookieBanner } from "@teculiar/web-core/components/layout/cookie-banner";
+import { CurrencyConfigInit } from "@teculiar/web-core/components/layout/currency-config-init";
+import { SiteFooter } from "@teculiar/web-core/components/layout/site-footer";
+import { SiteHeader } from "@teculiar/web-core/components/layout/site-header";
+import { apiGet, currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@teculiar/web-core/lib/api";
+import { fetchStorefrontTheme, storefrontAlternates } from "@teculiar/web-core/lib/storefront-theme";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 
 type SiteSettings = {
   siteLogoUrl?: string;
@@ -31,12 +31,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     fetchStorefrontTheme(),
     headers()
   ]);
-  const siteName = settings?.siteName || "Dezhost";
+  const siteName = settings?.siteName || "Teculiar";
   const description = settings?.metaDescription || (locale === "de"
-    ? "Dezhost – ethisches Webhosting und IT-Dienstleistungen aus Deutschland. Faire Preise, persönlicher Support, DSGVO-konform."
-    : "Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, GDPR compliant.");
+    ? "Teculiar – ethisches Webhosting und IT-Dienstleistungen aus Deutschland. Faire Preise, persönlicher Support, DSGVO-konform."
+    : "Teculiar – ethical web hosting and IT services from Germany. Fair prices, personal support, GDPR compliant.");
   const ogImage = settings?.ogImageStatic;
-  const siteUrl = settings?.siteUrl?.replace(/\/$/, "") || process.env.SITE_URL || "https://www.dezhost.com";
+  const siteUrl = settings?.siteUrl?.replace(/\/$/, "") || process.env.SITE_URL || "https://www.teculiar.com";
   const logoUrl = settings?.siteLogoUrl;
 
   // hreflang + canonical from the localized-slug data. We only build them when the visitor-facing path

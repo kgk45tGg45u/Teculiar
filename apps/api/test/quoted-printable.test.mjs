@@ -6,7 +6,7 @@
  * text round-trips — and that the byte sequences are the correct UTF-8 ones (`=E2=82=AC` for `€`,
  * `=C2=A0` for NBSP), never the old `=20AC` / lone `=A0` garble.
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/quoted-printable.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/quoted-printable.test.mjs
  */
 import assert from "node:assert/strict";
 import { test, before } from "node:test";

@@ -14,12 +14,12 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@dezhost/shared": ["packages/shared/src/index.ts"],
-      "@dezhost/shared/*": ["packages/shared/src/*"],
-      "@dezhost/locales": ["packages/locales/index.ts"],
-      "@dezhost/locales/*": ["packages/locales/*"],
-      "@dezhost/web-core": ["packages/web-core/src/index.ts"],
-      "@dezhost/web-core/*": ["packages/web-core/src/*"]
+      "@teculiar/shared": ["packages/shared/src/index.ts"],
+      "@teculiar/shared/*": ["packages/shared/src/*"],
+      "@teculiar/locales": ["packages/locales/index.ts"],
+      "@teculiar/locales/*": ["packages/locales/*"],
+      "@teculiar/web-core": ["packages/web-core/src/index.ts"],
+      "@teculiar/web-core/*": ["packages/web-core/src/*"]
     }
   }
 }

@@ -3,10 +3,10 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ADMIN_AUTH_COOKIE, clearAuth } from "@dezhost/web-core/lib/api";
-import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
-import { internalPath, surfaceHref } from "@dezhost/web-core/lib/surface";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
+import { ADMIN_AUTH_COOKIE, clearAuth } from "@teculiar/web-core/lib/api";
+import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
+import { internalPath, surfaceHref } from "@teculiar/web-core/lib/surface";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 

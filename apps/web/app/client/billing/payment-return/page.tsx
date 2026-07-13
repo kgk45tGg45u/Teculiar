@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, currentLocale, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { API_BASE_URL, authHeaders, currentLocale, storeAuth, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 
 type ConfirmResult = {
   status: string;
@@ -118,7 +118,7 @@ export default function PaymentReturnPage() {
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
             <a
               href="/"
-              style={{ display: "inline-block", padding: "10px 22px", background: "var(--dezhost)", color: "white", borderRadius: 8, fontWeight: 700, fontSize: "0.9rem", textDecoration: "none" }}
+              style={{ display: "inline-block", padding: "10px 22px", background: "var(--teculiar)", color: "white", borderRadius: 8, fontWeight: 700, fontSize: "0.9rem", textDecoration: "none" }}
             >
               {c.placeNewOrder}
             </a>

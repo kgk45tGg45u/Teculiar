@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { CheckoutForm } from "../../../../components/checkout/checkout-form";
-import { apiGet, type ApiProduct } from "@dezhost/web-core/lib/api";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 
 export default async function OrderPage({
   params,

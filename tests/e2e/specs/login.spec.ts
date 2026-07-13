@@ -15,7 +15,7 @@ test("admin login uses browser language when no locale cookie exists", async ({ 
 });
 
 test("admin login uses stored German locale consistently", async ({ context, page }) => {
-  await context.addCookies([{ name: "dezhost_locale", value: "de", domain: "127.0.0.1", path: "/" }]);
+  await context.addCookies([{ name: "teculiar_locale", value: "de", domain: "127.0.0.1", path: "/" }]);
   await page.goto(`${BASE}/admin/login`);
 
   const card = page.locator("main");

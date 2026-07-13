@@ -16,7 +16,7 @@
 #
 # Published at https://get.teculiar.com/install.sh (serve this file from the teculiar.net vhost).
 # ⚠️ OP PREREQUISITE: the ghcr.io storefront image must be PUBLIC (or customers get a pull token) —
-#    ghcr.io/kgk45tgg45u/dezhost-storefront is private today; make the package public before first use.
+#    ghcr.io/kgk45tgg45u/teculiar-storefront is private today; make the package public before first use.
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ DOMAIN="${DOMAIN:?Set DOMAIN=<your storefront domain, e.g. acmehost.com>}"
 PORT="${PORT:-3001}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/teculiar-storefront}"
-IMAGE="ghcr.io/kgk45tgg45u/dezhost-storefront:${IMAGE_TAG}"
+IMAGE="ghcr.io/kgk45tgg45u/teculiar-storefront:${IMAGE_TAG}"
 
 echo "Teculiar storefront installer — tenant '${TENANT}', domain '${DOMAIN}'"
 

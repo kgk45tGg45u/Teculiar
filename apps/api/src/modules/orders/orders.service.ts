@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { compare, hash } from "bcryptjs";
-import { billingCycles, domainCycleFor, isYearlyCycle } from "@dezhost/shared";
+import { billingCycles, domainCycleFor, isYearlyCycle } from "@teculiar/shared";
 import { formatMoney } from "../../common/i18n";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";

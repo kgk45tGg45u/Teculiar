@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { InvoiceLineInput, TaxContext, TaxCountryConfig } from "@dezhost/shared";
+import type { InvoiceLineInput, TaxContext, TaxCountryConfig } from "@teculiar/shared";
 import { TaxService } from "./tax.service";
 
 type Coupon =

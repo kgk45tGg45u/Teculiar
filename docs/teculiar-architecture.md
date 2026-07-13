@@ -102,10 +102,10 @@ the only deploy-time setting is `TECULIAR_UPSTREAM = https://<tenant>.teculiar.n
 > build-arg). The proxy model removes that coupling.
 
 > **Implementation (sub-phase 4.2, shipped).** The old single `apps/web` Next app was split into three:
-> **`packages/web-core`** (`@dezhost/web-core`, shared source: `lib/*` incl. the customizer registry +
+> **`packages/web-core`** (`@teculiar/web-core`, shared source: `lib/*` incl. the customizer registry +
 > `LayoutRenderer`, `components/{ui,layout,marketing}`, `globals.css`), **`apps/storefront`**
-> (`@dezhost/storefront`, the thin distributable Blue theme = the moved `app/[locale]/*` + checkout +
-> custom-page render), and **`apps/web`** (`@dezhost/web`, hosted admin+client dashboards only). The
+> (`@teculiar/storefront`, the thin distributable Blue theme = the moved `app/[locale]/*` + checkout +
+> custom-page render), and **`apps/web`** (`@teculiar/web`, hosted admin+client dashboards only). The
 > storefront's `next.config.mjs` reverse-proxies `/api`,`/uploads`,`/admin`,`/client`,`/login`,
 > `/reset-password` → `TECULIAR_UPSTREAM` (with an optional `TECULIAR_API_UPSTREAM` to point `/api` at a
 > different origin in local dev). `lib/api.ts` resolves the base URL at runtime (browser → `/api/v1`

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import { InquiryForm } from "./inquiry-form";
 import styles from "./anfrage.module.css";
 

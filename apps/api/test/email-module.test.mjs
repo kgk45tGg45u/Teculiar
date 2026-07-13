@@ -71,7 +71,7 @@ test("email dispatch honors enabled flag and client-only recipient defaults", as
   assert.equal(logs.length, 1);
   assert.equal(logs[0].to, "client@example.test");
   assert.equal(logs[0].template, "domain_information");
-  assert.equal(logs[0].payload.from, "Dezhost <support@example.test>");
+  assert.equal(logs[0].payload.from, "Teculiar <support@example.test>");
   assert.equal(logs[0].payload.recipientType, "client");
   assert.match(logs[0].payload.html, /example\.com/);
 });

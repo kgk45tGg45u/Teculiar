@@ -141,7 +141,7 @@ Keep these for the API's environment file (Part E), which maps to the exact env 
 
 The build now produces **three Docker images** (up from two): **API** (`Dockerfile.api`), **Dashboards**
 (`Dockerfile.web`, admin+client), **Storefront** (`Dockerfile.storefront`, thin Blue theme). CI
-(`.github/workflows/deploy.yml`) builds+pushes all three (`dezhost-api`/`dezhost-web`/`dezhost-storefront`);
+(`.github/workflows/deploy.yml`) builds+pushes all three (`teculiar-api`/`teculiar-web`/`teculiar-storefront` (+ a transitional `dezhost-storefront` alias tag, Phase 9.1));
 `docker-compose.prod.yml` runs all three. They deploy the same way today's prod does (Docker + Compose,
 behind Apache), just three services.
 
@@ -245,7 +245,7 @@ manual run) → `:edge` only, no deploy** — live prod is untouched.
 3. Your box already has ghcr pull credentials (today's prod uses them), so it can pull `:edge` in H.3.
 
 > Alternative (no CI): build on the box from a checkout —
-> `docker build -f Dockerfile.api -t ghcr.io/kgk45tgg45u/dezhost-api:edge .` (and `.web`, `.storefront`).
+> `docker build -f Dockerfile.api -t ghcr.io/kgk45tgg45u/teculiar-api:edge .` (and `.web`, `.storefront`).
 
 ## H.1 — Verify the `teculiar_admin` privileges
 
@@ -329,7 +329,7 @@ STOREFRONT_PORT=3011
 
 ```bash
 docker run --rm --env-file /opt/teculiar/.env --add-host host.docker.internal:host-gateway \
-  ghcr.io/kgk45tgg45u/dezhost-api:edge npm run db:cp:push
+  ghcr.io/kgk45tgg45u/teculiar-api:edge npm run db:cp:push
 ```
 
 ## H.3 — Bring up the three containers
@@ -439,7 +439,7 @@ exactly two GitHub repos, both now populated:
    teculiar.com are both served from these images** (teculiar.com is tenant #0) — there is **no separate
    teculiar.com repo**. The Phase-4 branch `feat/teculiar-phase4-separation` is pushed and builds `:edge`.
 2. **`kgk45tGg45u/Dezhost`** (private, populated ✅) — the **thin storefront deploy** for `dezhost.com`:
-   a `docker-compose.yml` running the published `dezhost-storefront` image with
+   a `docker-compose.yml` running the published `teculiar-storefront` image (still pullable as `dezhost-storefront` during the Phase 9.1 alias window) with
    `TECULIAR_UPSTREAM=https://dezhost.teculiar.net`, an `.env.example`, and the `dezhost.com` Apache
    white-label block in `apache/dezhost.com.conf`. **No app source lives here** — it consumes the image the
    monorepo publishes, so **updating Teculiar updates Dezhost automatically** (pull the new image; the
@@ -538,7 +538,7 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
 >    `WEB_PORT=3010`, `STOREFRONT_PORT=3011`; `/opt/dezhost-storefront/.env`: `STOREFRONT_PORT=3021`.
 >
 > After that, every merge to `main` updates the whole stack — **updating Teculiar updates the Dezhost
-> storefront**, which pulls the same monorepo-built `dezhost-storefront` image. ⚠️ The first merge overwrites
+> storefront**, which pulls the same monorepo-built storefront image (now `teculiar-storefront`, alias `dezhost-storefront`). ⚠️ The first merge overwrites
 > ghcr `:latest` (today's old single-tenant build) with the multi-tenant build — intended, single-tenant is
 > being retired. Keep `:edge` (feature-branch builds, no deploy) as an optional pre-prod channel. The
 > dezhost→teculiar image/scope **rename** is a separate deliberate change (master-plan **9.1**), not part of this.

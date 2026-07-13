@@ -2,8 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { API_BASE_URL } from "@dezhost/web-core/lib/api";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL } from "@teculiar/web-core/lib/api";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "../../components/auth/login-form.module.css";
 
 export default function ResetPasswordPage() {

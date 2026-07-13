@@ -1,8 +1,8 @@
 import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
-import { apiGet, type ApiKnowledgebaseArticle } from "@dezhost/web-core/lib/api";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiKnowledgebaseArticle } from "@teculiar/web-core/lib/api";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import styles from "./knowledgebase.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const locale = getLocale(rawLocale);
   return {
     description: locale === "de" ? "Hilfecenter mit Artikeln zu Hosting, Domains und IT Services." : "Help center articles for hosting, domains, and IT services.",
-    title: "Knowledgebase | Dezhost"
+    title: "Knowledgebase"
   };
 }
 

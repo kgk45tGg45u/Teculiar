@@ -3,11 +3,11 @@
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { API_BASE_URL, isAdminRole, storeAuth, type AuthPayload } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import type { Locale } from "@dezhost/web-core/lib/i18n";
-import { hrefForSurface, type SurfaceSection } from "@dezhost/web-core/lib/surface";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, isAdminRole, storeAuth, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import type { Locale } from "@teculiar/web-core/lib/i18n";
+import { hrefForSurface, type SurfaceSection } from "@teculiar/web-core/lib/surface";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./login-form.module.css";
 
 export function LoginForm({ admin = false, locale, surface = null }: { admin?: boolean; locale: Locale; surface?: SurfaceSection | null }) {

@@ -2,8 +2,8 @@
 
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { API_BASE_URL } from "@dezhost/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { API_BASE_URL } from "@teculiar/web-core/lib/api";
 import styles from "./kontakt.module.css";
 
 type FormState = "idle" | "submitting" | "success" | "error";

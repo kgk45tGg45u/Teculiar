@@ -1,8 +1,8 @@
 import { Mail, MessageCircle, Phone } from "lucide-react";
-import { apiGet } from "@dezhost/web-core/lib/api";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet } from "@teculiar/web-core/lib/api";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
 import { ContactForm } from "./contact-form";
 import styles from "./kontakt.module.css";

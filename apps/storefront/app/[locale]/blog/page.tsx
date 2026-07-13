@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Route } from "next";
 import type { Metadata } from "next";
 import { ArrowRight, BookOpen, Mail } from "lucide-react";
-import { apiGet, type ApiBlogPost } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiBlogPost } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import styles from "./blog.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description,
     title: "Blog",
     openGraph: {
-      images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: settings?.siteName || "Dezhost" }] : undefined
+      images: ogImage ? [{ url: ogImage, width: 1200, height: 630, alt: settings?.siteName || "Teculiar" }] : undefined
     }
   };
 }

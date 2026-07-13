@@ -1,6 +1,6 @@
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import { CustomPageGate } from "../../../../components/customizer/custom-page";
 import styles from "../legal.module.css";
 

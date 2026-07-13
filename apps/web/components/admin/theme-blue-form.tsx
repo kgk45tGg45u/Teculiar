@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { API_BASE_URL, authHeaders } from "@dezhost/web-core/lib/api";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
+import { API_BASE_URL, authHeaders } from "@teculiar/web-core/lib/api";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { ImageUploader } from "@teculiar/web-core/components/ui/image-uploader";
 import styles from "./admin-dashboard.module.css";
 
 type BlueThemeImages = {

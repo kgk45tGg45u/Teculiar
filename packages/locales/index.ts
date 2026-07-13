@@ -1,4 +1,4 @@
-// @dezhost/locales — the canonical, shared language-pack bundle consumed by both
+// @teculiar/locales — the canonical, shared language-pack bundle consumed by both
 // apps/web and apps/api (and, later, by Teculiar buyer installs pulling from the CDN).
 //
 // English is the source-of-truth key set. Every other language falls back to English

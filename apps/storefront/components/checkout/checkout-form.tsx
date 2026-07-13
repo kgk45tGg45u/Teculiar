@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@dezhost/shared";
-import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@dezhost/web-core/lib/api";
-import { countriesForLocale } from "@dezhost/web-core/lib/countries";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notify } from "@dezhost/web-core/components/ui/toast-provider";
+import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@teculiar/shared";
+import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { countriesForLocale } from "@teculiar/web-core/lib/countries";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./checkout-form.module.css";
 
 type CheckoutFormProps = {
@@ -1185,7 +1185,7 @@ function focusByName(name: string) {
   field?.focus();
 }
 
-// Checkout copy comes from the shared @dezhost/locales storefront pack (English fallback per key),
+// Checkout copy comes from the shared @teculiar/locales storefront pack (English fallback per key),
 // so any configured language is covered. The four interpolated entries are wrapped back into
 // functions over the pack's `{domain}`/`{action}` templates.
 function buildCheckoutCopy(locale: string) {

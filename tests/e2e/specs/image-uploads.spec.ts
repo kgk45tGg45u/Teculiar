@@ -52,7 +52,7 @@ async function adminLogin(page: Parameters<typeof test>[1] extends (...args: inf
 }
 
 async function getAdminToken(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never): Promise<string> {
-  return page.evaluate(() => localStorage.getItem("dezhost_admin_access_token") ?? "");
+  return page.evaluate(() => localStorage.getItem("teculiar_admin_access_token") ?? "");
 }
 
 async function getStorefrontSetting(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never, key: string): Promise<string> {

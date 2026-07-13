@@ -6,20 +6,20 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { domainCycleFor } from "@dezhost/shared";
-import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@dezhost/web-core/lib/api";
-import { getDictionary, type Dictionary } from "@dezhost/web-core/lib/dictionary";
-import type { Locale } from "@dezhost/web-core/lib/i18n";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
+import { domainCycleFor } from "@teculiar/shared";
+import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
+import type { Locale } from "@teculiar/web-core/lib/i18n";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { serviceStatusLabel } from "@teculiar/web-core/lib/status-labels";
 import { LanguageCurrencySettings, type CurrencyConfigValue, type LanguagesValue } from "./language-currency-settings";
 import { TaxCountrySettings, type TaxCountriesValue } from "./tax-country-settings";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { ImageUploader } from "@dezhost/web-core/components/ui/image-uploader";
-import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { ImageUploader } from "@teculiar/web-core/components/ui/image-uploader";
+import { notify, notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
 export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
   const href = useSurfaceHref();
@@ -856,7 +856,7 @@ export function CronSettingsForm() {
     salesImapPort: 993,
     salesImapSecure: true,
     salesImapUsername: "",
-    salesMailboxAddress: "sales@dezhost.com",
+    salesMailboxAddress: "sales@teculiar.com",
     supportImapEnabled: false,
     supportImapHost: "",
     supportImapMailbox: "INBOX",
@@ -864,7 +864,7 @@ export function CronSettingsForm() {
     supportImapPort: 993,
     supportImapSecure: true,
     supportImapUsername: "",
-    supportMailboxAddress: "support@dezhost.com",
+    supportMailboxAddress: "support@teculiar.com",
     ticketAutoCloseHours: 24
   });
 
@@ -887,7 +887,7 @@ export function CronSettingsForm() {
         salesImapPort: p.salesImapPort ?? 993,
         salesImapSecure: p.salesImapSecure !== false,
         salesImapUsername: p.salesImapUsername ?? "",
-        salesMailboxAddress: p.salesMailboxAddress ?? "sales@dezhost.com",
+        salesMailboxAddress: p.salesMailboxAddress ?? "sales@teculiar.com",
         supportImapEnabled: Boolean(p.supportImapEnabled),
         supportImapHost: p.supportImapHost ?? "",
         supportImapMailbox: p.supportImapMailbox ?? "INBOX",
@@ -895,7 +895,7 @@ export function CronSettingsForm() {
         supportImapPort: p.supportImapPort ?? 993,
         supportImapSecure: p.supportImapSecure !== false,
         supportImapUsername: p.supportImapUsername ?? "",
-        supportMailboxAddress: p.supportMailboxAddress ?? "support@dezhost.com",
+        supportMailboxAddress: p.supportMailboxAddress ?? "support@teculiar.com",
         ticketAutoCloseHours: p.ticketAutoCloseHours ?? 24
       }))
       .catch(() => undefined);
@@ -919,7 +919,7 @@ export function CronSettingsForm() {
         salesImapPort: Number(formData.get("salesImapPort") ?? 993),
         salesImapSecure: formData.get("salesImapSecure") === "on",
         salesImapUsername: String(formData.get("salesImapUsername") ?? ""),
-        salesMailboxAddress: String(formData.get("salesMailboxAddress") ?? "sales@dezhost.com"),
+        salesMailboxAddress: String(formData.get("salesMailboxAddress") ?? "sales@teculiar.com"),
         supportImapEnabled: formData.get("supportImapEnabled") === "on",
         supportImapHost: String(formData.get("supportImapHost") ?? ""),
         supportImapMailbox: String(formData.get("supportImapMailbox") ?? "INBOX"),
@@ -927,7 +927,7 @@ export function CronSettingsForm() {
         supportImapPort: Number(formData.get("supportImapPort") ?? 993),
         supportImapSecure: formData.get("supportImapSecure") === "on",
         supportImapUsername: String(formData.get("supportImapUsername") ?? ""),
-        supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@dezhost.com"),
+        supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@teculiar.com"),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24)
       }),
       headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -1140,7 +1140,7 @@ export function SettingsForm() {
         <input
           value={s.siteUrl}
           name="siteUrl"
-          placeholder="https://dezhost.com"
+          placeholder="https://teculiar.com"
           type="url"
           onChange={(e) => setS({ ...s, siteUrl: e.target.value })}
         />
@@ -1364,7 +1364,7 @@ export function PaymentGatewayForm() {
                   <input
                     defaultValue={String(gateway.config?.accountHolder ?? "")}
                     name={`${gateway.method}_accountHolder`}
-                    placeholder="Dezhost GmbH"
+                    placeholder="Teculiar GmbH"
                   />
                 </label>
                 <label>
@@ -2652,10 +2652,10 @@ export function SeoSettingsForm() {
   const c = getDictionary(useLocale()).admin.settingsForm;
   const [message, setMessage] = useState("");
   const [s, setS] = useState({
-    siteName: "Dezhost",
+    siteName: "Teculiar",
     metaDescription: "",
     blogMetaDescription: "",
-    ogTitleSuffix: "| Dezhost",
+    ogTitleSuffix: "| Teculiar",
     ogImageStatic: "",
     ogImageDashboard: "",
     ogImageBlog: ""
@@ -2665,10 +2665,10 @@ export function SeoSettingsForm() {
     void fetch(`${API_BASE_URL}/admin/dev/seo-settings`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((p) => setS({
-        siteName: p.siteName || "Dezhost",
+        siteName: p.siteName || "Teculiar",
         metaDescription: p.metaDescription || "",
         blogMetaDescription: p.blogMetaDescription || "",
-        ogTitleSuffix: p.ogTitleSuffix || "| Dezhost",
+        ogTitleSuffix: p.ogTitleSuffix || "| Teculiar",
         ogImageStatic: p.ogImageStatic || "",
         ogImageDashboard: p.ogImageDashboard || "",
         ogImageBlog: p.ogImageBlog || ""
@@ -2679,10 +2679,10 @@ export function SeoSettingsForm() {
   async function submit(formData: FormData) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/seo-settings`, {
       body: JSON.stringify({
-        siteName: String(formData.get("siteName") ?? "Dezhost"),
+        siteName: String(formData.get("siteName") ?? "Teculiar"),
         metaDescription: String(formData.get("metaDescription") ?? ""),
         blogMetaDescription: String(formData.get("blogMetaDescription") ?? ""),
-        ogTitleSuffix: String(formData.get("ogTitleSuffix") ?? "| Dezhost"),
+        ogTitleSuffix: String(formData.get("ogTitleSuffix") ?? "| Teculiar"),
         ogImageStatic: s.ogImageStatic,
         ogImageDashboard: s.ogImageDashboard,
         ogImageBlog: s.ogImageBlog
@@ -2703,11 +2703,11 @@ export function SeoSettingsForm() {
       <p style={{ color: "var(--muted)", fontSize: "0.84rem", margin: "-4px 0 0" }} dangerouslySetInnerHTML={{ __html: c.siteIdentityHint.replace("<title>", "&lt;title&gt;") }} />
       <label>
         {c.siteName}
-        <input value={s.siteName} name="siteName" placeholder="Dezhost" onChange={(e) => setS({ ...s, siteName: e.target.value })} />
+        <input value={s.siteName} name="siteName" placeholder="Teculiar" onChange={(e) => setS({ ...s, siteName: e.target.value })} />
       </label>
       <label>
         {c.titleSuffix}
-        <input value={s.ogTitleSuffix} name="ogTitleSuffix" placeholder="| Dezhost" onChange={(e) => setS({ ...s, ogTitleSuffix: e.target.value })} />
+        <input value={s.ogTitleSuffix} name="ogTitleSuffix" placeholder="| Teculiar" onChange={(e) => setS({ ...s, ogTitleSuffix: e.target.value })} />
       </label>
 
       <h3>{c.metaDescriptions}</h3>
@@ -2721,7 +2721,7 @@ export function SeoSettingsForm() {
           name="metaDescription"
           rows={3}
           maxLength={160}
-          placeholder="Dezhost – ethical web hosting and IT services from Germany. Fair prices, personal support, full GDPR compliance. For associations, NGOs, and small businesses."
+          placeholder="Teculiar – ethical web hosting and IT services from Germany. Fair prices, personal support, full GDPR compliance. For associations, NGOs, and small businesses."
           onChange={(e) => setS({ ...s, metaDescription: e.target.value })}
         />
         <small style={{ color: "var(--muted)" }}>{c.charsCount.replace("{n}", String(s.metaDescription.length))}</small>

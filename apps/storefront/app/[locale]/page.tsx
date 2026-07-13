@@ -1,12 +1,12 @@
 import { Globe, HardDrive, Mail, Server, ShieldCheck } from "lucide-react";
-import { DomainSearch } from "@dezhost/web-core/components/marketing/domain-search";
-import { Hero } from "@dezhost/web-core/components/marketing/hero";
-import { PlatformSection } from "@dezhost/web-core/components/marketing/platform-section";
-import { ProductGrid } from "@dezhost/web-core/components/marketing/product-grid";
+import { DomainSearch } from "@teculiar/web-core/components/marketing/domain-search";
+import { Hero } from "@teculiar/web-core/components/marketing/hero";
+import { PlatformSection } from "@teculiar/web-core/components/marketing/platform-section";
+import { ProductGrid } from "@teculiar/web-core/components/marketing/product-grid";
 import { CustomPageGate } from "../../components/customizer/custom-page";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import styles from "./home.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {

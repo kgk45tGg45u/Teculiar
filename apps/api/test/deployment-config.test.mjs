@@ -19,8 +19,12 @@ test("production deployment files describe GitHub Actions and server Docker wiri
 
   // Images follow the box's release channel (IMAGE_TAG=latest live / edge pre-prod); host
   // ports + bind host are parameterized so two stacks can coexist on the box.
-  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-api:\$\{IMAGE_TAG:-latest\}/);
-  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/dezhost-web:\$\{IMAGE_TAG:-latest\}/);
+  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/teculiar-api:\$\{IMAGE_TAG:-latest\}/);
+  assert.match(compose, /image:\s*ghcr\.io\/[^/\s]+\/teculiar-web:\$\{IMAGE_TAG:-latest\}/);
+  // Phase 9.1: the storefront image is dual-published as dezhost-storefront until the Dezhost
+  // repo compose + self-host installs are repointed at teculiar-storefront.
+  assert.match(workflow, /teculiar-storefront/);
+  assert.match(workflow, /dezhost-storefront/);
   assert.match(compose, /\$\{BIND_HOST:-127\.0\.0\.1\}:\$\{API_PORT:-4000\}:4000/);
   assert.match(compose, /\$\{BIND_HOST:-127\.0\.0\.1\}:\$\{WEB_PORT:-3000\}:3000/);
   // The deploy job updates the live multi-tenant stack + the Dezhost storefront stack.

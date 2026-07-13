@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
-import { billingCycles, domainRequirements, productTypes } from "@dezhost/shared";
+import { billingCycles, domainRequirements, productTypes } from "@teculiar/shared";
 
 type PriceInput = {
   amountCents: number;

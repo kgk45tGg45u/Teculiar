@@ -7,7 +7,7 @@
  * no DB): the catalog registers it under the new `platform` kind, ExternalService routes the
  * "tecreator" module name to it, and the provider delegates to createTenant / degrades gracefully.
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/tecreator-module.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/tecreator-module.test.mjs
  */
 
 import assert from "node:assert/strict";

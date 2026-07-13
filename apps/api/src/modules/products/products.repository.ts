@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { BillingCycle, Prisma, ProductType, ServiceStatus } from "@prisma/client";
-import { billingCycles, domainRequirements } from "@dezhost/shared";
+import { billingCycles, domainRequirements } from "@teculiar/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { readMainCurrency } from "../../common/currency";

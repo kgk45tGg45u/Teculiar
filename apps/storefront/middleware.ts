@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LOCALE_COOKIE, localeFromAcceptLanguage, getLocale } from "@dezhost/web-core/lib/i18n";
-import { isLocaleCode } from "@dezhost/web-core/lib/supported-locales";
+import { LOCALE_COOKIE, OLD_LOCALE_COOKIE, localeFromAcceptLanguage, getLocale } from "@teculiar/web-core/lib/i18n";
+import { isLocaleCode } from "@teculiar/web-core/lib/supported-locales";
 
 const PUBLIC_FILE = /\.(.*)$/;
 const LOCALE_COOKIE_OPTS = { path: "/", sameSite: "lax" as const, maxAge: 60 * 60 * 24 * 365 };
@@ -122,7 +122,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dest, redirect.permanent ? 301 : 302);
   }
 
-  const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value;
+  const savedLocale = request.cookies.get(LOCALE_COOKIE)?.value ?? request.cookies.get(OLD_LOCALE_COOKIE)?.value;
   const locale = savedLocale ? getLocale(savedLocale) : localeFromAcceptLanguage(request.headers.get("accept-language"));
 
   // The first path segment is a locale if it is a well-formed code (any 2-letter language,

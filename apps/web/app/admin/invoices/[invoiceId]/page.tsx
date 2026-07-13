@@ -1,14 +1,14 @@
-import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, isAdminRole, money, type ApiInvoice, type AuthUser } from "@dezhost/web-core/lib/api";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { invoiceStatusLabel } from "@dezhost/web-core/lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, isAdminRole, money, type ApiInvoice, type AuthUser } from "@teculiar/web-core/lib/api";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { invoiceStatusLabel } from "@teculiar/web-core/lib/status-labels";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/portal/client-dashboard.module.css";
 import adminStyles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
-import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 
 export default async function AdminInvoicePage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const href = await surfaceHrefMapper();
@@ -80,7 +80,7 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
               <div className={styles.invoiceSheet}>
                 <header className={styles.invoiceLetterhead}>
                   <div>
-                    <strong>{seller.companyName || "Dezhost"}</strong>
+                    <strong>{seller.companyName || "Teculiar"}</strong>
                     <span>{[seller.address, seller.zip, seller.city, seller.country].filter(Boolean).join(", ")}</span>
                   </div>
                   <div>

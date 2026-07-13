@@ -1,10 +1,10 @@
 {
-  "name": "@dezhost/storefront",
+  "name": "@teculiar/storefront",
   "private": true,
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev --port 3001",
-    "prebuild": "npm --workspace @dezhost/shared run build",
+    "prebuild": "npm --workspace @teculiar/shared run build",
     "build": "next build",
     "start": "next start --port 3001",
     "lint": "next lint",
@@ -12,9 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dezhost/locales": "*",
-    "@dezhost/shared": "*",
-    "@dezhost/web-core": "*",
+    "@teculiar/locales": "*",
+    "@teculiar/shared": "*",
+    "@teculiar/web-core": "*",
     "lucide-react": "^1.14.0",
     "next": "^16.2.4",
     "react": "^19.2.5",

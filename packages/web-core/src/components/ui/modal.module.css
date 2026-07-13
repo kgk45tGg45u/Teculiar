@@ -53,8 +53,8 @@
 }
 
 .close:hover {
-  color: var(--dezhost);
-  border-color: color-mix(in srgb, var(--dezhost) 40%, var(--border));
+  color: var(--teculiar);
+  border-color: color-mix(in srgb, var(--teculiar) 40%, var(--border));
 }
 
 .body {

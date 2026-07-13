@@ -50,7 +50,7 @@
 }
 
 .prose a {
-  color: var(--dezhost);
+  color: var(--teculiar);
   text-decoration: underline;
   text-underline-offset: 3px;
   overflow-wrap: anywhere;

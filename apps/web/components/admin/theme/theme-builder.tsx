@@ -2,10 +2,10 @@
 
 import { Check } from "lucide-react";
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
-import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authFetch } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "../admin-dashboard.module.css";
 import { ThemeBlueForm } from "../theme-blue-form";
 import { FooterTab } from "./footer-tab";

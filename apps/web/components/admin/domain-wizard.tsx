@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authFetch } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
 
 type TxtRecord = { name: string; value: string } | null;

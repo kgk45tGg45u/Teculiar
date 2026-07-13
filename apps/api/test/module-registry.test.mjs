@@ -4,7 +4,7 @@
  *  - parseNameServers:   CSV/whitespace parsing of the configured default name servers
  *  - canonicalModuleName: maps stored registrar identifiers onto catalog module names
  *
- * Run with:  npm --workspace @dezhost/api run build && node --test test/module-registry.test.mjs
+ * Run with:  npm --workspace @teculiar/api run build && node --test test/module-registry.test.mjs
  */
 
 import assert from "node:assert/strict";

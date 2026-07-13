@@ -16,7 +16,7 @@ const SECRET = process.env.JWT_ACCESS_SECRET ?? "";
 // The render/publish tests only need the token's roles claim, so they run with a synthetic sub.
 const ADMIN_SUB = process.env.E2E_ADMIN_SUB ?? "";
 const PAGE_KEY = "uber-uns";
-const ADMIN_COOKIE = "dezhost_admin_access_token";
+const ADMIN_COOKIE = "teculiar_admin_access_token";
 
 const b64url = (input: Buffer | string) =>
   Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");

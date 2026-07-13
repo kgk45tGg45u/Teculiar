@@ -85,7 +85,7 @@
 }
 
 .contactCard svg {
-  color: var(--dezhost);
+  color: var(--teculiar);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -100,7 +100,7 @@
 }
 
 .contactCard a {
-  color: var(--dezhost);
+  color: var(--teculiar);
   font-size: 0.92rem;
   font-weight: 600;
 }

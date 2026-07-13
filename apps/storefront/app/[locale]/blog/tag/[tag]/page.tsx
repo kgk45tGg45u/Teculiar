@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { Metadata, Route } from "next";
 import { ArrowRight, Tag } from "lucide-react";
-import { apiGet, type ApiBlogPost } from "@dezhost/web-core/lib/api";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiBlogPost } from "@teculiar/web-core/lib/api";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import styles from "../../blog.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; tag: string }> }): Promise<Metadata> {
@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const tag = decodeURIComponent(rawTag);
   return {
     description: locale === "de" ? `Artikel mit dem Tag ${tag}.` : `Articles tagged ${tag}.`,
-    title: `${tag} | Dezhost Blog`
+    title: tag
   };
 }
 

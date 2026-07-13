@@ -1,17 +1,17 @@
 {
-  "name": "dezhost-hosting-platform",
+  "name": "teculiar-platform",
   "private": true,
   "version": "0.1.0",
-  "description": "Production-grade SaaS platform foundation for a German hosting and IT services provider.",
+  "description": "Teculiar — production-grade multi-tenant hosting SaaS platform.",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
     "dev": "npm run dev:web",
-    "dev:web": "npm --workspace @dezhost/web run dev",
-    "dev:api": "npm --workspace @dezhost/api run start:dev",
-    "dev:storefront": "npm --workspace @dezhost/storefront run dev",
+    "dev:web": "npm --workspace @teculiar/web run dev",
+    "dev:api": "npm --workspace @teculiar/api run start:dev",
+    "dev:storefront": "npm --workspace @teculiar/storefront run dev",
     "dev:full": "concurrently -n web,api -c cyan,magenta \"npm:dev:web\" \"npm:dev:api\"",
     "dev:all": "concurrently -n web,store,api -c cyan,green,magenta \"npm:dev:web\" \"npm:dev:storefront\" \"npm:dev:api\"",
     "e2e": "playwright test",
@@ -25,7 +25,7 @@
     "e2e:lifecycle:typecheck": "tsc -p tests/e2e/tsconfig.json",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",
-    "test": "npm --workspace @dezhost/api run test",
+    "test": "npm --workspace @teculiar/api run test",
     "typecheck": "npm --workspaces run typecheck",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",

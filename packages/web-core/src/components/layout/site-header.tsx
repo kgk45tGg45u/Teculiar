@@ -29,7 +29,7 @@ export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", lan
   const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
-  const brandLabel = isPanel ? "Teculiar" : "Dezhost";
+  const brandLabel = "Teculiar";
   const nav = buildNav(theme, locale, copy, base);
 
   return (

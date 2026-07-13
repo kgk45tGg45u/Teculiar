@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { apiGet, type ApiKnowledgebaseArticle } from "@dezhost/web-core/lib/api";
-import { getLocale } from "@dezhost/web-core/lib/i18n";
+import { apiGet, type ApiKnowledgebaseArticle } from "@teculiar/web-core/lib/api";
+import { getLocale } from "@teculiar/web-core/lib/i18n";
 import styles from "../knowledgebase.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     description: article?.seoDescription ?? article?.excerpt ?? preview(article?.body ?? ""),
     openGraph: { title: article?.seoTitle ?? article?.title },
-    title: article ? `${article.seoTitle ?? article.title} | Dezhost` : "Knowledgebase | Dezhost"
+    title: article ? article.seoTitle ?? article.title : "Knowledgebase"
   };
 }
 

@@ -9,7 +9,7 @@ import type {
 const DEFAULT_BASE_URL = "https://httpapi.com";
 const DEFAULT_HEADERS = {
   Accept: "application/json, text/plain",
-  "User-Agent": "DezhostAdminResellBizClient/0.1 (+https://dezhost.com)"
+  "User-Agent": "TeculiarAdminResellBizClient/0.1 (+https://teculiar.com)"
 };
 
 export class ResellBizApiError extends Error {

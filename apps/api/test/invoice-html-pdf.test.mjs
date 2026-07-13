@@ -5,7 +5,7 @@ import {
   renderInvoiceDocument,
   renderInvoicePdfFromHtml
 } from "../dist/modules/billing/invoice-document.js";
-import { formatCustomerNumber } from "@dezhost/shared";
+import { formatCustomerNumber } from "@teculiar/shared";
 
 const invoice = {
   currency: "EUR",
@@ -118,7 +118,7 @@ test("invoice PDF renderer consumes invoice HTML and returns a PDF buffer", asyn
   assert.equal(Buffer.isBuffer(pdf), true);
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   assert.ok(pdf.byteLength > 6000);
-  assert.match(pdf.toString("latin1"), /Dezhost invoice PDF renderer/);
+  assert.match(pdf.toString("latin1"), /Teculiar invoice PDF renderer/);
   assert.doesNotMatch(pdf.toString("latin1"), /BT \/F1 10 Tf 44 790 Td/);
 });
 

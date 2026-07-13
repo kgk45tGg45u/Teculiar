@@ -2,13 +2,13 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { API_BASE_URL, authFetch } from "@dezhost/web-core/lib/api";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authFetch } from "@teculiar/web-core/lib/api";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "../admin-dashboard.module.css";
 import { TranslateField } from "./translate-field";
 import type { AdminPage, LocaleMap, TB } from "./types";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
 
 const lbl: React.CSSProperties = { display: "grid", gap: 4, fontSize: "0.84rem", color: "var(--muted)" };
 const badge: React.CSSProperties = { fontSize: "0.72rem", padding: "2px 8px", borderRadius: 999, background: "var(--border)", color: "var(--muted)" };

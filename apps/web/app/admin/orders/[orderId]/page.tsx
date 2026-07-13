@@ -1,13 +1,13 @@
-import { cycleLabel, invoiceDisplayNumber, isAdminRole, money, type ApiOrder, type AuthUser } from "@dezhost/web-core/lib/api";
-import { orderStatusLabel, serviceStatusLabel } from "@dezhost/web-core/lib/status-labels";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { cycleLabel, invoiceDisplayNumber, isAdminRole, money, type ApiOrder, type AuthUser } from "@teculiar/web-core/lib/api";
+import { orderStatusLabel, serviceStatusLabel } from "@teculiar/web-core/lib/status-labels";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
-import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 
 type AdminOrderItem = ApiOrder["items"][number] & {
   billingCycle?: string | null;

@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL, authHeaders, dateLabel, type ApiActionLog } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import type { Locale } from "@dezhost/web-core/lib/i18n";
-import { cronJobSummary, cronLogStatus } from "@dezhost/web-core/lib/cron-log";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
+import { API_BASE_URL, authHeaders, dateLabel, type ApiActionLog } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import type { Locale } from "@teculiar/web-core/lib/i18n";
+import { cronJobSummary, cronLogStatus } from "@teculiar/web-core/lib/cron-log";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
 import styles from "./admin-dashboard.module.css";
 
 type Tab = "system" | "cron";
@@ -125,7 +125,7 @@ export function LogsExplorer({ locale, timezone }: { locale: Locale; timezone: s
           type="button"
           onClick={saveRetention}
           disabled={savingRetention || retention === retentionSaved}
-          style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid var(--border)", cursor: "pointer", background: retention === retentionSaved ? "var(--surface)" : "var(--dezhost)", color: retention === retentionSaved ? "var(--muted)" : "white" }}
+          style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid var(--border)", cursor: "pointer", background: retention === retentionSaved ? "var(--surface)" : "var(--teculiar)", color: retention === retentionSaved ? "var(--muted)" : "white" }}
         >
           {savingRetention ? c.saving : c.save}
         </button>
@@ -191,7 +191,7 @@ function tabStyle(active: boolean): React.CSSProperties {
   return {
     background: "none",
     border: "none",
-    borderBottom: active ? "2px solid var(--dezhost)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--teculiar)" : "2px solid transparent",
     color: active ? "var(--text)" : "var(--muted)",
     cursor: "pointer",
     fontWeight: active ? 700 : 500,

@@ -1,10 +1,10 @@
-import { isAdminRole, type AuthUser } from "@dezhost/web-core/lib/api";
+import { isAdminRole, type AuthUser } from "@teculiar/web-core/lib/api";
 import { CustomizerBuilder } from "../../../../../components/admin/customizer/builder";
 import type { CustomizerPageData } from "../../../../../components/admin/customizer/api";
 import type { AdminThemeData } from "../../../../../components/admin/theme/types";
-import { asLayoutDoc, emptyLayout } from "@dezhost/web-core/lib/customizer/types";
-import { localized } from "@dezhost/web-core/lib/storefront-theme";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
+import { asLayoutDoc, emptyLayout } from "@teculiar/web-core/lib/customizer/types";
+import { localized } from "@teculiar/web-core/lib/storefront-theme";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 
 // Full-screen Customizer builder for one global page. The route key (`pageKey`) is resolved to the
 // page id via the admin theme payload (which also carries the configured locales), then the page's

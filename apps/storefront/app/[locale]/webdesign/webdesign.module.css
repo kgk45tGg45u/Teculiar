@@ -51,7 +51,7 @@
 }
 
 .targetItem svg {
-  color: var(--dezhost);
+  color: var(--teculiar);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -95,7 +95,7 @@
   font-size: 2rem;
   font-weight: 820;
   line-height: 1;
-  color: var(--dezhost);
+  color: var(--teculiar);
   opacity: 0.3;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .featureCard svg {
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .featureCard h3 {
@@ -185,7 +185,7 @@
   font-weight: 760;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .portfolioInfo strong {

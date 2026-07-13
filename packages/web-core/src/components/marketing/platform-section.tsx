@@ -53,11 +53,11 @@ export function PlatformSection({ locale }: { locale: Locale }) {
 
   return (
     <>
-      {/* Why Dezhost */}
+      {/* Why us */}
       <section className="section">
         <div className="container">
           <div className={styles.header}>
-            <span className="eyebrow">{isDe ? "Warum Dezhost" : "Why Dezhost"}</span>
+            <span className="eyebrow">{isDe ? "Warum wir" : "Why us"}</span>
             <h2>{isDe ? "Digitale Lösungen ohne Konzerngefühl." : "Digital solutions without the corporate feel."}</h2>
             <p className={styles.subhead}>
               {isDe

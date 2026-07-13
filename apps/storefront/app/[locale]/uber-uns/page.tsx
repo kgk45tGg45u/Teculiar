@@ -1,10 +1,10 @@
 import { ArrowRight, Globe, HandHeart, Lock, MessageCircle, Phone, Sprout, User } from "lucide-react";
-import { Button } from "@dezhost/web-core/components/ui/button";
+import { Button } from "@teculiar/web-core/components/ui/button";
 import { CustomPageGate } from "../../../components/customizer/custom-page";
-import { apiGet } from "@dezhost/web-core/lib/api";
-import { getLocale, type Locale } from "@dezhost/web-core/lib/i18n";
+import { apiGet } from "@teculiar/web-core/lib/api";
+import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
 import type { Metadata } from "next";
-import { pageMetadata } from "@dezhost/web-core/lib/storefront-theme";
+import { pageMetadata } from "@teculiar/web-core/lib/storefront-theme";
 import styles from "./uber-uns.module.css";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {

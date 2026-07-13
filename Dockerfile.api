@@ -19,12 +19,12 @@ COPY prisma              ./prisma
 # Build shared lib → locales pack → generate Prisma client → compile API
 # (the api prebuild also builds shared + locales; building here first keeps the
 #  layers cacheable and surfaces pack errors before the slower nest build.)
-RUN npm run build --workspace @dezhost/shared
-RUN npm run build --workspace @dezhost/locales
+RUN npm run build --workspace @teculiar/shared
+RUN npm run build --workspace @teculiar/locales
 RUN node_modules/.bin/prisma generate --schema prisma/schema.prisma
 # Control-plane client (Phase 4.1 tenant registry) → prisma/control-plane/generated
 RUN node_modules/.bin/prisma generate --schema prisma/control-plane/schema.prisma
-RUN npm run build --workspace @dezhost/api
+RUN npm run build --workspace @teculiar/api
 
 # Strip dev dependencies before copying to the production image
 RUN npm prune --omit=dev
@@ -41,9 +41,9 @@ ENV NODE_ENV=production
 # Pruned node_modules (includes Prisma engines + workspace symlinks)
 COPY --from=builder /app/node_modules         ./node_modules
 # Compiled shared package — must include package.json so Node can resolve
-# the workspace symlink node_modules/@dezhost/shared → packages/shared
+# the workspace symlink node_modules/@teculiar/shared → packages/shared
 COPY --from=builder /app/packages/shared ./packages/shared
-# Compiled locales package — the API requires("@dezhost/locales") at runtime,
+# Compiled locales package — the API requires("@teculiar/locales") at runtime,
 # which resolves through the same workspace symlink to packages/locales/dist.
 COPY --from=builder /app/packages/locales ./packages/locales
 COPY --from=builder /app/apps/api/dist        ./apps/api/dist

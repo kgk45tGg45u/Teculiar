@@ -22,17 +22,17 @@ import {
   type ApiKnowledgebaseArticle,
   type ApiService,
   type ApiTicket
-} from "@dezhost/web-core/lib/api";
-import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@dezhost/web-core/lib/status-labels";
-import { type Locale } from "@dezhost/web-core/lib/i18n";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+} from "@teculiar/web-core/lib/api";
+import { invoiceStatusLabel, invoiceStatusVisible, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@teculiar/web-core/lib/status-labels";
+import { type Locale } from "@teculiar/web-core/lib/i18n";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { StatusPill } from "@dezhost/web-core/components/ui/status-pill";
-import { notify, notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { notify, notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
 type ClientView = "dashboard" | "services" | "domains" | "invoices" | "tickets" | "new-ticket" | "knowledgebase" | "add-funds" | "payment" | "profile";
@@ -1058,7 +1058,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
       <div className={styles.invoiceSheet}>
         <header className={styles.invoiceLetterhead}>
           <div>
-            <strong>{seller.companyName || "Dezhost"}</strong>
+            <strong>{seller.companyName || "Teculiar"}</strong>
             <span>{[seller.address, seller.zip, seller.city, seller.country].filter(Boolean).join(", ")}</span>
           </div>
           <div>

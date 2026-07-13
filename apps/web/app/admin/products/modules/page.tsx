@@ -1,15 +1,15 @@
 import { ModulesManager } from "../../../../components/admin/admin-modules";
 import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { LogoutButton } from "../../../../components/auth/logout-button";
-import { LanguageToggle } from "@dezhost/web-core/components/layout/language-toggle";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { apiGetAuth, redirectToAdminLogin } from "@dezhost/web-core/lib/server-api";
-import { requestLocale } from "@dezhost/web-core/lib/server-locale";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { isAdminRole, type AuthUser, type ApiDomainPrice } from "@dezhost/web-core/lib/api";
+import { LanguageToggle } from "@teculiar/web-core/components/layout/language-toggle";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
+import { requestLocale } from "@teculiar/web-core/lib/server-locale";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { isAdminRole, type AuthUser, type ApiDomainPrice } from "@teculiar/web-core/lib/api";
 import { Suspense } from "react";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
-import { surfaceHrefMapper } from "@dezhost/web-core/lib/server-api";
+import { surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 
 export default async function AdminModulesPage() {
   const href = await surfaceHrefMapper();

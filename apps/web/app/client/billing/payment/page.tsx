@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Building2, CheckCircle, AlertCircle, CreditCard, Landmark, Loader, Wallet } from "lucide-react";
-import { API_BASE_URL, authHeaders, currentLocale, invoiceDisplayNumber, money, type ApiInvoice } from "@dezhost/web-core/lib/api";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
+import { API_BASE_URL, authHeaders, currentLocale, invoiceDisplayNumber, money, type ApiInvoice } from "@teculiar/web-core/lib/api";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import styles from "./payment.module.css";
-import { useSurfaceHref } from "@dezhost/web-core/lib/use-surface-href";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
 type GatewayEntry = { config?: Record<string, string | undefined>; method: string; title: string };
 type PayPalNamespace = {

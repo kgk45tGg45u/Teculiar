@@ -1,4 +1,4 @@
-import { formatCustomerNumber } from "@dezhost/shared";
+import { formatCustomerNumber } from "@teculiar/shared";
 import { load } from "cheerio";
 import PDFDocument from "pdfkit";
 import { formatDate, formatMoney as fmtMoney, loadDictionary } from "../../common/i18n";
@@ -32,7 +32,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
   const paymentInstructions = stringValue(seller.paymentInstructions);
   const bankDetails = stringValue(seller.bankDetails);
   const showVat = numberValue(invoice.taxAmountCents) > 0;
-  const sellerCompany = stringValue(seller.companyName) ?? "Dezhost";
+  const sellerCompany = stringValue(seller.companyName) ?? "Teculiar";
   const logoUrl = stringValue(options.logoUrl);
 
   const sellerContact = [
@@ -166,7 +166,7 @@ export function renderInvoicePdfFromHtml(html: string, logoImage?: Buffer) {
     const document = new PDFDocument({
       compress: false,
       info: {
-        Creator: "Dezhost invoice PDF renderer",
+        Creator: "Teculiar invoice PDF renderer",
         Title: content.title
       },
       margins: { bottom: 48, left: 56, right: 56, top: 52 },

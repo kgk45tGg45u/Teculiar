@@ -37,7 +37,7 @@ described here — nothing is hardcoded where the codebase already encodes the r
 ## 2. Authentication
 
 - `POST /auth/login` → `{ accessToken, refreshToken, user.roles }`.
-- Cookies the web app reads: `dezhost_client_access_token` / `dezhost_admin_access_token`
+- Cookies the web app reads: `teculiar_client_access_token` / `teculiar_admin_access_token`
   (+ `_refresh_token`). Client and admin scopes are independent.
 - Portal pages are guarded by middleware; injecting the access cookie is enough to load them.
 

@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from "class-validator";
-import { billingCycles, productTypes } from "@dezhost/shared";
+import { billingCycles, productTypes } from "@teculiar/shared";
 
 export class OrderItemDto {
   @IsString()

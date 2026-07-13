@@ -1,14 +1,14 @@
 {
-  "name": "@dezhost/api",
+  "name": "@teculiar/api",
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "prestart": "npm --workspace @dezhost/shared run build && npm --workspace @dezhost/locales run build",
+    "prestart": "npm --workspace @teculiar/shared run build && npm --workspace @teculiar/locales run build",
     "start": "nest start",
     "start:prod": "node dist/main.js",
-    "prestart:dev": "npm --workspace @dezhost/shared run build && npm --workspace @dezhost/locales run build",
+    "prestart:dev": "npm --workspace @teculiar/shared run build && npm --workspace @teculiar/locales run build",
     "start:dev": "nest start --watch",
-    "prebuild": "npm --workspace @dezhost/shared run build && npm --workspace @dezhost/locales run build",
+    "prebuild": "npm --workspace @teculiar/shared run build && npm --workspace @teculiar/locales run build",
     "build": "nest build",
     "lint": "tsc --noEmit",
     "resellbiz": "node scripts/resellbiz.cjs",
@@ -17,8 +17,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dezhost/locales": "*",
-    "@dezhost/shared": "*",
+    "@teculiar/locales": "*",
+    "@teculiar/shared": "*",
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.19",

@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Plus, Send, Trash2, UploadCloud } from "lucide-react";
-import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "@dezhost/web-core/lib/api";
-import { useLocale } from "@dezhost/web-core/components/layout/locale-provider";
-import { getDictionary } from "@dezhost/web-core/lib/dictionary";
-import { Button } from "@dezhost/web-core/components/ui/button";
-import { notifyResponse } from "@dezhost/web-core/components/ui/toast-provider";
+import { API_BASE_URL, authFetch, type ApiAdminUser, type ApiDepartment } from "@teculiar/web-core/lib/api";
+import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./admin-dashboard.module.css";
-import { surfaceHref } from "@dezhost/web-core/lib/surface";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
 // ── Departments management ─────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ export function AdminDepartmentsPanel() {
         <form action={createDepartment} className={styles.form}>
           <div className={styles.inlineForm}>
             <label>{c.name}<input name="name" placeholder={c.namePlaceholder} required /></label>
-            <label>{c.inboxEmail}<input name="email" placeholder="billing@dezhost.com" type="email" /></label>
+            <label>{c.inboxEmail}<input name="email" placeholder="billing@teculiar.com" type="email" /></label>
             <label>{c.colour}<input defaultValue="#0077b6" name="color" type="color" /></label>
             <label className={styles.inlineForm}><input name="isDefault" type="checkbox" /> {c.default}</label>
           </div>

@@ -167,4 +167,4 @@ Lifecycle notes:
 
 ## Temporary Scripts
 
-- `npm --workspace @dezhost/api run resellbiz` - Resell.biz domain status, auth code, nameserver, and transfer script. See `docs/resellbiz-client.md`.
+- `npm --workspace @teculiar/api run resellbiz` - Resell.biz domain status, auth code, nameserver, and transfer script. See `docs/resellbiz-client.md`.

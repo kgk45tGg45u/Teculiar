@@ -39,10 +39,10 @@ export const env = {
 
   // Auth cookie names set by the web app (lib/api.ts storeAuth()).
   cookies: {
-    clientAccess: "dezhost_client_access_token",
-    clientRefresh: "dezhost_client_refresh_token",
-    adminAccess: "dezhost_admin_access_token",
-    adminRefresh: "dezhost_admin_refresh_token"
+    clientAccess: "teculiar_client_access_token",
+    clientRefresh: "teculiar_client_refresh_token",
+    adminAccess: "teculiar_admin_access_token",
+    adminRefresh: "teculiar_admin_refresh_token"
   },
 
   // Virtualmin admin API — used ONLY to tear down hosting accounts the suite created.

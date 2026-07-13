@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/test";
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@dezhost.local";
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
-const ADMIN_COOKIE = "dezhost_admin_access_token";
+const ADMIN_COOKIE = "teculiar_admin_access_token";
 
 async function loginAsAdmin(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never) {
   await page.goto(`${BASE}/admin/login`);

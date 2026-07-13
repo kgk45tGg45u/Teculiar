@@ -41,8 +41,8 @@
 }
 
 .pdfBtn:hover {
-  border-color: var(--dezhost);
-  color: var(--dezhost);
+  border-color: var(--teculiar);
+  color: var(--teculiar);
 }
 
 .oneTimeSection {
@@ -81,7 +81,7 @@
 }
 
 .productCard.featured {
-  border-color: var(--dezhost);
+  border-color: var(--teculiar);
   background: linear-gradient(180deg, rgba(0, 119, 182, 0.03), var(--paper));
 }
 
@@ -93,7 +93,7 @@
 .productPrice {
   font-size: 1.3rem;
   font-weight: 820;
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .productCard p {
@@ -106,7 +106,7 @@
 .badge {
   display: inline-block;
   padding: 4px 10px;
-  background: var(--dezhost);
+  background: var(--teculiar);
   color: white;
   font-size: 0.72rem;
   font-weight: 760;
@@ -146,7 +146,7 @@
 }
 
 .featuredCard {
-  border-color: var(--dezhost);
+  border-color: var(--teculiar);
 }
 
 .supportCard h3 {
@@ -157,7 +157,7 @@
 .supportPrice {
   font-size: 1.4rem;
   font-weight: 820;
-  color: var(--dezhost);
+  color: var(--teculiar);
 }
 
 .supportCard p {
@@ -183,7 +183,7 @@
 }
 
 .featureList svg {
-  color: var(--dezhost);
+  color: var(--teculiar);
   flex-shrink: 0;
 }
 
@@ -279,7 +279,7 @@
 .hourlyRate strong {
   font-size: 2.8rem;
   font-weight: 820;
-  color: var(--dezhost);
+  color: var(--teculiar);
   line-height: 1;
 }
 

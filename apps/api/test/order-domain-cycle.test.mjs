@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { domainCycleFor, isYearlyCycle } from "@dezhost/shared";
+import { domainCycleFor, isYearlyCycle } from "@teculiar/shared";
 import { OrdersService } from "../dist/modules/orders/orders.service.js";
 
 // 1.3 — an admin new-order (or storefront) domain line must register/renew on a yearly cadence,

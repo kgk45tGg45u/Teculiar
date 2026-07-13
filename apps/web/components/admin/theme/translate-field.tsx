@@ -2,7 +2,7 @@
 
 import { Languages } from "lucide-react";
 import { useState } from "react";
-import { Modal } from "@dezhost/web-core/components/ui/modal";
+import { Modal } from "@teculiar/web-core/components/ui/modal";
 import { localeName, type LocaleMap } from "./types";
 
 // A single text field that edits the value in the admin's own language inline. When the store has

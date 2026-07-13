@@ -68,7 +68,7 @@ test.describe("Unauthenticated access", () => {
     }
     await loginAsClient(page);
     // Steal the client access token
-    const clientCookie = (await context.cookies()).find((c) => c.name === "dezhost_client_access_token");
+    const clientCookie = (await context.cookies()).find((c) => c.name === "teculiar_client_access_token");
     if (!clientCookie) {
       test.skip();
       return;
@@ -174,7 +174,7 @@ test.describe("Cross-client data isolation", () => {
     const resp = await page.evaluate(async ({ base, fakeId }) => {
       const res = await fetch(`${base}/billing/invoices/${fakeId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("dezhost_client_access_token") ?? ""}`
+          Authorization: `Bearer ${localStorage.getItem("teculiar_client_access_token") ?? ""}`
         }
       });
       return res.status;
@@ -193,7 +193,7 @@ test.describe("Cross-client data isolation", () => {
     const resp = await page.evaluate(async ({ base, fakeId }) => {
       const res = await fetch(`${base}/services/${fakeId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("dezhost_client_access_token") ?? ""}`
+          Authorization: `Bearer ${localStorage.getItem("teculiar_client_access_token") ?? ""}`
         }
       });
       return res.status;

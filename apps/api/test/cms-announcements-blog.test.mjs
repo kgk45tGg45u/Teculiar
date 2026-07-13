@@ -132,6 +132,6 @@ test("site chrome has collapsible mobile nav, panel branding, and refined client
   assert.match(headerCss, /@media \(max-width: 980px\)[\s\S]*\.mobileMenu/);
   assert.match(headerCss, /\.clientLogin/);
   assert.match(headerCss, /border-radius:\s*999px/);
-  assert.match(footer, /brandLabel = isPanel \? "Teculiar" : "Dezhost"/);
+  assert.match(footer, /brandLabel = "Teculiar"/);
   assert.match(footerCss, /\.footer/);
 });

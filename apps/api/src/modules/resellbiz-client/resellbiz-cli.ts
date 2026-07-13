@@ -95,7 +95,7 @@ function registerCustomerInputFrom(args: string[]) {
   const { flags, positional } = parseFlags(args);
   const domainName = required(positional[0], "domain");
   const email = required(oneFlag(flags, "email"), "email");
-  const name = oneFlag(flags, "name") ?? "Dezhost Test Buyer";
+  const name = oneFlag(flags, "name") ?? "Teculiar Test Buyer";
   const country = oneFlag(flags, "country") ?? "DE";
   const phoneCountryCode = oneFlag(flags, "phone-cc") ?? "49";
   const phone = oneFlag(flags, "phone") ?? "30123456";
