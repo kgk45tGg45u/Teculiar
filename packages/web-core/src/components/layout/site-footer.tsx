@@ -7,10 +7,10 @@ import { flattenLinks, footerText, type NavNode, type StorefrontTheme, toNav } f
 import { Button } from "../ui/button";
 import styles from "./site-footer.module.css";
 
-export function SiteFooter({ brandLogo, locale, variant = "site", theme }: { brandLogo?: string; locale: Locale; variant?: "site" | "admin"; theme?: StorefrontTheme | null }) {
+export function SiteFooter({ brandLogo, brandName, locale, variant = "site", theme }: { brandLogo?: string; brandName?: string; locale: Locale; variant?: "site" | "admin"; theme?: StorefrontTheme | null }) {
   const f = getDictionary(locale).storefront.footer;
   const isPanel = variant === "admin";
-  const brandLabel = "Teculiar";
+  const brandLabel = brandName || "Teculiar";
   const base = `/${locale}`;
   const mainLocale = theme?.languages?.[0] ?? locale;
   const footer = theme?.footer ?? null;

@@ -15,6 +15,8 @@ import styles from "./site-header.module.css";
 
 type SiteHeaderProps = {
   brandLogo?: string;
+  /** Tenant brand (settings.siteName). Falls back to the software default "Teculiar". */
+  brandName?: string;
   brandHref?: string;
   locale: Locale;
   variant?: "site" | "admin";
@@ -25,11 +27,11 @@ type SiteHeaderProps = {
   clientBaseUrl?: string;
 };
 
-export function SiteHeader({ brandLogo, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"], theme, clientBaseUrl }: SiteHeaderProps) {
+export function SiteHeader({ brandLogo, brandName, brandHref, locale, variant = "site", languages = SUPPORTED_LOCALES, currencies = ["EUR", "USD"], theme, clientBaseUrl }: SiteHeaderProps) {
   const copy = getDictionary(locale);
   const base = `/${locale}`;
   const isPanel = variant === "admin";
-  const brandLabel = "Teculiar";
+  const brandLabel = brandName || "Teculiar";
   const nav = buildNav(theme, locale, copy, base);
 
   return (

@@ -81,15 +81,16 @@ export default async function PublicLayout({
     fetchStorefrontTheme()
   ]);
   const brandLogo = settings?.siteLogoUrl;
+  const brandName = settings?.siteName;
   const currencyConfig = currencyConfigFromSettings(settings);
   const i18nConfig = i18nConfigFromSettings(settings);
 
   return (
     <div className="shell">
-      <SiteHeader brandLogo={brandLogo} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} theme={theme} clientBaseUrl={settings?.clientBaseUrl} />
+      <SiteHeader brandLogo={brandLogo} brandName={brandName} locale={locale} languages={i18nConfig.languages} currencies={currencyConfig.currencies} theme={theme} clientBaseUrl={settings?.clientBaseUrl} />
       <CurrencyConfigInit config={currencyConfig} />
       <main>{children}</main>
-      <SiteFooter brandLogo={brandLogo} locale={locale} theme={theme} />
+      <SiteFooter brandLogo={brandLogo} brandName={brandName} locale={locale} theme={theme} />
       <CookieBanner locale={locale} />
     </div>
   );
