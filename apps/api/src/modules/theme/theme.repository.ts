@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { MenuName, Prisma } from "@prisma/client";
+import { getTenantContext } from "../../tenancy/tenant-context";
 import { PrismaService } from "../prisma/prisma.service";
 import { CONTENT_PAGE_DEFS, FOOTER_KEYS, LEGAL_MENU, MAIN_MENU, type LocaleMap, type MenuDef, localeMap } from "./theme-seed";
 import { PAGE_MIRRORS } from "./page-mirrors";
@@ -12,7 +13,9 @@ const FOOTER_SETTING_KEY = "storefront.footer";
 export class ThemeRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  private mirrorsSeeded = false;
+  // Keyed per tenant (Phase 3.3): a process-level boolean meant only the FIRST tenant's lazy path
+  // ever seeded Customizer mirror drafts in multi-tenant mode. "default" covers single-tenant mode.
+  private readonly mirrorsSeeded = new Set<string>();
 
   /** Languages configured in Admin > Settings (main + others), deduped. Falls back to ["de"]. */
   async configuredLocales(): Promise<string[]> {
@@ -112,12 +115,13 @@ export class ThemeRepository {
   // Seeds a Customizer "mirror" DRAFT for each page that has none yet, so the admin opens the builder
   // and sees the page's content as editable blocks. Drafts only — never auto-published, so the live
   // site is untouched until the admin reviews + publishes a page. Idempotent: skips any page that
-  // already has a draft (even an empty one the admin saved), and runs its loop once per process.
+  // already has a draft (even an empty one the admin saved), and runs its loop once per tenant per process.
   async ensureMirrorDrafts(): Promise<void> {
-    if (this.mirrorsSeeded) {
+    const tenantKey = getTenantContext()?.tenant?.id ?? "default";
+    if (this.mirrorsSeeded.has(tenantKey)) {
       return;
     }
-    this.mirrorsSeeded = true;
+    this.mirrorsSeeded.add(tenantKey);
     for (const [key, layout] of Object.entries(PAGE_MIRRORS)) {
       const page = await this.prisma.page.findUnique({ where: { key }, select: { id: true, draftLayout: true } });
       if (page && page.draftLayout == null) {

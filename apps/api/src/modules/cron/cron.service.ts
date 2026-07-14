@@ -1,5 +1,9 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { Injectable, Logger, Optional, UnauthorizedException } from "@nestjs/common";
 import { timingSafeEqual } from "node:crypto";
+import { ConnectionRegistry } from "../../tenancy/connection-registry.service";
+import { ControlPlaneService } from "../../tenancy/control-plane.service";
+import { getTenantContext, runWithTenant } from "../../tenancy/tenant-context";
+import { buildTenantContext } from "../../tenancy/tenant-context-factory";
 import { BillingService } from "../billing/billing.service";
 import { CmsService } from "../cms/cms.service";
 import { OrdersService } from "../orders/orders.service";
@@ -42,11 +46,41 @@ type CronSkipItem = {
   nextAt: string;
 };
 
+type CronPassResult = {
+  ok: boolean;
+  ran: CronRunItem[];
+  skipped: CronSkipItem[];
+  running?: boolean;
+};
+
+/** Compact per-tenant line of the public /cron response (Phase 3.2) — counts, not payloads. */
+type TenantCronSummary = {
+  tenant: string;
+  ok: boolean;
+  ran: number;
+  failed: number;
+  skipped: number;
+  failedJobs?: string[];
+  error?: string;
+};
+
+/** Compact /cron response so a plain curl (and its logfile) stays readable (Phase 3.2). */
+export type CronSummary = {
+  ok: boolean;
+  running?: boolean;
+  tenants: number;
+  ran: number;
+  failed: number;
+  skipped: number;
+  perTenant: TenantCronSummary[];
+};
+
 @Injectable()
 export class CronService {
   private readonly logger = new Logger("Cron");
   private running = false;
-  private aiBlogRunning = false;
+  // Keyed per tenant (Phase 3.1): one tenant's long AI generation must not block another's trigger.
+  private readonly aiBlogRunning = new Set<string>();
 
   constructor(
     private readonly billing: BillingService,
@@ -54,16 +88,26 @@ export class CronService {
     private readonly orders: OrdersService,
     private readonly products: ProductsService,
     private readonly theme: ThemeService,
-    private readonly tickets: TicketsService
+    private readonly tickets: TicketsService,
+    // Optional so single-tenant deploys and the unit-test harness can omit the tenancy layer.
+    @Optional() private readonly controlPlane?: ControlPlaneService,
+    @Optional() private readonly registry?: ConnectionRegistry
   ) {}
 
-  async runAuthorized(secret?: string, now = new Date()) {
-    const settings = await this.billing.cronSettings();
+  async runAuthorized(secret?: string, now = new Date()): Promise<CronSummary> {
+    // Multi-tenant fleet mode (Phase 3.1): the trigger arrived WITHOUT a tenant host (e.g. the
+    // operator's crontab hitting the API container directly). There is no tenant DB to read an
+    // admin-configured secret from, so only the server env secret authorizes, and the run then
+    // iterates every active tenant. A trigger on a tenant host keeps today's behaviour: it
+    // authorizes against env OR that tenant's admin secret and runs ONLY that tenant.
+    const contextTenant = getTenantContext()?.tenant ?? null;
+    const fleetMode = Boolean(this.controlPlane?.enabled) && !contextTenant;
+    const settings = fleetMode ? undefined : await this.billing.cronSettings();
     // Accept EITHER the server env secret OR the admin-configured secret. The env var used to win
     // outright, which silently ignored the token set in Admin → Cron Settings (a common "my token
     // doesn't work" footgun). Now either one authorizes the request.
     const envSecret = (process.env.CRON_SECRET || "").trim();
-    const adminSecret = (settings.cronSecret || "").trim();
+    const adminSecret = (settings?.cronSecret || "").trim();
     const provided = secret?.trim();
     const matches =
       !!provided &&
@@ -78,95 +122,154 @@ export class CronService {
     if (reason) {
       // Log rejected attempts too, so the admin can tell the server is hitting the endpoint
       // but with a wrong/missing token (a common reason cron "silently does nothing").
-      await this.billing
-        .recordAction({ action: "cron.unauthorized", metadata: { at: now.toISOString(), reason }, subject: "cron" })
-        .catch(() => undefined);
+      if (fleetMode) {
+        this.logger.warn(`unauthorized fleet trigger: ${reason}`); // no tenant DB to audit-log into
+      } else {
+        await this.billing
+          .recordAction({ action: "cron.unauthorized", metadata: { at: now.toISOString(), reason }, subject: "cron" })
+          .catch(() => undefined);
+      }
       throw new UnauthorizedException(reason);
     }
 
-    return this.run(now, settings);
+    if (fleetMode) {
+      return this.runAllTenants(now);
+    }
+    return summarize(await this.run(now, settings), contextTenant?.subdomain ?? "default");
   }
 
-  async run(now = new Date(), preloadedSettings?: CronSettings) {
+  /**
+   * Fleet pass (Phase 3.1): iterate every ACTIVE control-plane tenant and execute its jobs inside
+   * that tenant's context, so every `this.prisma` call inside the job services lands in the
+   * tenant's OWN database — per-tenant due-clocks, per-tenant results, no cross-tenant reads.
+   * Suspended tenants are skipped (their data stays frozen until reactivation). One tenant's
+   * failure never stops the others.
+   */
+  private async runAllTenants(now: Date): Promise<CronSummary> {
+    if (this.running) {
+      return { ok: true, running: true, tenants: 0, ran: 0, failed: 0, skipped: 0, perTenant: [] };
+    }
+    if (!this.controlPlane || !this.registry) {
+      throw new Error("Cron fleet mode requires the tenancy layer (control-plane + connection registry).");
+    }
+    this.running = true;
+    try {
+      const tenants = (await this.controlPlane.list()).filter((tenant) => tenant.status === "active");
+      const perTenant: TenantCronSummary[] = [];
+      for (const tenant of tenants) {
+        try {
+          const ctx = await buildTenantContext(tenant, this.controlPlane, this.registry);
+          const result = await runWithTenant(ctx, () => this.runPass(now));
+          perTenant.push(tenantSummary(tenant.subdomain, result));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "tenant cron pass failed";
+          this.logger.error(`tenant ${tenant.subdomain} cron pass failed: ${message}`);
+          perTenant.push({ tenant: tenant.subdomain, ok: false, ran: 0, failed: 1, skipped: 0, error: message });
+        }
+      }
+      const summary: CronSummary = {
+        ok: perTenant.every((tenant) => tenant.ok),
+        tenants: perTenant.length,
+        ran: perTenant.reduce((sum, tenant) => sum + tenant.ran, 0),
+        failed: perTenant.reduce((sum, tenant) => sum + tenant.failed, 0),
+        skipped: perTenant.reduce((sum, tenant) => sum + tenant.skipped, 0),
+        perTenant
+      };
+      this.logger.log(
+        `fleet run: ${summary.tenants} tenants — ${summary.ran} ran, ${summary.failed} failed, ${summary.skipped} skipped`
+      );
+      return summary;
+    } finally {
+      this.running = false;
+    }
+  }
+
+  /** Single pass for the CURRENT context's tenant (admin "Run now" + single-tenant/tenant-host triggers). */
+  async run(now = new Date(), preloadedSettings?: CronSettings): Promise<CronPassResult> {
     if (this.running) {
       return { ok: true, ran: [], running: true, skipped: [] };
     }
     this.running = true;
+    try {
+      return await this.runPass(now, preloadedSettings);
+    } finally {
+      this.running = false;
+    }
+  }
+
+  private async runPass(now: Date, preloadedSettings?: CronSettings): Promise<CronPassResult> {
     const ran: CronRunItem[] = [];
     const skipped: CronSkipItem[] = [];
     const settings = preloadedSettings ?? await this.billing.cronSettings();
     const startedAtMs = Date.now();
     // Print to stdout/stderr so a manual run on the server (curl) and the captured API process logs
     // both show how long each task took, not just the admin DB action log.
-    this.logger.log(`run started at ${now.toISOString()}`);
+    this.logger.log(`run started at ${now.toISOString()}${tenantTag()}`);
 
-    try {
-      // A heartbeat row written on every trigger — proves the server reached the cron, even when
-      // every individual job is still within its interval and gets skipped.
-      await this.billing
-        .recordAction({ action: "cron.started", metadata: { at: now.toISOString() }, subject: "cron" })
-        .catch(() => undefined);
-      await this.maybeRunTimed("domainPrices", hours(settings.domainPriceUpdateHours, 24), now, ran, skipped, () =>
-        this.orders.syncDomainPrices()
-      );
-      await this.maybeRunTimed("domainExpirations", hours(settings.domainExpirationUpdateHours, 12), now, ran, skipped, () =>
-        this.products.refreshAllDomainExpirations()
-      );
-      await this.maybeRunTimed("domainStatuses", minutes(settings.domainStatusUpdateMinutes, 15), now, ran, skipped, () =>
-        this.products.refreshAllDomainStatuses()
-      );
-      await this.runAction("billingMaintenance", ran, () => this.billing.runAdminMaintenance(now));
-      await this.runDaily("invoiceReminders", now, ran, skipped, () =>
-        this.billing.sendInvoiceReminders(now, positiveNumber(settings.invoiceReminderDaysBeforeDue, 3))
-      );
-      await this.runAction("ticketsClose", ran, () =>
-        this.tickets.closeAnsweredTickets(positiveNumber(settings.ticketAutoCloseHours, 24), now)
-      );
-      await this.maybeRunTimed("hostingStatuses", minutes(settings.hostingStatusUpdateMinutes, 15), now, ran, skipped, () =>
-        this.products.refreshAllHostingStatuses()
-      );
-      // Send the hosting/domain activation emails for anything that reached ACTIVE since the last run
-      // (the status steps above are what flip a delayed-provisioning account active). Idempotent, so
-      // it is safe to run on every trigger.
-      await this.runAction("activationEmails", ran, () => this.billing.notifyPendingActivations());
-      await this.maybeRunTimed("mailboxes", minutes(settings.mailboxCheckMinutes, 5), now, ran, skipped, () =>
-        this.tickets.importMailboxTickets(settings as Record<string, unknown>)
-      );
+    // A heartbeat row written on every trigger — proves the server reached the cron, even when
+    // every individual job is still within its interval and gets skipped. In multi-tenant mode this
+    // (and every job log below) lands in the CURRENT tenant's own DB via the context-bound Prisma.
+    await this.billing
+      .recordAction({ action: "cron.started", metadata: { at: now.toISOString() }, subject: "cron" })
+      .catch(() => undefined);
+    await this.maybeRunTimed("domainPrices", hours(settings.domainPriceUpdateHours, 24), now, ran, skipped, () =>
+      this.orders.syncDomainPrices()
+    );
+    await this.maybeRunTimed("domainExpirations", hours(settings.domainExpirationUpdateHours, 12), now, ran, skipped, () =>
+      this.products.refreshAllDomainExpirations()
+    );
+    await this.maybeRunTimed("domainStatuses", minutes(settings.domainStatusUpdateMinutes, 15), now, ran, skipped, () =>
+      this.products.refreshAllDomainStatuses()
+    );
+    await this.runAction("billingMaintenance", ran, () => this.billing.runAdminMaintenance(now));
+    await this.runDaily("invoiceReminders", now, ran, skipped, () =>
+      this.billing.sendInvoiceReminders(now, positiveNumber(settings.invoiceReminderDaysBeforeDue, 3))
+    );
+    await this.runAction("ticketsClose", ran, () =>
+      this.tickets.closeAnsweredTickets(positiveNumber(settings.ticketAutoCloseHours, 24), now)
+    );
+    await this.maybeRunTimed("hostingStatuses", minutes(settings.hostingStatusUpdateMinutes, 15), now, ran, skipped, () =>
+      this.products.refreshAllHostingStatuses()
+    );
+    // Send the hosting/domain activation emails for anything that reached ACTIVE since the last run
+    // (the status steps above are what flip a delayed-provisioning account active). Idempotent, so
+    // it is safe to run on every trigger.
+    await this.runAction("activationEmails", ran, () => this.billing.notifyPendingActivations());
+    await this.maybeRunTimed("mailboxes", minutes(settings.mailboxCheckMinutes, 5), now, ran, skipped, () =>
+      this.tickets.importMailboxTickets(settings as Record<string, unknown>)
+    );
 
-      await this.runDaily("sitemap", now, ran, skipped, () => this.sitemapStatus());
+    await this.runDaily("sitemap", now, ran, skipped, () => this.sitemapStatus());
 
-      if (settings.aiBlogEnabled && settings.deepseekApiKey) {
-        const intervalMs = hours(settings.aiBlogIntervalHours, 8);
-        await this.maybeTriggerAiBlog(intervalMs, now, ran, skipped, settings);
-      } else {
-        // Record WHY nothing was generated instead of skipping silently — the previous behaviour
-        // made "AI blogging produces no posts" impossible to diagnose from the admin log.
-        const reason = !settings.aiBlogEnabled ? "AI blogging is disabled in settings" : "Deepseek API key is not configured";
-        await this.runAction("aiBlogPost", ran, async () => ({ reason, skipped: true }));
-      }
-
-      const totalMs = Date.now() - startedAtMs;
-      const failedCount = ran.filter((item) => item.status === "failed").length;
-      await this.billing.recordAction({
-        action: "cron.completed",
-        metadata: {
-          durationMs: totalMs,
-          ranCount: ran.length,
-          failedCount,
-          skippedCount: skipped.length,
-          ran: ran.map((item) => ({ name: item.name, result: item.result, status: item.status })),
-          skipped: skipped.map((item) => ({ name: item.name, nextAt: item.nextAt }))
-        },
-        subject: "cron"
-      });
-      if (skipped.length) {
-        this.logger.log(`skipped ${skipped.length}: ${skipped.map((item) => item.name).join(", ")}`);
-      }
-      this.logger.log(`completed in ${totalMs}ms — ${ran.length} ran, ${failedCount} failed, ${skipped.length} skipped`);
-      return { ok: ran.every((item) => item.status === "ran"), ran, skipped };
-    } finally {
-      this.running = false;
+    if (settings.aiBlogEnabled && settings.deepseekApiKey) {
+      const intervalMs = hours(settings.aiBlogIntervalHours, 8);
+      await this.maybeTriggerAiBlog(intervalMs, now, ran, skipped, settings);
+    } else {
+      // Record WHY nothing was generated instead of skipping silently — the previous behaviour
+      // made "AI blogging produces no posts" impossible to diagnose from the admin log.
+      const reason = !settings.aiBlogEnabled ? "AI blogging is disabled in settings" : "Deepseek API key is not configured";
+      await this.runAction("aiBlogPost", ran, async () => ({ reason, skipped: true }));
     }
+
+    const totalMs = Date.now() - startedAtMs;
+    const failedCount = ran.filter((item) => item.status === "failed").length;
+    await this.billing.recordAction({
+      action: "cron.completed",
+      metadata: {
+        durationMs: totalMs,
+        ranCount: ran.length,
+        failedCount,
+        skippedCount: skipped.length,
+        ran: ran.map((item) => ({ name: item.name, result: item.result, status: item.status })),
+        skipped: skipped.map((item) => ({ name: item.name, nextAt: item.nextAt }))
+      },
+      subject: "cron"
+    });
+    if (skipped.length) {
+      this.logger.log(`skipped ${skipped.length}: ${skipped.map((item) => item.name).join(", ")}`);
+    }
+    this.logger.log(`completed in ${totalMs}ms — ${ran.length} ran, ${failedCount} failed, ${skipped.length} skipped${tenantTag()}`);
+    return { ok: ran.every((item) => item.status === "ran"), ran, skipped };
   }
 
   // The sitemap is served live by the web app's dynamic route (apps/web/app/sitemap.xml/route.ts),
@@ -228,11 +331,12 @@ export class CronService {
       skipped.push({ name: "aiBlogPost", nextAt: new Date(lastRun.getTime() + intervalMs).toISOString() });
       return;
     }
-    if (this.aiBlogRunning) {
+    const tenantKey = currentTenantKey();
+    if (this.aiBlogRunning.has(tenantKey)) {
       ran.push({ name: "aiBlogPost", result: { reason: "previous AI generation still running", triggered: false }, status: "ran" });
       return;
     }
-    this.aiBlogRunning = true;
+    this.aiBlogRunning.add(tenantKey);
     ran.push({ name: "aiBlogPost", result: { triggered: true }, status: "ran" });
     // Write a visible "triggered" log immediately (the background run logs the result when it finishes),
     // so the admin always sees AI activity in the cron log instead of nothing while it generates.
@@ -241,10 +345,12 @@ export class CronService {
       .catch(() => undefined);
     // The interval clock is advanced from the trigger time, but ONLY if generation succeeds (done in
     // the background runner). A failed generation leaves lastRun untouched so the next cron retries it.
-    void this.runAiBlogInBackground(settings, now);
+    // The tenant context propagates into the background run via AsyncLocalStorage (it was captured
+    // when this async chain started inside runWithTenant), so generation writes to the right DB.
+    void this.runAiBlogInBackground(settings, now, tenantKey);
   }
 
-  private async runAiBlogInBackground(settings: CronSettings, runAt: Date) {
+  private async runAiBlogInBackground(settings: CronSettings, runAt: Date, tenantKey: string) {
     const startedAtMs = Date.now();
     const startedAt = new Date(startedAtMs).toISOString();
     try {
@@ -270,7 +376,7 @@ export class CronService {
         })
         .catch(() => undefined);
     } finally {
-      this.aiBlogRunning = false;
+      this.aiBlogRunning.delete(tenantKey);
     }
   }
 
@@ -350,4 +456,43 @@ function secretEquals(actual: string, expected: string) {
   const actualBuffer = Buffer.from(actual);
   const expectedBuffer = Buffer.from(expected);
   return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+/** Stable per-tenant key for process-level guards; "default" in single-tenant fallback. */
+function currentTenantKey(): string {
+  return getTenantContext()?.tenant?.id ?? "default";
+}
+
+/** " (tenant <subdomain>)" suffix for stdout lines during a fleet pass; empty in single-tenant. */
+function tenantTag(): string {
+  const subdomain = getTenantContext()?.tenant?.subdomain;
+  return subdomain ? ` (tenant ${subdomain})` : "";
+}
+
+function tenantSummary(tenant: string, result: CronPassResult): TenantCronSummary {
+  const failedJobs = result.ran.filter((item) => item.status === "failed").map((item) => item.name);
+  return {
+    tenant,
+    ok: result.ok,
+    ran: result.ran.length - failedJobs.length,
+    failed: failedJobs.length,
+    skipped: result.skipped.length,
+    ...(failedJobs.length ? { failedJobs } : {})
+  };
+}
+
+/** Collapse a detailed pass result into the compact /cron response (Phase 3.2). */
+function summarize(result: CronPassResult, tenant: string): CronSummary {
+  if (result.running) {
+    return { ok: true, running: true, tenants: 0, ran: 0, failed: 0, skipped: 0, perTenant: [] };
+  }
+  const line = tenantSummary(tenant, result);
+  return {
+    ok: line.ok,
+    tenants: 1,
+    ran: line.ran,
+    failed: line.failed,
+    skipped: line.skipped,
+    perTenant: [line]
+  };
 }

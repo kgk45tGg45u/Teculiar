@@ -10,7 +10,16 @@ import { getTenantContext } from "../../../tenancy/tenant-context";
 export function assertTenantActive(): void {
   const status = getTenantContext()?.tenant?.status;
   if (status && status.toLowerCase() === "suspended") {
-    throw new ForbiddenException("This account is suspended for non-payment. Please settle the outstanding invoice to reactivate.");
+    // `code` is the machine-readable marker the dashboards key their suspension notice on
+    // (Phase 3.4) — never match on the English message text. `billingUrl` (optional, operator
+    // env) tells the tenant owner WHERE the outstanding Teculiar invoice lives.
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: "Forbidden",
+      code: "TENANT_SUSPENDED",
+      message: "This account is suspended for non-payment. Please settle the outstanding invoice to reactivate.",
+      billingUrl: process.env.TECULIAR_BILLING_URL || null
+    });
   }
 }
 

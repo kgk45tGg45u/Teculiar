@@ -40,7 +40,17 @@ export async function serverApiGet<T>(path: string): Promise<T | null> {
   }
 }
 
-export async function apiGetAuth<T>(path: string): Promise<T | null> {
+/** apiGetAuth with the failure detail preserved — lets SSR callers tell "suspended" from "unauthorized". */
+export type ApiAuthResult<T> = {
+  data: T | null;
+  status: number;
+  /** True when the API refused with 403 code TENANT_SUSPENDED (Phase 3.4 licensing enforcement). */
+  suspended: boolean;
+  /** Where the outstanding Teculiar invoice lives (from the 403 payload), when configured. */
+  billingUrl: string | null;
+};
+
+export async function apiGetAuthResult<T>(path: string): Promise<ApiAuthResult<T>> {
   try {
     const base = await serverApiBase();
     const store = await cookies();
@@ -52,13 +62,24 @@ export async function apiGetAuth<T>(path: string): Promise<T | null> {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) {
-      return null;
+      let suspended = false;
+      let billingUrl: string | null = null;
+      if (response.status === 403) {
+        const body = (await response.json().catch(() => null)) as { code?: string; billingUrl?: string | null } | null;
+        suspended = body?.code === "TENANT_SUSPENDED";
+        billingUrl = body?.billingUrl ?? null;
+      }
+      return { data: null, status: response.status, suspended, billingUrl };
     }
 
-    return (await response.json()) as T;
+    return { data: (await response.json()) as T, status: response.status, suspended: false, billingUrl: null };
   } catch {
-    return null;
+    return { data: null, status: 0, suspended: false, billingUrl: null };
   }
+}
+
+export async function apiGetAuth<T>(path: string): Promise<T | null> {
+  return (await apiGetAuthResult<T>(path)).data;
 }
 
 export async function redirectToAdminLogin(): Promise<never> {

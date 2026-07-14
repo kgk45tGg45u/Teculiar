@@ -48,6 +48,16 @@ services:
     environment:
       # SSR data fetches → the tenant's hosted API, via the customer's own white-label api host.
       - TECULIAR_UPSTREAM=https://api.${DOMAIN}
+      # Next standalone binds to \$HOSTNAME (Docker sets it to the container id) unless forced to
+      # 0.0.0.0 — without this the healthcheck below can never reach the server (Phase 3.6).
+      - HOSTNAME=0.0.0.0
+    healthcheck:
+      # Probe a locale path: / 307-redirects to the default locale, a 200 proves real rendering.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/de"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 EOF
 
 # 3) Pull + start.

@@ -37,7 +37,7 @@ test("page-mirrors covers every storefront page (blog excepted)", () => {
 test("mirror drafts are seeded idempotently (drafts only, never published)", () => {
   assert.match(repo, /async ensureMirrorDrafts/);
   assert.match(repo, /page\.draftLayout == null/); // only fill pages without a draft
-  assert.match(repo, /if \(this\.mirrorsSeeded\)/); // once per process
+  assert.match(repo, /this\.mirrorsSeeded\.has\(tenantKey\)/); // once per tenant per process (Phase 3.3)
   assert.doesNotMatch(repo, /publishedLayout:/); // the seed never publishes
 });
 

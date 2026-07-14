@@ -426,6 +426,19 @@ previous image tag. Registering/DNS-ing the hosts is additive — apex-path keep
 
 Goal: make the background/scheduled paths tenant-safe now that multi-tenancy is live.
 
+> **Status (2026-07-14): 3.1–3.5 code DONE + unit-verified; 3.6 probe fixes committed, server
+> redeploy/verify pending.** Cron fleet mode iterates active tenants inside `runWithTenant`
+> (`cron.service.ts` + `tenancy/tenant-context-factory.ts`); `/cron` returns the compact
+> `{ran, failed, skipped, perTenant}` summary (admin `POST /cron/admin/run` keeps the detailed
+> arrays its UI + e2e spec read); crontab/logfile recipe in `docs/cron.md`. `mirrorsSeeded` is a
+> per-tenant Set. Suspension 403 now carries `code: TENANT_SUSPENDED` (+ optional
+> `TECULIAR_BILLING_URL` link) and both dashboards render a localized `SuspendedNotice`
+> (en+de packs). `?refresh=1`/`listServicesFresh` removed; dup-invoice guard annotated + covered by
+> `test/billing-maintenance-dup-guard.test.mjs`. 2-DB no-spill proof: `test/cron-tenancy.test.mjs`.
+> **Server follow-ups:** redeploy compose (healthcheck + `HOSTNAME=0.0.0.0` fixes) and confirm
+> `docker ps` healthy; switch the operator crontab to the fleet-mode line in `docs/cron.md`;
+> optionally set `TECULIAR_BILLING_URL`. Prod Playwright pass due at phase end.
+
 ### 3.1 Tenant-aware cron  *(the key gap)*
 - `apps/api/src/modules/cron/cron.service.ts` runs with **no ALS tenant context**, so `this.prisma`
   falls back to the single default DB — in multi-tenant mode it only ever touches one tenant. Wrap the run
@@ -467,11 +480,25 @@ Goal: make the background/scheduled paths tenant-safe now that multi-tenancy is 
   tenant-resolved path). Diagnose: `docker inspect --format '{{json .State.Health}}' <id>`. Fix the
   `HEALTHCHECK`/compose probe to hit a 200 path (storefront: a locale path, or add `-L`; API:
   `/api/v1/health`) so `docker ps`/monitoring isn't permanently red. Pure ops — no app-code risk.
+- **Root cause found in-repo (2026-07-14):** Next standalone `server.js` binds to `$HOSTNAME`, which
+  Docker sets to the container id — web/storefront listen on the container IP only, so ANY
+  `localhost`/`127.0.0.1` probe is refused while published-port traffic works. The API listens
+  IPv4-only, so a `localhost`→`::1` probe also refuses. **Fixed in `docker-compose.prod.yml`**
+  (`HOSTNAME=0.0.0.0` on web+storefront; all probes → `127.0.0.1`; storefront probes `/de`) and in
+  `deploy/storefront-install/install.sh` (same env + healthcheck for buyer installs, covers
+  `dezhost-storefront`). **Pending on eu01:** `docker compose up -d` with the new compose, then
+  `docker ps` shows `(healthy)`; re-run `docker inspect --format '{{json .State.Health}}' <id>` if not.
 
 ### Verify (Phase 3)
 Local 2-DB proof (reuse the tenancy test harness): run cron with two tenants seeded, assert each tenant's
 invoices/tickets/sitemap counts come only from its own DB (no bleed); suspend a tenant → dashboard shows
 the banner; cron logfile shows a per-tenant summary; a due subscription doesn't double-invoice.
+
+**Done locally (2026-07-14):** `apps/api/test/cron-tenancy.test.mjs` (fleet run: per-tenant stores only,
+per-tenant due clocks, suspended tenant skipped, per-tenant failure isolation, tenant-host trigger stays
+single-tenant) + `apps/api/test/billing-maintenance-dup-guard.test.mjs` (no double-invoice) — full API
+suite 231 pass, web suite 92 pass, all typechecks green, `i18n-sync --check` OK. **Remaining:** live
+suspend-a-tenant banner check + cron logfile line on eu01, folded into the phase-end prod Playwright pass.
 
 ---
 

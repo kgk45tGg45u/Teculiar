@@ -65,5 +65,11 @@
     "accept": "Akzeptieren",
     "settings": "Einstellungen",
     "deny": "Ablehnen"
+  },
+  "suspended": {
+    "title": "Konto gesperrt",
+    "adminBody": "Dieses Konto ist wegen Zahlungsverzug gesperrt. Begleichen Sie die offene Rechnung, um es zu reaktivieren — Ihre Daten und Ihr Shop bleiben erhalten.",
+    "clientBody": "Dieser Kundenbereich ist vorübergehend nicht verfügbar. Bitte kontaktieren Sie den Support oder versuchen Sie es später erneut.",
+    "payCta": "Offene Rechnung ansehen"
   }
 }

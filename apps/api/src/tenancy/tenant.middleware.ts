@@ -5,6 +5,7 @@ import type { Tenant } from "./control-plane-prisma";
 import { ConnectionRegistry } from "./connection-registry.service";
 import { ControlPlaneService } from "./control-plane.service";
 import { runWithTenant, type JwtSecrets, type Surface, type TenantContext } from "./tenant-context";
+import { buildTenantContext } from "./tenant-context-factory";
 
 function envSecrets(): JwtSecrets {
   return {
@@ -115,20 +116,12 @@ export class TenantMiddleware implements NestMiddleware {
     return this.contextFor(tenant, null);
   }
 
+  // The tenant's white-label root url for all generated links (Phase 4.6) — its registered apex
+  // host, else its <subdomain>.teculiar.net. Resolved once here (cached) so downstream link builders
+  // read it from the context instead of a single global env var. Shared with the cron path via
+  // buildTenantContext so scheduled emails carry the same tenant links as request-generated ones.
   private async contextFor(tenant: Tenant, surface: Surface | null): Promise<TenantContext> {
-    const prisma = this.registry.clientFor(tenant.dbUrl);
-    const jwtSecrets = await this.registry.secretsFor(tenant.id, prisma);
-    // The tenant's white-label root url for all generated links (Phase 4.6) — its registered apex
-    // host, else its <subdomain>.teculiar.net. Resolved once here (cached) so downstream link builders
-    // read it from the context instead of a single global env var. Dedicated per-surface hosts
-    // (admin./client., Phase 2.3) ride along so client-area links can target their own origin.
-    const hosts = await this.controlPlane.surfaceHosts(tenant.id);
-    const webBaseUrl = `https://${hosts.apex ?? `${tenant.subdomain}.teculiar.net`}`;
-    const surfaceBaseUrls = {
-      admin: hosts.admin ? `https://${hosts.admin}` : null,
-      client: hosts.client ? `https://${hosts.client}` : null
-    };
-    return { tenant, prisma, jwtSecrets, surface, webBaseUrl, surfaceBaseUrls };
+    return buildTenantContext(tenant, this.controlPlane, this.registry, surface);
   }
 
   private hostHeader(req: Request): string | undefined {

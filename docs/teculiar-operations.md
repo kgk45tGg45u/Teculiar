@@ -134,6 +134,13 @@ Keep these for the API's environment file (Part E), which maps to the exact env 
 - *(optional)* **`CORS_TENANT_SUFFIXES`** — extra buyer domains to allow via CORS (comma-separated);
   `teculiar.net`/`teculiar.com` are always allowed. **`TRUST_FORWARDED_HOST=true`** — only if Apache is
   configured **without** `ProxyPreserveHost On` (the API then reads `X-Forwarded-Host` for the tenant).
+- *(optional)* **`TECULIAR_BILLING_URL`** — where a suspended tenant's owner pays the outstanding
+  Teculiar invoice (e.g. `https://www.teculiar.com/client/invoices`). Included in the 403
+  `TENANT_SUSPENDED` payload so the dashboards' suspension notice (Phase 3.4) can link straight to it;
+  without it the notice shows no payment link.
+- **`CRON_SECRET`** — authorizes the cron trigger. In multi-tenant mode the operator's crontab hits the
+  API **without a tenant host** (fleet mode, Phase 3.1) and the env secret is the ONLY one accepted —
+  see `docs/cron.md` for the crontab line, the logfile and the per-tenant summary.
 
 ---
 

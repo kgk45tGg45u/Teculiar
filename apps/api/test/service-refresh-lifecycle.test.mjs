@@ -50,16 +50,28 @@ test("service refresh does not return another client's service", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("client table shares overview service list while detail refreshes once", async () => {
+test("client portal reads stored service state only — no on-view provider refresh (Phase 3.5)", async () => {
   const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
 
   assert.doesNotMatch(source, /setInterval\(loadServices,\s*20_000\)/);
   assert.doesNotMatch(source, /setInterval\(loadService,\s*20_000\)/);
   assert.match(source, /function serviceListUrl/);
   assert.match(source, /function serviceListUrl\(\)[\s\S]*return `\$\{API_BASE_URL\}\/services`/);
-  assert.match(source, /\/services\/\$\{serviceId\}\?refresh=1/);
+  // The residual ?refresh=1 hint on the detail URL is gone — the cron reconcile owns provider status.
+  assert.doesNotMatch(source, /refresh=1/);
+  assert.match(source, /function serviceDetailUrl\(serviceId: string\)[\s\S]*return `\$\{API_BASE_URL\}\/services\/\$\{serviceId\}`/);
   assert.doesNotMatch(source, /loadServicesFresh/);
   assert.doesNotMatch(source, /loadServiceFresh/);
+});
+
+test("API service endpoints no longer accept an on-view refresh query (Phase 3.5)", async () => {
+  const controller = await readFile(new URL("../src/modules/products/products.controller.ts", import.meta.url), "utf8");
+  const service = await readFile(new URL("../src/modules/products/products.service.ts", import.meta.url), "utf8");
+
+  assert.doesNotMatch(controller, /@Query\("refresh"\)/);
+  assert.doesNotMatch(service, /listServicesFresh/);
+  // The cron reconcile path stays — it is the ONLY owner of provider-driven status transitions.
+  assert.match(service, /async refreshService\(/);
 });
 
 const goneVirtualminFactory = (calls) => ({

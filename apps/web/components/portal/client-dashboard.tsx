@@ -32,6 +32,7 @@ import { TicketConversation } from "../tickets/ticket-conversation";
 import convo from "../tickets/ticket-conversation.module.css";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
+import { SuspendedNotice } from "@teculiar/web-core/components/ui/suspended-notice";
 import { notify, notifyResponse } from "@teculiar/web-core/components/ui/toast-provider";
 import styles from "./client-dashboard.module.css";
 
@@ -104,6 +105,10 @@ type DashboardSummaryItem = {
 
 const PORTAL_LOADING_TIMEOUT_MS = 4500;
 
+// Fired by the shared json() handler when the API refuses with 403 TENANT_SUSPENDED (Phase 3.4),
+// so every data effect funnels into ONE interstitial instead of each caller handling the 403.
+const TENANT_SUSPENDED_EVENT = "teculiar:tenant-suspended";
+
 const initialLoading: Record<LoadingKey, boolean> = {
   announcements: true,
   invoices: true,
@@ -150,6 +155,7 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
   const [knowledgebase, setKnowledgebase] = useState<ApiKnowledgebaseArticle[]>([]);
   const [announcements, setAnnouncements] = useState<ApiAnnouncement[]>([]);
   const [loading, setLoading] = useState<Record<LoadingKey, boolean>>(initialLoading);
+  const [suspension, setSuspension] = useState<{ billingUrl: string | null } | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const seenServiceStatuses = useRef(new Map<string, string>());
   const servicePollingReady = useRef(false);
@@ -174,6 +180,15 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
 
   usePortalLoadingFallback(setLoading);
   usePortalNavigationRecovery(setRefreshVersion);
+
+  useEffect(() => {
+    const onSuspended = (event: Event) => {
+      const detail = (event as CustomEvent<{ billingUrl?: string | null }>).detail;
+      setSuspension({ billingUrl: detail?.billingUrl ?? null });
+    };
+    window.addEventListener(TENANT_SUSPENDED_EVENT, onSuspended);
+    return () => window.removeEventListener(TENANT_SUSPENDED_EVENT, onSuspended);
+  }, []);
 
   useEffect(() => {
     applyPortalCache(locale, {
@@ -324,6 +339,10 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
     return null;
   }
 
+  if (suspension) {
+    return <SuspendedNotice billingUrl={suspension.billingUrl} locale={locale} scope="client" />;
+  }
+
   return (
     <div className={styles.page}>
       <aside className={styles.sidebar}>
@@ -394,8 +413,10 @@ function serviceListUrl() {
   return `${API_BASE_URL}/services`;
 }
 
+// Reads DB state only (Phase 3.5) — the cron reconcile owns provider refresh; a page view must
+// never trigger one.
 function serviceDetailUrl(serviceId: string) {
-  return `${API_BASE_URL}/services/${serviceId}?refresh=1`;
+  return `${API_BASE_URL}/services/${serviceId}`;
 }
 
 function usePortalLoadingFallback(setLoading: (loading: Record<LoadingKey, boolean>) => void) {
@@ -1908,6 +1929,13 @@ async function uploadTicketFiles(ticketId: string, files: File[], replyId?: stri
 async function json(response: Response) {
   if (response.status === 401 && typeof window !== "undefined") {
     window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+    return null;
+  }
+  if (response.status === 403 && typeof window !== "undefined") {
+    const body = (await response.json().catch(() => null)) as { code?: string; billingUrl?: string | null } | null;
+    if (body?.code === "TENANT_SUSPENDED") {
+      window.dispatchEvent(new CustomEvent(TENANT_SUSPENDED_EVENT, { detail: { billingUrl: body.billingUrl ?? null } }));
+    }
     return null;
   }
   return response.ok ? response.json() : null;

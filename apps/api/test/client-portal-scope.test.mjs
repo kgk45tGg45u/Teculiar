@@ -22,8 +22,8 @@ test("client-facing service and invoice lists stay scoped to the caller", async 
   const productsController = await readFile(new URL("../src/modules/products/products.controller.ts", import.meta.url), "utf8");
   const billingController = await readFile(new URL("../src/modules/billing/billing.controller.ts", import.meta.url), "utf8");
 
-  assert.doesNotMatch(productsController, /canSeeAll[\s\S]*listServicesFresh\(userId\)/);
-  assert.match(productsController, /const userId = request\.user\.sub/);
+  assert.doesNotMatch(productsController, /listServicesFresh/);
+  assert.match(productsController, /listServices\(request\.user\.sub\)/);
   assert.doesNotMatch(billingController, /staff \? userId : request\.user\.sub/);
   assert.match(billingController, /userId: request\.user\.sub/);
 });

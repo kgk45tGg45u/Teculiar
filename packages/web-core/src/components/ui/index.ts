@@ -8,6 +8,7 @@ export { EmptyState, InfoGrid, MetricCard, PageHeader } from "./layout-primitive
 export { SidebarNav, SidebarNavItem } from "./sidebar-nav";
 export { StatusBadge } from "./status-badge";
 export { StatusPill } from "./status-pill";
+export { SuspendedNotice } from "./suspended-notice";
 export { TabButton, TabList, TabPanel, Tabs } from "./tabs";
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 export { TopBar } from "./top-bar";

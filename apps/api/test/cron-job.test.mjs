@@ -89,7 +89,15 @@ test("cron secret is not JWT auth but must match configured secret", async () =>
 
   await assert.rejects(() => service.runAuthorized(undefined), /Cron secret missing/);
   await assert.rejects(() => service.runAuthorized("wrong"), /Cron secret invalid/);
-  assert.deepEqual(await service.runAuthorized("top-secret"), { ok: true, ran: [], skipped: [] });
+  // The public /cron endpoint returns the compact summary (Phase 3.2) — counts, not payloads.
+  assert.deepEqual(await service.runAuthorized("top-secret"), {
+    ok: true,
+    tenants: 1,
+    ran: 0,
+    failed: 0,
+    skipped: 0,
+    perTenant: [{ tenant: "default", ok: true, ran: 0, failed: 0, skipped: 0 }]
+  });
 });
 
 test("admin cron endpoint is role protected and runs without cron secret", async () => {

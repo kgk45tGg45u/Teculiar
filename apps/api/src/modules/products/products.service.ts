@@ -226,17 +226,8 @@ export class ProductsService {
     return { changed, checked: services.length, refreshed };
   }
 
-  async listServicesFresh(userId?: string) {
-    const services = await this.products.listServices(userId);
-    await Promise.all(services.map((service) => this.refreshService(service.id, userId).catch(() => undefined)));
-    return this.products.listServices(userId);
-  }
-
-  async getService(id: string, user?: { roles?: string[]; sub: string }, options: { refresh?: boolean } = {}) {
+  async getService(id: string, user?: { roles?: string[]; sub: string }) {
     const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
-    if (options.refresh) {
-      await this.refreshService(id, staff ? undefined : user?.sub);
-    }
     const service = await this.products.findService(id, staff ? undefined : user?.sub);
     if (!service) {
       throw new NotFoundException("Service not found");

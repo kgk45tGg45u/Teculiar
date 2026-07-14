@@ -88,14 +88,16 @@ one hosting for the same name is allowed** (the normal "register then host" flow
 - **VPS / DEDICATED_SERVER → Hetzner** (`HetznerProviderService`): a **stub** — returns a
   fake server id and `PROVISIONING`; it has no `status()` method, so VPS **never
   auto-activates** and stays `PROVISIONING`. No real server is created, nothing to tear down.
-- Status is re-checked on read via `GET /services?refresh=1` and by the cron every 15 min.
+- Status is re-checked by the cron every 15 min (Phase 3.5: page views read stored DB state only —
+  the `?refresh=1` on-view probe was removed).
 
 ## 6. Service & domain activation
 
 - Hosting: `PENDING → PROVISIONING → ACTIVE` once Virtualmin reports the domain exists.
 - Domain: `PENDING → ACTIVE` once Resell.biz reports `active/invoicepaid/transfer complete`.
-- `GET /services?refresh=1` (used by the portal) triggers the provider re-check on demand;
-  the suite polls it up to **4 minutes** for ACTIVE.
+- The portal reads stored state via `GET /services`; only the cron reconcile (or the admin
+  `POST /admin/dev/services/refresh`) talks to the provider. The suite polls `GET /services`
+  up to **4 minutes** for ACTIVE (the cron flips it).
 
 ## 7. Wallet / add funds
 

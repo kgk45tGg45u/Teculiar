@@ -1,4 +1,4 @@
-# Dezhost Cron
+# Teculiar Cron
 
 Run the API cron endpoint every 5 minutes. The endpoint is public and does not use admin/client JWT auth, but it requires a shared cron secret.
 
@@ -22,18 +22,62 @@ curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://YOUR_API_HOST/api/
 
 > **Use the canonical (www) host.** If your site redirects the bare domain to `www` (e.g. `dezhost.com` → `www.dezhost.com`), point the cron at the **www** host. A 301/302 redirect is not followed by a plain `curl`, so the request is dropped and the cron silently does nothing. Either use `https://www.dezhost.com/api/v1/cron` directly, or add `-L` to follow redirects.
 
+The endpoint returns a **compact JSON summary** (Phase 3.2) so plain `curl` output — and the logfile
+below — stays readable:
+
+```json
+{ "ok": true, "tenants": 2, "ran": 5, "failed": 0, "skipped": 13,
+  "perTenant": [ { "tenant": "dezhost", "ok": true, "ran": 3, "failed": 0, "skipped": 6 },
+                 { "tenant": "acmehost", "ok": true, "ran": 2, "failed": 0, "skipped": 7 } ] }
+```
+
+Failed jobs are listed per tenant (`failedJobs: ["mailboxes"]`); the full per-job results stay in
+each tenant's **Admin → Settings → Logs**. (The admin dashboard's *Run cron now* button —
+`POST /api/v1/cron/admin/run` — still returns the detailed per-job arrays it renders.)
+
+## Multi-tenant (Phase 3.1)
+
+Which tenants run depends on how the trigger arrives:
+
+- **Fleet trigger (recommended for the platform operator):** hit the API **without a tenant host**
+  — e.g. `http://127.0.0.1:4000/api/v1/cron` from the API box's own crontab. The run iterates
+  **every ACTIVE control-plane tenant** and executes each tenant's jobs inside that tenant's
+  context: its own database, its own due-clocks, its own logs, its own white-label email links.
+  Suspended tenants are skipped. Only the **`CRON_SECRET` env var** authorizes a fleet trigger
+  (there is no single tenant DB to read an admin-configured secret from).
+- **Tenant-host trigger:** hitting `https://<tenant-host>/api/v1/cron` runs **only that tenant**
+  (env secret *or* that tenant's admin-configured secret authorizes). No cross-tenant reads, ever.
+- **Single-tenant fallback** (no control-plane configured): exactly the old behaviour.
+
 ## Server Cron
 
-Open crontab:
+Open crontab on the API box:
 
 ```sh
 crontab -e
 ```
 
-Add:
+Add (one line — appends every run's timestamp, HTTP status and JSON summary to a logfile so the
+operator can see success/failure **without the dashboard**, per Phase 3.2):
 
 ```cron
-*/5 * * * * curl -fsS -H "x-cron-secret: YOUR_CRON_SECRET" https://YOUR_API_HOST/api/v1/cron >/dev/null 2>&1
+*/5 * * * * curl -sS -m 240 -w " http=\%{http_code}" -H "x-cron-secret: YOUR_CRON_SECRET" http://127.0.0.1:4000/api/v1/cron 2>&1 | sed "s/^/$(date -u +\%FT\%TZ) /" >> /var/log/teculiar-cron.log
+```
+
+(`%` must be escaped as `\%` inside crontab. Single-tenant deploys keep pointing at
+`https://YOUR_API_HOST/api/v1/cron` instead of `127.0.0.1`.)
+
+**Did cron run in the last N minutes?** One line:
+
+```sh
+tail -n 1 /var/log/teculiar-cron.log   # last line: timestamp + JSON summary + http=200
+find /var/log/teculiar-cron.log -mmin -6 | grep -q . && echo OK || echo "cron stale"
+```
+
+Add basic rotation so the logfile never grows unbounded (`/etc/logrotate.d/teculiar-cron`):
+
+```
+/var/log/teculiar-cron.log { weekly rotate 8 compress missingok notifempty }
 ```
 
 ## Secret
@@ -43,7 +87,11 @@ Set secret in one place:
 - Admin -> Settings -> Cron secret
 - or `CRON_SECRET` env var on API server
 
-**Either secret is accepted.** A request authorizes if its token matches the admin-set Cron secret *or* the `CRON_SECRET` env var. (Previously the env var silently overrode the admin-set value, so a token set in the admin UI appeared "not to work" whenever `CRON_SECRET` was also configured.)
+**Either secret is accepted** for a tenant-host or single-tenant trigger. A request authorizes if
+its token matches the admin-set Cron secret *or* the `CRON_SECRET` env var. (Previously the env var
+silently overrode the admin-set value, so a token set in the admin UI appeared "not to work"
+whenever `CRON_SECRET` was also configured.) A multi-tenant **fleet** trigger accepts the env
+secret only — see above.
 
 ## What Runs
 

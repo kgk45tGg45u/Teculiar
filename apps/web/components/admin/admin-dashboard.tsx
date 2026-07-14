@@ -25,8 +25,9 @@ import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { requestLocale } from "@teculiar/web-core/lib/server-locale";
 import { LanguageToggle } from "@teculiar/web-core/components/layout/language-toggle";
 import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@teculiar/web-core/lib/status-labels";
-import { apiGetAuth, redirectToAdminLogin, surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
+import { apiGetAuth, apiGetAuthResult, redirectToAdminLogin, surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 import { Button } from "@teculiar/web-core/components/ui/button";
+import { SuspendedNotice } from "@teculiar/web-core/components/ui/suspended-notice";
 import { LogoutButton } from "../auth/logout-button";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
 import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
@@ -75,7 +76,13 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
   const href = await surfaceHrefMapper();
   const locale = await requestLocale();
   const copy = getDictionary(locale).admin;
-  const user = await apiGetAuth<AuthUser>("/users/me");
+  const me = await apiGetAuthResult<AuthUser>("/users/me");
+  // Licensing enforcement (Phase 3.4): a suspended tenant's API refuses every authenticated call
+  // with 403 TENANT_SUSPENDED. Show the interstitial instead of bouncing to a login loop.
+  if (me.suspended) {
+    return <SuspendedNotice billingUrl={me.billingUrl} locale={locale} scope="admin" />;
+  }
+  const user = me.data;
   if (!isAdminRole(user?.roles)) {
     await redirectToAdminLogin();
   }

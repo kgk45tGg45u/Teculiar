@@ -48,8 +48,8 @@ Customer-number note:
 - `DELETE /admin/dev/product-categories/:id` - temporary admin category deactivate; linked products are moved out of the category.
 - `GET /products/:id`
 - `PATCH /products/:id`
-- `GET /services` - shared client portal overview/services table source.
-- `GET /services?refresh=1` - optional on-demand provider status probe before returning service rows.
+- `GET /services` - shared client portal overview/services table source. Reads stored DB state only
+  (Phase 3.5: the old `?refresh=1` on-view provider probe was removed; the cron reconcile owns provider status).
 - `POST /services`
 - `GET /services/:id`
 - `POST /admin/dev/services/refresh` - admin/manual service and domain status refresh. The API server also runs this once per day and stores the latest provider status in the database.

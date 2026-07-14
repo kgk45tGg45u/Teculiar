@@ -82,13 +82,14 @@ test("client dashboard loaders recover from both restored and same-document back
   assert.match(source, /setRefreshVersion\(\(current\) => current \+ 1\)/);
 });
 
-test("service table shares overview rows while service detail can refresh hosting status", async () => {
+test("service table and detail read stored DB state only (no on-view refresh, Phase 3.5)", async () => {
   const source = await readFile(dashboardUrl, "utf8");
 
   assert.match(source, /function serviceListUrl/);
   assert.match(source, /function serviceListUrl\(\)[\s\S]*return `\$\{API_BASE_URL\}\/services`/);
   assert.match(source, /function serviceDetailUrl/);
-  assert.match(source, /\/services\/\$\{serviceId\}\?refresh=1/);
+  assert.doesNotMatch(source, /refresh=1/);
+  assert.match(source, /return `\$\{API_BASE_URL\}\/services\/\$\{serviceId\}`/);
   assert.doesNotMatch(source, /setInterval\(loadServices/);
   assert.match(source, /<span>\{copy\.domain\}<\/span>/);
   assert.match(source, /serviceDomainLabel\(service\)/);

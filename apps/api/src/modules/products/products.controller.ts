@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -127,17 +127,18 @@ export class ProductsController {
     return this.products.deleteProduct(id);
   }
 
+  // Reads stored DB state only (Phase 3.5). The old ?refresh=1 on-view provider refresh is gone —
+  // the scheduled cron reconcile owns provider status; a page view must never hit the provider.
   @UseGuards(JwtAuthGuard)
   @Get("services")
-  listServices(@Req() request: Request & { user: { sub: string; roles?: string[] } }, @Query("refresh") refresh?: string) {
-    const userId = request.user.sub;
-    return refresh === "1" || refresh === "true" ? this.products.listServicesFresh(userId) : this.products.listServices(userId);
+  listServices(@Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    return this.products.listServices(request.user.sub);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get("services/:id")
-  getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }, @Query("refresh") refresh?: string) {
-    return this.products.getService(id, request.user, { refresh: refresh === "1" || refresh === "true" });
+  getService(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    return this.products.getService(id, request.user);
   }
 
   @UseGuards(JwtAuthGuard)

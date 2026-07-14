@@ -1200,6 +1200,11 @@ export class BillingService {
     const generatedInvoiceList: { id: string; invoiceNumber: string; subscriptionId: string; totalCents: number }[] = [];
 
     for (const subscription of dueSubscriptions) {
+      // Duplicate-renewal guard (confirmed Phase 3.5, covered by billing-maintenance-dup-guard test):
+      // the latest invoice (invoices[0], newest by issuedAt) already covering the upcoming period
+      // (dueAt >= nextInvoiceAt) means this cycle is billed — an unpaid renewal must NOT be
+      // re-invoiced on every cron trigger. renewSubscription advances nextInvoiceAt only after
+      // creating the invoice, so a paid cycle naturally re-arms the next one.
       const latest = subscription.invoices[0];
       if (latest && latest.dueAt >= subscription.nextInvoiceAt) {
         continue;

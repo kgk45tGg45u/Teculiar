@@ -65,5 +65,11 @@
     "accept": "Accept",
     "settings": "Settings",
     "deny": "Deny"
+  },
+  "suspended": {
+    "title": "Account suspended",
+    "adminBody": "This account is suspended for non-payment. Settle the outstanding invoice to reactivate it — your data and storefront remain intact.",
+    "clientBody": "This customer area is temporarily unavailable. Please contact support or try again later.",
+    "payCta": "View outstanding invoice"
   }
 }

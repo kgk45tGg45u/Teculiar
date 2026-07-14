@@ -1,0 +1,44 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 2rem 1rem;
+}
+
+.card {
+  max-width: 34rem;
+  text-align: center;
+  padding: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.card h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  color: var(--ink);
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.cta {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--surface);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.cta:hover {
+  background: var(--primary-hover);
+}

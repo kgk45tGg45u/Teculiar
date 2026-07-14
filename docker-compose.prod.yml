@@ -19,8 +19,11 @@ services:
     # the web container reads them as Next.js static files.
     volumes:
       - uploads:/app/apps/web/public/uploads
+    # Probe 127.0.0.1, never `localhost` (Phase 3.6): the API listens IPv4-only (0.0.0.0), and
+    # busybox wget may resolve localhost to ::1 first → connection refused → permanently unhealthy
+    # while the site serves fine.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/api/v1/health"]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -41,6 +44,9 @@ services:
       # White-label: dashboard bundles move to /_dash/_next so they don't collide with the storefront's
       # own /_next when it reverse-proxies /admin,/client. The teculiar.net vhost strips /_dash → /_next.
       - DASHBOARD_ASSET_PREFIX=${DASHBOARD_ASSET_PREFIX:-/_dash}
+      # Next standalone binds to $HOSTNAME, which Docker sets to the container id — the server then
+      # listens on the container IP only and every 127.0.0.1 healthcheck is refused (Phase 3.6).
+      - HOSTNAME=0.0.0.0
     # Same uploads volume so the web container can serve files written by the API.
     volumes:
       - uploads:/app/apps/web/public/uploads
@@ -51,7 +57,7 @@ services:
       api:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/admin/login"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/admin/login"]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -71,11 +77,15 @@ services:
       # teculiar dogfood tenant. TECULIAR_API_UPSTREAM may point straight at the API container.
       - TECULIAR_UPSTREAM=${TECULIAR_UPSTREAM:-https://teculiar.teculiar.net}
       - TECULIAR_API_UPSTREAM=${TECULIAR_API_UPSTREAM:-}
+      # See the web service: Next standalone binds to $HOSTNAME unless forced to 0.0.0.0 (Phase 3.6).
+      - HOSTNAME=0.0.0.0
     depends_on:
       api:
         condition: service_started
+    # Probe a locale path: `/` 307-redirects to the default locale (commit e650fd6), so a 200 on
+    # /de proves the server actually renders instead of trusting redirect-following.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/de"]
       interval: 20s
       timeout: 10s
       retries: 5

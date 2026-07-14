@@ -54,7 +54,8 @@ test("checkout desktop domain and password action buttons are compact and equal"
 test("locale documentation states the saved preference is used before the browser language everywhere", () => {
   assert.match(localizationDoc, /browser language/i);
   assert.match(localizationDoc, /saved preference first/i);
-  assert.match(localizationDoc, /dezhost_locale/);
+  // Cookie renamed dezhost_locale -> teculiar_locale in the Phase 9.1 rebrand.
+  assert.match(localizationDoc, /teculiar_locale/);
   // Checkout is now an explicit locale surface alongside public/client/admin.
   assert.match(localizationDoc, /public, client, admin, and checkout/i);
 });
