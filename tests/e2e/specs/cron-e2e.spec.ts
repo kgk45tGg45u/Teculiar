@@ -41,17 +41,32 @@ type CronRunItem = { name: string; status: "ran" | "failed"; result?: unknown };
 type CronSkipItem = { name: string; nextAt: string };
 type CronResponse = { ok: boolean; ran: CronRunItem[]; skipped: CronSkipItem[]; running?: boolean };
 
-async function adminLogin(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never) {
-  await page.goto(`${BASE}/admin/login`);
-  await page.fill('[name="email"]', ADMIN_EMAIL);
-  await page.fill('[name="password"]', ADMIN_PASSWORD);
-  const loginBtn = page.getByRole("button", { name: /^(Login|Anmelden|Sign in)$/i });
-  await (await loginBtn.count() > 0 ? loginBtn : page.locator('button[type="submit"]').first()).click();
+type TestPage = Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never;
+
+// Token cache keyed by page — adminLogin logs in via the API and seeds cookies directly instead of
+// filling the login form + reading localStorage back. Reading localStorage right after a UI-driven
+// login can race a white-label surface redirect (Phase 2 admin./client. hosts land on a different
+// origin than the login form started on, where localStorage is empty) — the API+cookie route used
+// throughout payment-gateways.spec.ts sidesteps that entirely and is what this now matches.
+const adminTokens = new WeakMap<TestPage, string>();
+
+async function adminLogin(page: TestPage): Promise<void> {
+  const r = await page.request.post(`${API_BASE}/auth/login`, { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD, scope: "admin" } });
+  expect(r.ok(), `admin login: ${r.status()} ${await r.text()}`).toBeTruthy();
+  const body = (await r.json()) as { accessToken?: string; refreshToken?: string };
+  expect(body.accessToken, "admin login returned no accessToken").toBeTruthy();
+  adminTokens.set(page, body.accessToken!);
+  const hostname = new URL(BASE).hostname;
+  await page.context().addCookies([
+    { name: "teculiar_admin_access_token", value: body.accessToken!, domain: hostname, path: "/" },
+    { name: "teculiar_admin_refresh_token", value: body.refreshToken ?? "", domain: hostname, path: "/" }
+  ]);
+  await page.goto(`${BASE}/admin`);
   await page.waitForURL(/\/admin(?!\/login)/, { timeout: 20_000 });
 }
 
-async function getAdminToken(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never): Promise<string> {
-  return page.evaluate(() => localStorage.getItem("teculiar_admin_access_token") ?? "");
+async function getAdminToken(page: TestPage): Promise<string> {
+  return adminTokens.get(page) ?? "";
 }
 
 async function runCronViaApi(page: Parameters<typeof test>[1] extends (...args: infer A) => unknown ? A[0] : never): Promise<CronResponse> {
@@ -137,10 +152,11 @@ test.describe("Cron Admin UI", () => {
     await expect(runBtn).toBeVisible({ timeout: 10_000 });
     await runBtn.click();
 
-    // Wait for the result message
+    // Wait for the result message. Scoped to <main> — the same text also appears in a toast
+    // notification, which made an unscoped locator match 2 elements (strict-mode violation).
     // Cron calls external services (Virtualmin, Resell.biz) so give it generous time.
     await expect(
-      page.locator("text=/Cron finished\\..*Ran \\d+.*skipped \\d+/")
+      page.getByRole("main").locator("text=/Cron finished\\..*Ran \\d+.*skipped \\d+/")
     ).toBeVisible({ timeout: 90_000 });
   });
 
