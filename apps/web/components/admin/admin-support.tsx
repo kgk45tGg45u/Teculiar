@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, FileText, Image as ImageIcon, Send } from "lucide-react";
+import { BookOpen, FileText, Image as ImageIcon, Send, Trash2 } from "lucide-react";
 import { API_BASE_URL, authHeaders, type ApiKnowledgebaseArticle, type ApiTicket } from "@teculiar/web-core/lib/api";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
@@ -92,6 +92,7 @@ export function KnowledgebasePanel({ articles: initialArticles }: { articles: Ap
 
 export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKnowledgebaseArticle[]; initialTicket: ApiTicket }) {
   const locale = useLocale();
+  const href = useSurfaceHref();
   const c = getDictionary(locale).admin.support;
   const [ticket, setTicket] = useState(initialTicket);
   const [body, setBody] = useState("");
@@ -147,6 +148,16 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
     }
   }
 
+  // Spam cleanup: hard delete (admin only — the API rejects other roles), then back to the list.
+  async function deleteTicket() {
+    if (!window.confirm(c.deleteTicketConfirm)) return;
+    const response = await fetch(`${API_BASE_URL}/tickets/${ticket.id}`, { headers: authHeaders("admin"), method: "DELETE" });
+    if (response.ok) {
+      window.location.assign(href("/admin/tickets"));
+    }
+    setMessage(await notifyResponse(response, c.ticketDeleted, c.ticketDeleteFailed));
+  }
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -159,6 +170,7 @@ export function AdminTicketThread({ articles, initialTicket }: { articles: ApiKn
           <select aria-label={c.ticketStatusAria} defaultValue={ticket.status} onChange={(event) => void statusChange(event.target.value)}>
             {TICKET_STATUS_VALUES.map((status) => <option key={status} value={status}>{ticketStatusLabel(status, locale)}</option>)}
           </select>
+          <Button icon={Trash2} type="button" variant="secondary" onClick={() => void deleteTicket()}>{c.deleteTicket}</Button>
         </div>
       </div>
 

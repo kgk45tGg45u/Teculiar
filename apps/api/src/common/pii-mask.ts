@@ -9,6 +9,15 @@ export function shouldMask(roles: string[] | undefined): boolean {
   return list.includes("agent") && !list.some((role) => FULL_TRUST_ROLES.includes(role));
 }
 
+// Every staff-portal role that may READ any customer's record (agent sees it masked). Detail
+// endpoints must use this instead of hand-rolled lists — a hand-rolled ["admin","staff","agent"]
+// check once 404'd invoices/services/orders for super_admin.
+const STAFF_VIEWER_ROLES = [...FULL_TRUST_ROLES, "agent"];
+
+export function isStaffViewer(roles: string[] | undefined): boolean {
+  return (roles ?? []).some((role) => STAFF_VIEWER_ROLES.includes(role));
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

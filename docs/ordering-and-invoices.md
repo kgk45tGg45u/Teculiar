@@ -184,11 +184,16 @@ Admin-created orders support:
 - Immediate module activation (`runModules: true`)
 - Backdating (`placedAt`)
 - Custom due dates
-- Optional email dispatch
+- Optional email dispatch — `skipEmail: true` silences **both** the order confirmation and the
+  `new_invoice` mail the invoice creation would otherwise send
 - **Custom pricing** (per item) — override the product list price
 - **Discounts** (per order) — one-time or recurring
 
 The same duplicate check applies to admin-created orders.
+
+**Add domain** on the new-order form requires a product of type `DOMAIN` and a filled domain name;
+the form refuses to submit otherwise (previously the domain line was dropped silently and the order
+was created without it).
 
 ### Prices are net; VAT is added on top
 
@@ -256,8 +261,13 @@ both the API (invoice/order creation) and the web checkout estimate:
 - Otherwise the buyer country's rate applies (its own rate, else the configured default country's rate,
   else the German standard 19%).
 
-At 0%, no VAT line is added and the net price is the total. This behaviour is intentional and kept as-is;
-the invoice records the `taxReason` so the 0% is explained on the document. Note the admin new-order
+At 0%, no VAT line is added and the net price is the total. The stored `taxReason` is internal:
+the rendered invoice (HTML/PDF and both on-screen sheets) prints a **localized legal note** only
+for reverse charge and non-EU export, prints a custom/legacy stored reason (e.g.
+Kleinunternehmerregelung) verbatim, and **never** prints internal engine reasons such as
+"VAT disabled". Admin-entered **payment instructions and bank details keep their line breaks** on
+the rendered invoice (HTML `<br/>`, PDF multi-line note box, on-screen `pre-line`).
+Note the admin new-order
 **preview** uses the tenant's global VAT rate (a single number), so for a buyer who resolves to a
 different rate (e.g. reverse charge) the preview VAT can differ from the created invoice, which always
 uses the buyer-specific resolution.
@@ -288,8 +298,19 @@ The following emails are dispatched automatically during the order/invoice lifec
 | `new_invoice` | Invoice created |
 | `payment_successful` | Invoice marked as paid |
 | `domain_information` | Domain successfully provisioned |
-| `hosting_account_information` | Hosting account successfully provisioned |
+| `hosting_account_information` | Hosting account successfully provisioned **by a module** |
 | `invoice_reminder` | Invoice overdue (cron) |
 | `refund_request_sent` | Invoice refunded |
 
 Email delivery requires SMTP to be configured in **Admin > Emails > Settings**.
+
+Every dispatch localizes to the **recipient's stored language** (`User.locale`), falling back to
+the store's main language only when the user has none. All lifecycle dispatch sites pass the
+locale explicitly (password reset, welcome, order confirmation, invoice and service/domain mails).
+
+`hosting_account_information` is additionally gated on **provisioning provenance**: it is sent only
+for services whose account OUR module actually created (stamped as
+`Service.configuration.provisionedByModule` at provision time). A service the status cron merely
+reconciled ACTIVE — e.g. an admin importing a customer whose account already existed on the panel —
+is marked notified **without** emailing. An admin manually setting a service ACTIVE in the
+dashboard still sends the mail (explicit action).

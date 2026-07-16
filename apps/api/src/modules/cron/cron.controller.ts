@@ -25,7 +25,9 @@ export class CronController {
   @Roles("admin", "staff", "super_admin")
   @Post("admin/run")
   runAdmin() {
-    return this.cron.run();
+    // force: the admin pressed "Run now" and expects the timed jobs (hosting/domain status,
+    // mailboxes) to actually run, even if the scheduled cron covered them minutes before.
+    return this.cron.run(new Date(), undefined, { force: true });
   }
 }
 

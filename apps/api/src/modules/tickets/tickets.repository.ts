@@ -123,6 +123,11 @@ export class TicketsRepository {
     });
   }
 
+  // Hard delete — TicketReply/TicketInternalNote/TicketAttachment cascade in the schema.
+  deleteTicket(id: string) {
+    return this.prisma.ticket.delete({ where: { id } });
+  }
+
   createReply(input: { ticketId: string; userId: string; body: string; internal: boolean; system?: boolean; invoiceId?: string }) {
     return this.prisma.ticketReply.create({
       data: input,

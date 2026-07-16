@@ -100,14 +100,58 @@ test("cron secret is not JWT auth but must match configured secret", async () =>
   });
 });
 
-test("admin cron endpoint is role protected and runs without cron secret", async () => {
+test("admin cron endpoint is role protected, runs without cron secret and FORCES timed jobs", async () => {
   const cronController = await readFile(new URL("../src/modules/cron/cron.controller.ts", import.meta.url), "utf8");
 
   assert.match(cronController, /UseGuards\(JwtAuthGuard, RolesGuard\)/);
   assert.match(cronController, /@Roles\("admin", "staff", "super_admin"\)/);
   assert.match(cronController, /@Post\("admin\/run"\)/);
   assert.match(cronController, /runAdmin\(\)/);
-  assert.match(cronController, /this\.cron\.run\(\)/);
+  // "Run now" ignores the interval clocks — the admin expects hosting/domain checks to run.
+  assert.match(cronController, /this\.cron\.run\(new Date\(\), undefined, \{ force: true \}\)/);
+});
+
+test("forced run (admin Run now) executes interval jobs even when within their interval", async () => {
+  const { CronService } = await import("../dist/modules/cron/cron.service.js");
+  const now = new Date("2026-05-20T10:00:00.000Z");
+  const calls = [];
+  // Every timed job ran a minute ago — a scheduled pass would skip them all.
+  const lastRuns = new Map([
+    ["domainPrices", new Date("2026-05-20T09:59:00.000Z")],
+    ["domainExpirations", new Date("2026-05-20T09:59:00.000Z")],
+    ["domainStatuses", new Date("2026-05-20T09:59:00.000Z")],
+    ["hostingStatuses", new Date("2026-05-20T09:59:00.000Z")],
+    ["mailboxes", new Date("2026-05-20T09:59:00.000Z")],
+    // Daily jobs keep their once-per-day guard even when forced (no duplicate reminder mail).
+    ["invoiceReminders", new Date("2026-05-20T01:00:00.000Z")]
+  ]);
+  const billing = {
+    cronSettings: async () => ({ hostingStatusUpdateMinutes: 30 }),
+    cronLastRun: async (key) => lastRuns.get(key),
+    markCronRun: async (key, date) => lastRuns.set(key, date),
+    recordAction: async () => undefined,
+    notifyPendingActivations: async () => ({ notified: 0 }),
+    runAdminMaintenance: async () => ({}),
+    sendInvoiceReminders: async () => { calls.push(["reminders"]); return {}; }
+  };
+  const orders = { syncDomainPrices: async () => calls.push(["domainPrices"]) };
+  const products = {
+    refreshAllDomainExpirations: async () => calls.push(["domainExpirations"]),
+    refreshAllDomainStatuses: async () => calls.push(["domainStatuses"]),
+    refreshAllHostingStatuses: async () => calls.push(["hostingStatuses"])
+  };
+  const tickets = {
+    closeAnsweredTickets: async () => ({}),
+    importMailboxTickets: async () => calls.push(["mailboxes"])
+  };
+
+  const result = await new CronService(billing, {}, orders, products, {}, tickets).run(now, undefined, { force: true });
+
+  for (const job of ["domainPrices", "domainExpirations", "domainStatuses", "hostingStatuses", "mailboxes"]) {
+    assert.equal(result.ran.some((item) => item.name === job), true, `${job} must run when forced`);
+  }
+  assert.equal(calls.some((call) => call[0] === "reminders"), false, "daily invoiceReminders stays once-per-day even when forced");
+  assert.equal(result.skipped.some((item) => item.name === "hostingStatuses"), false);
 });
 
 test("admin/client dashboards no longer trigger maintenance or provider refresh on page load", async () => {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { deepMaskPii, maskClient, maskCustomerSnapshot, maskInvoice, maskOrder, maskService, maskUserRef, shouldMask } from "../dist/common/pii-mask.js";
+import { deepMaskPii, isStaffViewer, maskClient, maskCustomerSnapshot, maskInvoice, maskOrder, maskService, maskUserRef, shouldMask } from "../dist/common/pii-mask.js";
 
 test("shouldMask is true only for agent-only role sets", () => {
   assert.equal(shouldMask(["agent"]), true);
@@ -8,6 +8,17 @@ test("shouldMask is true only for agent-only role sets", () => {
   assert.equal(shouldMask(["staff"]), false);
   assert.equal(shouldMask(undefined), false);
   assert.equal(shouldMask([]), false);
+});
+
+// super_admin was missing from a hand-rolled ["admin","staff","agent"] check and 404'd on
+// invoice/service/order detail — the shared helper must accept EVERY staff-portal role.
+test("isStaffViewer accepts every staff-portal role including super_admin", () => {
+  for (const role of ["admin", "staff", "super_admin", "support_agent", "sales_agent", "agent"]) {
+    assert.equal(isStaffViewer([role]), true, `${role} must be a staff viewer`);
+  }
+  assert.equal(isStaffViewer(["client"]), false);
+  assert.equal(isStaffViewer(undefined), false);
+  assert.equal(isStaffViewer([]), false);
 });
 
 test("maskUserRef partially masks email/name/vatId, keeps other fields", () => {

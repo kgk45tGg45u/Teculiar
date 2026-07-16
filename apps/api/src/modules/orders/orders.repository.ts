@@ -425,6 +425,17 @@ export class OrdersRepository {
     });
   }
 
+  // Stamp that OUR module actually created this account (vs. a status reconcile merely finding a
+  // pre-existing one). The activation email sweep only mails stamped services.
+  async markServiceModuleProvisioned(id: string) {
+    const service = await this.prisma.service.findUnique({ where: { id }, select: { configuration: true } });
+    const configuration = isRecord(service?.configuration) ? service.configuration : {};
+    return this.prisma.service.update({
+      where: { id },
+      data: { configuration: { ...configuration, provisionedByModule: true } as Prisma.InputJsonValue }
+    });
+  }
+
   async markItemActive(id: string, providerReference?: string, payload?: Record<string, unknown>, provider?: string) {
     const item = await this.prisma.orderItem.update({
       where: { id },

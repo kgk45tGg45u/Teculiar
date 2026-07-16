@@ -28,7 +28,7 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
   const customerNumber = formatCustomerNumber(buyer.customerNumber ?? asRecord(invoice.user).customerNumber);
   const footerLines = Array.isArray(invoice.footerLines) ? invoice.footerLines.filter((line): line is string => typeof line === "string" && line.trim().length > 0) : [];
   const rows = Array.isArray(invoice.items) ? invoice.items : [];
-  const taxReason = stringValue(invoice.taxReason);
+  const taxNote = invoiceTaxNote(invoice, inv);
   const paymentInstructions = stringValue(seller.paymentInstructions);
   const bankDetails = stringValue(seller.bankDetails);
   const showVat = numberValue(invoice.taxAmountCents) > 0;
@@ -149,8 +149,8 @@ export function renderInvoiceDocument(invoice: InvoiceLike, options: RenderOptio
     </section>
 
     ${isPending ? `<section class="note">${escapeHtml(inv.pendingNotice)}</section>` : ""}
-    ${taxReason ? `<section class="note">${escapeHtml(taxReason)}</section>` : ""}
-    ${(paymentInstructions || bankDetails) ? `<section class="note">${paymentInstructions ? `${escapeHtml(paymentInstructions)}<br />` : ""}${bankDetails ? escapeHtml(bankDetails) : ""}</section>` : ""}
+    ${taxNote ? `<section class="note">${escapeHtml(taxNote)}</section>` : ""}
+    ${(paymentInstructions || bankDetails) ? `<section class="note">${paymentInstructions ? `${multilineHtml(paymentInstructions)}${bankDetails ? "<br />" : ""}` : ""}${bankDetails ? multilineHtml(bankDetails) : ""}</section>` : ""}
     ${footerLines.length ? `<footer class="footer">${footerLines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</footer>` : ""}
   </main>
 </body>
@@ -229,7 +229,9 @@ function pdfContentFromHtml(html: string): PdfContent {
     footer: values(".footer div"),
     intro: text(".intro"),
     meta: labels.map((label, index) => [label, metaValues[index] ?? ""]),
-    notes: $(".note").toArray().flatMap((element) => elementLines(element)),
+    // One entry per .note section, keeping its internal line breaks (bank details etc.)
+    // so the PDF draws one box per note instead of one box per line.
+    notes: $(".note").toArray().map((element) => elementLines(element).join("\n")).filter(Boolean),
     recipient: [text(".recipient strong"), ...values(".recipient span")].filter(Boolean),
     rows: $("table.items tbody tr").toArray().map((row) => $(row).find("td").toArray().map((cell) => clean($(cell).text()))),
     sellerCompany: text(".sellerBlock strong"),
@@ -429,6 +431,38 @@ function pdfSpace(document: PDFKit.PDFDocument, y: number, height: number) {
   }
   document.addPage();
   return document.page.margins.top;
+}
+
+// Internal resolveVat() reasons that must never print on a customer document — most
+// importantly the admin's global "VAT disabled" switch.
+const INTERNAL_TAX_REASONS = new Set(["VAT disabled", "VAT", "No VAT"]);
+
+// The customer-facing tax note. Legally meaningful zero-VAT reasons print localized
+// (reverse charge / export); a custom/legacy reason (e.g. Kleinunternehmerregelung) prints
+// as stored; internal engine reasons are suppressed.
+function invoiceTaxNote(invoice: InvoiceLike, inv: { taxNotes?: { reverseCharge?: string; nonEuExport?: string } }): string | undefined {
+  if (numberValue(invoice.taxAmountCents) > 0) {
+    return undefined;
+  }
+  if (invoice.reverseCharge) {
+    return inv.taxNotes?.reverseCharge;
+  }
+  const reason = stringValue(invoice.taxReason);
+  if (!reason || INTERNAL_TAX_REASONS.has(reason)) {
+    return undefined;
+  }
+  if (reason === "EU reverse charge") {
+    return inv.taxNotes?.reverseCharge;
+  }
+  if (reason === "Non-EU export") {
+    return inv.taxNotes?.nonEuExport;
+  }
+  return reason;
+}
+
+// Admin-entered notes (payment instructions, bank details) keep their line breaks.
+function multilineHtml(value: string) {
+  return value.split(/\r?\n/).map((line) => escapeHtml(line)).join("<br />");
 }
 
 function addressLines(seller: Record<string, any>) {

@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { maskService, shouldMask } from "../../common/pii-mask";
+import { isStaffViewer, maskService, shouldMask } from "../../common/pii-mask";
 import { ExternalService } from "../external/external.service";
 import { canonicalModuleName } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -105,6 +105,10 @@ export class ProductsService {
       productType: product.type,
       options: input.configuration
     });
+    if (provisioning.status !== "FAILED") {
+      // Module-created account: eligible for the activation email sweep (see notifyServiceActivated).
+      await this.products.markServiceModuleProvisioned(service.id).catch(() => undefined);
+    }
 
     return this.products.updateServiceStatus(
       service.id,
@@ -228,8 +232,8 @@ export class ProductsService {
   }
 
   async getService(id: string, user?: { roles?: string[]; sub: string }) {
-    // "agent" (read-only test credential) may view any service like staff, but only masked.
-    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
+    // Any staff-portal role may view any service; "agent" only masked.
+    const staff = isStaffViewer(user?.roles);
     const service = await this.products.findService(id, staff ? undefined : user?.sub);
     if (!service) {
       throw new NotFoundException("Service not found");

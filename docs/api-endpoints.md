@@ -117,6 +117,7 @@ Lifecycle notes:
 - `POST /tickets/:id/internal-notes`
 - `PATCH /tickets/:id/assign`
 - `PATCH /tickets/:id/status`
+- `DELETE /tickets/:id` - admin/super_admin only; hard-deletes a (spam) ticket, replies/notes/attachments cascade.
 - `GET /tickets/canned-replies`
 - `GET /admin/dev/tickets` - temporary guarded staff ticket list.
 - `POST /admin/dev/tickets/maintenance` - temporary guarded auto-close helper for answered tickets.

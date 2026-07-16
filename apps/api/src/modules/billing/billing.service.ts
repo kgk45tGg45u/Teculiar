@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@teculiar/shared";
 import { formatDate, formatMoney } from "../../common/i18n";
-import { maskInvoice, shouldMask } from "../../common/pii-mask";
+import { isStaffViewer, maskInvoice, shouldMask } from "../../common/pii-mask";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -208,10 +208,9 @@ export class BillingService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
-    // "agent" (read-only test credential) may view any invoice like staff, but only masked.
-    // Masking here (not the controller) also covers the HTML/PDF renders, which consume this
-    // same object's customerSnapshot.
-    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
+    // Any staff-portal role may view any invoice; "agent" only masked. Masking here (not the
+    // controller) also covers the HTML/PDF renders, which consume this same object's customerSnapshot.
+    const staff = isStaffViewer(user?.roles);
     if (user && !staff && invoice.userId !== user.sub) {
       throw new NotFoundException("Invoice not found");
     }
@@ -751,6 +750,7 @@ export class BillingService {
         user: {
           email: stringFrom(materializedUser.email),
           id: stringFrom(materializedUser.id),
+          locale: stringFrom(materializedUser.locale),
           name: stringFrom(materializedUser.name) ?? stringFrom(materializedUser.email)
         }
       }).catch(() => undefined);
@@ -2438,6 +2438,18 @@ export class BillingService {
     const service = await this.billing.serviceForEmail(serviceId);
     if (!service || service.status !== "ACTIVE") {
       return { reason: "not_active", sent: false };
+    }
+    // Only accounts OUR module actually created get the activation email. A service that merely
+    // got reconciled ACTIVE (the cron found a pre-existing panel account, e.g. an admin importing
+    // an existing customer) is marked notified WITHOUT emailing — nothing new was provisioned.
+    if (!asRecord(service.configuration).provisionedByModule) {
+      await this.billing.createAuditLog({
+        action: "service.activation_email",
+        metadata: { reason: "not_module_provisioned", sent: false },
+        subject: "service",
+        subjectId: serviceId
+      });
+      return { reason: "not_module_provisioned", sent: false };
     }
     await this.ensureHostingCredentials(service);
     await this.dispatchServiceEmail("hosting_account_information", service).catch(() => undefined);

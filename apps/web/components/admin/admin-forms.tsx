@@ -235,7 +235,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
     const productId = String(formData.get("productId") ?? defaultProduct?.id ?? "");
     const product = products.find((candidate) => candidate.id === productId);
     const price = product?.prices.find((candidate) => candidate.id === String(formData.get("productPriceId"))) ?? product?.prices[0];
-    const addDomain = formData.get("addDomain") === "on" && defaultDomainProduct;
+    const forms = getDictionary(locale).admin.forms;
     const items = [
       {
         configuration: {
@@ -247,7 +247,18 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         quantity: 1
       }
     ];
-    if (addDomain) {
+    if (formData.get("addDomain") === "on") {
+      // Never drop the requested domain silently — surface why it can't be added.
+      if (!defaultDomainProduct) {
+        notify.error(forms.domainProductMissing);
+        setMessage(forms.domainProductMissing);
+        return;
+      }
+      if (!String(formData.get("domainName") ?? "").trim()) {
+        notify.error(forms.domainNameRequired);
+        setMessage(forms.domainNameRequired);
+        return;
+      }
       items.push({
         configuration: { domainAction: String(formData.get("domainAction") ?? "register") },
         domainName: String(formData.get("domainName") ?? ""),
@@ -516,7 +527,18 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       productPriceId: price?.id,
       quantity: 1
     }];
-    if (formData.get("addDomain") === "on" && defaultDomainProduct) {
+    if (formData.get("addDomain") === "on") {
+      // Never drop the requested domain silently — surface why it can't be added.
+      if (!defaultDomainProduct) {
+        notify.error(c.domainProductMissing);
+        setMessage(c.domainProductMissing);
+        return;
+      }
+      if (!domainName.trim()) {
+        notify.error(c.domainNameRequired);
+        setMessage(c.domainNameRequired);
+        return;
+      }
       items.push({
         configuration: { domainAction: String(formData.get("domainAction") ?? "register") },
         domainName,
@@ -1797,6 +1819,20 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
     const placedAt = String(formData.get("placedAt") ?? "");
     const firstDueAt = String(formData.get("firstDueAt") ?? "");
     const customPricingOn = formData.get("useCustomPricing") === "on";
+    // "Add domain" must never be dropped silently: without a DOMAIN product (or a domain name)
+    // the order would be created WITHOUT the domain the admin asked for.
+    if (formData.get("addDomain") === "on") {
+      if (!defaultDomainProduct) {
+        notify.error(c.domainProductMissing);
+        setMessage(c.domainProductMissing);
+        return;
+      }
+      if (!String(formData.get("domainName") ?? "").trim()) {
+        notify.error(c.domainNameRequired);
+        setMessage(c.domainNameRequired);
+        return;
+      }
+    }
     const items: Array<Record<string, unknown>> = [{
       configuration: { domainName: String(formData.get("domainName") ?? "") },
       productId,

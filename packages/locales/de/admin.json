@@ -509,7 +509,9 @@
     "sendCustom": "Eigene senden (Betreff+Text oben)",
     "loadingEllipsis": "Lädt…",
     "addAnotherLine": "+ Weitere Position hinzufügen",
-    "dueDate": "Fälligkeitsdatum"
+    "dueDate": "Fälligkeitsdatum",
+    "domainProductMissing": "Es ist kein Domain-Produkt konfiguriert — legen Sie zuerst ein Produkt vom Typ DOMAIN an oder entfernen Sie den Haken bei „Domain hinzufügen“.",
+    "domainNameRequired": "Geben Sie den Domainnamen ein, um ihn dieser Bestellung hinzuzufügen."
   },
   "settingsForm": {
     "cron": "Cron",
@@ -970,7 +972,11 @@
     "loadingTicket": "Ticket wird geladen…",
     "ticketNotFound": "Ticket nicht gefunden.",
     "backToTickets": "Zurück zu Tickets",
-    "backToTicketsArrow": "← Zurück zu Tickets"
+    "backToTicketsArrow": "← Zurück zu Tickets",
+    "deleteTicket": "Ticket löschen",
+    "deleteTicketConfirm": "Dieses Ticket endgültig löschen? Antworten und Anhänge werden ebenfalls entfernt. Dies kann nicht rückgängig gemacht werden.",
+    "ticketDeleted": "Ticket gelöscht.",
+    "ticketDeleteFailed": "Ticket konnte nicht gelöscht werden."
   },
   "logsExplorer": {
     "cronEvents": "Cron-Ereignisse",

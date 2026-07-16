@@ -255,6 +255,10 @@ test("manual service creation uses category module before legacy product module"
       provisioningModule: "virtualmin",
       type: "SHARED_HOSTING"
     }),
+    markServiceModuleProvisioned: async (id) => {
+      calls.push(["provisioned", id]);
+      return {};
+    },
     updateServiceStatus: async (id, status, externalId) => {
       calls.push(["update", id, status, externalId]);
       return { externalId, id, status };
@@ -283,6 +287,8 @@ test("manual service creation uses category module before legacy product module"
   assert.deepEqual(calls, [
     ["provider", "hetzner", "SHARED_HOSTING"],
     ["provision", "SHARED_HOSTING", "service-1"],
+    // The module created the account → stamped as eligible for the activation email.
+    ["provisioned", "service-1"],
     ["update", "service-1", "ACTIVE", "host-1"]
   ]);
   assert.equal(result.status, "ACTIVE");

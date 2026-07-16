@@ -111,6 +111,37 @@ test("invoice uses the admin logo, a window-envelope address and a rounded black
   assert.doesNotMatch(plain.html, /background: #f3f6f9/);
 });
 
+test("internal tax reasons (VAT disabled) never print; legal ones do", () => {
+  // Global VAT switch off → engine stores "VAT disabled" — a customer must never see it.
+  const disabled = renderInvoiceDocument({ ...invoice, taxReason: "VAT disabled" });
+  assert.doesNotMatch(disabled.html, /VAT disabled/i);
+
+  // Reverse charge prints the localized legal note.
+  const reverse = renderInvoiceDocument({ ...invoice, reverseCharge: true, taxReason: "EU reverse charge" }, { locale: "de" });
+  assert.match(reverse.html, /Steuerschuldnerschaft des Leistungsempfängers/);
+
+  // Non-EU export prints the localized note.
+  const exportEn = renderInvoiceDocument({ ...invoice, taxReason: "Non-EU export" }, { locale: "en" });
+  assert.match(exportEn.html, /outside the European Union/);
+
+  // A custom/legacy stored reason (e.g. Kleinunternehmerregelung) still prints as stored.
+  const custom = renderInvoiceDocument({ ...invoice, taxReason: "Kleinunternehmerregelung gemaess Paragraph 19 UStG" });
+  assert.match(custom.html, /Kleinunternehmerregelung/);
+});
+
+test("payment instructions and bank details keep their admin-entered line breaks", () => {
+  const document = renderInvoiceDocument({
+    ...invoice,
+    sellerSnapshot: {
+      ...invoice.sellerSnapshot,
+      bankDetails: "Bank: Sparkasse\nIBAN: DE00 0000 0000 0000 0000 00\nBIC: ABCDEF11",
+      paymentInstructions: "Bitte überweisen Sie an:\nVerwendungszweck: Rechnungsnummer"
+    }
+  });
+  assert.match(document.html, /Bank: Sparkasse<br \/>IBAN: DE00 0000 0000 0000 0000 00<br \/>BIC: ABCDEF11/);
+  assert.match(document.html, /Bitte überweisen Sie an:<br \/>Verwendungszweck: Rechnungsnummer/);
+});
+
 test("invoice PDF renderer consumes invoice HTML and returns a PDF buffer", async () => {
   const document = renderInvoiceDocument(invoice);
   const pdf = await renderInvoicePdfFromHtml(document.html);

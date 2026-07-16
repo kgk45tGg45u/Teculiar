@@ -23,5 +23,9 @@
     "discount": "Discount",
     "vat": "VAT",
     "grandTotal": "Total Amount"
+  },
+  "taxNotes": {
+    "reverseCharge": "VAT reverse charge: VAT is payable by the recipient pursuant to Art. 196 of Council Directive 2006/112/EC.",
+    "nonEuExport": "No VAT charged — service supplied outside the European Union."
   }
 }

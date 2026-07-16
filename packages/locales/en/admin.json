@@ -509,7 +509,9 @@
     "sendCustom": "Send Custom (above subject+body)",
     "loadingEllipsis": "Loading…",
     "addAnotherLine": "+ Add another line",
-    "dueDate": "Due date"
+    "dueDate": "Due date",
+    "domainProductMissing": "No domain product is configured — create a product of type DOMAIN first, or untick \"Add domain\".",
+    "domainNameRequired": "Enter the domain name to add it to this order."
   },
   "settingsForm": {
     "cron": "Cron",
@@ -970,7 +972,11 @@
     "loadingTicket": "Loading ticket…",
     "ticketNotFound": "Ticket not found.",
     "backToTickets": "Back to tickets",
-    "backToTicketsArrow": "← Back to tickets"
+    "backToTicketsArrow": "← Back to tickets",
+    "deleteTicket": "Delete ticket",
+    "deleteTicketConfirm": "Delete this ticket permanently? Replies and attachments are removed too. This cannot be undone.",
+    "ticketDeleted": "Ticket deleted.",
+    "ticketDeleteFailed": "Could not delete the ticket."
   },
   "logsExplorer": {
     "cronEvents": "cron events",

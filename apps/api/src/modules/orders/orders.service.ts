@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit, Unaut
 import { compare, hash } from "bcryptjs";
 import { billingCycles, domainCycleFor, isYearlyCycle } from "@teculiar/shared";
 import { formatMoney } from "../../common/i18n";
-import { maskOrder, shouldMask } from "../../common/pii-mask";
+import { isStaffViewer, maskOrder, shouldMask } from "../../common/pii-mask";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -92,8 +92,8 @@ export class OrdersService implements OnModuleInit {
     if (!order) {
       throw new NotFoundException("Order not found");
     }
-    // "agent" (read-only test credential) may view any order like staff, but only masked.
-    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
+    // Any staff-portal role may view any order; "agent" only masked.
+    const staff = isStaffViewer(user?.roles);
     if (user && !staff && order.userId !== user.sub) {
       throw new NotFoundException("Order not found");
     }
@@ -266,6 +266,9 @@ export class OrdersService implements OnModuleInit {
         totalCents: taxableCents + taxAmountCents
       },
       status: "PENDING",
+      // "Don't email the customer" on the admin order form must silence BOTH mails this flow
+      // fires: the order confirmation below AND the new-invoice mail createInvoice sends itself.
+      suppressNewInvoiceEmail: Boolean(dto.skipEmail),
       userId: user.id
     });
     const order = await this.orders.createOrder({
@@ -526,7 +529,12 @@ export class OrdersService implements OnModuleInit {
       return [];
     }
     // Order-email money uses the invoice's frozen currency; locale = recipient locale → main.
-    const userLocale = stringOrUndefined(invoice.user?.locale) ?? stringOrUndefined(snapshot.locale);
+    // The invoice object often arrives WITHOUT its user relation (fresh createInvoice result),
+    // so also read the locale from the order's included user before giving up on it.
+    const userLocale =
+      stringOrUndefined(invoice.user?.locale) ??
+      stringOrUndefined((order.user as Record<string, unknown> | undefined)?.locale) ??
+      stringOrUndefined(snapshot.locale);
     const locale = userLocale ?? (await this.billing.i18nLanguages()).main;
     const currency = stringOrUndefined(invoice.currency) ?? await this.billing.mainCurrency();
     return this.emails.dispatch("order_confirmation", {
@@ -807,6 +815,11 @@ export class OrdersService implements OnModuleInit {
         productType: item.type,
         serviceId
       });
+      if (provisioning.status !== "FAILED") {
+        // The module created (or queued) the account — only these services may receive the
+        // hosting-activated email later (see notifyServiceActivated).
+        await this.orders.markServiceModuleProvisioned(serviceId).catch(() => undefined);
+      }
       if (provisioning.status === "ACTIVE") {
         await this.orders.markItemActive(item.id, provisioning.externalId, provisioning.metadata, moduleName);
         return;

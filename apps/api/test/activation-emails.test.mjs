@@ -5,6 +5,8 @@ import { BillingService } from "../dist/modules/billing/billing.service.js";
 // The hosting/domain activation emails must fire exactly once whichever path marked the account
 // ACTIVE (immediate provisioning, the status-reconciliation cron, or a client-triggered refresh),
 // and must carry the control-panel credentials / name servers and a dashboard link.
+// Hosting emails additionally require configuration.provisionedByModule — a service the cron
+// merely reconciled ACTIVE (pre-existing panel account) is marked notified WITHOUT emailing.
 
 test("notifyServiceActivated sends hosting email with control panel access and is idempotent", async () => {
   const dispatched = [];
@@ -16,7 +18,7 @@ test("notifyServiceActivated sends hosting email with control panel access and i
       userId: "user-1",
       status: "ACTIVE",
       product: { type: "SHARED_HOSTING", name: "Web Hosting M" },
-      configuration: { domainName: "example.com", hosting: { controlPanelUrl: "https://panel.dezhost.com:10000", username: "exampleadm", password: "Secret9!" } },
+      configuration: { domainName: "example.com", provisionedByModule: true, hosting: { controlPanelUrl: "https://panel.dezhost.com:10000", username: "exampleadm", password: "Secret9!" } },
       domainRecords: [{ domain: "example.com" }],
       user: { id: "user-1", email: "client@example.com", name: "Client One" }
     }),
@@ -55,7 +57,7 @@ test("notifyServiceActivated backfills the Virtualmin username from the panel wh
       status: "ACTIVE",
       externalId: "shop.example.com",
       product: { type: "SHARED_HOSTING", name: "Hosting" },
-      configuration: { domainName: "shop.example.com", hosting: { password: "Pw9!", controlPanelUrl: "https://panel:10000" } },
+      configuration: { domainName: "shop.example.com", provisionedByModule: true, hosting: { password: "Pw9!", controlPanelUrl: "https://panel:10000" } },
       domainRecords: [{ domain: "shop.example.com" }],
       user: { id: "user-2", email: "c2@example.com", name: "C Two" }
     }),
@@ -72,6 +74,36 @@ test("notifyServiceActivated backfills the Virtualmin username from the panel wh
   assert.equal(merges[0][1].hosting.username, "shopadm");
   assert.equal(dispatched[0][1].context.control_panel_username, "shopadm");
   assert.equal(dispatched[0][1].context.control_panel_password, "Pw9!");
+});
+
+test("notifyServiceActivated skips (but marks notified) a service the module did not provision", async () => {
+  const dispatched = [];
+  const audits = [];
+  const billing = {
+    hasAuditLog: async () => false,
+    serviceForEmail: async (id) => ({
+      id,
+      userId: "user-9",
+      status: "ACTIVE",
+      product: { type: "SHARED_HOSTING", name: "Imported Hosting" },
+      // No provisionedByModule flag: the cron merely found this pre-existing panel account.
+      configuration: { domainName: "imported.example.com" },
+      domainRecords: [],
+      user: { id: "user-9", email: "c9@example.com", name: "C Nine" }
+    }),
+    createAuditLog: async (entry) => audits.push(entry),
+    mergeServiceConfiguration: async () => {}
+  };
+  const emails = { dispatch: async () => { throw new Error("must not email a reconciled, non-provisioned service"); } };
+  const service = new BillingService(billing, {}, {}, undefined, emails);
+
+  const result = await service.notifyServiceActivated("svc-9");
+  assert.equal(result.sent, false);
+  assert.equal(result.reason, "not_module_provisioned");
+  // Marked notified so the sweep never re-examines (or later mails) it.
+  assert.equal(audits.length, 1);
+  assert.equal(audits[0].action, "service.activation_email");
+  assert.equal(audits[0].subjectId, "svc-9");
 });
 
 test("notifyDomainActivated sends domain email with name servers, status and a dashboard link", async () => {
@@ -116,7 +148,7 @@ test("notifyPendingActivations emails only the un-notified active accounts (afte
     activeDomainRecordIds: async () => ["dom-new"],
     notifiedSubjectIds: async (action) => new Set([...audits].filter((row) => row.startsWith(`${action}:`)).map((row) => row.split(":")[1])),
     hasAuditLog: async (action, id) => audits.has(`${action}:${id}`),
-    serviceForEmail: async (id) => ({ id, userId: "u", status: "ACTIVE", product: { type: "SHARED_HOSTING", name: "H" }, configuration: { hosting: { controlPanelUrl: "u", username: "n", password: "p" } }, domainRecords: [{ domain: "d.com" }], user: { email: "e@e.com", name: "N" } }),
+    serviceForEmail: async (id) => ({ id, userId: "u", status: "ACTIVE", product: { type: "SHARED_HOSTING", name: "H" }, configuration: { provisionedByModule: true, hosting: { controlPanelUrl: "u", username: "n", password: "p" } }, domainRecords: [{ domain: "d.com" }], user: { email: "e@e.com", name: "N" } }),
     domainForEmail: async (id) => ({ id, userId: "u", domain: "dom.com", status: "ACTIVE", nameservers: ["ns1"], user: { email: "e@e.com", name: "N" }, service: { product: { name: "D" } } }),
     createAuditLog: async ({ action, subjectId }) => audits.add(`${action}:${subjectId}`),
     mergeServiceConfiguration: async () => {}

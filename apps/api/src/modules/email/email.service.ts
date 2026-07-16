@@ -454,6 +454,15 @@ export class EmailService {
     }
   }
 
+  // Addresses OUR system sends from. Inbound mail from these is our own notification loop
+  // (e.g. a "ticket opened" mail landing back in the support inbox) — never a customer ticket.
+  async systemSenderAddresses(): Promise<string[]> {
+    const smtp = await this.smtpSettings();
+    return [smtp.fromEmail, smtp.replyTo]
+      .map((address) => (address ?? "").trim().toLowerCase())
+      .filter(Boolean);
+  }
+
   listLogs(limit = 100) {
     const take = Math.min(Math.max(Number.isFinite(limit) ? Math.trunc(limit) : 100, 1), 500);
     return this.prisma.emailLog.findMany({
@@ -905,6 +914,10 @@ function buildMimeMessage(input: { from: string; fromName: string; html: string;
     `To: <${input.recipient}>`,
     `Subject: ${input.subject}`,
     "MIME-Version: 1.0",
+    // RFC 3834: mark our notification mail machine-generated, so OUR mailbox import (and other
+    // systems' auto-responders) never treat it as a human message.
+    "Auto-Submitted: auto-generated",
+    "X-Auto-Response-Suppress: All",
     `Date: ${new Date().toUTCString()}`,
     `Message-ID: <${Date.now()}.${Math.random().toString(16).slice(2)}@${fromDomain}>`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,

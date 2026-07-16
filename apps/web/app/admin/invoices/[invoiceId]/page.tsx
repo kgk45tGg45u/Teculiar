@@ -1,4 +1,4 @@
-import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, isAdminRole, money, type ApiInvoice, type AuthUser } from "@teculiar/web-core/lib/api";
+import { cycleLabel, formatCustomerNumber, frozenMoney, invoiceDisplayNumber, invoiceTaxNote, isAdminRole, money, type ApiInvoice, type AuthUser } from "@teculiar/web-core/lib/api";
 import { requestLocale } from "@teculiar/web-core/lib/server-locale";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { invoiceStatusLabel } from "@teculiar/web-core/lib/status-labels";
@@ -155,8 +155,8 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
                   <strong>{copy.invoiceGrandTotal} {fmt(invoice.totalCents)}</strong>
                 </div>
 
-                {invoice.taxAmountCents === 0 && invoice.taxReason ? <p className={styles.invoiceNote}>{invoice.taxReason}</p> : null}
-                {seller.paymentInstructions || seller.bankDetails ? <p className={styles.invoiceNote}>{seller.paymentInstructions}<br />{seller.bankDetails}</p> : null}
+                {invoiceTaxNote(invoice, dict.invoice) ? <p className={styles.invoiceNote}>{invoiceTaxNote(invoice, dict.invoice)}</p> : null}
+                {seller.paymentInstructions || seller.bankDetails ? <p className={styles.invoiceNote} style={{ whiteSpace: "pre-line" }}>{[seller.paymentInstructions, seller.bankDetails].filter(Boolean).join("\n")}</p> : null}
                 <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
               </div>
             </div>

@@ -411,6 +411,8 @@ const authUserSelect = {
   customerNumber: true,
   email: true,
   id: true,
+  // Auth flows email the user (password reset, welcome) — the recipient's language must ride along.
+  locale: true,
   name: true,
   passwordHash: true,
   totpEnabled: true,
@@ -441,6 +443,7 @@ const clientSelect = {
   domainRecords: { select: { id: true, domain: true, status: true } },
   email: true,
   id: true,
+  locale: true,
   invoices: { include: { items: true }, orderBy: { issuedAt: "desc" as const } },
   name: true,
   orders: { include: { invoice: true, items: true }, orderBy: { createdAt: "desc" as const } },

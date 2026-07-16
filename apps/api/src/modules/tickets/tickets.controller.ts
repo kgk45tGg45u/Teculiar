@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { ThrottlerGuard } from "@nestjs/throttler";
 import type { Request } from "express";
@@ -122,6 +122,14 @@ export class TicketsController {
   @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   updateStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.tickets.updateStatus(id, status);
+  }
+
+  // Hard delete for spam tickets (mailbox imports attract junk). Admin only — replies, notes
+  // and attachments cascade in the schema. No email is sent to the (spam) owner.
+  @Delete(":id")
+  @Roles("admin", "super_admin")
+  deleteTicket(@Param("id") id: string) {
+    return this.tickets.deleteTicket(id);
   }
 }
 

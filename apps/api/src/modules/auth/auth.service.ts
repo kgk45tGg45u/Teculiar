@@ -65,7 +65,7 @@ export class AuthService {
     }).catch(() => undefined);
     void this.emails?.dispatch("welcome", {
       context: { customer_email: user.email, customer_name: dto.name },
-      user: { email: user.email, id: user.id, name: dto.name }
+      user: { email: user.email, id: user.id, locale: user.locale, name: dto.name }
     }).catch(() => undefined);
 
     return this.issueTokens(
@@ -101,6 +101,7 @@ export class AuthService {
     }).catch(() => undefined);
     void this.emails?.dispatch("welcome", {
       context: { customer_email: user.email, customer_name: dto.name },
+      // Freshly bootstrapped admin has no stored locale yet — main language is correct here.
       user: { email: user.email, id: user.id, name: dto.name }
     }).catch(() => undefined);
 
@@ -121,7 +122,9 @@ export class AuthService {
         customer_name: user.name ?? user.email,
         password_reset_link: passwordResetLink
       },
-      user: { email: user.email, id: user.id, name: user.name ?? user.email }
+      // locale: without it the email falls back to the store's main language instead of the
+      // recipient's own — same for every dispatch below.
+      user: { email: user.email, id: user.id, locale: user.locale, name: user.name ?? user.email }
     }).catch(() => undefined);
     void this.users.createAuditLog({
       action: "user.password_reset_requested",

@@ -35,6 +35,13 @@ Failed jobs are listed per tenant (`failedJobs: ["mailboxes"]`); the full per-jo
 each tenant's **Admin → Settings → Logs**. (The admin dashboard's *Run cron now* button —
 `POST /api/v1/cron/admin/run` — still returns the detailed per-job arrays it renders.)
 
+**Run cron now FORCES the timed jobs.** The admin button ignores the interval clocks of the
+interval jobs (domain prices/expirations/statuses, hosting statuses, mailbox imports) — pressing
+it runs them even if the scheduled cron covered them minutes earlier. Daily jobs (invoice
+reminders) keep their once-per-day guard even when forced, so a manual run never double-mails
+customers. (Previously "Run now" silently skipped e.g. the Virtualmin hosting check when the
+scheduled run had touched it within its interval.)
+
 ## Multi-tenant (Phase 3.1)
 
 Which tenants run depends on how the trigger arrives:
@@ -102,6 +109,9 @@ Cron runs every 5 minutes, but each timed job runs only when due:
 - Domain statuses: every configured minutes. Same registrar gating as domain expirations.
 - Hosting statuses: every configured minutes.
 - Mailbox imports: every configured minutes. Every fetched email is logged (with subject and matched client) and turned into a ticket; mail from an unknown sender creates a guest contact so nothing is lost. IMAP connection/login errors are recorded instead of being swallowed.
+  - **Plain text only:** the importer walks the MIME tree, prefers the `text/plain` alternative (decoding quoted-printable/base64), and falls back to tag-stripped HTML — raw HTML/boundary noise never lands in a ticket body.
+  - **System/auto mail is never imported:** messages from the platform's own from/reply-to/mailbox addresses, and anything flagged machine-generated (`Auto-Submitted`, `X-Auto-Response-Suppress`, `Precedence: bulk/junk/list`, bounce reports, mailer-daemon) are logged as `SKIPPED_SYSTEM` instead of opening a ticket. Outbound system mail is itself stamped `Auto-Submitted: auto-generated`, so notification mail can never loop back in as a new ticket.
+  - Spam that does get through can be removed: **admins can hard-delete a ticket** (`DELETE /api/v1/tickets/:id`, admin/super_admin only) — replies, notes and attachments cascade.
 - Invoice generation, due-date auto-pay, overdue marking, and hosting suspension: every cron run, idempotent.
 - Invoice reminders: once per day for invoices due configured days ahead.
 - Answered ticket auto-close: every cron run, idempotent.

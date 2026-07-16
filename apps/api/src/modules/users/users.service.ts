@@ -39,7 +39,7 @@ export class UsersService {
     });
     void this.emails?.dispatch("welcome", {
       context: { customer_email: client.email, customer_name: client.name },
-      user: { email: client.email, id: client.id, name: client.name }
+      user: { email: client.email, id: client.id, locale: client.locale, name: client.name }
     }).catch(() => undefined);
     return client;
   }

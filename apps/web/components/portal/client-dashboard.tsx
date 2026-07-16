@@ -13,6 +13,7 @@ import {
   formatCustomerNumber,
   frozenMoney,
   invoiceDisplayNumber,
+  invoiceTaxNote,
   money,
   persistClientLocale,
   serviceUnitPriceCents,
@@ -1151,8 +1152,8 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
           <strong>{copy.invoiceGrandTotal} {fmt(invoice.totalCents)}</strong>
         </div>
 
-        {invoice.taxAmountCents === 0 && invoice.taxReason ? <p className={styles.invoiceNote}>{invoice.taxReason}</p> : null}
-        {seller.paymentInstructions || seller.bankDetails ? <p className={styles.invoiceNote}>{seller.paymentInstructions}<br />{seller.bankDetails}</p> : null}
+        {invoiceTaxNote(invoice, getDictionary(locale).invoice) ? <p className={styles.invoiceNote}>{invoiceTaxNote(invoice, getDictionary(locale).invoice)}</p> : null}
+        {seller.paymentInstructions || seller.bankDetails ? <p className={styles.invoiceNote} style={{ whiteSpace: "pre-line" }}>{[seller.paymentInstructions, seller.bankDetails].filter(Boolean).join("\n")}</p> : null}
         <footer className={styles.invoiceFooter}>{(invoice.footerLines ?? []).map((line) => <span key={line}>{line}</span>)}</footer>
       </div>
     </section>

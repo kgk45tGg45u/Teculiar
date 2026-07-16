@@ -221,9 +221,37 @@ export type ApiInvoice = {
   subtotalCents?: number;
   taxAmountCents?: number;
   taxReason?: string | null;
+  reverseCharge?: boolean | null;
   totalCents: number;
   currency: string;
 };
+
+// Internal resolveVat() reasons that must never show on a customer document — most
+// importantly the admin's global "VAT disabled" switch.
+const INTERNAL_TAX_REASONS = new Set(["VAT disabled", "VAT", "No VAT"]);
+
+// Customer-facing zero-VAT note for an invoice. Legally meaningful reasons show localized
+// (reverse charge / non-EU export); a custom/legacy stored reason shows as-is; internal
+// engine reasons are suppressed. Mirrors invoiceTaxNote in the API's invoice-document.ts.
+export function invoiceTaxNote(
+  invoice: Pick<ApiInvoice, "reverseCharge" | "taxAmountCents" | "taxReason">,
+  dict: { taxNotes: { reverseCharge: string; nonEuExport: string } }
+): string | undefined {
+  if ((invoice.taxAmountCents ?? 0) > 0) {
+    return undefined;
+  }
+  if (invoice.reverseCharge || invoice.taxReason === "EU reverse charge") {
+    return dict.taxNotes.reverseCharge;
+  }
+  const reason = (invoice.taxReason ?? "").trim();
+  if (!reason || INTERNAL_TAX_REASONS.has(reason)) {
+    return undefined;
+  }
+  if (reason === "Non-EU export") {
+    return dict.taxNotes.nonEuExport;
+  }
+  return reason;
+}
 
 export type ApiClient = {
   balanceCents?: number;

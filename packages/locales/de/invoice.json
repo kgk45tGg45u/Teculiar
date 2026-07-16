@@ -23,5 +23,9 @@
     "discount": "Rabatt",
     "vat": "Umsatzsteuer",
     "grandTotal": "Rechnungsbetrag"
+  },
+  "taxNotes": {
+    "reverseCharge": "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge-Verfahren gemäß § 13b UStG).",
+    "nonEuExport": "Keine Umsatzsteuer — Leistung außerhalb der Europäischen Union."
   }
 }

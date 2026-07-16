@@ -184,20 +184,26 @@ export class CronService {
     }
   }
 
-  /** Single pass for the CURRENT context's tenant (admin "Run now" + single-tenant/tenant-host triggers). */
-  async run(now = new Date(), preloadedSettings?: CronSettings): Promise<CronPassResult> {
+  /**
+   * Single pass for the CURRENT context's tenant (admin "Run now" + single-tenant/tenant-host
+   * triggers). `force` (admin "Run now") ignores the interval clocks of the timed jobs — the
+   * admin pressing the button expects hosting/domain checks to actually run, not to be skipped
+   * because the scheduled cron happened minutes earlier. Daily jobs (invoice reminders) keep
+   * their once-per-day guard even when forced, so a manual run never double-mails customers.
+   */
+  async run(now = new Date(), preloadedSettings?: CronSettings, options: { force?: boolean } = {}): Promise<CronPassResult> {
     if (this.running) {
       return { ok: true, ran: [], running: true, skipped: [] };
     }
     this.running = true;
     try {
-      return await this.runPass(now, preloadedSettings);
+      return await this.runPass(now, preloadedSettings, options);
     } finally {
       this.running = false;
     }
   }
 
-  private async runPass(now: Date, preloadedSettings?: CronSettings): Promise<CronPassResult> {
+  private async runPass(now: Date, preloadedSettings?: CronSettings, options: { force?: boolean } = {}): Promise<CronPassResult> {
     const ran: CronRunItem[] = [];
     const skipped: CronSkipItem[] = [];
     const settings = preloadedSettings ?? await this.billing.cronSettings();
@@ -212,14 +218,15 @@ export class CronService {
     await this.billing
       .recordAction({ action: "cron.started", metadata: { at: now.toISOString() }, subject: "cron" })
       .catch(() => undefined);
+    const force = Boolean(options.force);
     await this.maybeRunTimed("domainPrices", hours(settings.domainPriceUpdateHours, 24), now, ran, skipped, () =>
-      this.orders.syncDomainPrices()
+      this.orders.syncDomainPrices(), force
     );
     await this.maybeRunTimed("domainExpirations", hours(settings.domainExpirationUpdateHours, 12), now, ran, skipped, () =>
-      this.products.refreshAllDomainExpirations()
+      this.products.refreshAllDomainExpirations(), force
     );
     await this.maybeRunTimed("domainStatuses", minutes(settings.domainStatusUpdateMinutes, 15), now, ran, skipped, () =>
-      this.products.refreshAllDomainStatuses()
+      this.products.refreshAllDomainStatuses(), force
     );
     await this.runAction("billingMaintenance", ran, () => this.billing.runAdminMaintenance(now));
     await this.runDaily("invoiceReminders", now, ran, skipped, () =>
@@ -229,14 +236,14 @@ export class CronService {
       this.tickets.closeAnsweredTickets(positiveNumber(settings.ticketAutoCloseHours, 24), now)
     );
     await this.maybeRunTimed("hostingStatuses", minutes(settings.hostingStatusUpdateMinutes, 15), now, ran, skipped, () =>
-      this.products.refreshAllHostingStatuses()
+      this.products.refreshAllHostingStatuses(), force
     );
     // Send the hosting/domain activation emails for anything that reached ACTIVE since the last run
     // (the status steps above are what flip a delayed-provisioning account active). Idempotent, so
     // it is safe to run on every trigger.
     await this.runAction("activationEmails", ran, () => this.billing.notifyPendingActivations());
     await this.maybeRunTimed("mailboxes", minutes(settings.mailboxCheckMinutes, 5), now, ran, skipped, () =>
-      this.tickets.importMailboxTickets(settings as Record<string, unknown>)
+      this.tickets.importMailboxTickets(settings as Record<string, unknown>), force
     );
 
     await this.runDaily("sitemap", now, ran, skipped, () => this.sitemapStatus());
@@ -297,9 +304,10 @@ export class CronService {
     now: Date,
     ran: CronRunItem[],
     skipped: CronSkipItem[],
-    action: () => Promise<unknown>
+    action: () => Promise<unknown>,
+    force = false
   ) {
-    const lastRun = await this.billing.cronLastRun(name);
+    const lastRun = force ? undefined : await this.billing.cronLastRun(name);
     if (lastRun && now.getTime() - lastRun.getTime() < intervalMs) {
       skipped.push({ name, nextAt: new Date(lastRun.getTime() + intervalMs).toISOString() });
       return;
