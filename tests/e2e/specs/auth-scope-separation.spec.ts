@@ -41,7 +41,9 @@ test.describe("admin/client auth scope separation", () => {
     const r = await login(request, ADMIN_EMAIL, ADMIN_PASSWORD, "admin");
     expect(r.ok(), `admin login: ${r.status()}`).toBeTruthy();
     const body = (await r.json()) as LoginUser;
-    const staffRoles = ["admin", "super_admin", "support_agent", "sales_agent"];
+    // "agent" is the read-only masked testing role (docs/agent-role.md) — the E2E admin-portal
+    // account was switched to it in 2026-07, so it counts as a valid admin-portal role here.
+    const staffRoles = ["admin", "super_admin", "support_agent", "sales_agent", "agent"];
     expect((body.user?.roles ?? []).some((role) => staffRoles.includes(role))).toBeTruthy();
   });
 

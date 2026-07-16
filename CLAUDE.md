@@ -21,6 +21,11 @@ Credentials are stored in `.env` (see `E2E_*` vars):
 | Client| `E2E_CLIENT_EMAIL`    | `E2E_CLIENT_PASSWORD`    |
 | Agent | `E2E_AGENT_EMAIL`     | `E2E_AGENT_PASSWORD`     |
 
+**Since 2026-07-16 the `E2E_ADMIN_*` prod account holds the `agent` role** (the owner switched
+it), so on prod it behaves identically to `E2E_AGENT_*`: masked PII, 403 on customer-linked
+writes. There is currently no full-admin E2E credential for prod — if a test truly needs one,
+ask the owner rather than expecting `E2E_ADMIN_*` to see raw data.
+
 Agent is a restricted admin-portal credential (role `agent`): it can VIEW every admin page —
 including client/order/invoice/service/ticket detail, email settings, and logs — but customer
 PII is masked (`j***@example.com`) on every response, and it cannot write to anything

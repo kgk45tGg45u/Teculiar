@@ -129,7 +129,9 @@ test.describe("agent role: read-only, PII masked", () => {
     await expect(page.getByText(/masked|maskiert/i).first()).toBeVisible({ timeout: 15_000 });
 
     await page.goto(`${BASE}/admin/clients`);
-    const firstClientRow = page.locator('a[href*="/admin/clients/"]').first();
+    // Client rows link to /admin/clients/<id> and show the customer's email; exclude the
+    // sidebar's "Add client" link (/admin/clients/new), which the bare href filter also matches.
+    const firstClientRow = page.locator('a[href*="/admin/clients/"]:not([href$="/new"])').filter({ hasText: "@" }).first();
     if (await firstClientRow.count()) {
       await expect(firstClientRow).toContainText(/\*\*\*@/, { timeout: 15_000 });
     }
