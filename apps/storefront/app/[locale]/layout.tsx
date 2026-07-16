@@ -12,6 +12,7 @@ import { getLocale } from "@teculiar/web-core/lib/i18n";
 type SiteSettings = {
   siteLogoUrl?: string;
   siteUrl?: string;
+  storefrontBaseUrl?: string;
   clientBaseUrl?: string;
   usdExchangeRate?: number;
   usdBufferCents?: number;
@@ -36,7 +37,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     ? "Teculiar – ethisches Webhosting und IT-Dienstleistungen aus Deutschland. Faire Preise, persönlicher Support, DSGVO-konform."
     : "Teculiar – ethical web hosting and IT services from Germany. Fair prices, personal support, GDPR compliant.");
   const ogImage = settings?.ogImageStatic;
-  const siteUrl = settings?.siteUrl?.replace(/\/$/, "") || process.env.SITE_URL || "https://www.teculiar.com";
+  const siteUrl =
+    settings?.siteUrl?.replace(/\/$/, "") ||
+    settings?.storefrontBaseUrl?.replace(/\/$/, "") ||
+    process.env.SITE_URL ||
+    "https://www.teculiar.com";
   const logoUrl = settings?.siteLogoUrl;
 
   // hreflang + canonical from the localized-slug data. We only build them when the visitor-facing path

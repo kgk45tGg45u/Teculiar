@@ -40,6 +40,7 @@ async function fetchSiteUrl(): Promise<string> {
     if (res.ok) {
       const data = await res.json();
       if (data?.siteUrl) return String(data.siteUrl).replace(/\/$/, "");
+      if (data?.storefrontBaseUrl) return String(data.storefrontBaseUrl).replace(/\/$/, "");
     }
   } catch {
     // fall through to env fallback
