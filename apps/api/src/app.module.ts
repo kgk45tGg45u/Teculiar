@@ -1,6 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { AgentWriteBlockGuard } from "./common/guards/agent-write-block.guard";
 import { CsrfMiddleware } from "./common/middleware/csrf.middleware";
 import { HealthController } from "./health.controller";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -49,7 +51,8 @@ import { findDotEnv } from "./modules/resellbiz-client/resellbiz-env";
     CustomizerModule,
     VirtualminClientModule
   ],
-  controllers: [HealthController]
+  controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: AgentWriteBlockGuard }]
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException, OnModuleInit, Unaut
 import { compare, hash } from "bcryptjs";
 import { billingCycles, domainCycleFor, isYearlyCycle } from "@teculiar/shared";
 import { formatMoney } from "../../common/i18n";
+import { maskOrder, shouldMask } from "../../common/pii-mask";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
@@ -91,12 +92,13 @@ export class OrdersService implements OnModuleInit {
     if (!order) {
       throw new NotFoundException("Order not found");
     }
-    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    // "agent" (read-only test credential) may view any order like staff, but only masked.
+    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
     if (user && !staff && order.userId !== user.sub) {
       throw new NotFoundException("Order not found");
     }
 
-    return order;
+    return shouldMask(user?.roles) ? maskOrder(order) : order;
   }
 
   updateOrderStatus(id: string, status: string) {

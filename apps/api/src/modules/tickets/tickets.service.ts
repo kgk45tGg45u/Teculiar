@@ -13,7 +13,10 @@ import { tenantClientUrl } from "../../tenancy/tenant-urls";
 
 export type TicketActor = { id: string; roles?: string[] };
 
-const FULL_ACCESS_ROLES = ["admin", "super_admin", "staff"];
+// "agent" (read-only, PII masked) sees the same unrestricted list/detail visibility as full
+// staff — AgentWriteBlockGuard (global) blocks it from every mutating route regardless, and the
+// controller masks PII on the read paths agent can reach (see pii-mask.ts).
+const FULL_ACCESS_ROLES = ["admin", "super_admin", "staff", "agent"];
 const STAFF_ROLES = ["admin", "super_admin", "staff", "support_agent", "sales_agent"];
 
 @Injectable()

@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { maskService, shouldMask } from "../../common/pii-mask";
 import { ExternalService } from "../external/external.service";
 import { canonicalModuleName } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -227,7 +228,8 @@ export class ProductsService {
   }
 
   async getService(id: string, user?: { roles?: string[]; sub: string }) {
-    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    // "agent" (read-only test credential) may view any service like staff, but only masked.
+    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
     const service = await this.products.findService(id, staff ? undefined : user?.sub);
     if (!service) {
       throw new NotFoundException("Service not found");
@@ -235,10 +237,15 @@ export class ProductsService {
     if (user && !staff && service.userId !== user.sub) {
       throw new NotFoundException("Service not found");
     }
-    return service;
+    return shouldMask(user?.roles) ? maskService(service) : service;
   }
 
   async hostingControlPanel(id: string, user?: { roles?: string[]; sub: string }) {
+    // The panel response is an auto-login URL into the customer's real hosting account —
+    // never for the read-only agent credential, even though it may view the service itself.
+    if (shouldMask(user?.roles)) {
+      throw new ForbiddenException("The agent role cannot access customer hosting panels");
+    }
     const service = await this.getService(id, user);
     if (serviceProductType(service) !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
       throw new BadRequestException("Hosting control panel is only available for active hosting services");
@@ -256,6 +263,10 @@ export class ProductsService {
     body: Record<string, string | undefined>,
     user?: { roles?: string[]; sub: string }
   ) {
+    // Belt and braces: AgentWriteBlockGuard already 403s this POST for the agent role.
+    if (shouldMask(user?.roles)) {
+      throw new ForbiddenException("The agent role cannot access customer hosting panels");
+    }
     const service = await this.getService(id, user);
     if (serviceProductType(service) !== "SHARED_HOSTING" || service.status !== "ACTIVE") {
       throw new BadRequestException("Hosting control panel is only available for active hosting services");

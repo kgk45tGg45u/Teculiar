@@ -21,6 +21,17 @@
   display: none;
 }
 
+.agentBadge {
+  margin: 0 12px 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(234, 179, 8, 0.16);
+  color: #eab308;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 .mobileBar {
   display: none;
 }

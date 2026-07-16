@@ -6,7 +6,7 @@ import { DepartmentsService } from "./departments.service";
 import { CreateDepartmentDto, DepartmentMemberDto, FormRoutingDto, UpdateDepartmentDto } from "./dto/department.dto";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "super_admin", "staff", "support_agent", "sales_agent")
+@Roles("admin", "super_admin", "staff", "support_agent", "sales_agent", "agent")
 @Controller("admin/dev/departments")
 export class DepartmentsController {
   constructor(private readonly departments: DepartmentsService) {}

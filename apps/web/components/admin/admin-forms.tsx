@@ -2388,12 +2388,13 @@ function adminRoles(c: Dictionary["admin"]["settingsForm"]) {
   return [
     { slug: "super_admin", name: c.roleSuperAdmin, description: c.roleDescSuperAdmin },
     { slug: "support_agent", name: c.roleSupportAgent, description: c.roleDescSupportAgent },
-    { slug: "sales_agent", name: c.roleSalesAgent, description: c.roleDescSalesAgent }
+    { slug: "sales_agent", name: c.roleSalesAgent, description: c.roleDescSalesAgent },
+    { slug: "agent", name: c.roleAgent, description: c.roleDescAgent }
   ];
 }
 
 function adminRoleLabel(user: AdminUser) {
-  const adminSlugs = ["admin", "super_admin", "support_agent", "sales_agent"];
+  const adminSlugs = ["admin", "super_admin", "support_agent", "sales_agent", "agent"];
   const role = user.userRoles.find((ur) => adminSlugs.includes(ur.role.slug));
   return role?.role.name ?? role?.role.slug ?? "Unknown";
 }
@@ -2530,6 +2531,12 @@ export function AdminsPanel() {
               <td>✕ {c.accessNo}</td>
               <td>{c.salesOnly}</td>
             </tr>
+            <tr>
+              <td><strong>{c.roleAgent}</strong></td>
+              <td>{c.roleAgentDesc}</td>
+              <td>✕ {c.accessNo}</td>
+              <td>{c.agentTicketAccess}</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -2627,7 +2634,7 @@ export function AdminsPanel() {
                           variant="secondary"
                           onClick={() => {
                             setEditId(admin.id);
-                            setEditRole(admin.userRoles.find((ur) => ["super_admin","support_agent","sales_agent"].includes(ur.role.slug))?.role.slug ?? "super_admin");
+                            setEditRole(admin.userRoles.find((ur) => ["super_admin","support_agent","sales_agent","agent"].includes(ur.role.slug))?.role.slug ?? "super_admin");
                           }}
                         >
                           {c.edit}

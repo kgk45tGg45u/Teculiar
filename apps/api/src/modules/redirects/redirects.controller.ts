@@ -18,7 +18,7 @@ export class RedirectsStorefrontController {
 
 // Admin: full CRUD for the Admin > Theme > Redirects tab.
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
 @Controller("admin/dev/redirects")
 export class RedirectsAdminController {
   constructor(private readonly redirects: RedirectsService) {}

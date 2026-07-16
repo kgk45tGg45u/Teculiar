@@ -1,25 +1,34 @@
 import { BadRequestException } from "@nestjs/common";
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { deepMaskPii, shouldMask } from "../../common/pii-mask";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import type { EmailLayoutBlock } from "./email-layouts";
 import { EmailService } from "./email.service";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "super_admin")
+// "agent" (read-only, PII masked) may VIEW the email pages: the GETs below deep-mask recipient
+// addresses and payloads (the SMTP password is already redacted for everyone via publicSmtp).
+// Every mutating route here — updateSettings and the real sends (test/test-connection/
+// send-event/send-custom) — is structurally 403'd for agent by AgentWriteBlockGuard's
+// /admin/dev/emails prefix.
+@Roles("admin", "staff", "super_admin", "agent")
 @Controller("admin/dev/emails")
 export class EmailAdminController {
   constructor(private readonly emails: EmailService) {}
 
   @Get()
-  settings() {
-    return this.emails.adminSettings();
+  async settings(@Req() request: Request & { user: { roles?: string[] } }) {
+    const settings = await this.emails.adminSettings();
+    return shouldMask(request.user.roles) ? deepMaskPii(settings) : settings;
   }
 
   @Get("logs")
-  logs(@Query("limit") limit?: string) {
-    return this.emails.listLogs(limit ? Number(limit) : undefined);
+  async logs(@Req() request: Request & { user: { roles?: string[] } }, @Query("limit") limit?: string) {
+    const logs = await this.emails.listLogs(limit ? Number(limit) : undefined);
+    return shouldMask(request.user.roles) ? deepMaskPii(logs) : logs;
   }
 
   @Patch()

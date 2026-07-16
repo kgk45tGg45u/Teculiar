@@ -2,8 +2,10 @@ import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get,
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { hash } from "bcryptjs";
 import type { Request } from "express";
+import { AgentAuditService } from "../../common/agent-audit.service";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { maskClient, shouldMask } from "../../common/pii-mask";
 import { IMAGE_TYPES, storeUploadedFiles, type UploadedFile } from "../../common/uploads";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { UsersService } from "./users.service";
@@ -11,7 +13,10 @@ import { UsersService } from "./users.service";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("users")
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly agentAudit: AgentAuditService
+  ) {}
 
   @Get("me")
   me(@Req() request: Request & { user: { email?: string; roles?: string[]; sub: string } }) {
@@ -49,10 +54,16 @@ export class UsersController {
     return this.users.requestDeletion(request.user.sub);
   }
 
-  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+  // "agent" (read-only, PII masked) added only to the two GET routes below — never to the
+  // mutating routes in this controller. AgentWriteBlockGuard also structurally blocks agent
+  // from any non-GET request regardless of this list.
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
   @Get()
-  clients() {
-    return this.users.listClients();
+  async clients(@Req() request: Request & { user: { roles?: string[]; sub: string } }) {
+    const clients = await this.users.listClients();
+    if (!shouldMask(request.user.roles)) return clients;
+    this.agentAudit.recordRead(request.user.sub, "users");
+    return clients.map(maskClient);
   }
 
   @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
@@ -70,10 +81,13 @@ export class UsersController {
     return this.users.createClient(body);
   }
 
-  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
   @Get(":id")
-  client(@Param("id") id: string) {
-    return this.users.getClient(id);
+  async client(@Param("id") id: string, @Req() request: Request & { user: { roles?: string[]; sub: string } }) {
+    const client = await this.users.getClient(id);
+    if (!client || !shouldMask(request.user.roles)) return client;
+    this.agentAudit.recordRead(request.user.sub, "users", id);
+    return maskClient(client);
   }
 
   @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
@@ -122,7 +136,8 @@ export class AdminManagementController {
     return [
       { slug: "super_admin", name: "Super Admin", description: "Full access to all features including settings" },
       { slug: "support_agent", name: "Support Agent", description: "Access to support & abuse tickets, all client data. No settings." },
-      { slug: "sales_agent", name: "Sales Agent", description: "Access to sales tickets, all client data. No settings." }
+      { slug: "sales_agent", name: "Sales Agent", description: "Access to sales tickets, all client data. No settings." },
+      { slug: "agent", name: "Agent (Read-Only, Masked)", description: "Automated dashboard testing credential. Can view every page with customer PII masked; cannot modify customer data, send email, or trigger provisioning/cron." }
     ];
   }
 
@@ -131,7 +146,7 @@ export class AdminManagementController {
     if (!body.email || !body.name || !body.password || !body.roleSlug) {
       throw new BadRequestException("email, name, password, and roleSlug are required");
     }
-    const validRoles = ["super_admin", "support_agent", "sales_agent"];
+    const validRoles = ["super_admin", "support_agent", "sales_agent", "agent"];
     if (!validRoles.includes(body.roleSlug)) {
       throw new BadRequestException(`roleSlug must be one of: ${validRoles.join(", ")}`);
     }
@@ -145,7 +160,7 @@ export class AdminManagementController {
     @Req() request: Request & { user: { sub: string } },
     @Body("roleSlug") roleSlug: string
   ) {
-    const validRoles = ["super_admin", "support_agent", "sales_agent"];
+    const validRoles = ["super_admin", "support_agent", "sales_agent", "agent"];
     if (!validRoles.includes(roleSlug)) {
       throw new BadRequestException(`roleSlug must be one of: ${validRoles.join(", ")}`);
     }

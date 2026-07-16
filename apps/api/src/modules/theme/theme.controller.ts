@@ -16,9 +16,11 @@ export class ThemeStorefrontController {
   }
 }
 
-// Admin: full editable theme for the Admin > Theme tabs.
+// Admin: full editable theme for the Admin > Theme tabs. "agent" (read-only test credential)
+// gets the class-level GET; every mutating route below carries an explicit admin/super_admin
+// override that excludes it.
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
 @Controller("admin/dev/theme")
 export class ThemeAdminController {
   constructor(private readonly theme: ThemeService) {}

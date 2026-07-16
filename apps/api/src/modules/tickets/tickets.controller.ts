@@ -2,8 +2,10 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req, UploadedFiles, U
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { ThrottlerGuard } from "@nestjs/throttler";
 import type { Request } from "express";
+import { AgentAuditService } from "../../common/agent-audit.service";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { maskUserRef, shouldMask } from "../../common/pii-mask";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AdminCreateTicketDto } from "./dto/admin-create-ticket.dto";
 import { CreateReplyDto } from "./dto/create-reply.dto";
@@ -18,18 +20,46 @@ function actorOf(request: AuthedRequest) {
   return { id: request.user.sub, roles: request.user.roles };
 }
 
+// The "agent" role (see FULL_ACCESS_ROLES in tickets.service.ts) can list/view every ticket like
+// staff can, but ticket.user/ticket.assignee — and each reply's author on the detail view —
+// carry customer PII that must be masked for it. Reply/note free-text bodies are not scanned
+// (known gap, structural fields only).
+type MaskableUser = { email: string; name: string; vatId?: string | null };
+function maskTicket<
+  T extends {
+    assignee?: MaskableUser | null;
+    user?: MaskableUser | null;
+    replies?: Array<{ user?: MaskableUser | null }>;
+  }
+>(ticket: T): T {
+  return {
+    ...ticket,
+    assignee: ticket.assignee ? maskUserRef(ticket.assignee) : ticket.assignee,
+    user: ticket.user ? maskUserRef(ticket.user) : ticket.user,
+    ...(ticket.replies
+      ? { replies: ticket.replies.map((reply) => (reply.user ? { ...reply, user: maskUserRef(reply.user) } : reply)) }
+      : {})
+  };
+}
+
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("tickets")
 export class TicketsController {
-  constructor(private readonly tickets: TicketsService) {}
+  constructor(
+    private readonly tickets: TicketsService,
+    private readonly agentAudit: AgentAuditService
+  ) {}
 
   @Get()
-  listTickets(
+  async listTickets(
     @Req() request: AuthedRequest,
     @Query("status") status?: string,
     @Query("department") departmentId?: string
   ) {
-    return this.tickets.listTickets(actorOf(request), { status, departmentId });
+    const tickets = await this.tickets.listTickets(actorOf(request), { status, departmentId });
+    if (!shouldMask(request.user.roles)) return tickets;
+    this.agentAudit.recordRead(request.user.sub, "tickets");
+    return tickets.map(maskTicket);
   }
 
   @Post()
@@ -48,8 +78,11 @@ export class TicketsController {
   }
 
   @Get(":id")
-  getTicket(@Param("id") id: string, @Req() request: AuthedRequest) {
-    return this.tickets.getTicket(id, actorOf(request));
+  async getTicket(@Param("id") id: string, @Req() request: AuthedRequest) {
+    const ticket = await this.tickets.getTicket(id, actorOf(request));
+    if (!shouldMask(request.user.roles)) return ticket;
+    this.agentAudit.recordRead(request.user.sub, "tickets", id);
+    return maskTicket(ticket);
   }
 
   @Post(":id/replies")
@@ -103,17 +136,26 @@ export class StorefrontInquiriesController {
   }
 }
 
+// "agent" (read-only, PII masked) added at class level for the GET below; POST opts back out
+// explicitly (AgentWriteBlockGuard also structurally blocks it regardless).
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
 @Controller("admin/dev/tickets")
 export class TicketsDevController {
-  constructor(private readonly tickets: TicketsService) {}
+  constructor(
+    private readonly tickets: TicketsService,
+    private readonly agentAudit: AgentAuditService
+  ) {}
 
   @Get()
-  listTickets(@Req() request: AuthedRequest, @Query("status") status?: string, @Query("department") departmentId?: string) {
-    return this.tickets.listTickets(actorOf(request), { status, departmentId });
+  async listTickets(@Req() request: AuthedRequest, @Query("status") status?: string, @Query("department") departmentId?: string) {
+    const tickets = await this.tickets.listTickets(actorOf(request), { status, departmentId });
+    if (!shouldMask(request.user.roles)) return tickets;
+    this.agentAudit.recordRead(request.user.sub, "tickets");
+    return tickets.map(maskTicket);
   }
 
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post()
   createTicket(@Req() request: AuthedRequest, @Body() dto: AdminCreateTicketDto) {
     return this.tickets.createTicketAsAdmin(actorOf(request), dto);

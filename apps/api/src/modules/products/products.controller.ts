@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } fro
 import type { Request } from "express";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { maskService, shouldMask } from "../../common/pii-mask";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateProductDto, ProductCategoryDto } from "./dto/create-product.dto";
 import { ProductsService } from "./products.service";
@@ -16,47 +17,52 @@ export class ProductsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Get("admin/dev/product-categories")
   listCategoriesDev() {
     return this.products.listCategories();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Post("admin/dev/product-categories")
   createCategoryDev(@Body() dto: ProductCategoryDto) {
     return this.products.createCategory(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Patch("admin/dev/product-categories/:id")
   updateCategoryDev(@Param("id") id: string, @Body() dto: ProductCategoryDto) {
     return this.products.updateCategory(id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Delete("admin/dev/product-categories/:id")
   deleteCategoryDev(@Param("id") id: string) {
     return this.products.deleteCategory(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Post("admin/dev/products")
   createProductDev(@Body() dto: CreateProductDto) {
     return this.products.createProduct(dto);
   }
 
+  // Service rows carry customer configuration blobs and domain transfer secrets (eppCode) —
+  // masked for the read-only agent credential.
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Get("admin/dev/services")
-  listServicesDev() {
-    return this.products.listServices();
+  async listServicesDev(@Req() request: Request & { user: { roles?: string[] } }) {
+    const services = await this.products.listServices();
+    return shouldMask(request.user.roles) ? services.map(maskService) : services;
   }
 
+  // "agent" excluded from these two: refresh hits every customer's real provider account (and
+  // can demote/suspend on findings), and status update mutates one real customer's live service.
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "super_admin")
   @Post("admin/dev/services/refresh")
@@ -72,56 +78,56 @@ export class ProductsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Get("admin/dev/virtualmin/templates")
   listVirtualminTemplatesDev() {
     return this.products.listVirtualminTemplates();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Get("admin/dev/virtualmin/plans/detect")
   detectVirtualminPlansDev() {
     return this.products.detectVirtualminHostingPlans();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Post("admin/dev/virtualmin/plans/sync")
   syncVirtualminPlansDev(@Body("plans") plans?: Array<{ id: string; limits?: Record<string, string | undefined>; name: string }>) {
     return this.products.syncVirtualminHostingPlans(plans);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Patch("admin/dev/products/:id")
   updateProductDev(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Delete("admin/dev/products/:id")
   deleteProductDev(@Param("id") id: string) {
     return this.products.deleteProduct(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Post("products")
   createProduct(@Body() dto: CreateProductDto) {
     return this.products.createProduct(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Patch("products/:id")
   updateProduct(@Param("id") id: string, @Body() dto: CreateProductDto) {
     return this.products.updateProduct(id, dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("admin", "staff", "super_admin")
+  @Roles("admin", "staff", "super_admin", "agent")
   @Delete("products/:id")
   deleteProduct(@Param("id") id: string) {
     return this.products.deleteProduct(id);

@@ -19,6 +19,18 @@ Credentials are stored in `.env` (see `E2E_*` vars):
 |-------|-----------------------|--------------------------|
 | Admin | `E2E_ADMIN_EMAIL`     | `E2E_ADMIN_PASSWORD`     |
 | Client| `E2E_CLIENT_EMAIL`    | `E2E_CLIENT_PASSWORD`    |
+| Agent | `E2E_AGENT_EMAIL`     | `E2E_AGENT_PASSWORD`     |
+
+Agent is a restricted admin-portal credential (role `agent`): it can VIEW every admin page —
+including client/order/invoice/service/ticket detail, email settings, and logs — but customer
+PII is masked (`j***@example.com`) on every response, and it cannot write to anything
+customer-linked, send email, access hosting panels, or trigger provisioning/cron. It keeps
+read+write on non-customer areas (CMS, products, theme content). Enforced server-side by
+`AgentWriteBlockGuard` + `pii-mask.ts`, not just the UI. Default to the Agent credential for
+routine admin-dashboard testing — only fall back to the Admin credential when a test genuinely
+needs real customer PII or a customer-record write. **Masked values (`x***@…`, `***`) and 403s
+on customer-linked writes are this system working as designed, not bugs** — full details in
+[docs/agent-role.md](docs/agent-role.md).
 
 Run production tests like:
 ```

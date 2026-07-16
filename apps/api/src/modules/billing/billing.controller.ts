@@ -3,8 +3,10 @@ import type { Request, Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Res } from "@nestjs/common";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
+import { AgentAuditService } from "../../common/agent-audit.service";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { deepMaskPii, maskInvoice, shouldMask } from "../../common/pii-mask";
 import { JwtAuthGuard, OptionalJwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { accessSecret, refreshSecret } from "../../tenancy/jwt-secrets";
 import { BillingService } from "./billing.service";
@@ -16,7 +18,8 @@ import { PayInvoiceDto } from "./dto/pay-invoice.dto";
 @Controller("billing")
 export class BillingController {
   constructor(
-    private readonly billing: BillingService
+    private readonly billing: BillingService,
+    private readonly agentAudit: AgentAuditService
   ) {}
 
   @Get("invoices")
@@ -29,6 +32,9 @@ export class BillingController {
 
   @Get("invoices/:id")
   getInvoice(@Param("id") id: string, @Req() request: Request & { user: { sub: string; roles?: string[] } }) {
+    // Masking for the agent role happens inside getInvoice (billing.service.ts), which also
+    // covers the HTML/PDF renders below.
+    if (shouldMask(request.user.roles)) this.agentAudit.recordRead(request.user.sub, "billing.invoices", id);
     return this.billing.getInvoice(id, request.user);
   }
 
@@ -261,11 +267,18 @@ export class BillingStorefrontController {
   }
 }
 
+// "agent" (read-only, PII masked) is added at class level: every GET below is safe for it
+// (settings/gateways are non-PII; invoices and logs are masked explicitly), and
+// AgentWriteBlockGuard structurally blocks agent from the non-GET routes lower in this class
+// (services/:id/status, module-logs/:id/retry) regardless of this decorator.
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
+@Roles("admin", "staff", "super_admin", "support_agent", "sales_agent", "agent")
 @Controller("admin/dev")
 export class BillingDevController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly agentAudit: AgentAuditService
+  ) {}
 
   @Get("billing/dashboard")
   adminDashboardStats() {
@@ -283,12 +296,22 @@ export class BillingDevController {
   }
 
   @Get("billing/invoices")
-  listInvoices(@Query("userId") userId?: string) {
-    return this.billing.listInvoices({ userId });
+  async listInvoices(
+    @Req() request: Request & { user: { roles?: string[]; sub: string } },
+    @Query("userId") userId?: string
+  ) {
+    const invoices = await this.billing.listInvoices({ userId });
+    if (!shouldMask(request.user.roles)) return invoices;
+    this.agentAudit.recordRead(request.user.sub, "billing.invoices", userId);
+    return invoices.map(maskInvoice);
   }
 
+  // Log rows carry actor identity and arbitrary metadata/payload JSON that can embed customer
+  // data — deep-masked for the read-only agent credential rather than blocked outright, so the
+  // Logs page structure stays testable.
   @Get("logs")
-  listLogs(
+  async listLogs(
+    @Req() request: Request & { user: { roles?: string[] } },
     @Query("limit") limit?: string,
     @Query("kind") kind?: string,
     @Query("page") page?: string,
@@ -296,14 +319,15 @@ export class BillingDevController {
   ) {
     // Paginated mode (used by the admin Logs page tabs) is enabled by passing ?kind=system|cron.
     // Without it the legacy flat list (capped by ?limit) is returned for backward compatibility.
-    if (kind === "system" || kind === "cron") {
-      return this.billing.listLogsPaged({
-        kind,
-        page: page ? Number(page) : undefined,
-        pageSize: pageSize ? Number(pageSize) : undefined
-      });
-    }
-    return this.billing.listLogs(limit ? Number(limit) : undefined);
+    const logs =
+      kind === "system" || kind === "cron"
+        ? await this.billing.listLogsPaged({
+            kind,
+            page: page ? Number(page) : undefined,
+            pageSize: pageSize ? Number(pageSize) : undefined
+          })
+        : await this.billing.listLogs(limit ? Number(limit) : undefined);
+    return shouldMask(request.user.roles) ? deepMaskPii(logs) : logs;
   }
 
   @Post("billing/maintenance")
@@ -447,11 +471,16 @@ export class BillingDevController {
     return this.billing.updateModule(name, body);
   }
 
+  // Explicit overrides (without "agent") so these two don't inherit the class-level grant above —
+  // both mutate a real customer's service/module state. AgentWriteBlockGuard's BLOCKED_PREFIXES
+  // also covers /admin/dev/services and /admin/dev/module-logs, but keep the decorator honest too.
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Patch("services/:id/status")
   updateServiceStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.billing.updateServiceStatus(id, status);
   }
 
+  @Roles("admin", "staff", "super_admin", "support_agent", "sales_agent")
   @Post("module-logs/:id/retry")
   retryModuleAction(@Param("id") id: string, @Body() body: { actorId?: string }) {
     return this.billing.retryModuleAction(id, body);

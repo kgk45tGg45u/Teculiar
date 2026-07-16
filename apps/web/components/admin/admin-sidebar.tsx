@@ -3,7 +3,7 @@
 import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ADMIN_AUTH_COOKIE, clearAuth } from "@teculiar/web-core/lib/api";
+import { ADMIN_AUTH_COOKIE, clearAuth, isAgentOnlyRole } from "@teculiar/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import { internalPath, surfaceHref } from "@teculiar/web-core/lib/surface";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
@@ -130,10 +130,12 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
   const href = (target: string) => surfaceHref(browserPath, target);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [nav, setNav] = useState<NavEntry[]>(baseNav);
+  const [agentOnly, setAgentOnly] = useState(false);
 
   useEffect(() => {
     const roles = adminRolesFromToken();
     setNav(isSuperAdmin(roles) ? [...baseNav, settingsNav] : baseNav);
+    setAgentOnly(isAgentOnlyRole(roles));
   }, []);
 
   const [open, setOpen] = useState<Set<string>>(() => {
@@ -202,6 +204,7 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
       <AdminBreadcrumbs variant="sidebar" />
 
       <strong className={styles.brandName}>Teculiar</strong>
+      {agentOnly ? <p className={styles.agentBadge}>{copy.agentMaskedView}</p> : null}
 
       <nav className={`${styles.nav}${mobileOpen ? ` ${styles.navOpen}` : ""}`}>
         {nav.map((entry) => {

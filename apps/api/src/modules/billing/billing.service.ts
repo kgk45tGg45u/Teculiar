@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import type { PaymentMethodType } from "@prisma/client";
 import { resolveVat, sanitizeTaxCountryConfig, type TaxContext, type TaxCountryConfig, vatPercentForCountry } from "@teculiar/shared";
 import { formatDate, formatMoney } from "../../common/i18n";
+import { maskInvoice, shouldMask } from "../../common/pii-mask";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
@@ -207,7 +208,10 @@ export class BillingService {
     if (!invoice) {
       throw new NotFoundException("Invoice not found");
     }
-    const staff = user?.roles?.some((role) => ["admin", "staff"].includes(role));
+    // "agent" (read-only test credential) may view any invoice like staff, but only masked.
+    // Masking here (not the controller) also covers the HTML/PDF renders, which consume this
+    // same object's customerSnapshot.
+    const staff = user?.roles?.some((role) => ["admin", "staff", "agent"].includes(role));
     if (user && !staff && invoice.userId !== user.sub) {
       throw new NotFoundException("Invoice not found");
     }
@@ -216,7 +220,7 @@ export class BillingService {
       (invoice as Record<string, unknown>).paymentMethodLabel = await this.resolvePaymentMethodLabel(invoice);
     }
 
-    return invoice;
+    return shouldMask(user?.roles) ? maskInvoice(invoice) : invoice;
   }
 
   // Resolves the display name for the gateway used to pay an invoice. Names are

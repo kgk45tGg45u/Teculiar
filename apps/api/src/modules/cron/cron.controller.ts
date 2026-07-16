@@ -18,6 +18,9 @@ export class CronController {
     return this.cron.runAuthorized(secretFrom(authorization, headerSecret, querySecret));
   }
 
+  // "agent" deliberately excluded: this runs the real cron sweep (billing renewals/invoicing,
+  // auto-closing tickets) — real customer-facing side effects, not something a read-only test
+  // credential should ever trigger.
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "super_admin")
   @Post("admin/run")

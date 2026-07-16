@@ -4,7 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 export type UserScope = "CLIENT" | "STAFF";
 
-const staffRoleSlugs = ["admin", "super_admin", "support_agent", "sales_agent"];
+const staffRoleSlugs = ["admin", "super_admin", "support_agent", "sales_agent", "agent"];
 
 @Injectable()
 export class UsersRepository {
@@ -333,7 +333,7 @@ export class UsersRepository {
       where: {
         scope: "STAFF",
         userRoles: {
-          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
+          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent", "agent"] } } }
         }
       },
       select: adminUserSelect,
@@ -347,7 +347,7 @@ export class UsersRepository {
         id,
         scope: "STAFF",
         userRoles: {
-          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } } }
+          some: { role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent", "agent"] } } }
         }
       },
       select: adminUserSelect
@@ -382,7 +382,7 @@ export class UsersRepository {
     await this.prisma.userRole.deleteMany({
       where: {
         userId,
-        role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent"] } }
+        role: { slug: { in: ["admin", "super_admin", "support_agent", "sales_agent", "agent"] } }
       }
     });
     await this.prisma.userRole.create({ data: { userId, roleId: role.id } });
@@ -471,7 +471,8 @@ function adminRoleName(slug: string) {
     super_admin: "Super Admin",
     support_agent: "Support Agent",
     sales_agent: "Sales Agent",
-    admin: "Admin"
+    admin: "Admin",
+    agent: "Agent (Read-Only, Masked)"
   };
   return names[slug] ?? slug;
 }

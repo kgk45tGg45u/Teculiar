@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AgentAuditService } from "../../common/agent-audit.service";
 import { AuthModule } from "../auth/auth.module";
 import { BillingModule } from "../billing/billing.module";
 import { EmailModule } from "../email/email.module";
@@ -13,7 +14,7 @@ import { OrdersService } from "./orders.service";
 @Module({
   imports: [AuthModule, BillingModule, EmailModule, ExternalModule, UsersModule],
   controllers: [OrdersController],
-  providers: [OrdersService, OrdersRepository, DomainPricingService, DomainAvailabilityService],
+  providers: [OrdersService, OrdersRepository, DomainPricingService, DomainAvailabilityService, AgentAuditService],
   exports: [OrdersService]
 })
 export class OrdersModule {}

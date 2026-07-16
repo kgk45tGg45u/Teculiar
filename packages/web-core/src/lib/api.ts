@@ -710,10 +710,17 @@ export type AuthUser = {
  * gate, the SSR page guards and the dashboard shell never drift — `super_admin` was missing from
  * several of them, locking the new super-admin out. `staff` is a legacy slug kept for safety.
  */
-export const ADMIN_ROLES = ["admin", "staff", "super_admin", "support_agent", "sales_agent"] as const;
+export const ADMIN_ROLES = ["admin", "staff", "super_admin", "support_agent", "sales_agent", "agent"] as const;
 
 export function isAdminRole(roles: readonly string[] | undefined | null): boolean {
   return !!roles?.some((role) => (ADMIN_ROLES as readonly string[]).includes(role));
+}
+
+/** The restricted, PII-masked, read-only-on-customer-data credential (see AgentWriteBlockGuard
+ * on the API). True only when "agent" is the SOLE role — a human who also holds a full-trust
+ * role should see the normal dashboard, not the masked/read-only one. */
+export function isAgentOnlyRole(roles: readonly string[] | undefined | null): boolean {
+  return !!roles && roles.length > 0 && roles.every((role) => role === "agent");
 }
 
 export type AuthPayload = {
