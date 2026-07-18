@@ -52,6 +52,14 @@ outside the scope class renders exactly as before.
   `priority` — 1 always visible, 2 hidden <768px, 3 hidden <1024px — plus one
   `truncate: true` column that absorbs remaining width and ellipsizes. Hidden values stay
   reachable on the record's detail page. Tables never cause page-level horizontal scroll.
+  **Phase 5 additions:** a column with `sortValue` becomes client-side sortable (header
+  toggle button + `aria-sort`; numbers numeric, strings localeCompare, nulls last);
+  `selectable` adds a checkbox column with select-all, and `bulkBar` renders an action
+  bar above the table while rows are selected. Used by the admin Orders / Invoices /
+  Services / Clients / Tickets lists (`apps/web/components/admin/tables/*`).
+- **StatusPillSelect** (`web-core/ui/status-pill-select`): a StatusPill that opens a
+  listbox of allowed target statuses (Phase 5.3 inline status editing). Presentational —
+  the admin tables wire the mutation endpoints and optimistic row updates around it.
 - **Button**: primary/secondary/ghost/danger, sm/md, whole-pixel font sizes, optical
   centering fixes (sm label +0.5px, icons −1.5px left). Natural width on dashboard mobile
   (`dash-compact`), full-width on storefront mobile (unchanged).
@@ -74,6 +82,10 @@ before advancing:
    DataTable semantics for server-rendered tables); unannotated tables fall back to
    contained scroll inside the table, never page-level. Verified zero page overflow
    320–1440px on all admin + client routes.
+5. Phase 5 lists ✅ 2026-07-19 — the admin Orders / Invoices / Services / Clients /
+   Tickets lists moved onto DataTable proper (sorting + selection + bulk bar + inline
+   StatusPillSelect); UI-Lab gained a "sort + select + inline status" section. Verified
+   zero page overflow at 375px and no console errors in a production-mode run.
 
 Mobile guarantees locked with checkpoint 3: zero horizontal scroll (page-level AND inside
 tables) from 320px up — enforced by `min()` guards on auto-fit grids, `min-width: 0` on

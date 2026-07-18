@@ -618,16 +618,37 @@ Goal: make the admin lists sortable, bulk-actionable, and inline-editable. No fe
 today (plain `<table class="table">` in `admin-dashboard.tsx`/`admin-forms.tsx`; full arrays fetched, no
 sort/filter params except Logs).
 
-### 5.1 Shared sortable/selectable table component
+> **Status (2026-07-19): code DONE + local-verified on `feat/teculiar-phase5-admin-lists`;
+> prod Playwright pass pending deploy.** Per the D1 coordination note, no separate `AdminTable`
+> was built — the shared **web-core `DataTable`** gained `sortValue` columns (header toggle +
+> `aria-sort`, numeric/localeCompare/nulls-last), `selectable` + `bulkBar`, and a new
+> **`StatusPillSelect`** (pill → listbox) landed beside it. Thin wiring lives in
+> `apps/web/components/admin/tables/{orders,invoices,services,clients,tickets}-table.tsx`
+> (+ `shared.ts`); the Products list keeps its `AdminProductManager` (already has its own
+> edit/delete UI). Bulk actions loop the existing endpoints (no batch API): invoices
+> mark-paid / mark-unpaid / delete, tickets spam-delete — one localized confirm, per-row
+> results toasted (`n done, m failed`). Inline dropdowns: orders completed/pending/canceled →
+> `PATCH /orders/:id/status`; invoices Paid/Pending → `mark-paid|unpaid`; services
+> ACTIVE/SUSPENDED/CANCELLED/TERMINATED → `PATCH /admin/dev/services/:id/status`; tickets all
+> four states → `PATCH /tickets/:id/status`. New de+en strings under `admin.list`;
+> `common.status.service` gained suspended/cancelled/terminated. Local verify green: all
+> typechecks, web+storefront builds, web 103 + API 277 unit tests, `i18n-sync --check`, plus a
+> real-browser run (dev + production mode) against the local stack with the agent account —
+> sorting/selection/dropdowns work, writes 403 + error toast (agent block, by design), 375px
+> zero overflow, no prod-mode console errors. Note: an admin-role write-success browser check
+> wasn't possible locally (no admin credential creatable in-session) — covered by unit tests
+> and the endpoints being unchanged; flag to the owner if a live admin-role check is wanted.
+
+### 5.1 Shared sortable/selectable table component  ✅ DONE (2026-07-19 — extended web-core `DataTable` instead of a new `AdminTable`, per the D1 "build once" note)
 - Build one `AdminTable` in `apps/web/components/admin/` (columns config, `aria-sort` headers, client-side
   sort to start; optional server `?sort=&dir=` later), reused by Clients/Services/Invoices/Orders/Products.
 
-### 5.2 Multi-select + bulk actions
+### 5.2 Multi-select + bulk actions  ✅ DONE (2026-07-19 — invoices paid/unpaid/delete + tickets delete; loops existing endpoints with one confirm)
 - Row checkboxes + "select all" + a bulk action bar. Bulk **delete** (where safe) and invoice bulk
   **mark paid/unpaid**. Add batch endpoints (or loop existing `mark-paid`/`mark-unpaid`/delete) with a
   single confirm. Respect roles (`admin|staff|super_admin`).
 
-### 5.3 Inline status-tag dropdown
+### 5.3 Inline status-tag dropdown  ✅ DONE (2026-07-19 — `StatusPillSelect` on orders/invoices/services/tickets rows; optimistic row update + toast)
 - Turn the read-only `StatusPill` into a clickable dropdown in lists for admin-changeable statuses
   (order status, invoice paid/unpaid, service status, ticket status). Reuse the existing mutation
   endpoints (`PATCH /orders/:id/status`, `/billing/invoices/:id/mark-paid|unpaid`,
@@ -637,6 +658,13 @@ sort/filter params except Logs).
 ### Verify (Phase 5)
 Playwright: sort clients by a column; select several invoices → bulk mark paid; change an order's status
 from its list-row tag → confirm persisted + email side-effects behave.
+**Spec:** `tests/e2e/specs/phase5-admin-lists-verify.spec.ts` (prod, agent credential — sorting,
+bulk bar, dropdown menus verify for real; customer-linked writes assert the designed 403 + error
+toast, which also proves endpoint wiring). Run after deploy:
+`set -a && source .env && set +a`, then
+`E2E_BASE_URL=https://www.dezhost.com E2E_API_URL=https://www.dezhost.com/api/v1 npx playwright test tests/e2e/specs/phase5-admin-lists-verify.spec.ts --project=chromium --workers=1`.
+The write-success path (mark paid actually flips, order status persists + email side-effects)
+needs an admin credential — owner check or a one-off with a real admin login.
 
 ---
 

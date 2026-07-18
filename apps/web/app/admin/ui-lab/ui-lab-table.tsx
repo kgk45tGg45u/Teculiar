@@ -4,6 +4,8 @@ import { Download, Trash2 } from "lucide-react";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import { DataTable, type DataTableColumn } from "@teculiar/web-core/components/ui/data-table";
 import { StatusBadge } from "@teculiar/web-core/components/ui/status-badge";
+import { StatusPillSelect } from "@teculiar/web-core/components/ui/status-pill-select";
+import { notify } from "@teculiar/web-core/components/ui/toast-provider";
 
 type DemoInvoice = {
   id: string;
@@ -44,4 +46,50 @@ const COLUMNS: DataTableColumn<DemoInvoice>[] = [
 
 export function UiLabDataTable() {
   return <DataTable columns={COLUMNS} rowKey={(r) => r.id} rows={ROWS} />;
+}
+
+// Phase 5: sorting (sortValue columns), multi-select + bulk bar, inline status dropdown.
+const SORTABLE_COLUMNS: DataTableColumn<DemoInvoice>[] = [
+  { key: "number", header: "Invoice", render: (r) => <strong>{r.number}</strong>, sortValue: (r) => r.number },
+  { key: "client", header: "Client", render: (r) => r.client, sortValue: (r) => r.client, truncate: true },
+  {
+    key: "status",
+    header: "Status",
+    render: (r) => (
+      <StatusPillSelect
+        label={r.status}
+        menuLabel="Change status"
+        onSelect={(value) => { notify.info(`${r.number} → ${value}`); }}
+        options={[
+          { label: "Paid", value: "PAID" },
+          { label: "Pending", value: "PENDING" }
+        ]}
+        tone={r.status === "PAID" ? "good" : "warn"}
+        value={r.status}
+      />
+    ),
+    priority: 2
+  },
+  { key: "amount", header: "Amount", render: (r) => r.amount, align: "right", priority: 2, sortValue: (r) => Number(r.amount.replace(/[^\d,]/g, "").replace(",", ".")) },
+  { key: "due", header: "Due", render: (r) => r.due, priority: 3 }
+];
+
+export function UiLabListTable() {
+  return (
+    <DataTable
+      bulkBar={(selected, clear) => (
+        <>
+          <strong>{selected.length} selected</strong>
+          <Button onClick={() => { notify.success(`${selected.length} done`); clear(); }} size="sm" variant="secondary">Mark paid</Button>
+          <Button onClick={clear} size="sm" variant="ghost">Clear</Button>
+        </>
+      )}
+      columns={SORTABLE_COLUMNS}
+      initialSort={{ dir: "asc", key: "number" }}
+      rowKey={(r) => r.id}
+      rows={ROWS}
+      selectLabels={{ all: "Select all rows", row: "Select row" }}
+      selectable
+    />
+  );
 }

@@ -4,7 +4,7 @@ import { Button } from "@teculiar/web-core/components/ui/button";
 import { Badge } from "@teculiar/web-core/components/ui/badge";
 import { StatusBadge } from "@teculiar/web-core/components/ui/status-badge";
 import { Field, Input, Select, Textarea } from "@teculiar/web-core/components/ui/form-controls";
-import { UiLabDataTable } from "./ui-lab-table";
+import { UiLabDataTable, UiLabListTable } from "./ui-lab-table";
 import styles from "./ui-lab.module.css";
 
 // Internal dev-only styleguide for the D1 design system (docs/design-system.md).
@@ -155,6 +155,15 @@ export default function UiLabPage() {
             column ellipsizes. No horizontal page scroll at any width.
           </p>
           <UiLabDataTable />
+        </section>
+
+        <section className={`panel ${styles.section}`} style={{ padding: 18 }}>
+          <h2>DataTable (Phase 5: sort + select + inline status)</h2>
+          <p className="muted-text" style={{ margin: 0, fontSize: "var(--text-sm)" }}>
+            Click headers to sort (aria-sort), tick rows for the bulk bar, click a status
+            pill to change it inline.
+          </p>
+          <UiLabListTable />
         </section>
 
         <section className={`panel ${styles.section}`} style={{ padding: 18 }}>

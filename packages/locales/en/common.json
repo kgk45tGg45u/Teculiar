@@ -22,7 +22,10 @@
     },
     "service": {
       "active": "Active",
-      "pending": "Pending"
+      "pending": "Pending",
+      "suspended": "Suspended",
+      "cancelled": "Canceled",
+      "terminated": "Terminated"
     },
     "invoice": {
       "PENDING": "Pending",

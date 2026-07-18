@@ -6,7 +6,8 @@ import test from "node:test";
 // the dashboards must show the captured *order* price (recurringAmountCents), never productPrice.amountCents.
 const api = readFileSync(new URL("../../../packages/web-core/src/lib/api.ts", import.meta.url), "utf8");
 const clientDashboard = readFileSync(new URL("../components/portal/client-dashboard.tsx", import.meta.url), "utf8");
-const adminDashboard = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+// Phase 5: the admin services list moved from admin-dashboard.tsx into the sortable table.
+const adminServicesTable = readFileSync(new URL("../components/admin/tables/services-table.tsx", import.meta.url), "utf8");
 const serviceDetail = readFileSync(new URL("../app/admin/services/[serviceId]/page.tsx", import.meta.url), "utf8");
 
 test("api exposes order-price helpers that prefer recurringAmountCents over the list price", () => {
@@ -28,6 +29,6 @@ test("client dashboard prices services and domains from the order price", () => 
 });
 
 test("admin dashboard and service detail price services from the order price", () => {
-  assert.match(adminDashboard, /money\(serviceUnitPriceCents\(service\)/);
+  assert.match(adminServicesTable, /money\(serviceUnitPriceCents\(service\)/);
   assert.match(serviceDetail, /money\(serviceUnitPriceCents\(service\)/);
 });

@@ -1285,5 +1285,20 @@
     "addFailed": "Could not register",
     "verifyFailed": "Verification failed",
     "savedPlan": "Setup saved"
+  },
+  "list": {
+    "selected": "selected",
+    "clearSelection": "Clear selection",
+    "markPaid": "Mark paid",
+    "markUnpaid": "Mark unpaid",
+    "deleteSelected": "Delete",
+    "confirmDelete": "Delete the selected entries? This cannot be undone.",
+    "bulkDone": "done",
+    "bulkFailed": "failed",
+    "selectAll": "Select all rows",
+    "selectRow": "Select row",
+    "changeStatus": "Change status",
+    "statusSaved": "Status updated.",
+    "statusFailed": "Status update failed."
   }
 }

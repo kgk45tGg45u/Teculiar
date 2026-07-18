@@ -3,12 +3,9 @@ import { Bell, BookOpen, FileText, Mail, Package, Settings, Ticket, UsersRound }
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
-  cycleLabel,
   dateLabel as formatDate,
-  invoiceDisplayNumber,
   isAdminRole,
   money,
-  serviceUnitPriceCents,
   type ApiClient,
   type ApiEmailAdminSettings,
   type ApiInvoice,
@@ -23,12 +20,16 @@ import {
 import { type Locale } from "@teculiar/web-core/lib/i18n";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { requestLocale } from "@teculiar/web-core/lib/server-locale";
-import { invoiceStatusLabel, invoiceStatusVisible, orderStatusLabel, serviceStatusLabel, ticketStatusLabel, ticketStatusTone } from "@teculiar/web-core/lib/status-labels";
 import { apiGetAuth, apiGetAuthResult, redirectToAdminLogin, surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import { SuspendedNotice } from "@teculiar/web-core/components/ui/suspended-notice";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
-import { AddClientForm, AdminsPanel, AnnouncementForm, ClientManager, CronSettingsForm, DomainPriceForm, NewOrderForm, OrderStatusForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
+import { AddClientForm, AdminsPanel, AnnouncementForm, CronSettingsForm, DomainPriceForm, NewOrderForm, PaymentGatewayForm, SeoSettingsForm, SettingsForm } from "./admin-forms";
+import { ClientsTable } from "./tables/clients-table";
+import { InvoicesTable } from "./tables/invoices-table";
+import { OrdersTable } from "./tables/orders-table";
+import { ServicesTable } from "./tables/services-table";
+import { TicketsTable } from "./tables/tickets-table";
 import { EmailSettingsForm } from "./email-admin-editor";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { AdminDepartmentsPanel, AdminNewTicketPanel } from "./admin-departments";
@@ -92,7 +93,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
 
   const needsOrders = view === "home" || view === "orders";
   const needsClients = view === "clients" || view === "orders-new";
-  const needsProducts = view === "clients" || view === "orders-new";
+  const needsProducts = view === "orders-new";
   const needsServices = view === "services";
   const needsInvoices = view === "invoices";
   const needsDomainPrices = view === "domain-prices" || view === "modules";
@@ -145,7 +146,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
         {view === "home" || view === "orders" ? <OrdersPanel locale={locale} orders={orders} /> : null}
         {view === "orders-new" ? <NewOrderPanel clients={clients} locale={locale} preselectedClientId={preselectedClientId} products={products} vatPercent={settings.vatPercent ?? 19} /> : null}
         {view === "domain-prices" ? <DomainPricesPanel locale={locale} prices={domainPrices} /> : null}
-        {view === "clients" ? <ClientsPanel clients={clients} locale={locale} products={products} /> : null}
+        {view === "clients" ? <ClientsPanel clients={clients} locale={locale} /> : null}
         {view === "clients-new" ? <ClientsNewPanel locale={locale} /> : null}
         {view === "services" ? <ServicesPanel locale={locale} services={services} /> : null}
         {view === "invoices" ? <InvoicesPanel invoices={invoices} locale={locale} /> : null}
@@ -386,60 +387,7 @@ async function OrdersPanel({ locale, orders }: { locale: Locale; orders: ApiOrde
           <Button href={href("/admin/orders/new")} variant="secondary">{copy.btn.newOrder}</Button>
         </div>
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{copy.order}</th>
-            <th className="col-p2 cell-nowrap">{copy.col.date}</th>
-            <th className="cell-max">{copy.client}</th>
-            <th>{copy.status}</th>
-            <th className="col-p3">{copy.invoices}</th>
-            <th className="col-p3 cell-trunc">{copy.col.items}</th>
-            <th className="cell-nowrap">{copy.total}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.length ? (
-            sorted.map((order) => (
-              <tr key={order.id}>
-                <td>
-                  <details>
-                    <summary><a href={href(`/admin/orders/${order.id}`)}>{order.orderNumber}</a></summary>
-                    <div className={styles.orderDetails}>
-                      <p><strong>{copy.invoices}:</strong> {order.invoice ? invoiceDisplayNumber(order.invoice) : "-"} ({order.invoice?.status ?? copy.misc.noInvoice})</p>
-                      <p><strong>{copy.status}:</strong> {orderStatusLabel(order.status, locale)}</p>
-                      <OrderStatusForm orderId={order.id} status={order.status} />
-                      <table className="table">
-                        <tbody>
-                          {order.items.map((item) => (
-                            <tr key={item.id}>
-                              <td>{item.description}</td>
-                              <td>{item.domainName ?? "-"}</td>
-                              <td>{serviceStatusLabel(item.provisioningStatus, locale)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
-                </td>
-                <td className="col-p2 cell-nowrap">{shortDateLabel(order.placedAt ?? order.createdAt, locale)}</td>
-                <td className="cell-max">{order.user?.email ?? copy.misc.unknown}</td>
-                <td>
-                  <StatusPill label={orderStatusLabel(order.status, locale)} tone={order.status === "COMPLETE" ? "good" : order.status === "CANCELLED" ? "neutral" : "warn"} />
-                </td>
-                <td className="col-p3">{order.invoice ? <a href={href(`/admin/invoices/${order.invoice.id}`)}>{invoiceDisplayNumber(order.invoice)}</a> : "-"}</td>
-                <td className="col-p3 cell-trunc"><span>{order.items.map((item) => item.description).join(", ")}</span></td>
-                <td className="cell-nowrap">{money(order.totalCents, order.currency, locale)}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={7}>{copy.noOrders}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <OrdersTable locale={locale} orders={sorted} />
     </section>
   );
 }
@@ -459,8 +407,7 @@ function NewOrderPanel({ clients, locale, preselectedClientId, products, vatPerc
   );
 }
 
-async function ServicesPanel({ locale, services }: { locale: Locale; services: ApiService[] }) {
-  const href = await surfaceHrefMapper();
+function ServicesPanel({ locale, services }: { locale: Locale; services: ApiService[] }) {
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -470,33 +417,12 @@ async function ServicesPanel({ locale, services }: { locale: Locale; services: A
           <h2>{copy.view.allServices}</h2>
         </div>
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{copy.col.service}</th>
-            <th className="col-p3">{copy.col.pricing}</th>
-            <th className="col-p2 cell-nowrap">{copy.col.nextDue}</th>
-            <th>{copy.status}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {services.map((service) => (
-            <tr key={service.id}>
-              <td><a href={href(`/admin/services/${service.id}`)}>{service.product.name}</a><br />{service.domainRecords?.[0]?.domain ?? stringValue(service.configuration?.domainName) ?? serviceKindLabel(service.product.type)}</td>
-              <td className="col-p3">{money(serviceUnitPriceCents(service), service.productPrice.currency, locale)} / {cycleLabel(service.productPrice.billingCycle, locale)}</td>
-              <td className="col-p2 cell-nowrap">{shortDateLabel(service.renewsAt, locale)}</td>
-              <td>
-                <StatusPill label={serviceStatusLabel(service.status, locale)} tone={service.status === "ACTIVE" ? "good" : "warn"} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ServicesTable locale={locale} services={services} />
     </section>
   );
 }
 
-async function ClientsPanel({ clients, locale, products }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
+async function ClientsPanel({ clients, locale }: { clients: ApiClient[]; locale: Locale }) {
   const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
   return (
@@ -511,7 +437,7 @@ async function ClientsPanel({ clients, locale, products }: { clients: ApiClient[
           <Button href={href("/admin/clients/new")} variant="secondary">{copy.btn.addClient}</Button>
         </div>
       </div>
-      <ClientManager clients={clients} locale={locale} products={products} />
+      <ClientsTable clients={clients} locale={locale} />
     </section>
   );
 }
@@ -533,8 +459,7 @@ async function ClientsNewPanel({ locale }: { locale: Locale }) {
   );
 }
 
-async function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: Locale }) {
-  const href = await surfaceHrefMapper();
+function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; locale: Locale }) {
   const copy = getDictionary(locale).admin;
   return (
     <section className={styles.panel}>
@@ -545,38 +470,7 @@ async function InvoicesPanel({ invoices, locale }: { invoices: ApiInvoice[]; loc
         </div>
         <StatusPill label={`${invoices.length}`} tone="neutral" />
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>{copy.col.invoice}</th>
-            <th className="cell-trunc">{copy.client}</th>
-            <th className="col-p3">{copy.col.issued}</th>
-            <th className="col-p2">{copy.col.duePaid}</th>
-            <th>{copy.total}</th>
-            <th>{copy.status}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoices.map((invoice) => (
-            <tr key={invoice.id}>
-              <td><a href={href(`/admin/invoices/${invoice.id}`)}>{invoiceDisplayNumber(invoice)}</a></td>
-              <td className="cell-trunc"><span>{invoice.customerSnapshot?.name ?? "—"}</span></td>
-              <td className="col-p3">{shortDateLabel(invoice.issuedAt, locale)}</td>
-              <td className="col-p2">{shortDateLabel(invoice.status === "PAID" ? invoice.paidAt : invoice.dueAt, locale)}</td>
-              <td>{money(invoice.totalCents, invoice.currency, locale)}</td>
-              <td>
-                {invoiceStatusVisible(invoice.status) ? (
-                  <StatusPill
-                    label={invoiceStatusLabel(invoice.status, locale)}
-                    tone={invoice.status === "REFUNDED" ? "neutral" : "warn"}
-                  />
-                ) : "—"}
-              </td>
-            </tr>
-          ))}
-          {invoices.length === 0 ? <tr><td colSpan={6} style={{ color: "var(--muted)", textAlign: "center" }}>{copy.misc.noInvoicesYet}</td></tr> : null}
-        </tbody>
-      </table>
+      <InvoicesTable invoices={invoices} locale={locale} />
     </section>
   );
 }
@@ -596,28 +490,7 @@ async function TicketsPanel({ locale, tickets }: { locale: Locale; tickets: ApiT
           <Button href={href("/admin/tickets/new")} variant="secondary">{copy.btn.newTicket}</Button>
         </div>
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <th className="col-p2">{copy.department}</th>
-            <th className="cell-trunc">{copy.subject}</th>
-            <th>{copy.status}</th>
-            <th className="col-p3">{copy.lastUpdate}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tickets.map((ticket) => (
-            <tr key={ticket.id}>
-              <td className="col-p2">{ticket.department?.name ?? ""}</td>
-              <td className="cell-trunc"><a href={href(`/admin/tickets/${ticket.id}`)}>#{ticket.publicId ?? ticket.id.slice(-6).toUpperCase()} {ticket.subject}</a></td>
-              <td>
-                <StatusPill label={ticketStatusLabel(ticket.status, locale)} tone={ticketStatusTone(ticket.status)} />
-              </td>
-              <td className="col-p3">{shortDateLabel(ticket.updatedAt, locale)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TicketsTable locale={locale} tickets={tickets} />
     </section>
   );
 }
@@ -809,15 +682,6 @@ function emptyEmailSettings(): ApiEmailAdminSettings {
     testVariables: {}
   };
 }
-
-function serviceKindLabel(type: string) {
-  return { DOMAIN: "Domain", SHARED_HOSTING: "Hosting", VPS: "VPS" }[type] ?? type.toLowerCase().replaceAll("_", " ");
-}
-
-function stringValue(value: unknown) {
-  return typeof value === "string" && value ? value : undefined;
-}
-
 
 function shortDateLabel(value?: string | null, locale: Locale = "de", timezone?: string) {
   return formatDate(value, locale, { day: "2-digit", month: "2-digit", year: "2-digit", ...(timezone ? { timeZone: timezone } : {}) });
