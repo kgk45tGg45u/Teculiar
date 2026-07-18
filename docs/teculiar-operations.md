@@ -489,9 +489,14 @@ Each run prints the tenant's **admin email + a one-time generated password** —
 
 1. Log in at `https://teculiar.teculiar.net/admin` (and `https://dezhost.teculiar.net/admin`).
 2. In each tenant's admin, enable its modules: **teculiar → Tecreator**; **dezhost → Virtualmin/ResellBiz**.
-3. Create each tenant's catalog: **teculiar** gets the **Teculiar plan** (a monthly recurring product with
-   provisioning module `tecreator`); **dezhost** gets its hosting/VPS/domain products (provisioning module
-   `virtualmin`/`resellbiz`).
+   For teculiar this is automated: the Phase 4.1 seed CLI enables Tecreator itself.
+3. Create each tenant's catalog: **teculiar** gets the **Teculiar plan** — seeded by CLI (Phase 4.1/4.3),
+   no manual product entry needed:
+   ```bash
+   docker compose exec api node apps/api/dist/tenancy/seed-teculiar-plan.js teculiar          # category+plan+price, enables Tecreator
+   docker compose exec api node apps/api/dist/tenancy/seed-teculiar-pages.js teculiar --publish  # authored home (drop --publish to review the draft first)
+   ```
+   **dezhost** gets its hosting/VPS/domain products (provisioning module `virtualmin`/`resellbiz`).
 4. Point the domains: `teculiar.com` → the storefront (H.5, upstream `teculiar.teculiar.net`);
    `dezhost.com` → the storefront (H.5, upstream `dezhost.teculiar.net`). Both stay fully white-label.
 5. Verify: `https://teculiar.com` and `https://dezhost.com` show the storefront; `.../client` and
@@ -509,8 +514,9 @@ Everything up to and including **H.5 is done** (images built, `.env`, the three 
 
 1. **Provision the two tenants** — run the H.7 `bootstrap-tenant.js` commands for `teculiar` and `dezhost`;
    save each printed admin email + one-time password.
-2. **Bring up teculiar.com** — log into `https://teculiar.teculiar.net/admin`, enable **Tecreator**, seed
-   the Teculiar plan (monthly recurring, provisioning module `tecreator`), author the marketing pages.
+2. **Bring up teculiar.com** — run the H.7 seed CLIs (`seed-teculiar-plan.js` + `seed-teculiar-pages.js
+   --publish`; they enable Tecreator, create the plan and publish the authored home), register the apex
+   host (`register-domain.js teculiar.com teculiar apex active`) and point DNS at the Caddy edge.
    Verify `https://teculiar.com` shows the storefront and `/client`, `/admin` load same-origin.
    **teculiar.net + teculiar.com can go fully live now — they are brand-new sites and cannot affect the
    live dezhost.com.**

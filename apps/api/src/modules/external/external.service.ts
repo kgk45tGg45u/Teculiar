@@ -18,11 +18,12 @@ export class ExternalService {
   hostingProvider(moduleNameOrProductType: string | null | undefined, productType?: string): HostingProvider {
     const moduleName = productType ? moduleNameOrProductType : undefined;
     const type = productType ?? moduleNameOrProductType;
-    // Tecreator (kind: "platform") provisions a whole tenant — selected only by explicit module name.
-    if (moduleName === "tecreator") {
+    // Tecreator (kind: "platform") provisions a whole tenant — "tecreator" is never a ProductType,
+    // so match it in either argument position (callers without a loaded product still route right).
+    if (moduleNameOrProductType === "tecreator") {
       return this.tecreator;
     }
-    if (moduleName === "hetzner" || (!moduleName && ["VPS", "DEDICATED_SERVER"].includes(type ?? ""))) {
+    if (moduleNameOrProductType === "hetzner" || (!moduleName && ["VPS", "DEDICATED_SERVER"].includes(type ?? ""))) {
       return this.hetzner;
     }
 

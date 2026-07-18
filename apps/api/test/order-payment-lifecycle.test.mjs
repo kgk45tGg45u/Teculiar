@@ -367,13 +367,16 @@ test("site header swaps account link for signed-in account menu with logout", as
 });
 
 test("portal and admin dashboards expose logout actions", async () => {
-  const client = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
-  const admin = await readFile(new URL("../../web/components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
+  // D1 moved the client chrome (profile link, balance, logout) into client-sidebar.tsx and the
+  // admin logout into the admin layout.
+  const clientSidebar = await readFile(new URL("../../web/components/portal/client-sidebar.tsx", import.meta.url), "utf8");
+  const adminLayout = await readFile(new URL("../../web/app/admin/layout.tsx", import.meta.url), "utf8");
   const accountMenu = await readFile(new URL("../../../packages/web-core/src/components/layout/account-menu.tsx", import.meta.url), "utf8");
 
   assert.match(accountMenu, /clearAuth\("client"\)/);
-  assert.match(client, /href=\{href\("\/client\/profile"\)\}/); // Phase 2.2: surface-mapped href
-  assert.match(admin, /<LogoutButton scope="admin"/);
+  assert.match(clientSidebar, /clearAuth\("client"\)/);
+  assert.match(clientSidebar, /href=\{href\("\/client\/profile"\)\}/); // Phase 2.2: surface-mapped href
+  assert.match(adminLayout, /<LogoutButton [^>]*scope="admin"/);
 });
 
 test("signed-in checkout uses profile data and hides contact fields", async () => {
@@ -396,6 +399,7 @@ test("guest checkout password field has eye visibility toggle", async () => {
 
 test("client dashboard puts combined feed below services", async () => {
   const source = await readFile(new URL("../../web/components/portal/client-dashboard.tsx", import.meta.url), "utf8");
+  const sidebar = await readFile(new URL("../../web/components/portal/client-sidebar.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
   const feedIndex = source.indexOf("<DashboardKnowledgeFeed");
   const servicesIndex = source.indexOf("<ServicesTable");
@@ -405,7 +409,8 @@ test("client dashboard puts combined feed below services", async () => {
   assert.ok(overviewIndex > 0);
   assert.ok(servicesIndex > overviewIndex);
   assert.ok(feedIndex > servicesIndex);
-  assert.match(source, /className=\{styles\.balanceCard\}/);
+  // D1: the balance card moved into the sidebar chrome.
+  assert.match(sidebar, /className=\{styles\.balanceCard\}/);
   assert.match(source, /copy\.announcementsAndArticles/);
   assert.match(source, /dashboardFeedItems/);
   assert.match(css, /position:\s*sticky[\s\S]*top:\s*0/);
@@ -415,8 +420,11 @@ test("client dashboard puts combined feed below services", async () => {
 
 test("client dashboard responsive CSS prevents page-wide overflow", async () => {
   const css = await readFile(new URL("../../web/components/portal/client-dashboard.module.css", import.meta.url), "utf8");
+  // D1: the sidebar column moved into the shared PageShell — the sidebar/content split (fixed
+  // sidebar + minmax(0, 1fr) content so tables can shrink) is asserted there now.
+  const shell = await readFile(new URL("../../../packages/web-core/src/components/ui/page-shell.module.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.page\s*\{[\s\S]*grid-template-columns:\s*24[02]px minmax\(0, 1fr\)/);
+  assert.match(shell, /grid-template-columns:\s*250px minmax\(0, 1fr\)/);
   assert.match(css, /\.main\s*\{[\s\S]*min-width:\s*0/);
   assert.match(css, /\.headerActions/);
   assert.match(css, /@media \(max-width: 920px\)[\s\S]*\.headerActions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);

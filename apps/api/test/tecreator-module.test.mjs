@@ -54,9 +54,20 @@ test("ExternalService routes the 'tecreator' module name to the Tecreator provid
   const hetzner = { marker: "hetzner" };
   const svc = new ExternalService(virtualmin, { marker: "resellbiz" }, hetzner, tecreator);
   assert.equal(svc.hostingProvider("tecreator", "TENANT").marker, "tecreator");
+  // Module names resolve even without a loaded product type (service.product may be absent).
+  assert.equal(svc.hostingProvider("tecreator").marker, "tecreator");
+  assert.equal(svc.hostingProvider("hetzner").marker, "hetzner");
   // Unrelated modules/types still resolve as before — no regression.
   assert.equal(svc.hostingProvider(null, "VPS").marker, "hetzner");
   assert.equal(svc.hostingProvider(null, "SHARED_HOSTING").marker, "virtualmin");
+});
+
+test("billing lifecycle provisions services through the shared provider resolver (tecreator routes)", async () => {
+  // Guards the Phase 4 fix: runServiceModule used to fall through to Virtualmin for every
+  // non-hetzner module, so a `tecreator` product would never create a tenant.
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../src/modules/billing/billing.service.ts", import.meta.url), "utf8");
+  assert.match(src, /hostingProvider\(moduleName, service\.product\?\.type\)\.provision\(/);
 });
 
 // ── Provider behaviour ───────────────────────────────────────────────────────
@@ -113,6 +124,28 @@ test("provision auto-generates a subdomain when the buyer chose none", async () 
   const result = await provider.provision(req({ subdomainPrefix: "user" }));
   assert.equal(result.status, "ACTIVE");
   assert.match(calls.createTenant[0].subdomain, /^user\d+$/);
+});
+
+test("provision falls back to the lifecycle's contactEmail/description for the tenant admin", async () => {
+  // hostingOptions() (billing lifecycle) passes the buyer as contactEmail + description — with no
+  // explicit adminEmail option, the buyer must become the new tenant's admin.
+  const { provider, calls } = makeProvider();
+  await provider.provision(req({ subdomain: "acme", contactEmail: "buyer@example.com", description: "Buyer Name" }));
+  assert.equal(calls.createTenant[0].adminEmail, "buyer@example.com");
+  assert.equal(calls.createTenant[0].adminName, "Buyer Name");
+});
+
+test("Phase 4.1/4.3 seed CLIs exist and seed the tecreator plan + home content", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const plan = await readFile(new URL("../src/tenancy/seed-teculiar-plan.ts", import.meta.url), "utf8");
+  assert.match(plan, /slug: "teculiar-plan"/);
+  assert.match(plan, /provisioningModule: "tecreator"/);
+  assert.match(plan, /billingCycle: "MONTHLY"/);
+  assert.match(plan, /module\.tecreator\.active/);
+  const pages = await readFile(new URL("../src/tenancy/seed-teculiar-pages.ts", import.meta.url), "utf8");
+  assert.match(pages, /type: "pricingTable"/);
+  assert.match(pages, /type: "pricingPlan"/);
+  assert.match(pages, /publishedLayout/);
 });
 
 test("provision surfaces a FAILED result (not a throw) when createTenant fails", async () => {

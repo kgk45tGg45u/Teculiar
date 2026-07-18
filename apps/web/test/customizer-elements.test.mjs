@@ -9,6 +9,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const json = (rel) => JSON.parse(read(rel));
 
 const index = read("../../../packages/web-core/src/lib/customizer/registry/index.ts");
+const pricing = read("../../../packages/web-core/src/lib/customizer/registry/pricing.tsx");
 const hero = read("../../../packages/web-core/src/lib/customizer/registry/hero.tsx");
 const feature = read("../../../packages/web-core/src/lib/customizer/registry/feature.tsx");
 const steps = read("../../../packages/web-core/src/lib/customizer/registry/steps.tsx");
@@ -21,8 +22,8 @@ const enAdmin = json("../../../packages/locales/en/admin.json");
 const deAdmin = json("../../../packages/locales/de/admin.json");
 
 const DEF_NAMES = [
-  "heroDef", "sectionDef", "featureGridDef", "stepsDef", "ctaDef", "faqDef",
-  "featureCardDef", "stepDef", "faqItemDef",
+  "heroDef", "sectionDef", "featureGridDef", "stepsDef", "ctaDef", "faqDef", "pricingTableDef",
+  "featureCardDef", "stepDef", "faqItemDef", "pricingPlanDef",
   "textBlockDef", "buttonDef", "badgeDef", "iconDef", "proseDef",
   "productGridDef", "priceTokenDef"
 ];
@@ -63,6 +64,26 @@ test("containers declare accepted child types", () => {
   assert.match(feature, /accepts: \["featureCard"\]/);
   assert.match(steps, /accepts: \["step"\]/);
   assert.match(faq, /accepts: \["faqItem"\]/);
+  assert.match(pricing, /accepts: \["pricingPlan"\]/);
+});
+
+test("pricingTable (Phase 4.2): authorable plans, locale-aware price, shared featured badge", () => {
+  // Container + card pair, styled with the product-grid card CSS so preview == live.
+  assert.match(pricing, /type: "pricingTable"/);
+  assert.match(pricing, /type: "pricingPlan"/);
+  assert.match(pricing, /product-grid\.module\.css/);
+  // Price formatting goes through the shared locale-aware token formatter (like priceToken).
+  assert.match(pricing, /formatToken\(\{ kind: "price"/);
+  // Featured plans reuse the single shared badge (Phase 1.9) + card outline.
+  assert.match(pricing, /PopularBadge/);
+  assert.match(pricing, /featuredCardClass/);
+  // Edit-modal keys stay within the labelled slot/prop vocabulary (no locale-pack drift).
+  for (const key of ["title", "suffix", "body", "ctaLabel"]) {
+    assert.ok(enAdmin.customizer.slots[key] && deAdmin.customizer.slots[key], `slot label missing: ${key}`);
+  }
+  for (const key of ["amountCents", "currency", "href", "variant", "columns"]) {
+    assert.ok(enAdmin.customizer.props[key] && deAdmin.customizer.props[key], `prop label missing: ${key}`);
+  }
 });
 
 test("palette groups by category; packs carry categories + slot labels (en + de)", () => {

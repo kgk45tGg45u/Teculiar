@@ -7,6 +7,7 @@ import { domainSearchDef } from "./domain-search";
 import { faqDef, faqItemDef } from "./faq";
 import { featureCardDef, featureGridDef } from "./feature";
 import { heroDef } from "./hero";
+import { pricingPlanDef, pricingTableDef } from "./pricing";
 import { productGridDef } from "./product";
 import { sectionDef } from "./section";
 import { stepDef, stepsDef } from "./steps";
@@ -22,10 +23,12 @@ const DEFS: ElementDef[] = [
   stepsDef,
   ctaDef,
   faqDef,
+  pricingTableDef,
   // cards (children of containers)
   featureCardDef,
   stepDef,
   faqItemDef,
+  pricingPlanDef,
   // atoms
   textBlockDef,
   buttonDef,

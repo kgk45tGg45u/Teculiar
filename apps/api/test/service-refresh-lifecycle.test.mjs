@@ -348,6 +348,8 @@ test("paid service lifecycle uses category module before legacy product module",
       }
     }
   };
+  // Phase 4: the lifecycle resolves providers through the shared hostingProvider() resolver.
+  external.hostingProvider = (moduleName) => (moduleName === "hetzner" ? external.hetzner : external.virtualmin);
   const { BillingService } = await import("../dist/modules/billing/billing.service.js");
   const service = new BillingService(billing, {}, {}, external);
 

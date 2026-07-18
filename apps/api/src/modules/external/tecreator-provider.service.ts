@@ -41,8 +41,13 @@ export class TecreatorProviderService implements HostingProvider {
         subdomain,
         brand: stringOption(request.options, "brand"),
         plan: stringOption(request.options, "plan") ?? stringOption(request.options, "defaultPlan") ?? request.productType,
-        adminEmail: stringOption(request.options, "adminEmail") ?? stringOption(request.options, "email"),
-        adminName: stringOption(request.options, "adminName")
+        // `contactEmail`/`description` are what the billing lifecycle's hostingOptions() carries
+        // (buyer email + name from the invoice customer snapshot) — the buyer becomes the admin.
+        adminEmail:
+          stringOption(request.options, "adminEmail") ??
+          stringOption(request.options, "email") ??
+          stringOption(request.options, "contactEmail"),
+        adminName: stringOption(request.options, "adminName") ?? stringOption(request.options, "description")
       });
       return {
         externalId: tenant.subdomain,

@@ -153,6 +153,8 @@ test("paid bundled order starts Resell.biz even when Virtualmin is slow", async 
       }
     }
   };
+  // Phase 4: the lifecycle resolves providers through the shared hostingProvider() resolver.
+  external.hostingProvider = () => external.virtualmin;
   const service = new BillingService(billing, {}, {}, external);
 
   await service.onInvoicePaid("invoice-bundle", { source: "gateway" });
