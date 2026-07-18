@@ -547,9 +547,14 @@ bundle / design-token" work deferred from Phase 2.*
 Goal: bring `teculiar.com` fully live as tenant #0 selling the Teculiar plan (safe — new site, can't
 affect dezhost.com).
 
-> **Status (2026-07-18): all Phase 4 code landed on `feat/teculiar-phase4-golive` + locally verified;
-> the go-live itself is the operator runbook below (tenant provisioning + DNS on eu01), then the
-> phase-end prod Playwright pass.** Also fixed while wiring 4.1: the billing lifecycle's
+> **✅ PHASE DONE (2026-07-19): teculiar.com is LIVE.** Code merged to `main` + deployed
+> 2026-07-18; owner ran the 4.4 runbook (tenant provisioned, plan + home seeded/published,
+> apex host + DNS); phase-end prod verify green —
+> `tests/e2e/specs/phase4-teculiar-verify.spec.ts` 5/5 against https://teculiar.com
+> (authored home + pricing table, meta description, CTA → order page, /admin + /client
+> same-origin, storefront settings). Outstanding (non-blocking): purchase→provision E2E via
+> PayPal sandbox happens with 6.3; deactivate the Blue demo catalog products in teculiar admin
+> if not already done. Also fixed while wiring 4.1: the billing lifecycle's
 > `runServiceModule` routed every non-hetzner module to Virtualmin — a `tecreator` product would
 > never have created a tenant. It now resolves through `ExternalService.hostingProvider()` (which
 > matches "tecreator"/"hetzner" in either argument position), and the Tecreator provider accepts the
