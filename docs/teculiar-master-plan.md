@@ -547,31 +547,63 @@ bundle / design-token" work deferred from Phase 2.*
 Goal: bring `teculiar.com` fully live as tenant #0 selling the Teculiar plan (safe — new site, can't
 affect dezhost.com).
 
-### 4.1 Teculiar-plan catalog seed
-- Add a Teculiar-plan product (monthly recurring, `provisioningModule = "tecreator"`) — a seed/bootstrap
-  step for the `teculiar` tenant (the `tecreator` module + provider already exist:
-  `module-catalog.ts`, `apps/api/src/modules/external/tecreator-provider.service.ts`). Buying it runs the
-  unchanged order→invoice→provision pipeline → `createTenant` → emails credentials.
+> **Status (2026-07-18): all Phase 4 code landed on `feat/teculiar-phase4-golive` + locally verified;
+> the go-live itself is the operator runbook below (tenant provisioning + DNS on eu01), then the
+> phase-end prod Playwright pass.** Also fixed while wiring 4.1: the billing lifecycle's
+> `runServiceModule` routed every non-hetzner module to Virtualmin — a `tecreator` product would
+> never have created a tenant. It now resolves through `ExternalService.hostingProvider()` (which
+> matches "tecreator"/"hetzner" in either argument position), and the Tecreator provider accepts the
+> lifecycle's `contactEmail`/`description` (buyer email + name from the invoice snapshot) as the new
+> tenant's admin. Covered in `apps/api/test/tecreator-module.test.mjs`.
 
-### 4.2 Reusable pricing-table element
-- The customizer registry has a `priceToken` atom but no `pricingTable`. Add a `pricingTable` element to
-  `packages/web-core/src/lib/customizer/registry/` (theme-neutral, reuses marketing CSS + `Price`), so the
-  Teculiar plans render as a proper pricing table authorable in the builder.
+### 4.1 Teculiar-plan catalog seed  ✅ CODE DONE (2026-07-18 — `apps/api/src/tenancy/seed-teculiar-plan.ts`)
+- CLI (in the API image next to `bootstrap-tenant.js`): upserts the "Teculiar" category + `teculiar-plan`
+  product (MANAGED_SERVICE, monthly recurring, `provisioningModule = "tecreator"`, featured, five
+  feature-list configs) and enables the tecreator module. Idempotent; price/currency overridable:
+  `docker compose exec api node apps/api/dist/tenancy/seed-teculiar-plan.js teculiar [monthlyCents] [currency]`
+  (default 2900 EUR — **confirm the real price before go-live**). Buying it runs the unchanged
+  order→invoice→provision pipeline → `createTenant` → emails credentials.
 
-### 4.3 teculiar.com marketing content (Blue page authoring)
-- Author teculiar.com's home + product/marketing pages in the Customizer (the deferred end-of-Phase-3
-  content authoring) using the populated element registry + the new pricing-table. Publish per page.
-  Locale packs for any new chrome.
+### 4.2 Reusable pricing-table element  ✅ DONE (2026-07-18 — `pricingTable` + `pricingPlan` in `packages/web-core/src/lib/customizer/registry/pricing.tsx`)
+- Authorable (static) container/card pair: plan name, locale-aware price via the shared token
+  formatter + period suffix, feature list (one per line), CTA, `featured` variant reusing the shared
+  `PopularBadge` + product-grid card CSS (preview == live). Edit-modal keys stay within the existing
+  labelled slot/prop vocabulary, so **no locale-pack changes were needed** (parity-tested in
+  `apps/web/test/customizer-elements.test.mjs`).
 
-### 4.4 Provision + verify
-- Follow `docs/teculiar-operations.md` H.7/H.8 for `teculiar`: bootstrap tenant → enable Tecreator → seed
-  plan → author pages → verify `teculiar.com` storefront + `/admin` + `/client` same-origin. Buying the
-  plan provisions a fresh `userNNNN.teculiar.net` and emails creds.
+### 4.3 teculiar.com marketing content (Blue page authoring)  ✅ CODE DONE (2026-07-18 — `apps/api/src/tenancy/seed-teculiar-pages.ts`)
+- The home page (hero, feature grid, 3 steps, pricing table, CTA, FAQ — de+en, stable node ids) ships
+  as a seed CLI instead of hand-authoring in the live builder:
+  `docker compose exec api node apps/api/dist/tenancy/seed-teculiar-pages.js teculiar [--publish] [--force]`.
+  Default writes the DRAFT (review in Admin → Theme → Customizer, then Publish); `--publish` promotes it
+  live with a `PageVersion` snapshot exactly like the builder's own publish. Home SEO title/description
+  are seeded only when unset. The pricing CTA auto-links the seeded plan's order page (run 4.1 first).
+  Further pages stay authorable in the builder on the live tenant.
+
+### 4.4 Provision + verify — OPERATOR RUNBOOK (the only remaining go-live work; steps on eu01)
+1. Deploy: merge `feat/teculiar-phase4-golive` → `main` (GitHub Actions updates the stack).
+2. Provision tenant #0 (`docs/teculiar-operations.md` H.7):
+   `cd /opt/teculiar && docker compose exec api node apps/api/dist/tenancy/bootstrap-tenant.js teculiar info@teculiar.com "Teculiar"`
+   — save the printed admin password.
+3. Seed catalog + content: `docker compose exec api node apps/api/dist/tenancy/seed-teculiar-plan.js teculiar`
+   then `... seed-teculiar-pages.js teculiar --publish` (or without `--publish` to review first).
+4. Register the apex host for white-label + TLS:
+   `docker compose exec api node apps/api/dist/tenancy/register-domain.js teculiar.com teculiar apex active`
+   (add `www.teculiar.com` the same way if it should serve).
+5. DNS: `teculiar.com` (+ `www`) → A `195.201.252.12` / CNAME `edge.teculiar.net`.
+6. Check: `https://teculiar.com/de` shows the authored home; `/admin` login works with the step-2
+   credentials; `/client` loads.
 
 ### Verify (Phase 4)
-Production Playwright against teculiar.com: browse marketing pages + pricing table; complete a Teculiar-plan
-purchase in PayPal sandbox; confirm a new tenant DB + subdomain provisions and the credential email arrives
-(and renders `€` correctly — depends on Phase 1.1).
+`tests/e2e/specs/phase4-teculiar-verify.spec.ts` (prod Playwright, after the 4.4 runbook):
+home renders the authored layout incl. the pricing table + featured plan (de), seeded meta
+description emitted, pricing CTA → the seeded plan's order page, `/admin` + `/client` same-origin,
+storefront settings resolve. `set -a && source .env && set +a`, then
+`npx playwright test tests/e2e/specs/phase4-teculiar-verify.spec.ts --project=chromium --workers=1`
+(optional `E2E_TECULIAR_URL` override; `E2E_EDGE_IP=195.201.252.12` pins the host pre-DNS-propagation).
+The full purchase → tenant-provisioned check (PayPal sandbox buy on teculiar.com → fresh
+`userNNNN.teculiar.net` + credential email with correct `€`) needs the 6.3 sandbox process — run it
+as the operator check there, or manually mark a test invoice paid to exercise Tecreator end-to-end.
 
 ---
 
