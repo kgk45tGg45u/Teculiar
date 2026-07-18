@@ -21,37 +21,8 @@ import styles from "./admin-dashboard.module.css";
 import { useSurfaceHref } from "@teculiar/web-core/lib/use-surface-href";
 import { surfaceHref } from "@teculiar/web-core/lib/surface";
 
-export function ClientManager({ clients, locale }: { clients: ApiClient[]; locale: Locale; products: ApiProduct[] }) {
-  const href = useSurfaceHref();
-  const c = getDictionary(locale).admin.forms;
-  return (
-    <div className={styles.clientList}>
-      {clients.length ? (
-        <div aria-hidden className={`${styles.clientRow} ${styles.clientHead}`}>
-          <div>{c.name ?? ""}<span /></div>
-          <span>{c.email}</span>
-          <span>{c.active}</span>
-          <span>{c.domains}</span>
-          <span>{c.unpaidInv}</span>
-          <span>{c.revenue}</span>
-        </div>
-      ) : null}
-      {clients.length ? clients.map((client) => (
-        <a className={styles.clientRow} href={href(`/admin/clients/${client.id}`)} key={client.id}>
-          <div>
-            <strong>{client.name}</strong>
-            <span>{formatCustomerNumber(client.customerNumber)}</span>
-          </div>
-          <span>{client.email}</span>
-          <span>{client.services?.filter((s) => s.status === "ACTIVE").length ?? 0} {c.active}</span>
-          <span>{client.domainRecords?.length ?? 0} {c.domains}</span>
-          <span>{client.invoices?.filter((i) => i.status !== "PAID").length ?? 0} {c.unpaidInv}</span>
-          <span>{money(client.invoices?.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.totalCents, 0) ?? 0, "EUR", locale)}</span>
-        </a>
-      )) : <p style={{ padding: "16px", color: "var(--muted)", fontSize: "0.9rem" }}>{c.noClients}</p>}
-    </div>
-  );
-}
+// ClientManager's row grid was replaced by the sortable ClientsTable (Phase 5.1) in
+// components/admin/tables/clients-table.tsx.
 
 function generatePassword() {
   const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";

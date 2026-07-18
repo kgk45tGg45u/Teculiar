@@ -16,14 +16,16 @@ export function orderStatusLabel(status: string, locale: Locale = "en") {
 }
 
 export function serviceStatusLabel(status: string, locale: Locale = "en") {
-  const labels = loadDictionary(locale).common.status.service;
+  const labels = loadDictionary(locale).common.status.service as Record<string, string>;
   if (status === "ACTIVE") {
-    return labels.active;
+    return labels.active ?? status;
   }
   if (["PENDING", "PROVISIONING"].includes(status)) {
-    return labels.pending;
+    return labels.pending ?? status;
   }
-  return humanStatus(status, locale);
+  // Admin-settable end states (Phase 5.3 inline dropdown): SUSPENDED / CANCELLED / TERMINATED.
+  const named = labels[status.toLowerCase()];
+  return named ?? humanStatus(status, locale);
 }
 
 // Invoices only surface "Pending" (awaiting payment) and "Overdue". Paid invoices are the normal

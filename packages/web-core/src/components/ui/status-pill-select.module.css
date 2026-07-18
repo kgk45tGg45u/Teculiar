@@ -1,0 +1,54 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  gap: 4px;
+  cursor: pointer;
+}
+
+.trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.caret {
+  font-size: 0.7em;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 148px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control, 6px);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(7, 26, 47, 0.14);
+}
+
+.option {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--foreground, inherit);
+  font-size: var(--text-sm, 13px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: color-mix(in srgb, var(--accent, #0077b6) 8%, var(--surface));
+}
+
+.current {
+  font-weight: 700;
+}

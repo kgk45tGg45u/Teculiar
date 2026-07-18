@@ -22,7 +22,10 @@
     },
     "service": {
       "active": "Aktiv",
-      "pending": "Ausstehend"
+      "pending": "Ausstehend",
+      "suspended": "Gesperrt",
+      "cancelled": "Storniert",
+      "terminated": "Gekündigt"
     },
     "invoice": {
       "PENDING": "Ausstehend",

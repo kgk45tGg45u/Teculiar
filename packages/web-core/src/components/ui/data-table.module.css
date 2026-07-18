@@ -40,6 +40,60 @@
   }
 }
 
+/* Sortable header: an unstyled button that inherits th typography. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sortBtn:hover {
+  color: var(--accent, #0077b6);
+}
+
+.sortMark {
+  font-size: 0.7em;
+  color: var(--muted);
+}
+
+.checkCol {
+  width: 32px;
+  text-align: center;
+}
+
+.checkCol input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent, #0077b6);
+  cursor: pointer;
+}
+
+.rowSelected td {
+  background: color-mix(in srgb, var(--accent, #0077b6) 6%, var(--surface));
+}
+
+/* Bulk action bar shown while rows are selected. */
+.bulkBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent, #0077b6) 5%, var(--surface));
+  font-size: var(--text-sm, 13px);
+}
+
 .empty {
   display: grid;
   gap: 8px;

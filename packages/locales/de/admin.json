@@ -1285,5 +1285,20 @@
     "addFailed": "Registrierung fehlgeschlagen",
     "verifyFailed": "Prüfung fehlgeschlagen",
     "savedPlan": "Einrichtung gespeichert"
+  },
+  "list": {
+    "selected": "ausgewählt",
+    "clearSelection": "Auswahl aufheben",
+    "markPaid": "Als bezahlt markieren",
+    "markUnpaid": "Als unbezahlt markieren",
+    "deleteSelected": "Löschen",
+    "confirmDelete": "Ausgewählte Einträge löschen? Dies kann nicht rückgängig gemacht werden.",
+    "bulkDone": "erledigt",
+    "bulkFailed": "fehlgeschlagen",
+    "selectAll": "Alle Zeilen auswählen",
+    "selectRow": "Zeile auswählen",
+    "changeStatus": "Status ändern",
+    "statusSaved": "Status aktualisiert.",
+    "statusFailed": "Statusänderung fehlgeschlagen."
   }
 }
