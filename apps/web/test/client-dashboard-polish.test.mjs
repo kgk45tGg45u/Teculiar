@@ -10,9 +10,11 @@ test("client dashboard keeps content bounded with fixed metric cards and one bot
   const css = await readFile(dashboardCssUrl, "utf8");
   const source = await readFile(dashboardUrl, "utf8");
 
-  assert.match(css, /\.page\s*\{[\s\S]*padding-right:\s*clamp\(18px, 2vw, 32px\)/);
-  assert.match(css, /\.main\s*\{[\s\S]*max-width:\s*1680px/);
-  assert.match(css, /\.main\s*\{[\s\S]*padding:\s*clamp\(18px, 2vw, 24px\) 0 32px/);
+  // D1: the sidebar column and page padding moved to PageShell (client layout); the page
+  // is content-only now.
+  assert.match(css, /\.page\s*\{[\s\S]*overflow-x:\s*clip/);
+  assert.match(css, /\.main\s*\{[\s\S]*gap:\s*16px/);
+  assert.doesNotMatch(css, /\.main\s*\{[\s\S]*max-width:\s*1680px/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 232px\)\)/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*justify-content:\s*space-between/);
   assert.match(css, /\.overviewGrid\s*\{[\s\S]*width:\s*min\(100%, 1040px\)/);

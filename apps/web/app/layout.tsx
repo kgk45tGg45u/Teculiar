@@ -35,7 +35,7 @@ function ThemeBootstrap() {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
-      <body>
+      <body className="dash-compact">
         <ThemeBootstrap />
         <ToastProvider />
         {children}

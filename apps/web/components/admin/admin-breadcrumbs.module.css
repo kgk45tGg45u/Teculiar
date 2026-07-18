@@ -4,6 +4,13 @@
   padding: 9px 18px;
 }
 
+/* Inside the PageShell top bar: the bar already draws the border/background. */
+.inlineVariant {
+  background: transparent;
+  border-bottom: 0;
+  padding: 0;
+}
+
 .list {
   display: flex;
   flex-wrap: wrap;

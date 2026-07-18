@@ -11,6 +11,10 @@ const adminDashboardCss = readFileSync(new URL("../components/admin/admin-dashbo
 const adminDashboardTsx = readFileSync(new URL("../components/admin/admin-dashboard.tsx", import.meta.url), "utf8");
 const adminSidebarCss = readFileSync(new URL("../components/admin/admin-sidebar.module.css", import.meta.url), "utf8");
 const adminSidebarTsx = readFileSync(new URL("../components/admin/admin-sidebar.tsx", import.meta.url), "utf8");
+const clientSidebarCss = readFileSync(new URL("../components/portal/client-sidebar.module.css", import.meta.url), "utf8");
+const clientSidebarTsx = readFileSync(new URL("../components/portal/client-sidebar.tsx", import.meta.url), "utf8");
+const adminLayoutTsx = readFileSync(new URL("../app/admin/layout.tsx", import.meta.url), "utf8");
+const clientLayoutTsx = readFileSync(new URL("../app/client/layout.tsx", import.meta.url), "utf8");
 const siteHeaderCss = readFileSync(new URL("../../../packages/web-core/src/components/layout/site-header.module.css", import.meta.url), "utf8");
 
 const uiFiles = [
@@ -89,24 +93,26 @@ test("electric infrastructure readme tracks done and remaining work", () => {
 });
 
 test("phase 3 admin and client shells use compact electric sidebar", () => {
+  // D1: sidebars are placed by PageShell in the admin/client layouts, so pages are
+  // content-only; the client sidebar moved into its own component.
   for (const css of [clientDashboardCss, adminDashboardCss]) {
-    assert.match(css, /\.page\s*\{[\s\S]*background:\s*var\(--bg\)/);
     assert.match(css, /\.main\s*\{[\s\S]*gap:\s*16px/);
   }
 
-  assert.match(clientDashboardCss, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
-  assert.match(clientDashboardCss, /\.sidebar a\s*\{[\s\S]*min-height:\s*34px/);
-  assert.match(clientDashboardCss, /\.sidebar a\[aria-current="page"\]/);
+  assert.match(clientSidebarCss, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
+  assert.match(clientSidebarCss, /\.subItem\[aria-current="page"\]/);
+  assert.match(clientSidebarTsx, /<SidebarNav/);
 
   assert.match(adminSidebarCss, /\.sidebar\s*\{[\s\S]*background:\s*var\(--sidebar\)/);
   assert.match(adminSidebarCss, /\.navItem\s*\{[\s\S]*min-height:\s*32px/);
   assert.match(adminSidebarCss, /\.navItem\[aria-current="page"\]/);
   assert.match(adminSidebarCss, /\.subItem\[aria-current="page"\]/);
 
-  assert.match(clientDashboardTsx, /aria-current=\{clientNavCurrent/);
-  assert.match(adminDashboardTsx, /<AdminSidebar/);
   assert.match(adminSidebarTsx, /aria-current=\{active \? "page" : undefined\}/);
-  assert.match(adminSidebarTsx, /<strong className=\{styles\.brandName\}>Teculiar<\/strong>/);
+  assert.match(adminLayoutTsx, /<PageShell/);
+  assert.match(adminLayoutTsx, /<AdminSidebar/);
+  assert.match(clientLayoutTsx, /<PageShell/);
+  assert.match(clientLayoutTsx, /<ClientSidebar/);
 });
 
 test("phase 4 and 5 dashboards match compact card and table density", () => {

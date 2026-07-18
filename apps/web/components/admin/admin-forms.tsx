@@ -26,6 +26,16 @@ export function ClientManager({ clients, locale }: { clients: ApiClient[]; local
   const c = getDictionary(locale).admin.forms;
   return (
     <div className={styles.clientList}>
+      {clients.length ? (
+        <div aria-hidden className={`${styles.clientRow} ${styles.clientHead}`}>
+          <div>{c.name ?? ""}<span /></div>
+          <span>{c.email}</span>
+          <span>{c.active}</span>
+          <span>{c.domains}</span>
+          <span>{c.unpaidInv}</span>
+          <span>{c.revenue}</span>
+        </div>
+      ) : null}
       {clients.length ? clients.map((client) => (
         <a className={styles.clientRow} href={href(`/admin/clients/${client.id}`)} key={client.id}>
           <div>
@@ -2543,35 +2553,35 @@ export function AdminsPanel() {
           <thead>
             <tr>
               <th>{c.colRole}</th>
-              <th>{c.colDescription}</th>
+              <th className="col-p2">{c.colDescription}</th>
               <th>{c.colSettingsAccess}</th>
-              <th>{c.colTicketAccess}</th>
+              <th className="col-p3">{c.colTicketAccess}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><strong>{c.roleSuperAdmin}</strong></td>
-              <td>{c.roleSuperAdminDesc}</td>
+              <td className="col-p2">{c.roleSuperAdminDesc}</td>
               <td>✓ {c.accessYes}</td>
-              <td>{c.allDepartments}</td>
+              <td className="col-p3">{c.allDepartments}</td>
             </tr>
             <tr>
               <td><strong>{c.roleSupportAgent}</strong></td>
-              <td>{c.roleSupportAgentDesc}</td>
+              <td className="col-p2">{c.roleSupportAgentDesc}</td>
               <td>✕ {c.accessNo}</td>
-              <td>{c.supportAbuse}</td>
+              <td className="col-p3">{c.supportAbuse}</td>
             </tr>
             <tr>
               <td><strong>{c.roleSalesAgent}</strong></td>
-              <td>{c.roleSalesAgentDesc}</td>
+              <td className="col-p2">{c.roleSalesAgentDesc}</td>
               <td>✕ {c.accessNo}</td>
-              <td>{c.salesOnly}</td>
+              <td className="col-p3">{c.salesOnly}</td>
             </tr>
             <tr>
               <td><strong>{c.roleAgent}</strong></td>
-              <td>{c.roleAgentDesc}</td>
+              <td className="col-p2">{c.roleAgentDesc}</td>
               <td>✕ {c.accessNo}</td>
-              <td>{c.agentTicketAccess}</td>
+              <td className="col-p3">{c.agentTicketAccess}</td>
             </tr>
           </tbody>
         </table>
@@ -2622,9 +2632,9 @@ export function AdminsPanel() {
             <thead>
               <tr>
                 <th>{f.name}</th>
-                <th>{f.email}</th>
+                <th className="cell-trunc">{f.email}</th>
                 <th>{c.colRole}</th>
-                <th>{c.colCreated}</th>
+                <th className="col-p3">{c.colCreated}</th>
                 <th>{c.colActions}</th>
               </tr>
             </thead>
@@ -2632,7 +2642,7 @@ export function AdminsPanel() {
               {admins.map((admin) => (
                 <tr key={admin.id}>
                   <td><strong>{admin.name}</strong></td>
-                  <td>{admin.email}</td>
+                  <td className="cell-trunc"><span>{admin.email}</span></td>
                   <td>
                     {editId === admin.id ? (
                       <select
@@ -2647,7 +2657,7 @@ export function AdminsPanel() {
                       adminRoleLabel(admin)
                     )}
                   </td>
-                  <td>{new Intl.DateTimeFormat("de-DE", { dateStyle: "short" }).format(new Date(admin.createdAt))}</td>
+                  <td className="col-p3">{new Intl.DateTimeFormat("de-DE", { dateStyle: "short" }).format(new Date(admin.createdAt))}</td>
                   <td style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                     {editId === admin.id ? (
                       <>

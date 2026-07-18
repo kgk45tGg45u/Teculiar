@@ -8,8 +8,10 @@ type ButtonProps = {
   children: ReactNode;
   href?: string;
   icon?: ComponentType<LucideProps>;
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md";
+  /** Square button showing only the icon; children become the screen-reader label. */
+  iconOnly?: boolean;
   className?: string;
   type?: "button" | "submit";
   onClick?: () => void;
@@ -23,17 +25,20 @@ export function Button({
   icon: Icon,
   variant = "primary",
   size = "md",
+  iconOnly = false,
   className,
   type = "button",
   onClick,
   title,
   disabled = false
 }: ButtonProps) {
-  const buttonClassName = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(" ");
+  const buttonClassName = [styles.button, styles[variant], styles[size], iconOnly ? styles.iconOnly : undefined, className]
+    .filter(Boolean)
+    .join(" ");
   const content = (
     <>
       {Icon ? <Icon aria-hidden size={16} strokeWidth={2.2} /> : null}
-      <span>{children}</span>
+      <span className={iconOnly ? "sr-only" : undefined}>{children}</span>
     </>
   );
 

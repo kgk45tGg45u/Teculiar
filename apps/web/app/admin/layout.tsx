@@ -1,36 +1,53 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AdminBreadcrumbs } from "../../components/admin/admin-breadcrumbs";
+import { AdminSidebar } from "../../components/admin/admin-sidebar";
+import { LogoutButton } from "../../components/auth/logout-button";
 import { LocaleProvider } from "@teculiar/web-core/components/layout/locale-provider";
-import { SiteHeader } from "@teculiar/web-core/components/layout/site-header";
-import { SiteFooter } from "@teculiar/web-core/components/layout/site-footer";
-import { currencyConfigFromSettings, i18nConfigFromSettings, type StoredCurrencyConfig } from "@teculiar/web-core/lib/api";
+import { LanguageToggle } from "@teculiar/web-core/components/layout/language-toggle";
+import { PageShell } from "@teculiar/web-core/components/ui/page-shell";
+import { Button } from "@teculiar/web-core/components/ui/button";
+import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { requestLocale } from "@teculiar/web-core/lib/server-locale";
-import { requestSurface, serverApiGet } from "@teculiar/web-core/lib/server-api";
-import { hrefForSurface } from "@teculiar/web-core/lib/surface";
+import { serverApiGet } from "@teculiar/web-core/lib/server-api";
 
 export const metadata: Metadata = {
   title: "Teculiar Admin"
 };
 
+// D1 dashboard chrome: PageShell (sidebar + top bar + mobile drawer) replaces the storefront
+// SiteHeader/SiteFooter on every /admin page; pages render content only. The login page shares
+// this layout and renders without the shell via plainPaths.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const locale = await requestLocale();
-  const brandHref = hrefForSurface(await requestSurface(), "/admin");
-  const settings = (await serverApiGet<{ siteLogoUrl?: string; clientBaseUrl?: string; usdExchangeRate?: number; usdBufferCents?: number; currencyConfig?: StoredCurrencyConfig; languages?: { main?: string; others?: string[] } }>("/storefront/settings")) ?? {};
-  const currencyConfig = currencyConfigFromSettings(settings);
-  const i18nConfig = i18nConfigFromSettings(settings);
-  // Seed every admin client component with the server-resolved (cookie) locale so they SSR and
-  // hydrate in the same language — admin chrome and forms call useLocale() instead of currentLocale().
+  const settings = (await serverApiGet<{ siteLogoUrl?: string; storefrontBaseUrl?: string }>("/storefront/settings")) ?? {};
+  const copy = getDictionary(locale).admin;
   return (
     <LocaleProvider locale={locale}>
-      <Suspense>
-        <SiteHeader brandHref={brandHref} brandLogo={settings.siteLogoUrl} locale={locale} variant="admin" languages={i18nConfig.languages} currencies={currencyConfig.currencies} clientBaseUrl={settings.clientBaseUrl} />
-      </Suspense>
-      <Suspense>
-        <AdminBreadcrumbs />
-      </Suspense>
-      {children}
-      <SiteFooter locale={locale} brandLogo={settings.siteLogoUrl} variant="admin" />
+      <PageShell
+        sidebar={<AdminSidebar brandLogo={settings.siteLogoUrl} />}
+        brand={<span className="brand-placeholder">Teculiar</span>}
+        breadcrumbs={
+          <Suspense>
+            <AdminBreadcrumbs variant="inline" />
+          </Suspense>
+        }
+        actions={
+          <>
+            <Suspense>
+              <LanguageToggle locale={locale} />
+            </Suspense>
+            <Button className="hide-mobile" href={`${settings.storefrontBaseUrl ?? ""}/${locale}`} variant="secondary">
+              {copy.website}
+            </Button>
+            <LogoutButton label={copy.logout} redirectTo="/admin/login" scope="admin" />
+          </>
+        }
+        menuLabel={copy.nav.toggleNav}
+        plainPaths={["/admin/login"]}
+      >
+        {children}
+      </PageShell>
     </LocaleProvider>
   );
 }

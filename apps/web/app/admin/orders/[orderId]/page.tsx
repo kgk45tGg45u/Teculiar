@@ -4,7 +4,6 @@ import { requestLocale } from "@teculiar/web-core/lib/server-locale";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 import { OrderStatusForm } from "../../../../components/admin/admin-forms";
-import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
 import { surfaceHrefMapper } from "@teculiar/web-core/lib/server-api";
@@ -35,7 +34,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
   if (!order) {
     return (
       <div className={styles.page}>
-        <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
         <main className={styles.main}><h1>{a.order}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
@@ -43,7 +41,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ ord
 
   return (
     <div className={styles.page}>
-      <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
       <main className={styles.main}>
         <header className={styles.header}>
           <div>

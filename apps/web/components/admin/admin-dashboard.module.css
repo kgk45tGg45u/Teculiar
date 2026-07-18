@@ -1,10 +1,8 @@
+/* D1: the sidebar column and page padding moved to PageShell (admin layout); pages are
+   content-only now. */
 .page {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
   gap: 14px;
-  min-height: calc(100vh - 62px);
-  background: var(--bg);
-  padding-right: 18px;
   align-items: start;
 }
 
@@ -12,7 +10,13 @@
   display: grid;
   gap: 16px;
   align-content: start;
-  padding: 18px 0 28px;
+}
+
+/* Grid items default to min-width auto — without this cap, a wide table's intrinsic
+   width stretches panel → main → page into horizontal scroll on phones. */
+.main > *,
+.page > * {
+  min-width: 0;
 }
 
 .header {
@@ -96,10 +100,11 @@
   font-size: 1.05rem;
 }
 
+/* No overflow on the panel itself: an overflow-x scroll context also clips dropdowns
+   (blog row actions). Wide children own their scrolling instead. */
 .panel {
-  overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-surface);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
@@ -111,6 +116,11 @@
   gap: 14px;
   padding: 16px;
   border-bottom: 1px solid var(--border);
+}
+
+/* Order-number cell: keep the disclosure triangle and the number on one line. */
+.panel summary {
+  white-space: nowrap;
 }
 
 .panelHeader h2 {
@@ -330,6 +340,7 @@
   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
   gap: 16px;
   padding: 0 16px 16px;
+  overflow-x: auto;
 }
 
 .templatePreview {
@@ -366,6 +377,7 @@
   grid-template-columns: 220px minmax(420px, 0.95fr) minmax(360px, 1.05fr);
   gap: 16px;
   padding: 0 16px 16px;
+  overflow-x: auto;
 }
 
 .emailEventList {
@@ -565,16 +577,16 @@
 }
 
 /* ── Blog post table ── */
+/* D1: the list always renders inside a .panel, which already draws the border — no own
+   box, so it doesn't read as a table inside a table. overflow stays visible so the
+   row actions dropdown isn't clipped. */
 .blogTable {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
   background: var(--surface);
 }
 
 .blogTableHead {
   display: grid;
-  grid-template-columns: 1fr 52px 74px 44px;
+  grid-template-columns: 1fr 52px 74px 90px;
   gap: 0;
   padding: 6px 12px;
   background: var(--surface-2, color-mix(in srgb, var(--border) 30%, transparent));
@@ -588,7 +600,7 @@
 
 .blogTableRow {
   display: grid;
-  grid-template-columns: 1fr 52px 74px 44px;
+  grid-template-columns: 1fr 52px 74px 90px;
   gap: 0;
   padding: 8px 12px;
   align-items: center;
@@ -609,7 +621,31 @@
   padding: 0 4px;
 }
 
+/* Header cells may ellipsize; body cells must NOT get overflow:hidden — it clips the
+   absolutely-positioned row-actions dropdown. */
+.blogTableHead > .blogTableCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phones: drop the language column so title/status/actions breathe. */
+@media (max-width: 767px) {
+  .blogTableHead,
+  .blogTableRow {
+    grid-template-columns: 1fr 74px 90px;
+  }
+
+  .blogTableHead > :nth-child(2),
+  .blogTableRow > :nth-child(2) {
+    display: none;
+  }
+}
+
 .postTitle {
+  /* block display: ellipsis is a no-op on inline elements, and the unclipped title
+     stretched the page sideways on phones. */
+  display: block;
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
@@ -1013,7 +1049,7 @@
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
   text-decoration: none;
@@ -1039,6 +1075,64 @@
 
 .clientRow strong {
   font-size: 0.9rem;
+}
+
+.clientRow > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Header row for the client list — same grid as the rows, styled like table headers. */
+.clientHead,
+.clientHead > div,
+.clientHead > span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clientHead {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.clientHead:hover {
+  border-color: transparent;
+  transform: none;
+}
+
+@media (max-width: 767px) {
+  .clientHead {
+    display: none;
+  }
+}
+
+/* D1 responsive tiers: children are [name-block, email, active, domains, unpaid, revenue].
+   Counts drop below desktop; phones keep name, email and revenue stacked. */
+@media (max-width: 1023px) {
+  .clientRow {
+    grid-template-columns: 1.6fr 1.4fr minmax(0, 1fr);
+  }
+
+  .clientRow > span:nth-child(3),
+  .clientRow > span:nth-child(4),
+  .clientRow > span:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .clientRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
 }
 
 .modalBackdrop {
@@ -1247,6 +1341,7 @@
 
 @media (max-width: 600px) {
   .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
 

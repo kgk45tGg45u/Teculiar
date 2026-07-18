@@ -535,7 +535,7 @@ export function BlogCategoryTagManager() {
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 32, alignItems: "start" }}>
         {/* Categories */}
         <div>
           <h3 style={{ marginTop: 0, marginBottom: 12 }}>{copy.categoriesOf.replace("{lang}", localeName)}</h3>

@@ -4,7 +4,6 @@ import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { invoiceStatusLabel } from "@teculiar/web-core/lib/status-labels";
 import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
 import { AdminInvoiceActions, AdminPdfDownloadButton } from "../../../../components/admin/admin-forms";
-import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import styles from "../../../../components/portal/client-dashboard.module.css";
 import adminStyles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
@@ -28,7 +27,6 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
   if (!invoice) {
     return (
       <div className={adminStyles.page}>
-        <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
         <main className={adminStyles.main}><h1>{a.detail.invoice}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
@@ -55,7 +53,6 @@ export default async function AdminInvoicePage({ params }: { params: Promise<{ i
 
   return (
     <div className={adminStyles.page}>
-      <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
       <main className={adminStyles.main}>
         <header className={adminStyles.header}>
           <div>

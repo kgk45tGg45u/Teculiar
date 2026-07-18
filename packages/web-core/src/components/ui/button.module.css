@@ -4,7 +4,7 @@
   justify-content: center;
   gap: 7px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-control, 8px);
   cursor: pointer;
   font-weight: 760;
   letter-spacing: 0;
@@ -21,6 +21,33 @@
   transform: translateY(-1px);
 }
 
+/* Optical correction: with line-height 1, Inter caps sit above the geometric center
+   of the line box — only noticeable at the sm size, so nudge sm labels down half a pixel. */
+.sm > span {
+  transform: translateY(0.5px);
+}
+
+/* Lucide glyphs are inset ~1.5px inside their viewBox, which makes the left padding
+   read wider than the right on icon buttons — pull the icon left to compensate. */
+.button > svg {
+  margin-left: -1.5px;
+}
+
+.iconOnly {
+  gap: 0;
+  padding: 0;
+  width: var(--control-h-md, 36px);
+}
+
+.iconOnly.sm {
+  width: var(--control-h-sm, 32px);
+  min-width: var(--control-h-sm, 32px);
+}
+
+.iconOnly > svg {
+  margin-left: 0;
+}
+
 .button:disabled,
 .button[aria-disabled="true"] {
   cursor: not-allowed;
@@ -31,13 +58,15 @@
 .md {
   min-height: 36px;
   padding: 0 12px;
-  font-size: 0.84rem;
+  /* Whole-pixel sizes (13px/12px): fractional rem sizes land on sub-pixel line boxes
+     and make vertical centering look off, worst on the sm variant. */
+  font-size: var(--text-sm, 0.8125rem);
 }
 
 .sm {
-  min-height: 32px;
-  padding: 0 10px;
-  font-size: 0.78rem;
+  min-height: var(--control-h-sm, 32px);
+  padding: 0 9px;
+  font-size: var(--text-xs, 0.75rem);
 }
 
 .primary {
@@ -67,15 +96,35 @@
   border-color: transparent;
 }
 
+.danger {
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.danger:hover {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+}
+
 .ghost:hover {
   color: var(--accent-text);
   background: var(--accent-soft);
 }
 
 @media (max-width: 520px) {
+  /* No font-size override here: fractional sizes (0.82rem = 13.1px) land on sub-pixel
+     line boxes and push labels visibly off-center on phones. */
   .button {
     width: 100%;
     padding-inline: 11px;
-    font-size: 0.82rem;
+  }
+
+  /* Phone rendering seats the md label a hair low — optical up-nudge, phones only. */
+  .md > span {
+    transform: translateY(-0.5px);
+  }
+
+  /* D1: dashboards keep natural-width buttons on phones; storefront stays full-width. */
+  :global(.dash-compact) .button {
+    width: auto;
   }
 }

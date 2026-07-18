@@ -4,7 +4,6 @@ import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-
 import { requestLocale } from "@teculiar/web-core/lib/server-locale";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { AdminClientActions } from "../../../../components/admin/admin-forms";
-import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import styles from "../../../../components/admin/admin-dashboard.module.css";
 import { StatusPill } from "@teculiar/web-core/components/ui/status-pill";
@@ -29,7 +28,6 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
   if (!client) {
     return (
       <div className={styles.page}>
-        <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
         <main className={styles.main}><h1>{a.client}</h1><p>{a.detail.notFound}</p></main>
       </div>
     );
@@ -39,7 +37,6 @@ export default async function AdminClientPage({ params }: { params: Promise<{ cl
 
   return (
     <div className={styles.page}>
-      <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
       <main className={styles.main}>
         <header className={styles.header}>
           <div>

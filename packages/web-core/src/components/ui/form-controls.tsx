@@ -12,7 +12,7 @@ function joinClass(...classes: Array<string | undefined>) {
 
 export function Field({ label, hint, error, children, className, ...props }: FieldProps) {
   return (
-    <label className={joinClass("form-field", className)} {...props}>
+    <label className={joinClass("form-field", error ? "field-error" : undefined, className)} {...props}>
       {label ? <span>{label}</span> : null}
       {children}
       {hint ? <small className="muted-text">{hint}</small> : null}

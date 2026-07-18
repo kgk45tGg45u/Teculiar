@@ -1,11 +1,8 @@
+/* D1: the sidebar column and page padding moved to PageShell (client layout); the page is
+   content-only now. */
 .page {
   display: grid;
-  min-height: 100vh;
-  grid-template-columns: 242px minmax(0, 1fr);
-  gap: clamp(16px, 1.6vw, 26px);
   overflow-x: clip;
-  background: var(--bg);
-  padding-right: clamp(18px, 2vw, 32px);
 }
 
 .sidebar {
@@ -78,11 +75,15 @@
 .main {
   display: grid;
   width: 100%;
-  max-width: 1680px;
   gap: 16px;
   align-content: start;
   min-width: 0;
-  padding: clamp(18px, 2vw, 24px) 0 32px;
+}
+
+/* Grid items default to min-width auto — cap them so wide tables scroll inside their
+   wrapper instead of stretching the page. */
+.main > * {
+  min-width: 0;
 }
 
 .header,
@@ -978,8 +979,10 @@
 
 .invoiceCard {
   display: grid;
-  grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(110px, 0.6fr)) minmax(110px, 0.7fr) minmax(130px, auto);
-  gap: 12px;
+  /* Lead column absorbs the spare width; the meta/total/action columns hug their content
+     so paid rows (no pay button) don't leave a dead gap before the status pill. */
+  grid-template-columns: minmax(200px, 1fr) auto auto auto minmax(96px, auto);
+  gap: clamp(12px, 2.4vw, 28px);
   align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;

@@ -1,5 +1,4 @@
 import { ModulesManager } from "../../../../components/admin/admin-modules";
-import { AdminSidebar } from "../../../../components/admin/admin-sidebar";
 import { LogoutButton } from "../../../../components/auth/logout-button";
 import { LanguageToggle } from "@teculiar/web-core/components/layout/language-toggle";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -25,7 +24,6 @@ export default async function AdminModulesPage() {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar brandLogo={settings.siteLogoUrl} />
       <main className={styles.main}>
         <header className={styles.header}>
           <div>

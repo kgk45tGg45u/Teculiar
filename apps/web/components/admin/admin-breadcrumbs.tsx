@@ -64,7 +64,7 @@ function titleCase(segment: string) {
 
 // "bar" = full-width bar under the header (desktop). "sidebar" = rendered inside the admin
 // sidebar's sticky mobile header (mobile). CSS shows exactly one of them per breakpoint.
-export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sidebar" }) {
+export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sidebar" | "inline" }) {
   const copy = getDictionary(useLocale()).admin;
   const browserPath = usePathname() ?? "/admin";
   // On a per-surface host (Phase 2.2) the browser path has no /admin segment — the crumbs are
@@ -93,7 +93,7 @@ export function AdminBreadcrumbs({ variant = "bar" }: { variant?: "bar" | "sideb
   });
 
   return (
-    <nav aria-label={copy.crumb.breadcrumb} className={`${styles.breadcrumbs} ${variant === "sidebar" ? styles.sidebarVariant : styles.barVariant}`}>
+    <nav aria-label={copy.crumb.breadcrumb} className={`${styles.breadcrumbs} ${variant === "sidebar" ? styles.sidebarVariant : variant === "inline" ? styles.inlineVariant : styles.barVariant}`}>
       <ol className={styles.list}>
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;

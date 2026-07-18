@@ -14,6 +14,7 @@
   "profile": "Profile",
   "services": "Services",
   "tickets": "Support Tickets",
+  "allTickets": "All Tickets",
   "noServices": "No services yet.",
   "noDomains": "No domains yet.",
   "noTickets": "No open tickets.",

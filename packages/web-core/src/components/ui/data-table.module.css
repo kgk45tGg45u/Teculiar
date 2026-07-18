@@ -1,0 +1,50 @@
+.wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  background: var(--surface);
+}
+
+.wrap table {
+  margin: 0;
+}
+
+.right {
+  text-align: right;
+}
+
+/* The flexible column: takes remaining width and ellipsizes instead of widening the
+   table beyond its container. */
+.truncCell {
+  width: 100%;
+  max-width: 0;
+}
+
+.trunc {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Priority 2 columns hide on phones; priority 3 columns hide below the desktop cutoff. */
+@media (max-width: 767px) {
+  .c2 {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .c3 {
+    display: none;
+  }
+}
+
+.empty {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}

@@ -1,10 +1,13 @@
 export { Badge, type BadgeTone } from "./badge";
+export { BrandLogo } from "./brand-logo";
 export { Button } from "./button";
 export { Card } from "./card";
+export { DataTable, type DataTableColumn } from "./data-table";
 export { Dialog, DialogBackdrop, DialogPanel, Modal } from "./dialog";
 export { Dropdown, DropdownItem } from "./dropdown";
 export { Field, Input, Select, Textarea } from "./form-controls";
 export { EmptyState, InfoGrid, MetricCard, PageHeader } from "./layout-primitives";
+export { PageShell } from "./page-shell";
 export { SidebarNav, SidebarNavItem } from "./sidebar-nav";
 export { StatusBadge } from "./status-badge";
 export { StatusPill } from "./status-pill";

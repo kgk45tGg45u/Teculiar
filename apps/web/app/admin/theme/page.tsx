@@ -1,6 +1,5 @@
 import { isAdminRole, type AuthUser } from "@teculiar/web-core/lib/api";
 import { apiGetAuth, redirectToAdminLogin } from "@teculiar/web-core/lib/server-api";
-import { AdminSidebar } from "../../../components/admin/admin-sidebar";
 import { ThemeBuilder } from "../../../components/admin/theme/theme-builder";
 import styles from "../../../components/admin/admin-dashboard.module.css";
 
@@ -37,7 +36,6 @@ export default async function ThemePage() {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar brandLogo={(settings as { siteLogoUrl?: string }).siteLogoUrl} />
       <main className={styles.main}>
         <header className={styles.header}>
           <div>

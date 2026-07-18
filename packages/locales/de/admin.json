@@ -511,7 +511,8 @@
     "addAnotherLine": "+ Weitere Position hinzufügen",
     "dueDate": "Fälligkeitsdatum",
     "domainProductMissing": "Es ist kein Domain-Produkt konfiguriert — legen Sie zuerst ein Produkt vom Typ DOMAIN an oder entfernen Sie den Haken bei „Domain hinzufügen“.",
-    "domainNameRequired": "Geben Sie den Domainnamen ein, um ihn dieser Bestellung hinzuzufügen."
+    "domainNameRequired": "Geben Sie den Domainnamen ein, um ihn dieser Bestellung hinzuzufügen.",
+    "revenue": "Umsatz"
   },
   "settingsForm": {
     "cron": "Cron",

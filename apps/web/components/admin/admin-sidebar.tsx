@@ -1,13 +1,12 @@
 "use client";
 
-import { ChevronRight, LogOut, Menu } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ADMIN_AUTH_COOKIE, clearAuth, isAgentOnlyRole } from "@teculiar/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import { internalPath, surfaceHref } from "@teculiar/web-core/lib/surface";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
-import { AdminBreadcrumbs } from "./admin-breadcrumbs";
 import styles from "./admin-sidebar.module.css";
 
 type AdminDict = Dictionary["admin"];
@@ -128,7 +127,6 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
   // browser path has no /admin segment — normalize for the active checks, strip for the hrefs.
   const pathname = internalPath(browserPath, "admin");
   const href = (target: string) => surfaceHref(browserPath, target);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [nav, setNav] = useState<NavEntry[]>(baseNav);
   const [agentOnly, setAgentOnly] = useState(false);
 
@@ -158,7 +156,6 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
       }
       return next;
     });
-    setMobileOpen(false);
   }, [pathname, nav]);
 
   function toggle(label: string) {
@@ -177,36 +174,9 @@ export function AdminSidebar(_props: { brandLogo?: string }) {
 
   return (
     <aside className={styles.sidebar}>
-      {/* Mobile-only top bar: Menu toggle on the left, a compact Log out link on the right. */}
-      <div className={styles.mobileBar}>
-        <button
-          aria-expanded={mobileOpen}
-          aria-label={copy.nav.toggleNav}
-          className={styles.mobileToggle}
-          onClick={() => setMobileOpen((prev) => !prev)}
-          type="button"
-        >
-          <Menu aria-hidden size={16} />
-          <span>{copy.nav.menu}</span>
-          <ChevronRight
-            aria-hidden
-            className={`${styles.chevron}${mobileOpen ? ` ${styles.chevronOpen}` : ""}`}
-            size={14}
-          />
-        </button>
-        <button className={styles.mobileLogout} onClick={logout} type="button">
-          <LogOut aria-hidden size={13} />
-          <span>{copy.logout}</span>
-        </button>
-      </div>
-
-      {/* Mobile-only breadcrumb row, sticky under the menu/logout bar (desktop uses the layout bar). */}
-      <AdminBreadcrumbs variant="sidebar" />
-
-      <strong className={styles.brandName}>Teculiar</strong>
       {agentOnly ? <p className={styles.agentBadge}>{copy.agentMaskedView}</p> : null}
 
-      <nav className={`${styles.nav}${mobileOpen ? ` ${styles.navOpen}` : ""}`}>
+      <nav className={styles.nav}>
         {nav.map((entry) => {
           if (!isGroup(entry)) {
             const active = pathname === entry.href;

@@ -346,28 +346,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
 
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        <nav aria-label={copy.dash.navAria}>
-          <a aria-current={clientNavCurrent(view, "dashboard")} href={href("/client")}>{copy.overview}</a>
-          <a aria-current={clientNavCurrent(view, "services")} href={href("/client/services")}>{copy.services}</a>
-          <a aria-current={clientNavCurrent(view, "domains")} href={href("/client/domains")}>{copy.domains}</a>
-          <a aria-current={clientNavCurrent(view, "invoices")} href={href("/client/invoices")}>{copy.invoices}</a>
-          <a aria-current={clientNavCurrent(view, "add-funds")} className={styles.subNav} href={href("/client/billing/add-funds")}>{copy.addFunds}</a>
-          <a aria-current={clientNavCurrent(view, "payment")} href={href("/client/payments")}>{copy.payments}</a>
-          <a aria-current={clientNavCurrent(view, "knowledgebase")} href={href("/client/knowledgebase")}>{copy.knowledgebase}</a>
-          <a aria-current={clientNavCurrent(view, "tickets")} href={href("/client/tickets")}>{copy.tickets}</a>
-          <a aria-current={clientNavCurrent(view, "new-ticket")} className={styles.subNav} href={href("/client/tickets/new")}>{copy.newTicket}</a>
-          <a aria-current={clientNavCurrent(view, "profile")} href={href("/client/profile")}>{copy.profile}</a>
-        </nav>
-        {(profile?.balanceCents ?? 0) > 0 ? (
-          <div className={styles.balanceCard}>
-            <Wallet aria-hidden size={20} />
-            <strong>{money(profile?.balanceCents ?? 0)}</strong>
-            <span>{copy.accountBalance}</span>
-          </div>
-        ) : null}
-      </aside>
-
       <main className={styles.main}>
         <header className={styles.header}>
           <div>
@@ -404,10 +382,6 @@ export function ClientDashboard({ invoiceId, serviceId, ticketId, view = "dashbo
       </main>
     </div>
   );
-}
-
-function clientNavCurrent(current: ClientView, target: ClientView) {
-  return current === target ? "page" : undefined;
 }
 
 function serviceListUrl() {
@@ -648,8 +622,8 @@ function ServicesTable({ loading, services }: { loading: boolean; services: ApiS
               <thead>
                 <tr>
                   <th>{copy.product}</th>
-                  <th>{copy.pricing}</th>
-                  <th>{copy.nextDueDate}</th>
+                  <th className="col-p3">{copy.pricing}</th>
+                  <th className="col-p2 cell-nowrap">{copy.nextDueDate}</th>
                   <th>{copy.status}</th>
                 </tr>
               </thead>
@@ -658,8 +632,8 @@ function ServicesTable({ loading, services }: { loading: boolean; services: ApiS
                 {!loading && services.map((service) => (
                   <tr key={service.id}>
                     <td><a href={href(`/client/services/${service.id}`)}><strong>{serviceListTitle(service)}</strong></a><br />{serviceListSubtitle(service)}</td>
-                    <td>{money(serviceUnitPriceCents(service), service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
-                    <td>{dateLabel(service.renewsAt)}</td>
+                    <td className="col-p3">{money(serviceUnitPriceCents(service), service.productPrice.currency)}<br />{cycleLabel(service.productPrice.billingCycle)}</td>
+                    <td className="col-p2 cell-nowrap">{dateLabel(service.renewsAt)}</td>
                     <td>
                       <StatusPill label={serviceStatusLabel(service.status, locale)} tone={statusTone[service.status] ?? "neutral"} />
                     </td>
@@ -699,8 +673,8 @@ function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boo
           <thead>
             <tr>
               <th>{copy.domain}</th>
-              <th>{copy.pricing}</th>
-              <th>{copy.nextDueDate}</th>
+              <th className="col-p3">{copy.pricing}</th>
+              <th className="col-p2 cell-nowrap">{copy.nextDueDate}</th>
               <th>{copy.status}</th>
             </tr>
           </thead>
@@ -709,8 +683,8 @@ function DomainsTable({ domains, loading }: { domains: DomainRow[]; loading: boo
             {!loading && domains.length ? domains.map((domain) => (
               <tr key={domain.id}>
                 <td><strong>{domain.domain}</strong></td>
-                <td>{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
-                <td>{dateLabel(domain.renewsAt)}</td>
+                <td className="col-p3">{money(domain.amountCents, domain.currency)}<br />{cycleLabel(domain.billingCycle)}</td>
+                <td className="col-p2 cell-nowrap">{dateLabel(domain.renewsAt)}</td>
                 <td><StatusPill label={serviceStatusLabel(domain.status, locale)} tone={statusTone[domain.status] ?? "neutral"} /></td>
               </tr>
             )) : null}
