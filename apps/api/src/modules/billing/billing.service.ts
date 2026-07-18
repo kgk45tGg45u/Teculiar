@@ -1066,10 +1066,9 @@ export class BillingService {
         status: "QUEUED" as const
       };
     }
-    if (moduleName === "hetzner" || ["VPS", "DEDICATED_SERVER"].includes(service.product?.type)) {
-      return this.external.hetzner.provision(request as never);
-    }
-    return this.external.virtualmin.provision(request as never);
+    // Route by module name (tecreator/hetzner/virtualmin) via the shared resolver so `platform`
+    // products provision a tenant instead of falling through to the Virtualmin default.
+    return this.external.hostingProvider(moduleName, service.product?.type).provision(request as never);
   }
 
   private async runDomainModule(moduleName: string, action: string, request: Record<string, any>) {
