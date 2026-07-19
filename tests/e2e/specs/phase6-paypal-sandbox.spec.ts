@@ -31,16 +31,20 @@ const FRESH_PASSWORD = `Pp!${Date.now().toString(36)}Aa1?x`;
 
 async function approveInPayPalSandbox(page: Page) {
   await page.waitForURL(/sandbox\.paypal\.com/, { timeout: 120_000 });
-  const email = page.locator('input[type="email"], #email').first();
+  const email = page.locator("#email, input[type=email]").first();
   await email.waitFor({ state: "visible", timeout: 60_000 });
   await email.fill(BUYER_EMAIL);
+  // Two-step login: Next reveals the password field, then the explicit #btnLogin (never the
+  // generic type=submit — the hidden #btnNext also matches that).
   const next = page.locator("#btnNext");
   if (await next.isVisible().catch(() => false)) await next.click();
-  const password = page.locator('input[type="password"], #password').first();
+  const password = page.locator("#password, input[type=password]").first();
   await password.waitFor({ state: "visible", timeout: 60_000 });
   await password.fill(BUYER_PASSWORD);
-  await page.locator("#btnLogin, button[type=submit]").first().click();
-  const pay = page.getByRole("button", { name: /complete purchase|pay now|continue to review|jetzt bezahlen|weiter|zustimmen/i }).first();
+  await page.locator("#btnLogin").click();
+  const pay = page
+    .locator("#payment-submit-btn, [data-testid='submit-button-initial'], button:has-text('Complete Purchase'), button:has-text('Pay Now'), button:has-text('Jetzt bezahlen'), button:has-text('Weiter zur Überprüfung'), button:has-text('Zustimmen und weiter')")
+    .first();
   await pay.waitFor({ state: "visible", timeout: 120_000 });
   await pay.click();
 }
@@ -73,6 +77,10 @@ test.describe("6.3 PayPal sandbox purchase (operator-run)", () => {
     const shopPassword = useExistingClient ? CLIENT_PASSWORD : FRESH_PASSWORD;
 
     await page.goto(`${BASE}/de/order/${product.id}`, { waitUntil: "domcontentloaded" });
+    // Cookie banner overlays the submit button; hydration also resets fields filled too early.
+    const cookieAccept = page.getByRole("button", { name: /akzeptieren|accept/i }).first();
+    if (await cookieAccept.isVisible().catch(() => false)) await cookieAccept.click();
+    await page.waitForLoadState("networkidle").catch(() => undefined);
 
     if (useExistingClient) {
       const loginToggle = page.getByText(/anmelden|log in|einloggen/i).first();
@@ -104,7 +112,12 @@ test.describe("6.3 PayPal sandbox purchase (operator-run)", () => {
       await externalDomain.fill(`e2e-paypal-${Date.now()}.example.org`);
     }
 
-    // Choose PayPal, accept terms, submit.
+    // Choose PayPal, accept terms, submit. Re-assert the name field right before submitting —
+    // a late hydration pass can reset the earliest fill.
+    if (!useExistingClient) {
+      await page.fill('input[name="name"]', "E2E PayPal Buyer");
+      await expect(page.locator('input[name="name"]')).toHaveValue("E2E PayPal Buyer");
+    }
     await page.getByText("PayPal", { exact: false }).first().click();
     const terms = page.locator('input[name="acceptedTerms"]');
     if (await terms.isVisible().catch(() => false)) await terms.check();
@@ -112,17 +125,23 @@ test.describe("6.3 PayPal sandbox purchase (operator-run)", () => {
 
     await approveInPayPalSandbox(page);
 
-    // Back on our site → success signal from the payment-return / portal page.
+    // Back on our site (payment-return usually auto-forwards straight to the client dashboard,
+    // so don't assert on transient page text — the API is the source of truth).
     await page.waitForURL((url) => url.href.startsWith(BASE), { timeout: 180_000 });
-    await expect(page.getByText(/bezahlt|paid|erfolgreich|success|aktiviert/i).first()).toBeVisible({ timeout: 90_000 });
 
-    // The customer's view: poll the client API until a service reaches ACTIVE.
+    // The customer's view: account materialized, the invoice is PAID, and a service reaches
+    // ACTIVE (provisioning may take minutes — tecreator creates a whole tenant).
     const token = await clientToken(request, shopEmail, shopPassword);
     expect(token, "client login after payment (account materialized)").toBeTruthy();
+    const authHeaders = { Authorization: `Bearer ${token}` };
+
+    const invoices = (await (await request.get(`${API}/billing/invoices`, { headers: authHeaders })).json()) as Array<{ status: string }>;
+    expect(invoices.some((invoice) => invoice.status === "PAID"), `expected a PAID invoice, saw [${invoices.map((invoice) => invoice.status).join(",")}]`).toBeTruthy();
+
     const deadline = Date.now() + 600_000;
     let lastStatuses = "";
     while (Date.now() < deadline) {
-      const services = (await (await request.get(`${API}/services`, { headers: { Authorization: `Bearer ${token}` } })).json()) as Array<{ status: string }>;
+      const services = (await (await request.get(`${API}/services`, { headers: authHeaders })).json()) as Array<{ status: string }>;
       lastStatuses = services.map((service) => service.status).join(",");
       if (services.some((service) => service.status === "ACTIVE")) break;
       await page.waitForTimeout(15_000);

@@ -672,11 +672,17 @@ needs an admin credential — owner check or a one-off with a real admin login.
 
 ## Phase 6 — Catalog & commerce
 
-**Status 2026-07-19: 6.1 + 6.2 + 6.4 code complete on `feat/teculiar-phase6-commerce`** (unit
-suite 289/289, full local API smoke: addon CRUD → assignment → preview pricing → soft delete;
-registry kill switch hides PAYPAL from `/storefront/payment-gateways` and restores it). 6.3 is
-documented (`docs/paypal-sandbox-testing.md` + operator spec) and waits on PayPal sandbox creds
-in `.env`. Prod verify pending deploy — see Verify (Phase 6).
+**Status 2026-07-19: PHASE 6 DONE — merged to main, deployed, verified on production.**
+Units 289/289. Prod spec `phase6-commerce-verify.spec.ts` 6/6 (1 conditional skip: no E2E client
+account on teculiar.com for the admin-order write test — that path is unit-covered and the
+customer purchase path was proven by 6.3). **6.3 executed live on teculiar.com**: scripted
+storefront checkout → PayPal SANDBOX approve → capture → invoice `100001` PAID (€7.74, txn
+SUCCEEDED) → tecreator provisioned tenant `user70552` → customer dashboard showed the service
+ACTIVE. Cleanup: gateway restored (PAYPAL row disabled, sandbox creds wiped — teculiar checkout
+now lists SANDBOX only until real creds are configured), test service set CANCELLED; tenant
+`user70552` + one orphan PENDING invoice (`cmrs46u0x0018mt01dn3jovt9`, from an aborted run) left
+for manual cleanup. Two deploy-time fixes landed during verify: addon-form canonical name falls
+back to the admin locale; the registry kill switch also filters the default gateway list.
 
 ### 6.1 Product addons
 - Models exist (`AddOn`, `ProductAddOn`, `ServiceAddOn` in `prisma/schema.prisma`) but no admin CRUD and
