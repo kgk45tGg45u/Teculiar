@@ -480,10 +480,15 @@ model AddOn {
   name          String
   slug          String         @unique
   description   String?        @db.Text
+  // Per-locale overrides for name/description, keyed by locale code ({"de": "..."}); the plain
+  // columns hold the store's main-language value and are the fallback for unconfigured locales.
+  nameTranslations        Json @default("{}")
+  descriptionTranslations Json @default("{}")
   amountCents   Int
   setupFeeCents Int            @default(0)
   billingCycle  BillingCycle?
   recurring     Boolean        @default(true)
+  active        Boolean        @default(true)
   productLinks  ProductAddOn[]
   serviceLinks  ServiceAddOn[]
 }

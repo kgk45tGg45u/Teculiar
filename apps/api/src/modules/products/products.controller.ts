@@ -4,6 +4,7 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { maskService, shouldMask } from "../../common/pii-mask";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AdminAddOnDto } from "./dto/addon.dto";
 import { CreateProductDto, ProductCategoryDto } from "./dto/create-product.dto";
 import { ProductsService } from "./products.service";
 
@@ -49,6 +50,35 @@ export class ProductsController {
   @Post("admin/dev/products")
   createProductDev(@Body() dto: CreateProductDto) {
     return this.products.createProduct(dto);
+  }
+
+  // Addons are catalog data (no customer link), so the agent role keeps full read+write here.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "super_admin", "agent")
+  @Get("admin/dev/addons")
+  listAddOnsDev() {
+    return this.products.listAddOns();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "super_admin", "agent")
+  @Post("admin/dev/addons")
+  createAddOnDev(@Body() dto: AdminAddOnDto) {
+    return this.products.createAddOn(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "super_admin", "agent")
+  @Patch("admin/dev/addons/:id")
+  updateAddOnDev(@Param("id") id: string, @Body() dto: AdminAddOnDto) {
+    return this.products.updateAddOn(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "super_admin", "agent")
+  @Delete("admin/dev/addons/:id")
+  deleteAddOnDev(@Param("id") id: string) {
+    return this.products.deleteAddOn(id);
   }
 
   // Service rows carry customer configuration blobs and domain transfer secrets (eppCode) —

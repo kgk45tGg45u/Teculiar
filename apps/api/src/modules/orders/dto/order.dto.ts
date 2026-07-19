@@ -22,6 +22,12 @@ export class OrderItemDto {
   @IsObject()
   configuration?: Record<string, unknown>;
 
+  // AddOns chosen for this item; must be assigned to the product (ProductAddOn), validated in priceItem.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  addOnIds?: string[];
+
   // Admin custom pricing: override the list price with an admin-entered amount (excl. VAT) and
   // billing cycle. `applyCustomToRenewals` (default true) also carries the custom amount onto the
   // service so Cron renewal invoices bill it; when false, only the first invoice uses it.

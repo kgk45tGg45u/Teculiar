@@ -3,6 +3,7 @@
 import { Eye, EyeOff, RefreshCw, Save, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL, authHeaders, money, type ApiDomainPrice, type ApiModule } from "@teculiar/web-core/lib/api";
+import { surfaceHref } from "@teculiar/web-core/lib/surface";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -97,6 +98,19 @@ export function ModulesManager({ initialPrices }: { initialPrices: ApiDomainPric
           initial={selectedModule.config}
           onSaved={(updated) => setModules((prev) => prev.map((m) => (m.name === "virtualmin" ? updated : m)))}
         />
+      )}
+
+      {selectedModule?.kind === "payment" && (
+        <div className={styles.moduleConfig}>
+          <p style={{ color: "var(--muted)", fontSize: "0.9rem", margin: 0 }}>{c.paymentCredsHint}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => window.location.assign(surfaceHref(window.location.pathname, "/admin/payment-gateways"))}
+          >
+            {c.openPaymentGateways}
+          </Button>
+        </div>
       )}
     </div>
   );

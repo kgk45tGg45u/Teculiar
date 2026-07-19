@@ -7,6 +7,7 @@ import { formatDate, formatMoney } from "../../common/i18n";
 import { isStaffViewer, maskInvoice, shouldMask } from "../../common/pii-mask";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
+import { canonicalModuleName, effectiveServiceModule } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { TicketsService } from "../tickets/tickets.service";
 import { BillingEngineService } from "./billing-engine.service";
@@ -947,7 +948,7 @@ export class BillingService {
     }
 
     const request = domainModuleRequest(action, domain, item, invoice.customerSnapshot);
-    const moduleName = canonicalModule(domain.registrarModule ?? domain.registrarProvider) ?? "resellbiz";
+    const moduleName = canonicalModuleName(domain.registrarModule ?? domain.registrarProvider) ?? "resellbiz";
     await this.billing.createAuditLog({
       action: "domain.registrar_started",
       actorId: input.actorId,
@@ -1146,6 +1147,26 @@ export class BillingService {
         servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
       }
     ];
+
+    // Recurring addons renew as their own lines (type ADDON_RENEWAL, no lifecycleAction — the
+    // service line alone drives the provisioning lifecycle). Non-recurring addons billed once at
+    // order time never reappear here; soft-deleted addons keep renewing for existing services.
+    const serviceAddOns = (subscription.service as { serviceAddOns?: Array<{ addOn: { amountCents: number; name: string; recurring: boolean } | null; quantity: number }> } | null)?.serviceAddOns ?? [];
+    for (const link of serviceAddOns) {
+      if (!link.addOn?.recurring) {
+        continue;
+      }
+      lines.push({
+        description: `${link.addOn.name} renewal`,
+        billingCycle: subscription.billingCycle,
+        quantity: link.quantity > 0 ? link.quantity : 1,
+        type: "ADDON_RENEWAL",
+        unitAmountCents: link.addOn.amountCents,
+        serviceId: subscription.serviceId,
+        servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
+        servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
+      });
+    }
 
     // A discount carried by the subscription (an admin recurring discount, stored as a coupon) is billed
     // as its own flat discount line — never distributed into the renewal line, and with NO VAT (vatRate 0)
@@ -1805,7 +1826,21 @@ export class BillingService {
       this.billing.settingString("bankTransfer.referenceNote")
     ]);
     const enabled = gateways.filter((gateway) => gateway.enabled);
-    const source = gateways.length ? enabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
+    // Registry kill switch (Phase 6.4): a payment module disabled under Admin → Modules hides
+    // every checkout method that module drives, without touching the stored gateway credentials.
+    const moduleActive = async (name: string) => (this.modules ? this.modules.moduleActive(name) : true);
+    const [paypalActive, mollieActive] = await Promise.all([moduleActive("paypal"), moduleActive("mollie")]);
+    const moduleEnabled = enabled.filter((gateway) => {
+      const cfg = gateway.config && isRecord(gateway.config) ? gateway.config : {};
+      if (["CREDIT_CARD", "SEPA"].includes(gateway.method)) {
+        return mollieActive;
+      }
+      if (gateway.method === "PAYPAL") {
+        return typeof cfg.apiKey === "string" && cfg.apiKey ? mollieActive : paypalActive;
+      }
+      return true;
+    });
+    const source = gateways.length ? moduleEnabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
     const withSandbox = sandboxEnabled ? [sandboxGateway(), ...source] : source;
 
     const result: Array<{ config?: Record<string, string | undefined> | undefined; method: string; title: string }> = withSandbox.map((gateway) => {
@@ -2811,28 +2846,6 @@ function canRunActionForPaidInvoice(invoice: Record<string, any>, action: string
     return true;
   }
   return ["create", "register_domain", "renew", "renew_domain", "unsuspend"].includes(action);
-}
-
-function hostingModuleName(productType?: string) {
-  return ["VPS", "DEDICATED_SERVER"].includes(productType ?? "") ? "hetzner" : "virtualmin";
-}
-
-function effectiveServiceModule(service: Record<string, any>) {
-  if (service.product?.category) {
-    return canonicalModule(service.product.category.provisioningModule);
-  }
-  return canonicalModule(service.moduleName) ?? canonicalModule(service.product?.provisioningModule) ?? hostingModuleName(service.product?.type);
-}
-
-function canonicalModule(value: unknown) {
-  const moduleName = String(value ?? "").trim().toLowerCase();
-  if (!moduleName || moduleName === "none") {
-    return undefined;
-  }
-  if (moduleName === "resell.biz") {
-    return "resellbiz";
-  }
-  return moduleName;
 }
 
 function hostingOptions(configuration: unknown, customerSnapshot?: unknown) {

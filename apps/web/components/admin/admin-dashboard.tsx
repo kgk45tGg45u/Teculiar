@@ -31,6 +31,7 @@ import { OrdersTable } from "./tables/orders-table";
 import { ServicesTable } from "./tables/services-table";
 import { TicketsTable } from "./tables/tickets-table";
 import { EmailSettingsForm } from "./email-admin-editor";
+import { AdminAddOnManager } from "./admin-addon-manager";
 import { AdminCategoryManager, AdminProductManager } from "./admin-product-manager";
 import { AdminDepartmentsPanel, AdminNewTicketPanel } from "./admin-departments";
 import { AdminTicketDetail, KnowledgebasePanel } from "./admin-support";
@@ -57,6 +58,7 @@ type AdminView =
   | "payment-gateways"
   | "products"
   | "products-categories"
+  | "products-addons"
   | "modules"
   | "services"
   | "tickets"
@@ -163,6 +165,7 @@ export async function AdminDashboard({ blogEditId, emailSection = "emails", pres
         {view === "blog-ai-settings" ? <BlogAiSettingsPanel locale={locale} /> : null}
         {view === "products" ? <ProductsPanel locale={locale} /> : null}
         {view === "products-categories" ? <ProductCategoriesPanel locale={locale} /> : null}
+        {view === "products-addons" ? <ProductAddOnsPanel locale={locale} /> : null}
         {view === "modules" ? <ModulesRedirect /> : null}
         {view === "payment-gateways" ? <PaymentGatewaysPanel locale={locale} /> : null}
         {view === "emails" ? <EmailsPanel locale={locale} section={emailSection} settings={emailSettings} timezone={adminTimezone} /> : null}
@@ -563,6 +566,23 @@ async function ProductsPanel({ locale }: { locale: Locale }) {
   );
 }
 
+async function ProductAddOnsPanel({ locale }: { locale: Locale }) {
+  const href = await surfaceHrefMapper();
+  const copy = getDictionary(locale).admin;
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <span className="eyebrow">{copy.eyebrow.products}</span>
+          <h2>{copy.view.addons}</h2>
+        </div>
+        <Button href={href("/admin/products")} variant="secondary">{copy.btn.backToProducts}</Button>
+      </div>
+      <AdminAddOnManager />
+    </section>
+  );
+}
+
 async function ProductCategoriesPanel({ locale }: { locale: Locale }) {
   const href = await surfaceHrefMapper();
   const copy = getDictionary(locale).admin;
@@ -659,6 +679,7 @@ function adminTitle(view: AdminView, locale: Locale) {
     "orders-new": copy.view.newOrder,
     products: copy.products,
     "products-categories": copy.view.categories,
+    "products-addons": copy.view.addons,
     services: copy.services,
     settings: copy.settings,
     "settings-cron": copy.view.cronSettings,

@@ -15,6 +15,29 @@ import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isLocaleCode } from "./supported-loc
 
 export { formatCustomerNumber };
 
+export type ApiAddOn = {
+  active?: boolean;
+  amountCents: number;
+  billingCycle?: string | null;
+  description?: string | null;
+  descriptionTranslations?: Record<string, string>;
+  id: string;
+  name: string;
+  nameTranslations?: Record<string, string>;
+  recurring?: boolean;
+  setupFeeCents?: number;
+  slug: string;
+};
+
+// AddOn name/description in the visitor's locale; the plain column is the main-language fallback.
+export function addOnName(addOn: ApiAddOn, locale: string) {
+  return addOn.nameTranslations?.[locale]?.trim() || addOn.name;
+}
+
+export function addOnDescription(addOn: ApiAddOn, locale: string) {
+  return addOn.descriptionTranslations?.[locale]?.trim() || addOn.description || "";
+}
+
 export type ApiProduct = {
   category?: ApiProductCategory | null;
   categoryId?: string | null;
@@ -38,6 +61,7 @@ export type ApiProduct = {
     currency: string;
   }>;
   configs?: Array<{ key: string; label: string; values: unknown[]; required: boolean }>;
+  addOns?: Array<{ addOn: ApiAddOn; addOnId: string; id: string; productId: string }>;
 };
 
 export type ApiProductCategory = {

@@ -189,6 +189,7 @@ export function AdminProductManager() {
           featured: formData.get("featured") === "on",
           name: String(formData.get("name") ?? ""),
           prices,
+          provisioningModule: String(formData.get("provisioningModule") ?? "none"),
           slug: String(formData.get("slug") ?? ""),
           sortOrder: Number(formData.get("sortOrder") ?? 0),
           type: String(formData.get("type") ?? "DOMAIN")
@@ -231,7 +232,8 @@ export function AdminProductManager() {
   function editProduct(product: ApiProduct) {
     setEditing(product);
     setCategoryId(product.categoryId ?? product.category?.id ?? "");
-    setModule(product.category ? product.category.provisioningModule ?? "none" : product.provisioningModule ?? "none");
+    // Product-first (Phase 6.2): the product's own module wins; category is only the default.
+    setModule(product.provisioningModule ?? product.category?.provisioningModule ?? "none");
     setType(product.type);
     setDomainRequirement(product.domainRequirement ?? "NOT_NEEDED");
     setFreeDomainCycle(product.freeDomainBillingCycle ?? "");
@@ -282,7 +284,8 @@ export function AdminProductManager() {
 
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
   const selectedCategory = categories.find((category) => category.id === categoryId);
-  const effectiveModule = selectedCategory ? selectedCategory.provisioningModule ?? "none" : module;
+  // Product-first: the select below is authoritative; picking a category only prefills it.
+  const effectiveModule = module;
   // Domain products are the domain itself, and a "domain" category groups them — neither gets the
   // can-be-ordered-with-a-domain controls.
   const isDomainProduct = type === "DOMAIN" || /domain/i.test(selectedCategory?.slug ?? "") || /domain/i.test(selectedCategory?.name ?? "");
@@ -328,6 +331,15 @@ export function AdminProductManager() {
                 }}>
                   <option value="">{c.noCategory}</option>
                   {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                </select>
+              </label>
+              <label>
+                {c.module}
+                <select name="provisioningModule" value={module} onChange={(e) => setModule(e.target.value)}>
+                  <option value="virtualmin">{c.virtualmin}</option>
+                  <option value="resellbiz">{c.resellbiz}</option>
+                  <option value="hetzner">{c.hetzner}</option>
+                  <option value="none">{c.manual}</option>
                 </select>
               </label>
               <label>{c.sortOrder}<input defaultValue={editing?.sortOrder ?? 0} name="sortOrder" type="number" min="0" placeholder="0" /></label>
@@ -472,7 +484,7 @@ export function AdminProductManager() {
                   <td>{product.name}</td>
                   <td>{typeLabel(product.type, c)}</td>
                   <td>{product.category?.name ?? <span className={styles.muted}>—</span>}</td>
-                  <td>{moduleLabel(product.category ? product.category.provisioningModule : product.provisioningModule, c)}</td>
+                  <td>{moduleLabel(product.provisioningModule ?? product.category?.provisioningModule, c)}</td>
                   <td>{product.type === "DOMAIN" ? <span className={styles.muted}>—</span> : domainRequirementLabel(product.domainRequirement, c)}</td>
                   <td className={styles.rowActions}>
                     <Button size="sm" type="button" variant="secondary" onClick={() => editProduct(product)}>{c.edit}</Button>

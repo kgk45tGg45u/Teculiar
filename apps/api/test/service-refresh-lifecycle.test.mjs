@@ -245,7 +245,9 @@ test("paid hosting invoice without provider module does not mark service active"
   ]);
 });
 
-test("manual service creation uses category module before legacy product module", async () => {
+// Phase 6.2 flipped the precedence to PRODUCT-FIRST: the product's own provisioningModule wins,
+// the category is only a default for new products.
+test("manual service creation uses the product module over the category module", async () => {
   const calls = [];
   const products = {
     createService: async () => ({ id: "service-1" }),
@@ -285,7 +287,7 @@ test("manual service creation uses category module before legacy product module"
   });
 
   assert.deepEqual(calls, [
-    ["provider", "hetzner", "SHARED_HOSTING"],
+    ["provider", "virtualmin", "SHARED_HOSTING"],
     ["provision", "SHARED_HOSTING", "service-1"],
     // The module created the account → stamped as eligible for the activation email.
     ["provisioned", "service-1"],
@@ -294,7 +296,7 @@ test("manual service creation uses category module before legacy product module"
   assert.equal(result.status, "ACTIVE");
 });
 
-test("paid service lifecycle uses category module before legacy product module", async () => {
+test("paid service lifecycle uses the product module over the category module", async () => {
   const calls = [];
   const invoice = {
     customerSnapshot: { email: "owner@example.com", name: "Owner Example" },
@@ -357,12 +359,12 @@ test("paid service lifecycle uses category module before legacy product module",
 
   assert.deepEqual(calls, [
     ["audit", "invoice.paid", undefined],
-    ["module", "create", "hetzner"],
-    ["hetzner"],
+    ["module", "create", "virtualmin"],
+    ["virtualmin"],
     ["success", "log-1", "ACTIVE"],
-    ["service", "service-1", "ACTIVE", "hz-1"],
+    ["service", "service-1", "ACTIVE", "vm-1"],
     ["item", "item-1", "ACTIVE"],
-    ["audit", "service.activated", "hetzner"],
+    ["audit", "service.activated", "virtualmin"],
     ["order", "order-1", "COMPLETE"]
   ]);
 });

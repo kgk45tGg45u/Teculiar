@@ -436,7 +436,7 @@ export class BillingRepository {
       where: { id },
       include: {
         user: { select: publicUserSelect },
-        service: { include: { product: { include: { category: true } } } },
+        service: { include: { product: { include: { category: true } }, serviceAddOns: { include: { addOn: true } } } },
         productPrice: true,
         coupon: true
       }

@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { domainCycleFor } from "@teculiar/shared";
-import { API_BASE_URL, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, addOnName, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@teculiar/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import type { Locale } from "@teculiar/web-core/lib/i18n";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
@@ -1733,6 +1733,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const [discountType, setDiscountType] = useState<"none" | "one-time" | "recurring">("none");
   const [discountAmountEur, setDiscountAmountEur] = useState<number>(0);
   const [addDomain, setAddDomain] = useState(false);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
   const [domainNameInput, setDomainNameInput] = useState("");
   const [domainPriceLookup, setDomainPriceLookup] = useState<Map<string, number>>(new Map());
   const [domainPriceLoading, setDomainPriceLoading] = useState(false);
@@ -1758,6 +1759,8 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const selectedProduct = products.find((p) => p.id === selectedProductId);
   const selectedPrice = selectedProduct?.prices.find((p) => p.id === selectedPriceId) ?? selectedProduct?.prices[0];
   const selectedClient = clients.find((c) => c.id === selectedClientId);
+  const productAddOns = (selectedProduct?.addOns ?? []).map((link) => link.addOn);
+  const chosenAddOns = productAddOns.filter((addOn) => selectedAddOnIds.includes(addOn.id));
 
   // Compute preview values. All entered/looked-up prices are NET (VAT-excluded); VAT is added on top of
   // every product line — hosting AND domain — mirroring the invoice engine (BillingEngineService.createDraft)
@@ -1774,10 +1777,16 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const lineVat = (net: number) => Math.round((net * vatRate) / 100);
 
   // First invoice: product NET lines + their VAT, minus a flat discount line (capped at the product net).
-  const productNetCents = baseAmountCents + (domainPriceCents ?? 0);
+  // Addons bill their recurring price plus a one-off setup fee on the first invoice, each as its own line.
+  const addOnFirstNetCents = chosenAddOns.reduce((sum, addOn) => sum + addOn.amountCents + (addOn.setupFeeCents ?? 0), 0);
+  const addOnRecurringNetCents = chosenAddOns.reduce((sum, addOn) => sum + (addOn.recurring === false ? 0 : addOn.amountCents), 0);
+  const productNetCents = baseAmountCents + (domainPriceCents ?? 0) + addOnFirstNetCents;
   const discountCents = Math.min(productNetCents, discountType !== "none" ? Math.round(discountAmountEur * 100) : 0);
   const subtotalCents = productNetCents - discountCents;
-  const vatCents = lineVat(baseAmountCents) + (domainPriceCents !== null ? lineVat(domainPriceCents) : 0);
+  const vatCents =
+    lineVat(baseAmountCents) +
+    (domainPriceCents !== null ? lineVat(domainPriceCents) : 0) +
+    chosenAddOns.reduce((sum, addOn) => sum + lineVat(addOn.amountCents + (addOn.setupFeeCents ?? 0)), 0);
   const totalCents = subtotalCents + vatCents;
 
   // Renewals (VAT-inclusive): hosting renews on its cycle keeping any recurring discount (flat, no VAT);
@@ -1788,7 +1797,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const cycleListCents = selectedProduct?.prices.find((p) => p.billingCycle === customBillingCycle)?.amountCents ?? selectedProduct?.prices[0]?.amountCents ?? 0;
   const renewalNetCents = useCustomPricing && !applyToRenewals ? cycleListCents : baseAmountCents;
   const hostingRenewalDiscountCents = discountType === "recurring" ? Math.min(renewalNetCents, Math.round(discountAmountEur * 100)) : 0;
-  const hostingRenewalGrossCents = renewalNetCents + lineVat(renewalNetCents) - hostingRenewalDiscountCents;
+  const hostingRenewalGrossCents = renewalNetCents + addOnRecurringNetCents + lineVat(renewalNetCents + addOnRecurringNetCents) - hostingRenewalDiscountCents;
   const domainRenewalGrossCents = domainPriceCents !== null ? domainPriceCents + lineVat(domainPriceCents) : null;
 
   async function submit(formData: FormData) {
@@ -1819,6 +1828,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
       productId,
       productPriceId: customPricingOn ? undefined : priceId,
       quantity: 1,
+      ...(selectedAddOnIds.length ? { addOnIds: selectedAddOnIds } : {}),
       ...(customPricingOn ? {
         customAmountCents: Math.round(Number(formData.get("customAmountEur") ?? 0) * 100),
         customBillingCycle: String(formData.get("customBillingCycle") ?? "MONTHLY"),
@@ -1891,6 +1901,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
               setSelectedProductId(e.target.value);
               const p = products.find((prod) => prod.id === e.target.value);
               setSelectedPriceId(p?.prices[0]?.id ?? "");
+              setSelectedAddOnIds([]);
             }}>
               {products.filter((p) => p.type !== "DOMAIN").map((product) => (
                 <option key={product.id} value={product.id}>{product.name}</option>
@@ -1932,6 +1943,27 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
               </label>
             </>
           )}
+
+          {productAddOns.length > 0 ? (
+            <div className={styles.formSpan2}>
+              {c.addOns}
+              {productAddOns.map((addOn) => (
+                <label key={addOn.id} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <input
+                    checked={selectedAddOnIds.includes(addOn.id)}
+                    onChange={(e) =>
+                      setSelectedAddOnIds((ids) => (e.target.checked ? [...ids, addOn.id] : ids.filter((id) => id !== addOn.id)))
+                    }
+                    type="checkbox"
+                  />
+                  <span>
+                    {addOnName(addOn, locale)} — {money(addOn.amountCents, "EUR", locale)}
+                    {(addOn.setupFeeCents ?? 0) > 0 ? ` (+ ${money(addOn.setupFeeCents ?? 0, "EUR", locale)} ${c.addOnSetupFee})` : ""}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
 
           <label>
             {c.domainName}
@@ -1998,6 +2030,12 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
                 <span>{c.basePrice} <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{c.exclVat}</span></span>
                 <strong>{money(baseAmountCents, "EUR", locale)}</strong>
               </div>
+              {chosenAddOns.map((addOn) => (
+                <div className={styles.orderPreviewRow} key={addOn.id}>
+                  <span>{addOnName(addOn, locale)} <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{c.exclVat}</span></span>
+                  <strong>{money(addOn.amountCents + (addOn.setupFeeCents ?? 0), "EUR", locale)}</strong>
+                </div>
+              ))}
               {addDomain ? (
                 <div className={styles.orderPreviewRow}>
                   <span>Domain (.{domainTld || "?"}) · {cycleLabel(domainCycle, locale)} <span style={{ color: "var(--muted)", fontSize: "0.78rem" }}>{c.exclVat}</span></span>
