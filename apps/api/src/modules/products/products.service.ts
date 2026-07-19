@@ -3,6 +3,7 @@ import { isStaffViewer, maskService, shouldMask } from "../../common/pii-mask";
 import { ExternalService } from "../external/external.service";
 import { canonicalModuleName } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
+import { AdminAddOnDto } from "./dto/addon.dto";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { ProductsRepository } from "./products.repository";
 
@@ -44,6 +45,22 @@ export class ProductsService {
 
   deleteProduct(id: string) {
     return this.products.deleteProduct(id);
+  }
+
+  listAddOns() {
+    return this.products.listAddOns();
+  }
+
+  createAddOn(dto: AdminAddOnDto) {
+    return this.products.createAddOn(dto);
+  }
+
+  updateAddOn(id: string, dto: AdminAddOnDto) {
+    return this.products.updateAddOn(id, dto);
+  }
+
+  deleteAddOn(id: string) {
+    return this.products.deleteAddOn(id);
   }
 
   listVirtualminTemplates() {

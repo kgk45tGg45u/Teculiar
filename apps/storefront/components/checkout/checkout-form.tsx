@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@teculiar/shared";
-import { API_BASE_URL, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, addOnName, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiAddOn, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@teculiar/web-core/lib/api";
 import { countriesForLocale } from "@teculiar/web-core/lib/countries";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -32,6 +32,7 @@ type DomainCheck =
   | { status: "error"; message: string };
 
 type CheckoutItem = {
+  addOnIds?: string[];
   configuration: Record<string, unknown>;
   domainName?: string;
   productId: string;
@@ -82,6 +83,7 @@ export function CheckoutForm({
   const [hostingDomain, setHostingDomain] = useState(initialDomain);
   const [selectedHostingId, setSelectedHostingId] = useState(hostingProducts[0]?.id ?? "");
   const [selectedHostingPriceId, setSelectedHostingPriceId] = useState(hostingProducts[0]?.prices[0]?.id ?? "");
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
   const [phoneCountryCode, setPhoneCountryCode] = useState(splitProfilePhone().countryCode);
   const [paymentGateways, setPaymentGateways] = useState<ApiPaymentGateway[]>(() => buildDefaultGateways(copy));
   const [domainPrices, setDomainPrices] = useState<ApiDomainPrice[]>([]);
@@ -113,6 +115,8 @@ export function CheckoutForm({
     [selectedHosting, selectedHostingPriceId]
   );
   const needsDomain = product.type === "DOMAIN";
+  const productAddOns = useMemo(() => (needsDomain ? [] : (product.addOns ?? []).map((link) => link.addOn)), [needsDomain, product.addOns]);
+  const chosenAddOns = useMemo(() => productAddOns.filter((addOn) => selectedAddOnIds.includes(addOn.id)), [productAddOns, selectedAddOnIds]);
   // Non-domain products carry a per-product domain requirement set in the admin panel.
   const domainMode = needsDomain ? "NOT_NEEDED" : product.domainRequirement ?? "NOT_NEEDED";
   const needsHostingDomain = domainMode !== "NOT_NEEDED";
@@ -129,12 +133,14 @@ export function CheckoutForm({
   );
   const summary = orderSummary({
     addHosting,
+    chosenAddOns,
     copy,
     domainCheck,
     domainName: domainNameInput,
     domainProduct,
     domainUse,
     hostingDomain,
+    locale,
     needsDomain,
     needsHostingDomain,
     product,
@@ -250,7 +256,8 @@ export function CheckoutForm({
         domainName: needsDomain ? domainName : undefined,
         productId: product.id,
         productPriceId: selectedPrice.id,
-        quantity: 1
+        quantity: 1,
+        ...(chosenAddOns.length ? { addOnIds: chosenAddOns.map((addOn) => addOn.id) } : {})
       }
     ];
 
@@ -464,6 +471,30 @@ export function CheckoutForm({
             </label>
           </div>
 
+          {productAddOns.length > 0 ? (
+            <div className={styles.addOnPicker}>
+              <p className={styles.summarySubheading}>{copy.addOnsTitle}</p>
+              {productAddOns.map((addOn) => (
+                <label className={styles.addOnOption} key={addOn.id}>
+                  <input
+                    checked={selectedAddOnIds.includes(addOn.id)}
+                    onChange={(event) =>
+                      setSelectedAddOnIds((ids) => (event.target.checked ? [...ids, addOn.id] : ids.filter((id) => id !== addOn.id)))
+                    }
+                    type="checkbox"
+                  />
+                  <span className={styles.addOnOptionInfo}>
+                    <span>{addOnName(addOn, locale)}</span>
+                    <small>
+                      {money(addOn.amountCents)} / {cycleLabel(addOn.billingCycle || (selectedPrice?.billingCycle ?? ""), locale)}
+                      {(addOn.setupFeeCents ?? 0) > 0 ? ` · ${copy.addOnSetupFee}: ${money(addOn.setupFeeCents ?? 0)}` : ""}
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+
           <div className={styles.orderSummary}>
             <p className={styles.summarySubheading}>{copy.summary}</p>
             {summary.lines.map((line) => (
@@ -497,6 +528,7 @@ export function CheckoutForm({
                       onClick={() => {
                         if (line.kind === "hostingAddon") setAddHosting(false);
                         if (line.kind === "domainAddon") setDomainUse("external");
+                        if (line.kind === "productAddOn") setSelectedAddOnIds((ids) => ids.filter((id) => `addon-${id}` !== line.id));
                       }}
                     >
                       ✕
@@ -1373,12 +1405,14 @@ function isStrongPassword(password: string) {
 
 function orderSummary(input: {
   addHosting: boolean;
+  chosenAddOns: ApiAddOn[];
   copy: CheckoutCopy;
   domainCheck: DomainCheck;
   domainName: string;
   domainProduct?: ApiProduct;
   domainUse: "external" | "register" | "transfer";
   hostingDomain: string;
+  locale: string;
   needsDomain: boolean;
   needsHostingDomain: boolean;
   product: ApiProduct;
@@ -1390,7 +1424,7 @@ function orderSummary(input: {
   const { copy } = input;
   const yearsWord = (years: number) => `${years} ${years === 1 ? copy.year : copy.years}`;
   const actionWord = (action: string) => (action === "transfer" ? copy.domainActionTransfer : copy.domainActionRegister);
-  const lines: Array<{ amountCents: number; detail?: string; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon"; label: string; removable?: boolean }> = [];
+  const lines: Array<{ amountCents: number; detail?: string; id: string; kind: "domain" | "domainAddon" | "hosting" | "hostingAddon" | "productAddOn"; label: string; removable?: boolean }> = [];
 
   if (input.needsDomain) {
     const domainYears = yearsFromCycle(input.selectedPrice?.billingCycle);
@@ -1420,6 +1454,18 @@ function orderSummary(input: {
       kind: "hosting",
       label: `${input.product.name} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
     });
+    // First-invoice view: recurring price + one-off setup fee billed together on the first invoice.
+    for (const addOn of input.chosenAddOns) {
+      const setupCents = addOn.setupFeeCents ?? 0;
+      lines.push({
+        amountCents: addOn.amountCents + setupCents,
+        detail: setupCents > 0 ? `${copy.addOnSetupFee}: ${money(setupCents)}` : undefined,
+        id: `addon-${addOn.id}`,
+        kind: "productAddOn",
+        label: `${addOnName(addOn, input.locale)} ${cycleLabel(addOn.billingCycle || (input.selectedPrice?.billingCycle ?? ""))}`,
+        removable: true
+      });
+    }
     const domainUse = hostingDomainUse(input.domainUse, input.domainCheck, input.hostingDomain);
     if (input.needsHostingDomain && domainUse !== "external" && input.domainProduct && input.hostingDomain.trim()) {
       const domainYears = yearsFromCycle(input.selectedPrice?.billingCycle);

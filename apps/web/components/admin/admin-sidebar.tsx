@@ -37,6 +37,7 @@ function buildBaseNav(c: AdminDict): NavEntry[] {
       children: [
         { href: "/admin/products", label: c.view.products },
         { href: "/admin/products/categories", label: c.view.categories },
+        { href: "/admin/products/addons", label: c.view.addons },
         { href: "/admin/products/modules", label: c.view.modules }
       ]
     },

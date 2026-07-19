@@ -3,7 +3,20 @@ import { BillingCycle, OrderItemStatus, OrderStatus, PaymentMethodType, Prisma, 
 import { addBillingCycle, formatOrderNumber } from "../billing/platform-rules";
 import { PrismaService } from "../prisma/prisma.service";
 
+// Price/name snapshot of an addon chosen with an order item, frozen at order time. Also stored on
+// the item's configuration JSON (the only field that reaches the OrderItem row), where
+// createPendingEntitiesForOrder reads it to create the ServiceAddOn links.
+export type OrderItemAddOn = {
+  addOnId: string;
+  amountCents: number;
+  name: string;
+  recurring: boolean;
+  setupFeeCents: number;
+  slug: string;
+};
+
 export type PricedOrderItem = {
+  addOns?: OrderItemAddOn[];
   billingCycle: string;
   configuration: Record<string, unknown>;
   description: string;
@@ -28,7 +41,7 @@ export class OrdersRepository {
   findProduct(productId: string) {
     return this.prisma.product.findFirst({
       where: { id: productId, active: true },
-      include: { category: true, prices: { where: { active: true } }, configs: true }
+      include: { category: true, prices: { where: { active: true } }, configs: true, addOns: { where: { addOn: { active: true } }, include: { addOn: true } } }
     });
   }
 
@@ -142,8 +155,10 @@ export class OrdersRepository {
     invoiceId: string,
     options?: { recurringCouponId?: string }
   ) {
+    // Addon lines are appended AFTER the item lines on the invoice and must not shift the
+    // positional item ↔ invoice-line mapping below, so they are excluded here.
     const invoiceItems = await this.prisma.invoiceItem.findMany({
-      where: { invoiceId },
+      where: { invoiceId, type: { not: "ADDON" } },
       orderBy: { createdAt: "asc" }
     });
     const items = [...order.items].sort((a, b) => pendingEntityPriority(a) - pendingEntityPriority(b));
@@ -185,6 +200,7 @@ export class OrdersRepository {
         });
         serviceId = service.id;
         await this.prisma.orderItem.update({ where: { id: String(item.id) }, data: { serviceId } });
+        await this.createServiceAddOns(serviceId, configuration);
         if (item.billingCycle !== "ONE_TIME") {
           const recurringCouponId = options?.recurringCouponId && !recurringCouponApplied ? options.recurringCouponId : undefined;
           await this.prisma.subscription.create({
@@ -359,6 +375,18 @@ export class OrdersRepository {
     });
   }
 
+  // Chosen addons ride on the item's configuration JSON (see OrderItemAddOn); link them to the
+  // created service so renewals bill them and the admin service view can show them.
+  private async createServiceAddOns(serviceId: string, configuration: Record<string, unknown>) {
+    const addOns = Array.isArray(configuration.addOns) ? configuration.addOns : [];
+    const rows = addOns
+      .filter((addOn): addOn is { addOnId: string } => isRecord(addOn) && typeof addOn.addOnId === "string" && addOn.addOnId.length > 0)
+      .map((addOn) => ({ addOnId: addOn.addOnId, quantity: 1, serviceId }));
+    if (rows.length) {
+      await this.prisma.serviceAddOn.createMany({ data: rows, skipDuplicates: true });
+    }
+  }
+
   async createServiceForItem(
     item: { id: string; billingCycle: string; configuration: unknown; productId?: string | null; productPriceId: string; setupFeeCents?: number | null; unitAmountCents?: number | null },
     userId: string,
@@ -387,6 +415,9 @@ export class OrdersRepository {
       where: { id: item.id },
       data: { serviceId: service.id }
     });
+    if (isRecord(item.configuration)) {
+      await this.createServiceAddOns(service.id, item.configuration);
+    }
 
     return service;
   }

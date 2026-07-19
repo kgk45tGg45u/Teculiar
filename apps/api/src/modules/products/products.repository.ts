@@ -12,7 +12,7 @@ export class ProductsRepository {
   listProducts() {
     return this.prisma.product.findMany({
       where: { active: true },
-      include: { category: true, prices: true, configs: true, addOns: { include: { addOn: true } } },
+      include: { category: true, prices: true, configs: true, addOns: { where: { addOn: { active: true } }, include: { addOn: true } } },
       orderBy: { sortOrder: "asc" }
     });
   }
@@ -153,6 +153,61 @@ export class ProductsRepository {
     });
   }
 
+  // Admin catalog view: inactive addons stay listed (soft-deleted ones are gone for ordering but
+  // remain attached to existing services), products only for the assignment checkboxes.
+  listAddOns() {
+    return this.prisma.addOn.findMany({
+      include: { productLinks: { select: { productId: true } } },
+      orderBy: { name: "asc" }
+    });
+  }
+
+  createAddOn(input: {
+    active?: boolean;
+    amountCents: number;
+    billingCycle?: string;
+    description?: string;
+    descriptionTranslations?: Record<string, string>;
+    name: string;
+    nameTranslations?: Record<string, string>;
+    productIds?: string[];
+    recurring?: boolean;
+    setupFeeCents?: number;
+    slug: string;
+  }) {
+    return this.prisma.addOn.create({
+      data: {
+        ...addOnColumns(input),
+        productLinks: input.productIds?.length
+          ? { create: input.productIds.map((productId) => ({ productId })) }
+          : undefined
+      },
+      include: { productLinks: { select: { productId: true } } }
+    });
+  }
+
+  updateAddOn(id: string, input: Parameters<ProductsRepository["createAddOn"]>[0]) {
+    return this.prisma.addOn.update({
+      where: { id },
+      data: {
+        ...addOnColumns(input),
+        productLinks: input.productIds
+          ? { deleteMany: {}, create: input.productIds.map((productId) => ({ productId })) }
+          : undefined
+      },
+      include: { productLinks: { select: { productId: true } } }
+    });
+  }
+
+  // Soft delete: ServiceAddOn rows keep referencing the addon (billing history + renewals),
+  // so the row must survive; unlinking the products removes it from every order form.
+  deleteAddOn(id: string) {
+    return this.prisma.addOn.update({
+      where: { id },
+      data: { active: false, productLinks: { deleteMany: {} } }
+    });
+  }
+
   async syncHostingPlanProduct(input: {
     configs: Array<{ key: string; label: string; required?: boolean; values: unknown[] }>;
     description: string;
@@ -220,7 +275,7 @@ export class ProductsRepository {
   findProduct(id: string) {
     return this.prisma.product.findUnique({
       where: { id },
-      include: { category: true, prices: true, configs: true, addOns: { include: { addOn: true } } }
+      include: { category: true, prices: true, configs: true, addOns: { where: { addOn: { active: true } }, include: { addOn: true } } }
     });
   }
 
@@ -414,6 +469,32 @@ function productPrices(dto: CreateProductDto) {
       setupFeeCents: dto.setupFeeCents ?? 0
     }
   ];
+}
+
+function addOnColumns(input: {
+  active?: boolean;
+  amountCents: number;
+  billingCycle?: string;
+  description?: string;
+  descriptionTranslations?: Record<string, string>;
+  name: string;
+  nameTranslations?: Record<string, string>;
+  recurring?: boolean;
+  setupFeeCents?: number;
+  slug: string;
+}) {
+  return {
+    active: input.active ?? true,
+    amountCents: input.amountCents,
+    billingCycle: input.billingCycle ? (input.billingCycle as BillingCycle) : null,
+    description: input.description ?? null,
+    descriptionTranslations: (input.descriptionTranslations ?? {}) as Prisma.InputJsonValue,
+    name: input.name,
+    nameTranslations: (input.nameTranslations ?? {}) as Prisma.InputJsonValue,
+    recurring: input.recurring ?? true,
+    setupFeeCents: input.setupFeeCents ?? 0,
+    slug: input.slug
+  };
 }
 
 function normalizeModule(value: string | null | undefined) {

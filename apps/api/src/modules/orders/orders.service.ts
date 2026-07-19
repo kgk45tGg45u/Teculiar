@@ -10,7 +10,7 @@ import { UsersRepository } from "../users/users.repository";
 import { DomainAvailabilityService } from "./domain-availability.service";
 import { DomainPricingService } from "./domain-pricing.service";
 import type { AdminCreateOrderDto, CheckoutOrderDto, OrderItemDto, PayOrderDto, PreviewOrderDto } from "./dto/order.dto";
-import { OrdersRepository, type PricedOrderItem } from "./orders.repository";
+import { OrdersRepository, type OrderItemAddOn, type PricedOrderItem } from "./orders.repository";
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -107,8 +107,8 @@ export class OrdersService implements OnModuleInit {
 
   async previewOrder(dto: PreviewOrderDto) {
     const items = await this.priceItems(dto.items);
-    const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
-    const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
+    const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity + addOnAmountCents(item), 0);
+    const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents + addOnSetupFeeCents(item), 0);
     const taxableCents = subtotalCents + setupFeeCents;
     const vat = await this.billing.vatForBuyer({
       countryCode: dto.customer?.countryCode,
@@ -178,14 +178,17 @@ export class OrdersService implements OnModuleInit {
       customerSnapshot: customerSnapshot(dto.customer, email, existing?.customerNumber),
       dueAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
       isBusinessCustomer: dto.customer.customerType === "BUSINESS",
-      lines: preview.items.map((item) => ({
-        billingCycle: item.billingCycle,
-        description: item.description,
-        lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
-        quantity: invoiceLineQuantity(item),
-        type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
-        unitAmountCents: invoiceLineUnitAmount(item)
-      })),
+      lines: [
+        ...preview.items.map((item) => ({
+          billingCycle: item.billingCycle,
+          description: item.description,
+          lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
+          quantity: invoiceLineQuantity(item),
+          type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
+          unitAmountCents: invoiceLineUnitAmount(item)
+        })),
+        ...addOnInvoiceLines(preview.items)
+      ],
       orderSnapshot: {
         items: preview.items,
         pendingCheckout,
@@ -211,8 +214,8 @@ export class OrdersService implements OnModuleInit {
     const items = await this.priceItems(dto.items);
 
     await this.assertOrderItemsAvailable(items, "Create an invoice manually instead.");
-    const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity, 0);
-    const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents, 0);
+    const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity + addOnAmountCents(item), 0);
+    const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents + addOnSetupFeeCents(item), 0);
     const taxableCents = subtotalCents + setupFeeCents;
     const vat = await this.billing.vatForBuyer({
       countryCode: user.countryCode,
@@ -230,14 +233,17 @@ export class OrdersService implements OnModuleInit {
     // capped at the order's net so the total never goes negative.
     const discount = orderDiscount(dto);
     const discountCoupon = discount?.type === "recurring" ? await this.billing.createAdHocDiscountCoupon(discount.amountCents) : undefined;
-    const invoiceLines: Parameters<BillingService["createInvoice"]>[0]["lines"] = items.map((item) => ({
-      billingCycle: item.billingCycle,
-      description: item.description,
-      lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
-      quantity: invoiceLineQuantity(item),
-      type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
-      unitAmountCents: invoiceLineUnitAmount(item)
-    }));
+    const invoiceLines: Parameters<BillingService["createInvoice"]>[0]["lines"] = [
+      ...items.map((item) => ({
+        billingCycle: item.billingCycle,
+        description: item.description,
+        lifecycleAction: item.type === "DOMAIN" ? domainAction(item.configuration) : "create",
+        quantity: invoiceLineQuantity(item),
+        type: item.type === "DOMAIN" ? "DOMAIN" : "SERVICE",
+        unitAmountCents: invoiceLineUnitAmount(item)
+      })),
+      ...addOnInvoiceLines(items)
+    ];
     if (discount) {
       const netTotalCents = invoiceLines.reduce((sum, line) => sum + line.quantity * line.unitAmountCents, 0);
       const discountNetCents = Math.min(netTotalCents, discount.amountCents);
@@ -640,7 +646,16 @@ export class OrdersService implements OnModuleInit {
       }
     }
 
+    // Addons apply to service items only (never domains). Snapshot the chosen ones onto the item
+    // AND its configuration JSON — the latter is the only field persisted on the OrderItem row,
+    // where createPendingEntitiesForOrder picks them up to create the ServiceAddOn links.
+    const addOns = product.type === "DOMAIN" ? [] : resolveItemAddOns(product.addOns ?? [], item.addOnIds);
+    if (addOns.length) {
+      configuration.addOns = addOns;
+    }
+
     return {
+      addOns: addOns.length ? addOns : undefined,
       billingCycle,
       configuration,
       description,
@@ -657,7 +672,7 @@ export class OrdersService implements OnModuleInit {
       quantity,
       recurringAmountCents,
       setupFeeCents: price.setupFeeCents,
-      totalCents: unitAmountCents * quantity + price.setupFeeCents,
+      totalCents: unitAmountCents * quantity + price.setupFeeCents + addOns.reduce((sum, addOn) => sum + addOn.amountCents + addOn.setupFeeCents, 0),
       type: product.type,
       unitAmountCents
     };
@@ -1032,6 +1047,63 @@ function normalizedDomainYears(value?: string | number) {
 function domainProductFallbackCents(product: { prices?: Array<{ amountCents: number; billingCycle: string }> } | null | undefined, years: number) {
   const cycle = `YEAR_${years}`;
   return product?.prices?.find((price) => price.billingCycle === cycle)?.amountCents ?? product?.prices?.[0]?.amountCents ?? 0;
+}
+
+// Validate the requested addon IDs against the product's assigned (active) addons and freeze
+// name + price. An ID that is not assigned to the product is a client error, never silently dropped.
+function resolveItemAddOns(
+  links: Array<{ addOnId: string; addOn: { active: boolean; amountCents: number; id: string; name: string; recurring: boolean; setupFeeCents: number; slug: string } }>,
+  addOnIds?: string[]
+): OrderItemAddOn[] {
+  const requested = [...new Set(addOnIds ?? [])];
+  if (requested.length === 0) {
+    return [];
+  }
+  return requested.map((addOnId) => {
+    const link = links.find((candidate) => candidate.addOnId === addOnId && candidate.addOn.active);
+    if (!link) {
+      throw new BadRequestException("Addon is not available for this product");
+    }
+    return {
+      addOnId: link.addOn.id,
+      amountCents: link.addOn.amountCents,
+      name: link.addOn.name,
+      recurring: link.addOn.recurring,
+      setupFeeCents: link.addOn.setupFeeCents,
+      slug: link.addOn.slug
+    };
+  });
+}
+
+function itemAddOns(item: { addOns?: OrderItemAddOn[]; configuration?: Record<string, unknown> }): OrderItemAddOn[] {
+  if (Array.isArray(item.addOns)) {
+    return item.addOns;
+  }
+  const fromConfiguration = isRecord(item.configuration) ? item.configuration.addOns : undefined;
+  return Array.isArray(fromConfiguration) ? (fromConfiguration as OrderItemAddOn[]) : [];
+}
+
+function addOnAmountCents(item: { addOns?: OrderItemAddOn[]; configuration?: Record<string, unknown> }) {
+  return itemAddOns(item).reduce((sum, addOn) => sum + addOn.amountCents, 0);
+}
+
+function addOnSetupFeeCents(item: { addOns?: OrderItemAddOn[]; configuration?: Record<string, unknown> }) {
+  return itemAddOns(item).reduce((sum, addOn) => sum + addOn.setupFeeCents, 0);
+}
+
+// One invoice line per chosen addon, appended AFTER the item lines (createPendingEntitiesForOrder
+// maps items to invoice lines by position and skips type ADDON). Setup fee is billed within the
+// first-invoice line; renewals re-bill recurring addons from the ServiceAddOn links.
+function addOnInvoiceLines(items: PricedOrderItem[]) {
+  return items.flatMap((item) =>
+    itemAddOns(item).map((addOn) => ({
+      billingCycle: item.billingCycle,
+      description: addOn.name,
+      quantity: 1,
+      type: "ADDON",
+      unitAmountCents: addOn.amountCents + addOn.setupFeeCents
+    }))
+  );
 }
 
 function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {

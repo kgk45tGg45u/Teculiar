@@ -1147,6 +1147,26 @@ export class BillingService {
       }
     ];
 
+    // Recurring addons renew as their own lines (type ADDON_RENEWAL, no lifecycleAction — the
+    // service line alone drives the provisioning lifecycle). Non-recurring addons billed once at
+    // order time never reappear here; soft-deleted addons keep renewing for existing services.
+    const serviceAddOns = (subscription.service as { serviceAddOns?: Array<{ addOn: { amountCents: number; name: string; recurring: boolean } | null; quantity: number }> } | null)?.serviceAddOns ?? [];
+    for (const link of serviceAddOns) {
+      if (!link.addOn?.recurring) {
+        continue;
+      }
+      lines.push({
+        description: `${link.addOn.name} renewal`,
+        billingCycle: subscription.billingCycle,
+        quantity: link.quantity > 0 ? link.quantity : 1,
+        type: "ADDON_RENEWAL",
+        unitAmountCents: link.addOn.amountCents,
+        serviceId: subscription.serviceId,
+        servicePeriodStart: subscription.nextInvoiceAt.toISOString(),
+        servicePeriodEnd: addBillingCycle(subscription.nextInvoiceAt, subscription.billingCycle).toISOString()
+      });
+    }
+
     // A discount carried by the subscription (an admin recurring discount, stored as a coupon) is billed
     // as its own flat discount line — never distributed into the renewal line, and with NO VAT (vatRate 0)
     // so a €1 discount takes exactly €1 off the renewal total — exactly like the first invoice. Capped at

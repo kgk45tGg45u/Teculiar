@@ -95,6 +95,41 @@
   gap: 0;
 }
 
+.addOnPicker {
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+}
+
+.addOnOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.addOnOption input {
+  margin-top: 3px;
+  accent-color: var(--teculiar);
+}
+
+.addOnOptionInfo {
+  display: grid;
+  gap: 2px;
+}
+
+.addOnOptionInfo span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.addOnOptionInfo small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .summarySubheading {
   margin: 0 0 14px;
   font-size: 0.72rem;
@@ -916,6 +951,7 @@
 
   .summaryHeader,
   .billingCycleRow,
+  .addOnPicker,
   .orderSummary {
     padding-left: 18px;
     padding-right: 18px;
