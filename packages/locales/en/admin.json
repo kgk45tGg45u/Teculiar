@@ -805,6 +805,8 @@
     "moduleEnabled": "{label} enabled.",
     "moduleDisabled": "{label} disabled.",
     "moduleUpdateFailed": "Failed to update module.",
+    "paymentCredsHint": "Payment gateway credentials are configured on the Payment Gateways page. The toggle here switches the whole payment module on or off — while disabled, its checkout methods are hidden and charges fall back to the sandbox.",
+    "openPaymentGateways": "Open Payment Gateways →",
     "resellbizCreds": "Resell.biz — API Credentials",
     "resellbizCredsHintHtml": "Credentials are stored in the database and used for domain registration, transfer, renewal and price sync. The server <code>.env</code> is only a fallback. Leave the API key blank to keep the stored one.",
     "apiMode": "API mode",

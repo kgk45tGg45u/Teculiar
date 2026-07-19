@@ -10,7 +10,10 @@
 // `platform` = a provisioning module that creates a whole Teculiar TENANT (its own database) rather
 // than a hosting account or a domain — used by Teculiar.com's own catalog to sell Teculiar itself
 // (the Tecreator module). It plugs into the identical order→invoice→provision pipeline as `hosting`.
-export const MODULE_KINDS = ["registrar", "hosting", "platform"] as const;
+// `payment` = a checkout/renewal payment gateway integration. Unlike the other kinds, its
+// CREDENTIALS live in PaymentProcessorConfig (Admin → Payment Gateways), not in SystemSetting —
+// the catalog entry contributes identity + the registry on/off switch (module.<name>.active).
+export const MODULE_KINDS = ["registrar", "hosting", "platform", "payment"] as const;
 export type ModuleKind = (typeof MODULE_KINDS)[number];
 
 export type ModuleFieldType = "text" | "secret" | "boolean" | "select";
@@ -151,6 +154,23 @@ export const MODULE_CATALOG: ModuleDefinition[] = [
         help: "Plan label recorded on the tenant in the control-plane when the product does not specify one."
       }
     ]
+  },
+  // Payment gateways (kind "payment"). No `fields`: credentials live in PaymentProcessorConfig
+  // (Admin → Payment Gateways, one row per checkout method); the module toggle here is the
+  // registry-level kill switch PaymentRegistryService consults before routing a charge.
+  {
+    name: "paypal",
+    kind: "payment",
+    label: "PayPal Payments",
+    description: "PayPal checkout + vault charges. Credentials (client ID/secret, sandbox vs live mode) are configured under Admin → Payment Gateways.",
+    fields: []
+  },
+  {
+    name: "mollie",
+    kind: "payment",
+    label: "Mollie Payments",
+    description: "Credit card, SEPA Direct Debit and PayPal-via-Mollie. The API key is configured under Admin → Payment Gateways.",
+    fields: []
   }
 ];
 

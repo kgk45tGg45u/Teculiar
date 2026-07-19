@@ -9,12 +9,19 @@ import { BillingEngineService } from "./billing-engine.service";
 import { BillingRepository } from "./billing.repository";
 import { BillingService } from "./billing.service";
 import { AbstractPaymentService } from "./processors/abstract-payment.service";
+import { MollieProviderService } from "./processors/mollie-provider.service";
+import { PaymentRegistryService } from "./processors/payment-registry.service";
+import { PayPalProviderService } from "./processors/paypal-provider.service";
+import { SandboxPaymentProviderService } from "./processors/sandbox-provider.service";
 import { TaxService } from "./tax.service";
 
 @Module({
   imports: [EmailModule, ExternalModule, JwtModule.register({}), TicketsModule],
   controllers: [BillingController, BillingConfirmController, BillingDevController, BillingStorefrontController, BillingWebhookController],
-  providers: [BillingService, BillingRepository, BillingEngineService, TaxService, AbstractPaymentService, AgentAuditService],
+  providers: [
+    BillingService, BillingRepository, BillingEngineService, TaxService, AgentAuditService,
+    AbstractPaymentService, PaymentRegistryService, PayPalProviderService, MollieProviderService, SandboxPaymentProviderService
+  ],
   exports: [BillingService]
 })
 export class BillingModule {}

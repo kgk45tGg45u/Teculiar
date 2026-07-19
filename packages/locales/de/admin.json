@@ -805,6 +805,8 @@
     "moduleEnabled": "{label} aktiviert.",
     "moduleDisabled": "{label} deaktiviert.",
     "moduleUpdateFailed": "Modul konnte nicht aktualisiert werden.",
+    "paymentCredsHint": "Die Zugangsdaten der Zahlungs-Gateways werden auf der Seite Zahlungs-Gateways konfiguriert. Der Schalter hier aktiviert oder deaktiviert das gesamte Zahlungsmodul — solange es deaktiviert ist, werden seine Zahlungsarten im Checkout ausgeblendet und Zahlungen fallen auf die Sandbox zurück.",
+    "openPaymentGateways": "Zahlungs-Gateways öffnen →",
     "resellbizCreds": "Resell.biz — API-Zugangsdaten",
     "resellbizCredsHintHtml": "Zugangsdaten werden in der Datenbank gespeichert und für Domain-Registrierung, -Transfer, -Verlängerung und Preis-Sync verwendet. Die Server-<code>.env</code> ist nur ein Fallback. Lass den API-Schlüssel leer, um den gespeicherten zu behalten.",
     "apiMode": "API-Modus",
