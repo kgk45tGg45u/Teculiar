@@ -1828,9 +1828,10 @@ export class BillingService {
     const enabled = gateways.filter((gateway) => gateway.enabled);
     // Registry kill switch (Phase 6.4): a payment module disabled under Admin → Modules hides
     // every checkout method that module drives, without touching the stored gateway credentials.
+    // Applies to the no-rows default list too — a fresh tenant must honor the switch as well.
     const moduleActive = async (name: string) => (this.modules ? this.modules.moduleActive(name) : true);
     const [paypalActive, mollieActive] = await Promise.all([moduleActive("paypal"), moduleActive("mollie")]);
-    const moduleEnabled = enabled.filter((gateway) => {
+    const moduleAllows = (gateway: { config?: unknown; method: string }) => {
       const cfg = gateway.config && isRecord(gateway.config) ? gateway.config : {};
       if (["CREDIT_CARD", "SEPA"].includes(gateway.method)) {
         return mollieActive;
@@ -1839,8 +1840,9 @@ export class BillingService {
         return typeof cfg.apiKey === "string" && cfg.apiKey ? mollieActive : paypalActive;
       }
       return true;
-    });
-    const source = gateways.length ? moduleEnabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
+    };
+    const base = gateways.length ? enabled : defaultPaymentGateways().filter((gateway) => gateway.method !== "SANDBOX");
+    const source = base.filter(moduleAllows);
     const withSandbox = sandboxEnabled ? [sandboxGateway(), ...source] : source;
 
     const result: Array<{ config?: Record<string, string | undefined> | undefined; method: string; title: string }> = withSandbox.map((gateway) => {
