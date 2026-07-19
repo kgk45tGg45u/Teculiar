@@ -55,10 +55,25 @@ export function AdminAddOnManager() {
     setAddOns(Array.isArray(payload) ? payload : []);
   }
 
+  // The plain name/description columns hold the store's main-language value; the admin edits
+  // their own locale inline (TranslateField writes map[adminLocale]), so canonical resolution
+  // must fall back main → admin locale → any filled locale instead of demanding the main one.
+  function canonicalText(map: LocaleMap) {
+    return (map[mainLocale] ?? map[adminLocale] ?? Object.values(map).find((value) => value?.trim()) ?? "").trim();
+  }
+
   function editAddOn(addOn: AddOnRow) {
     setEditing(addOn);
-    setNameMap({ ...(addOn.nameTranslations ?? {}), [mainLocale]: addOn.name });
-    setDescriptionMap({ ...(addOn.descriptionTranslations ?? {}), [mainLocale]: addOn.description ?? "" });
+    setNameMap({
+      ...(addOn.nameTranslations ?? {}),
+      [mainLocale]: addOn.nameTranslations?.[mainLocale] ?? addOn.name,
+      [adminLocale]: addOn.nameTranslations?.[adminLocale] ?? addOn.name
+    });
+    setDescriptionMap({
+      ...(addOn.descriptionTranslations ?? {}),
+      [mainLocale]: addOn.descriptionTranslations?.[mainLocale] ?? addOn.description ?? "",
+      [adminLocale]: addOn.descriptionTranslations?.[adminLocale] ?? addOn.description ?? ""
+    });
     setProductIds((addOn.productLinks ?? []).map((link) => link.productId));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -71,7 +86,7 @@ export function AdminAddOnManager() {
   }
 
   async function submit(formData: FormData) {
-    const name = (nameMap[mainLocale] ?? "").trim();
+    const name = canonicalText(nameMap);
     if (!name) {
       notify.error(c.nameRequired);
       setState({ kind: "error", message: c.nameRequired });
@@ -84,7 +99,7 @@ export function AdminAddOnManager() {
         active: formData.get("active") === "on",
         amountCents: cents(formData.get("amountEur")) ?? 0,
         billingCycle: String(formData.get("billingCycle") ?? ""),
-        description: (descriptionMap[mainLocale] ?? "").trim(),
+        description: canonicalText(descriptionMap),
         descriptionTranslations: descriptionMap,
         name,
         nameTranslations: nameMap,
