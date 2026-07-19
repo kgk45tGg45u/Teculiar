@@ -672,6 +672,12 @@ needs an admin credential — owner check or a one-off with a real admin login.
 
 ## Phase 6 — Catalog & commerce
 
+**Status 2026-07-19: 6.1 + 6.2 + 6.4 code complete on `feat/teculiar-phase6-commerce`** (unit
+suite 289/289, full local API smoke: addon CRUD → assignment → preview pricing → soft delete;
+registry kill switch hides PAYPAL from `/storefront/payment-gateways` and restores it). 6.3 is
+documented (`docs/paypal-sandbox-testing.md` + operator spec) and waits on PayPal sandbox creds
+in `.env`. Prod verify pending deploy — see Verify (Phase 6).
+
 ### 6.1 Product addons
 - Models exist (`AddOn`, `ProductAddOn`, `ServiceAddOn` in `prisma/schema.prisma`) but no admin CRUD and
   no checkout wiring. Build: admin CRUD for AddOns (name + **translation modal**, description, price,
@@ -707,6 +713,22 @@ needs an admin credential — owner check or a one-off with a real admin login.
 Playwright: order a product with an addon (storefront + admin) → addon bills + renews; set two products to
 different modules and confirm each provisions via its own module; PayPal sandbox purchase; enable/disable a
 gateway via the registry and confirm checkout reflects it.
+
+**Specs (written 2026-07-19):**
+- `tests/e2e/specs/phase6-commerce-verify.spec.ts` — Part A runs on dezhost with the agent
+  credential (addons are catalog data → agent-writable, so the CRUD round-trip is a REAL write
+  with an unassigned throwaway addon); Part B runs on teculiar.com with `E2E_TECULIAR_ADMIN_*`
+  from `.env` (owner credential): addon → storefront checkout picker, registry kill switch
+  round-trip, admin order with an ADDON invoice line (E2E client, skipEmail, cancelled after).
+- `tests/e2e/specs/phase6-paypal-sandbox.spec.ts` — operator-run 6.3 purchase; gate
+  `RUN_PAYPAL_SANDBOX=1` + `PAYPAL_SANDBOX_*` creds; procedure in `docs/paypal-sandbox-testing.md`.
+
+Deploy notes: migrations `20260719120000_addon_translations_active` (AddOn columns) and
+`20260719130000_product_first_module_backfill` (products under a manual/NULL-module category get
+`'none'`, others inherit the category module — REQUIRED before the flipped precedence serves
+traffic; both re-runnable on MariaDB). Then
+`set -a && source .env && set +a` and
+`E2E_BASE_URL=https://www.dezhost.com E2E_API_URL=https://www.dezhost.com/api/v1 npx playwright test tests/e2e/specs/phase6-commerce-verify.spec.ts --project=chromium --workers=1`.
 
 ---
 

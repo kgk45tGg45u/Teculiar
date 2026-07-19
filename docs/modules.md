@@ -17,10 +17,19 @@ Every module declares a **kind**. Kinds are open-ended; today:
 |--------------|------------|-----------------------------------------------------|
 | `resellbiz`  | `registrar`| Domain registration, transfer, renewal, price sync  |
 | `virtualmin` | `hosting`  | Shared-hosting account provisioning & management     |
+| `tecreator`  | `platform` | Provisions whole Teculiar tenants (Teculiar.com's own catalog) |
+| `paypal`     | `payment`  | PayPal checkout + vault charges                     |
+| `mollie`     | `payment`  | Credit card, SEPA Direct Debit, PayPal-via-Mollie   |
 
-Future server-provider modules (e.g. Hetzner) will add a new kind and a catalog entry without touching
-core logic. Products and product categories connect to a module through their `provisioningModule`
-field.
+Products connect to a module through their own `provisioningModule` field. Since **Phase 6.2 the
+resolution is product-first** — one shared chain in `module-catalog.ts`
+(`effectiveProductModule` / `effectiveServiceModule`):
+
+1. the product's own `provisioningModule` (`"none"` = explicit MANUAL provisioning, stops the chain);
+2. for services, the `Service.moduleName` snapshot captured at provision time;
+3. the category's `provisioningModule` — now only a **default** (prefilled into the admin product
+   form for new products; migration `20260719130000` backfilled it onto every existing product);
+4. the product-type default (`VPS`/`DEDICATED_SERVER` → `hetzner`, else `virtualmin`).
 
 ## Disabling a module
 
@@ -63,6 +72,18 @@ Config fields:
 
 `.env` fallbacks: `VIRTUALMIN_ADMIN_ENDPOINT`, `VIRTUALMIN_ADMIN_USERNAME`,
 `VIRTUALMIN_ADMIN_PASSWORD`, `VIRTUALMIN_ADMIN_ALLOW_SELF_SIGNED`.
+
+## Payment modules (`payment` kind, Phase 6.4)
+
+`paypal` and `mollie` are catalog entries with **no config fields**: their credentials stay in
+`PaymentProcessorConfig` (Admin → Settings → Payment Gateways, one row per checkout method).
+`PaymentRegistryService` resolves a checkout method to a provider service
+(`processors/paypal-provider.service.ts` / `mollie-provider.service.ts` /
+`sandbox-provider.service.ts`, all implementing `PaymentProvider`): the stored config shape picks
+the provider (a Mollie `apiKey` on the PAYPAL row wins over PayPal credentials), and the module
+toggle on the Modules page is a **kill switch** — while off, the module's methods disappear from
+`/storefront/payment-gateways` and any charge falls back to the sandbox provider. Adding a
+gateway = one catalog entry + one `PaymentProvider` registered in the registry.
 
 ## Domain pricing without a registrar
 

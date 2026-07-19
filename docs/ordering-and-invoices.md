@@ -38,6 +38,21 @@ Each `OrderItem` corresponds to a single product or domain in the cart. Items tr
 - The configuration chosen by the customer
 - The provisioning status of the item
 
+### Addons (Phase 6.1)
+
+Admin-defined addons (`AddOn`, Admin → Products → Add-ons, per-locale name/description) can be
+assigned to products (`ProductAddOn`) and chosen at storefront checkout or on the admin new-order
+form (`items[].addOnIds`). Pricing freezes an addon snapshot onto the item's
+`configuration.addOns`. Billing:
+
+- **First invoice** — each addon is its own `ADDON` line (recurring price + one-off setup fee),
+  appended AFTER the item lines so the positional item ↔ invoice-line mapping stays intact.
+- **Service** — `ServiceAddOn` links are created with the service.
+- **Renewals** — every renewal invoice re-bills the service's recurring addons as
+  `ADDON_RENEWAL` lines (no `lifecycleAction`; only the service line drives provisioning).
+  Non-recurring addons bill once. Soft-deleted addons (`active=false`) stop being orderable but
+  keep renewing for existing services.
+
 ### Duplicate Prevention
 
 **An order cannot be placed if the same product or domain already exists on the system:**
