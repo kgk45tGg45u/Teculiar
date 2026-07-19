@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BillingCycle, OrderItemStatus, OrderStatus, PaymentMethodType, Prisma, ProductType, ServiceStatus } from "@prisma/client";
 import { addBillingCycle, formatOrderNumber } from "../billing/platform-rules";
+import { effectiveProductModule, moduleNameForProductType } from "../module-registry/module-catalog";
 import { PrismaService } from "../prisma/prisma.service";
 
 // Price/name snapshot of an addon chosen with an order item, frozen at order time. Also stored on
@@ -524,7 +525,7 @@ export class OrdersRepository {
       where: { id: { in: productIds } },
       select: { category: { select: { provisioningModule: true } }, id: true, provisioningModule: true, type: true }
     });
-    return new Map(products.map((product) => [product.id, effectiveModule(product)]));
+    return new Map(products.map((product) => [product.id, effectiveProductModule(product)]));
   }
 
   private async moduleNameForProductId(productId: string) {
@@ -532,7 +533,7 @@ export class OrdersRepository {
       where: { id: productId },
       select: { category: { select: { provisioningModule: true } }, id: true, provisioningModule: true, type: true }
     });
-    return product ? effectiveModule(product) : undefined;
+    return product ? effectiveProductModule(product) : undefined;
   }
 }
 
@@ -548,25 +549,6 @@ function renewalAmountCents(item: Record<string, any>) {
     return config.renewalAmountCents;
   }
   return Number(item.unitAmountCents ?? 0);
-}
-
-function moduleNameForProductType(type: string) {
-  return ["VPS", "DEDICATED_SERVER"].includes(type) ? "hetzner" : "virtualmin";
-}
-
-function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
-  if (product.category) {
-    return normalizeModule(product.category.provisioningModule);
-  }
-  return normalizeModule(product.provisioningModule) ?? moduleNameForProductType(product.type ?? "");
-}
-
-function normalizeModule(value: string | null | undefined) {
-  const moduleName = String(value ?? "").trim();
-  if (!moduleName || moduleName === "none") {
-    return undefined;
-  }
-  return moduleName;
 }
 
 function serviceDomainName(configuration: Record<string, unknown>) {

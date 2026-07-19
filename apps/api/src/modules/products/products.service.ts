@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { isStaffViewer, maskService, shouldMask } from "../../common/pii-mask";
 import { ExternalService } from "../external/external.service";
-import { canonicalModuleName } from "../module-registry/module-catalog";
+import { canonicalModuleName, effectiveProductModule, effectiveServiceModule } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { AdminAddOnDto } from "./dto/addon.dto";
 import { CreateProductDto } from "./dto/create-product.dto";
@@ -112,7 +112,7 @@ export class ProductsService {
     }
 
     const service = await this.products.createService(input);
-    const moduleName = effectiveModule(product);
+    const moduleName = effectiveProductModule(product);
     if (!moduleName) {
       return service;
     }
@@ -354,7 +354,7 @@ export class ProductsService {
         return service;
       }
     }
-    const moduleName = (service.product ? effectiveModule(service.product) : undefined) ?? service.moduleName ?? undefined;
+    const moduleName = effectiveServiceModule(service);
     if (!moduleName) {
       return service;
     }
@@ -406,7 +406,7 @@ export class ProductsService {
       throw new BadRequestException("Service is not provisioned yet");
     }
 
-    const moduleName = (service.product ? effectiveModule(service.product) : undefined) ?? service.moduleName ?? undefined;
+    const moduleName = effectiveServiceModule(service);
     if (!moduleName) {
       throw new BadRequestException("Service has no provisioning module");
     }
@@ -469,21 +469,6 @@ export class ProductsService {
     };
     return repository.completeReadyOrdersForService?.(serviceId) ?? Promise.resolve();
   }
-}
-
-function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
-  if (product.category) {
-    return normalizeModule(product.category.provisioningModule);
-  }
-  return normalizeModule(product.provisioningModule) ?? (["VPS", "DEDICATED_SERVER"].includes(product.type ?? "") ? "hetzner" : "virtualmin");
-}
-
-function normalizeModule(value: string | null | undefined) {
-  const moduleName = String(value ?? "").trim();
-  if (!moduleName || moduleName === "none") {
-    return undefined;
-  }
-  return moduleName;
 }
 
 function domainFromConfiguration(configuration: unknown) {

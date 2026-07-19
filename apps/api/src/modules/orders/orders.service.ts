@@ -6,6 +6,7 @@ import { isStaffViewer, maskOrder, shouldMask } from "../../common/pii-mask";
 import { BillingService } from "../billing/billing.service";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
+import { effectiveProductModule } from "../module-registry/module-catalog";
 import { UsersRepository } from "../users/users.repository";
 import { DomainAvailabilityService } from "./domain-availability.service";
 import { DomainPricingService } from "./domain-pricing.service";
@@ -691,7 +692,7 @@ export class OrdersService implements OnModuleInit {
     unitAmountCents?: number | null;
   }, customerSnapshot?: unknown, linkedServiceId?: string) {
     const product = item.productId ? await this.orders.findProduct(item.productId) : null;
-    const moduleName = product ? effectiveModule(product) : undefined;
+    const moduleName = product ? effectiveProductModule(product) : undefined;
     // The order's pending-entities step (createPendingEntitiesForOrder) already created this item's
     // service + subscription, carrying the captured order price (incl. admin custom pricing). Reuse it —
     // creating a second service here dropped recurringAmountCents (renewals silently billed the list
@@ -1104,21 +1105,6 @@ function addOnInvoiceLines(items: PricedOrderItem[]) {
       unitAmountCents: addOn.amountCents + addOn.setupFeeCents
     }))
   );
-}
-
-function effectiveModule(product: { category?: { provisioningModule?: string | null } | null; provisioningModule?: string | null; type?: string }) {
-  if (product.category) {
-    return normalizeModule(product.category.provisioningModule);
-  }
-  return normalizeModule(product.provisioningModule) ?? (["VPS", "DEDICATED_SERVER"].includes(product.type ?? "") ? "hetzner" : "virtualmin");
-}
-
-function normalizeModule(value: string | null | undefined) {
-  const moduleName = String(value ?? "").trim();
-  if (!moduleName || moduleName === "none") {
-    return undefined;
-  }
-  return moduleName;
 }
 
 function nextBillingDate(date: Date, cycle: string) {

@@ -497,12 +497,12 @@ function addOnColumns(input: {
   };
 }
 
+// "none" is stored LITERALLY since Phase 6.2: it is the explicit "provision manually" choice and
+// must survive the product-first resolution chain (NULL means "not set" and falls through to the
+// category default / type default — see module-catalog effectiveProductModule).
 function normalizeModule(value: string | null | undefined) {
-  const moduleName = String(value ?? "").trim();
-  if (!moduleName || moduleName === "none") {
-    return null;
-  }
-  return moduleName;
+  const moduleName = String(value ?? "").trim().toLowerCase();
+  return moduleName || null;
 }
 
 // Domain products are the domain itself, so the requirement never applies to them. When the admin

@@ -7,6 +7,7 @@ import { formatDate, formatMoney } from "../../common/i18n";
 import { isStaffViewer, maskInvoice, shouldMask } from "../../common/pii-mask";
 import { EmailService } from "../email/email.service";
 import { ExternalService } from "../external/external.service";
+import { canonicalModuleName, effectiveServiceModule } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { TicketsService } from "../tickets/tickets.service";
 import { BillingEngineService } from "./billing-engine.service";
@@ -947,7 +948,7 @@ export class BillingService {
     }
 
     const request = domainModuleRequest(action, domain, item, invoice.customerSnapshot);
-    const moduleName = canonicalModule(domain.registrarModule ?? domain.registrarProvider) ?? "resellbiz";
+    const moduleName = canonicalModuleName(domain.registrarModule ?? domain.registrarProvider) ?? "resellbiz";
     await this.billing.createAuditLog({
       action: "domain.registrar_started",
       actorId: input.actorId,
@@ -2831,28 +2832,6 @@ function canRunActionForPaidInvoice(invoice: Record<string, any>, action: string
     return true;
   }
   return ["create", "register_domain", "renew", "renew_domain", "unsuspend"].includes(action);
-}
-
-function hostingModuleName(productType?: string) {
-  return ["VPS", "DEDICATED_SERVER"].includes(productType ?? "") ? "hetzner" : "virtualmin";
-}
-
-function effectiveServiceModule(service: Record<string, any>) {
-  if (service.product?.category) {
-    return canonicalModule(service.product.category.provisioningModule);
-  }
-  return canonicalModule(service.moduleName) ?? canonicalModule(service.product?.provisioningModule) ?? hostingModuleName(service.product?.type);
-}
-
-function canonicalModule(value: unknown) {
-  const moduleName = String(value ?? "").trim().toLowerCase();
-  if (!moduleName || moduleName === "none") {
-    return undefined;
-  }
-  if (moduleName === "resell.biz") {
-    return "resellbiz";
-  }
-  return moduleName;
 }
 
 function hostingOptions(configuration: unknown, customerSnapshot?: unknown) {

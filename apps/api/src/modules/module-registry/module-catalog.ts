@@ -170,3 +170,58 @@ export function canonicalModuleName(value: string | null | undefined): string | 
   }
   return moduleDefinition(raw) ? raw : raw;
 }
+
+// ── Provisioning-module precedence (Phase 6.2) — the ONE shared resolution chain ─────────────────
+// PRODUCT-FIRST: the product's own provisioningModule wins; the category's module is only a
+// default (prefilled into the admin product form, backfilled once by migration 20260719130000);
+// the product-type default is the last resort. For services, the snapshot captured at provision
+// time (Service.moduleName) ranks between the product and the category.
+//
+// "none"/"manual" is an EXPLICIT provision-manually choice and stops the chain (undefined);
+// NULL/empty means "not set" and falls through to the next source.
+
+export type ModuleProduct = {
+  category?: { provisioningModule?: string | null } | null;
+  provisioningModule?: string | null;
+  type?: string;
+};
+
+export function moduleNameForProductType(type?: string): string {
+  return ["VPS", "DEDICATED_SERVER"].includes(type ?? "") ? "hetzner" : "virtualmin";
+}
+
+export function effectiveProductModule(product: ModuleProduct): string | undefined {
+  const own = moduleChoice(product.provisioningModule);
+  if (own.set) {
+    return own.module;
+  }
+  const category = moduleChoice(product.category?.provisioningModule);
+  if (category.set) {
+    return category.module;
+  }
+  return moduleNameForProductType(product.type);
+}
+
+export function effectiveServiceModule(service: { moduleName?: string | null; product?: ModuleProduct | null }): string | undefined {
+  const own = moduleChoice(service.product?.provisioningModule);
+  if (own.set) {
+    return own.module;
+  }
+  const snapshot = moduleChoice(service.moduleName);
+  if (snapshot.set) {
+    return snapshot.module;
+  }
+  const category = moduleChoice(service.product?.category?.provisioningModule);
+  if (category.set) {
+    return category.module;
+  }
+  return moduleNameForProductType(service.product?.type);
+}
+
+function moduleChoice(value: string | null | undefined): { set: boolean; module?: string } {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return { set: false };
+  }
+  return { set: true, module: canonicalModuleName(raw) };
+}
