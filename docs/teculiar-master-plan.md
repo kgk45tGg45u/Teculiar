@@ -618,8 +618,10 @@ Goal: make the admin lists sortable, bulk-actionable, and inline-editable. No fe
 today (plain `<table class="table">` in `admin-dashboard.tsx`/`admin-forms.tsx`; full arrays fetched, no
 sort/filter params except Logs).
 
-> **Status (2026-07-19): code DONE + local-verified on `feat/teculiar-phase5-admin-lists`;
-> prod Playwright pass pending deploy.** Per the D1 coordination note, no separate `AdminTable`
+> **✅ PHASE DONE (2026-07-19): merged to `main`, deployed via Actions, phase-end prod verify
+> green — `phase5-admin-lists-verify.spec.ts` 5/5 against www.dezhost.com** (clients sort +
+> aria-sort, invoices bulk bar + designed 403 on agent mark-paid, orders/services dropdown
+> menus, 375px zero overflow). Per the D1 coordination note, no separate `AdminTable`
 > was built — the shared **web-core `DataTable`** gained `sortValue` columns (header toggle +
 > `aria-sort`, numeric/localeCompare/nulls-last), `selectable` + `bulkBar`, and a new
 > **`StatusPillSelect`** (pill → listbox) landed beside it. Thin wiring lives in
