@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from "class-validator";
 import { billingCycles, domainRequirements, productTypes } from "@teculiar/shared";
 
 type PriceInput = {
@@ -19,6 +19,15 @@ export class CreateProductDto {
 
   @IsString()
   description: string;
+
+  // {"de": "..."} — per-locale overrides; name/description hold the main language.
+  @IsOptional()
+  @IsObject()
+  nameTranslations?: Record<string, string>;
+
+  @IsOptional()
+  @IsObject()
+  descriptionTranslations?: Record<string, string>;
 
   @IsOptional()
   @IsString()
@@ -82,6 +91,15 @@ export class ProductCategoryDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  // {"de": "..."} — per-locale overrides; name/description hold the main language.
+  @IsOptional()
+  @IsObject()
+  nameTranslations?: Record<string, string>;
+
+  @IsOptional()
+  @IsObject()
+  descriptionTranslations?: Record<string, string>;
 
   @IsOptional()
   @IsString()

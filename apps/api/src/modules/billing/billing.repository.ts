@@ -1036,6 +1036,8 @@ export class BillingRepository {
             countryCode: stringOr(pendingCheckout.countryCode, "DE"),
             customerType: pendingCheckout.customerType === "BUSINESS" ? "BUSINESS" : "INDIVIDUAL",
             email,
+            // Preferred locale = the storefront language the buyer checked out in (Phase 7.1).
+            locale: typeof pendingCheckout.locale === "string" ? pendingCheckout.locale : undefined,
             name,
             passwordHash,
             vatId: typeof pendingCheckout.vatId === "string" ? pendingCheckout.vatId : undefined,

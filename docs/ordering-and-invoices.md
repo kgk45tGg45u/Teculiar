@@ -38,6 +38,12 @@ Each `OrderItem` corresponds to a single product or domain in the cart. Items tr
 - The configuration chosen by the customer
 - The provisioning status of the item
 
+The product **name** snapshotted onto the invoice line description and the service
+`productSnapshot.name` is captured in the **buyer's locale** (Phase 7.1): an existing customer's
+`User.locale`, else the storefront language they checked out in, else the plain (main-language)
+name. It is frozen at order time and never re-localized afterwards, so the customer's invoice keeps
+the wording they saw when ordering.
+
 ### Addons (Phase 6.1)
 
 Admin-defined addons (`AddOn`, Admin → Products → Add-ons, per-locale name/description) can be

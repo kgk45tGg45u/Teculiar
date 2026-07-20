@@ -740,12 +740,27 @@ traffic; both re-runnable on MariaDB). Then
 
 ## Phase 7 — i18n depth (everything the customer sees, translated)
 
-### 7.1 Product title/description translation
-- `Product.name`/`description` (and category names) are single-value. Add **per-locale fields** (JSON map
-  like Theme `Page`, or side rows) with the shared translate modal + DeepSeek auto-translate
-  (reuse `customizer.service.ts` translate path / `AiBlogService.callDeepseek`). Storefront + customizer
-  `ProductCard`/`product-grid` render `localized(product.name, locale)`. Emails/invoices use the buyer's
-  locale. Well-tested (this is customer-facing across catalog + checkout + emails).
+### 7.1 Product title/description translation  ✅ DONE (2026-07-21)
+- **Per-locale storage.** `Product` + `ProductCategory` gained `nameTranslations` / `descriptionTranslations`
+  JSON maps (`{"de": "…"}`), mirroring the `AddOn` convention: the plain `name`/`description` columns hold
+  the store **main-language** value and are the fallback for unconfigured locales. Migration
+  `20260720120000_product_translations` (re-runnable `ADD COLUMN IF NOT EXISTS` for prod MariaDB).
+- **Admin editing.** `admin-product-manager.tsx` (both category + product forms) now edit name/description
+  through the shared `TranslateField`, which gained an opt-in **DeepSeek auto-translate** button — fills the
+  empty other-language fields from the admin-locale text via `POST admin/dev/customizer/translate`
+  (`customizer.service.ts` `translate()` → `AiBlogService.callDeepseek`). Existing values are never
+  overwritten. DTO/repository carry the maps (`translationCols`).
+- **Storefront render.** `productName(product, locale)` / `productDescription(…)` (+ `categoryName`) in
+  `web-core/lib/api.ts` — hosting packages, VPS grid, and the checkout summary/line labels render the
+  buyer-locale name.
+- **Money-path snapshot.** `orders.service.ts` `priceItem(item, locale)` snapshots the buyer-locale name onto
+  the **invoice line description** and the **service `productSnapshot.name`** at order time. Buyer locale =
+  existing customer's `User.locale` → storefront checkout locale (`CheckoutOrderDto.locale`) → plain name.
+  A new checkout customer's `User.locale` is seeded from the storefront locale (`billing.repository.ts`).
+  Emails already resolve `recipientLocale` from `User.locale` (7.2).
+- Verified: `apps/api/test/order-locale-snapshot.test.mjs` (line + service snapshot, fallbacks, domain label);
+  API 295/295, web 103/103; live local round-trip (create product w/ translations → catalog returns maps →
+  admin product page shows per-locale fields + auto-translate, zero console errors).
 
 ### 7.2 Per-language email editor + per-customer dispatch  ✅ DONE (2026-07-20)
 - Dispatch already resolved `recipientLocale` from `User.locale`; the gap was the editor + the fact that

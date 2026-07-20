@@ -3,7 +3,7 @@
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { cycleLabel, money, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { cycleLabel, money, productDescription, productName, type ApiProduct } from "@teculiar/web-core/lib/api";
 import { featuredCardClass, PopularBadge } from "@teculiar/web-core/components/marketing/popular-badge";
 import type { Locale } from "@teculiar/web-core/lib/i18n";
 import styles from "./webhosting.module.css";
@@ -44,7 +44,7 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
                 key={product.id}
               >
                 {isFeatured && <PopularBadge locale={locale as Locale} />}
-                <h3>{product.name}</h3>
+                <h3>{productName(product, locale)}</h3>
                 {price ? (
                   <div className={styles.packagePrice}>
                     <strong suppressHydrationWarning>{money(price.amountCents, price.currency, locale as Locale)}</strong>
@@ -58,7 +58,7 @@ export function HostingPackages({ isDe, locale, products }: { isDe: boolean; loc
                 ) : (
                   <div className={styles.setupFree}>{isDe ? "Keine Einrichtungsgebühr" : "No setup fee"}</div>
                 )}
-                <p className={styles.packageDesc}>{product.description}</p>
+                <p className={styles.packageDesc}>{productDescription(product, locale)}</p>
                 {specs.length > 0 && (
                   <ul className={styles.packageFeatures}>
                     {specs.map((spec) => (

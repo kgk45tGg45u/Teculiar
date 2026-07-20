@@ -344,6 +344,10 @@ model Product {
   slug        String          @unique
   type        ProductType
   description String          @db.Text
+  // Per-locale overrides for name/description, keyed by locale code ({"de": "..."}); the plain
+  // columns hold the store's main-language value and are the fallback for unconfigured locales.
+  nameTranslations        Json @default("{}")
+  descriptionTranslations Json @default("{}")
   active      Boolean         @default(true)
   homepageVisible Boolean     @default(true)
   featured    Boolean         @default(false)
@@ -368,6 +372,9 @@ model ProductCategory {
   name        String
   slug        String    @unique
   description String?   @db.Text
+  // Per-locale overrides for name/description; plain columns are the main-language fallback.
+  nameTranslations        Json @default("{}")
+  descriptionTranslations Json @default("{}")
   provisioningModule String?
   active      Boolean   @default(true)
   sortOrder   Int       @default(0)

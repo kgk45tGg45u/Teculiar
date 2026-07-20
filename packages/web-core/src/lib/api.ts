@@ -43,9 +43,11 @@ export type ApiProduct = {
   categoryId?: string | null;
   id: string;
   name: string;
+  nameTranslations?: Record<string, string>;
   slug: string;
   type: "DOMAIN" | "SHARED_HOSTING" | "VPS" | string;
   description: string;
+  descriptionTranslations?: Record<string, string>;
   homepageVisible?: boolean;
   featured?: boolean;
   minimumPriceCents?: number;
@@ -67,13 +69,33 @@ export type ApiProduct = {
 export type ApiProductCategory = {
   active?: boolean;
   description?: string | null;
+  descriptionTranslations?: Record<string, string>;
   id: string;
   name: string;
+  nameTranslations?: Record<string, string>;
   products?: ApiProduct[];
   provisioningModule?: string | null;
   slug: string;
   sortOrder?: number;
 };
+
+// Product/category name + description in the visitor's locale; the plain column is the
+// main-language fallback for locales without an override (mirrors addOnName/addOnDescription).
+export function productName(product: { name: string; nameTranslations?: Record<string, string> }, locale: string) {
+  return product.nameTranslations?.[locale]?.trim() || product.name;
+}
+
+export function productDescription(product: { description?: string | null; descriptionTranslations?: Record<string, string> }, locale: string) {
+  return product.descriptionTranslations?.[locale]?.trim() || product.description || "";
+}
+
+export function categoryName(category: { name: string; nameTranslations?: Record<string, string> }, locale: string) {
+  return category.nameTranslations?.[locale]?.trim() || category.name;
+}
+
+export function categoryDescription(category: { description?: string | null; descriptionTranslations?: Record<string, string> }, locale: string) {
+  return category.descriptionTranslations?.[locale]?.trim() || category.description || "";
+}
 
 export type ApiPaymentGateway = {
   config?: {

@@ -25,10 +25,11 @@ export class ProductsRepository {
     });
   }
 
-  createCategory(dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+  createCategory(dto: CategoryInput) {
     return this.prisma.productCategory.create({
       data: {
         description: dto.description,
+        ...translationCols(dto),
         name: dto.name,
         provisioningModule: normalizeModule(dto.provisioningModule),
         slug: dto.slug,
@@ -37,12 +38,13 @@ export class ProductsRepository {
     });
   }
 
-  updateCategory(id: string, dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+  updateCategory(id: string, dto: CategoryInput) {
     return this.prisma.productCategory.update({
       where: { id },
       data: {
         active: true,
         description: dto.description,
+        ...translationCols(dto),
         name: dto.name,
         provisioningModule: normalizeModule(dto.provisioningModule),
         slug: dto.slug,
@@ -65,6 +67,7 @@ export class ProductsRepository {
         slug: dto.slug,
         type: dto.type as ProductType,
         description: dto.description,
+        ...translationCols(dto),
         homepageVisible: dto.homepageVisible ?? true,
         featured: dto.featured ?? false,
         provisioningModule: normalizeModule(dto.provisioningModule),
@@ -103,6 +106,7 @@ export class ProductsRepository {
           active: true,
           categoryId: dto.categoryId || null,
           description: dto.description,
+          ...translationCols(dto),
           homepageVisible: dto.homepageVisible ?? true,
           featured: dto.featured ?? false,
           name: dto.name,
@@ -494,6 +498,25 @@ function addOnColumns(input: {
     recurring: input.recurring ?? true,
     setupFeeCents: input.setupFeeCents ?? 0,
     slug: input.slug
+  };
+}
+
+type CategoryInput = {
+  description?: string;
+  descriptionTranslations?: Record<string, string>;
+  name: string;
+  nameTranslations?: Record<string, string>;
+  provisioningModule?: string | null;
+  slug: string;
+  sortOrder?: number;
+};
+
+// Per-locale name/description maps (Phase 7.1). Empty object when unset — the plain name/description
+// columns stay the main-language fallback for locales without an override.
+function translationCols(input: { nameTranslations?: Record<string, string>; descriptionTranslations?: Record<string, string> }) {
+  return {
+    nameTranslations: (input.nameTranslations ?? {}) as Prisma.InputJsonValue,
+    descriptionTranslations: (input.descriptionTranslations ?? {}) as Prisma.InputJsonValue
   };
 }
 

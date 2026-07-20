@@ -710,6 +710,13 @@
     "done": "Done"
   },
   "productMgr": {
+    "translations": "Translations",
+    "done": "Done",
+    "autoTranslate": "Auto-translate",
+    "translating": "Translating…",
+    "translateFailed": "Auto-translate failed.",
+    "categoryNameRequired": "Category name is required.",
+    "productNameRequired": "Product name is required.",
     "newCategory": "New Category",
     "editPrefix": "Edit:",
     "name": "Name",

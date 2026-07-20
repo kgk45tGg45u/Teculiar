@@ -4,7 +4,7 @@ import { ExternalService } from "../external/external.service";
 import { canonicalModuleName, effectiveProductModule, effectiveServiceModule } from "../module-registry/module-catalog";
 import { ModuleRegistryService } from "../module-registry/module-registry.service";
 import { AdminAddOnDto } from "./dto/addon.dto";
-import { CreateProductDto } from "./dto/create-product.dto";
+import { CreateProductDto, ProductCategoryDto } from "./dto/create-product.dto";
 import { ProductsRepository } from "./products.repository";
 
 @Injectable()
@@ -23,11 +23,11 @@ export class ProductsService {
     return this.products.listCategories();
   }
 
-  createCategory(dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+  createCategory(dto: ProductCategoryDto) {
     return this.products.createCategory(dto);
   }
 
-  updateCategory(id: string, dto: { description?: string; name: string; provisioningModule?: string | null; slug: string; sortOrder?: number }) {
+  updateCategory(id: string, dto: ProductCategoryDto) {
     return this.products.updateCategory(id, dto);
   }
 

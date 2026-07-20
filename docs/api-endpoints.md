@@ -40,14 +40,14 @@ Customer-number note:
 - `GET /storefront/payment-gateways` - public enabled payment methods for checkout. API credentials are not exposed.
 - `GET /products`
 - `POST /products`
-- `POST /admin/dev/products` - temporary guarded product create endpoint. Accepts `domainRequirement` (`NECESSARY` | `OPTIONAL` | `NOT_NEEDED`) and `freeDomainBillingCycle` (a billing cycle, or null) — see [ordering-and-invoices.md](ordering-and-invoices.md#product-domain-requirement).
+- `POST /admin/dev/products` - temporary guarded product create endpoint. Accepts `domainRequirement` (`NECESSARY` | `OPTIONAL` | `NOT_NEEDED`) and `freeDomainBillingCycle` (a billing cycle, or null) — see [ordering-and-invoices.md](ordering-and-invoices.md#product-domain-requirement). Also accepts per-locale `nameTranslations` / `descriptionTranslations` maps (`{"de": "…"}`); the plain `name`/`description` hold the main-language value (Phase 7.1).
 - `PATCH /admin/dev/products/:id` - temporary guarded product update endpoint (same `domainRequirement` / `freeDomainBillingCycle` fields).
 - `GET /admin/dev/addons` - admin addon list (incl. inactive; product assignment IDs included).
 - `POST /admin/dev/addons` - create an addon: name/description (+ per-locale `nameTranslations` / `descriptionTranslations`), `amountCents`, `setupFeeCents`, optional `billingCycle` (empty = follows the product), `recurring`, `active`, `productIds` assignment. Agent-writable (catalog data).
 - `PATCH /admin/dev/addons/:id` - update an addon; `productIds` replaces the assignment set.
 - `DELETE /admin/dev/addons/:id` - soft delete: `active=false` + unlink from all products. Existing `ServiceAddOn` links keep billing history and renewals.
 - `GET /admin/dev/product-categories` - temporary admin category list. Since Phase 6.2 the category module is only the DEFAULT for new products — the product's own `provisioningModule` wins (see modules.md).
-- `POST /admin/dev/product-categories` - temporary admin category create.
+- `POST /admin/dev/product-categories` - temporary admin category create. Accepts per-locale `nameTranslations` / `descriptionTranslations` maps (Phase 7.1).
 - `PATCH /admin/dev/product-categories/:id` - temporary admin category update, including module selection.
 - `DELETE /admin/dev/product-categories/:id` - temporary admin category deactivate; linked products are moved out of the category.
 - `GET /products/:id`
@@ -64,7 +64,7 @@ Customer-number note:
 ## Orders and Checkout
 
 - `POST /orders/preview` - order items accept `addOnIds` (addons assigned to the product); addon prices land in the subtotal, addon setup fees in the setup bucket, and the frozen addon snapshot rides on `item.configuration.addOns`.
-- `POST /orders/checkout` - accepts optional client bearer auth. When auth is present, the token user owns the order and invoice; submitted customer email is not allowed to reassign the order to another existing account. Chosen addons become their own `ADDON` invoice lines (appended after the item lines) and `ServiceAddOn` links on the created service; recurring addons re-bill on every renewal invoice as `ADDON_RENEWAL` lines.
+- `POST /orders/checkout` - accepts optional client bearer auth. When auth is present, the token user owns the order and invoice; submitted customer email is not allowed to reassign the order to another existing account. Chosen addons become their own `ADDON` invoice lines (appended after the item lines) and `ServiceAddOn` links on the created service; recurring addons re-bill on every renewal invoice as `ADDON_RENEWAL` lines. Optional `locale` (Phase 7.1): the storefront language the buyer checked out in — seeds a new customer's `User.locale` and picks which localized product name is snapshotted onto the invoice line + service (existing customers use their saved `User.locale`).
 - `POST /orders/:id/pay`
 - `GET /orders/:id`
 - `PATCH /orders/:id/status` - temporary admin order status update. Accepts `completed`, `in_progress`, or `canceled`.

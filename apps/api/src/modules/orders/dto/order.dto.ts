@@ -96,6 +96,12 @@ export class CheckoutOrderDto {
 
   @IsObject()
   customer: OrderCustomerDto & { password: string };
+
+  // Storefront locale the buyer checked out in (Phase 7.1). Seeds a new customer's preferred locale
+  // and picks which localized product name is snapshotted onto the order/invoice line.
+  @IsOptional()
+  @IsString()
+  locale?: string;
 }
 
 export class AdminCreateOrderDto {

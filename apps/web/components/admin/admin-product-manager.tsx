@@ -1,14 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL, authHeaders, type ApiProduct, type ApiProductCategory } from "@teculiar/web-core/lib/api";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import { notify } from "@teculiar/web-core/components/ui/toast-provider";
+import { TranslateField } from "./theme/translate-field";
+import type { LocaleMap } from "./theme/types";
 import styles from "./admin-product-manager.module.css";
 
 type ProductsDict = Dictionary["admin"]["productMgr"];
+
+// Store languages ([main, ...others]) drive the per-locale TranslateField + auto-translate. Shared by
+// both catalog managers; falls back to de/en until the billing settings load.
+function useStoreLocales() {
+  const locale = useLocale();
+  const [locales, setLocales] = useState<string[]>(["de", "en"]);
+  useEffect(() => {
+    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
+      .then((response) => response.json())
+      .then((payload: { languages?: { main?: string; others?: string[] } }) => {
+        if (payload.languages?.main) {
+          setLocales([payload.languages.main, ...(payload.languages.others ?? [])]);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+  const mainLocale = locales[0] ?? "de";
+  const adminLocale = locales.includes(locale) ? locale : mainLocale;
+  return { locales, mainLocale, adminLocale, canTranslate: locales.length > 1 };
+}
+
+// The plain name/description columns hold the store main-language value; the admin may edit only
+// their own locale inline, so canonical resolution falls back main → admin locale → any filled value.
+function canonicalText(map: LocaleMap, mainLocale: string, adminLocale: string) {
+  return (map[mainLocale] ?? map[adminLocale] ?? Object.values(map).find((value) => value?.trim()) ?? "").trim();
+}
 
 type FormState = { kind: "idle" | "loading" | "ok" | "error"; message?: string };
 type VirtualminOption = {
@@ -20,13 +48,29 @@ type VirtualminOption = {
 
 export function AdminCategoryManager() {
   const c = getDictionary(useLocale()).admin.productMgr;
+  const { locales, mainLocale, adminLocale, canTranslate } = useStoreLocales();
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editingCategory, setEditingCategory] = useState<ApiProductCategory | undefined>();
+  const [nameMap, setNameMap] = useState<LocaleMap>({});
+  const [descriptionMap, setDescriptionMap] = useState<LocaleMap>({});
 
   useEffect(() => {
     void refreshCategories();
   }, []);
+
+  function editCategory(category: ApiProductCategory) {
+    setEditingCategory(category);
+    setNameMap({ ...(category.nameTranslations ?? {}), [mainLocale]: category.nameTranslations?.[mainLocale] ?? category.name });
+    setDescriptionMap({ ...(category.descriptionTranslations ?? {}), [mainLocale]: category.descriptionTranslations?.[mainLocale] ?? category.description ?? "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetCategory() {
+    setEditingCategory(undefined);
+    setNameMap({});
+    setDescriptionMap({});
+  }
 
   async function refreshCategories() {
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories`, { headers: authHeaders() });
@@ -35,12 +79,20 @@ export function AdminCategoryManager() {
   }
 
   async function saveCategory(formData: FormData) {
+    const name = canonicalText(nameMap, mainLocale, adminLocale);
+    if (!name) {
+      notify.error(c.categoryNameRequired);
+      setState({ kind: "error", message: c.categoryNameRequired });
+      return;
+    }
     setState({ kind: "loading", message: c.savingCategory });
     const categoryId = String(formData.get("categoryId") ?? "");
     const response = await fetch(`${API_BASE_URL}/admin/dev/product-categories${categoryId ? `/${categoryId}` : ""}`, {
       body: JSON.stringify({
-        description: String(formData.get("categoryDescription") ?? ""),
-        name: String(formData.get("categoryName") ?? ""),
+        description: canonicalText(descriptionMap, mainLocale, adminLocale),
+        descriptionTranslations: descriptionMap,
+        name,
+        nameTranslations: nameMap,
         provisioningModule: String(formData.get("categoryModule") ?? "none"),
         slug: String(formData.get("categorySlug") ?? ""),
         sortOrder: Number(formData.get("categorySortOrder") ?? 0)
@@ -57,9 +109,14 @@ export function AdminCategoryManager() {
     }
     setState({ kind: "ok", message: c.categorySaved });
     notify.success(c.categorySaved);
-    setEditingCategory(undefined);
+    resetCategory();
     await refreshCategories();
   }
+
+  const translateProps = useMemo(
+    () => ({ locales, adminLocale, canTranslate, translationsLabel: c.translations, doneLabel: c.done, autoTranslate: { label: c.autoTranslate, runningLabel: c.translating, failedLabel: c.translateFailed } }),
+    [adminLocale, c.autoTranslate, c.done, c.translateFailed, c.translating, c.translations, canTranslate, locales]
+  );
 
   async function removeCategory(category: ApiProductCategory) {
     setState({ kind: "loading", message: c.removingCategory });
@@ -83,7 +140,7 @@ export function AdminCategoryManager() {
         <form action={saveCategory} className={styles.form} key={editingCategory?.id ?? "new-category"}>
           <input name="categoryId" type="hidden" value={editingCategory?.id ?? ""} />
           <div className={styles.grid}>
-            <label>{c.name}<input defaultValue={editingCategory?.name ?? ""} name="categoryName" required placeholder="Web Hosting" /></label>
+            <label>{c.name}<TranslateField modalTitle={c.name} onChange={setNameMap} placeholder="Web Hosting" value={nameMap} {...translateProps} /></label>
             <label>{c.slug}<input defaultValue={editingCategory?.slug ?? ""} name="categorySlug" required placeholder="webhosting" /></label>
             <label>
               {c.module}
@@ -96,10 +153,10 @@ export function AdminCategoryManager() {
             </label>
             <label>{c.sortOrder}<input defaultValue={editingCategory?.sortOrder ?? 0} name="categorySortOrder" type="number" min="0" /></label>
           </div>
-          <label>{c.description}<textarea defaultValue={editingCategory?.description ?? ""} name="categoryDescription" rows={2} /></label>
+          <label>{c.description}<TranslateField modalTitle={c.description} multiline onChange={setDescriptionMap} value={descriptionMap} {...translateProps} /></label>
           <div className={styles.formActions}>
             <Button size="sm" type="submit">{c.saveCategory}</Button>
-            {editingCategory ? <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(undefined)}>{c.newCategory}</Button> : null}
+            {editingCategory ? <Button size="sm" type="button" variant="secondary" onClick={resetCategory}>{c.newCategory}</Button> : null}
             {state.message ? <span className={styles[state.kind]}>{state.message}</span> : null}
           </div>
         </form>
@@ -128,7 +185,7 @@ export function AdminCategoryManager() {
                   <td>{moduleLabel(category.provisioningModule, c)}</td>
                   <td>{category.products?.length ?? 0}</td>
                   <td className={styles.rowActions}>
-                    <Button size="sm" type="button" variant="secondary" onClick={() => setEditingCategory(category)}>{c.edit}</Button>
+                    <Button size="sm" type="button" variant="secondary" onClick={() => editCategory(category)}>{c.edit}</Button>
                     <Button size="sm" type="button" variant="ghost" onClick={() => removeCategory(category)}>{c.remove}</Button>
                   </td>
                 </tr>
@@ -144,10 +201,13 @@ export function AdminCategoryManager() {
 
 export function AdminProductManager() {
   const c = getDictionary(useLocale()).admin.productMgr;
+  const { locales, mainLocale, adminLocale, canTranslate } = useStoreLocales();
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [categories, setCategories] = useState<ApiProductCategory[]>([]);
   const [editing, setEditing] = useState<ApiProduct | undefined>();
+  const [nameMap, setNameMap] = useState<LocaleMap>({});
+  const [descriptionMap, setDescriptionMap] = useState<LocaleMap>({});
   const [virtualmin, setVirtualmin] = useState<{ plans: VirtualminOption[]; templates: VirtualminOption[] }>({ plans: [], templates: [] });
   const [module, setModule] = useState("resellbiz");
   const [categoryId, setCategoryId] = useState("");
@@ -163,6 +223,12 @@ export function AdminProductManager() {
   }, []);
 
   async function submit(formData: FormData) {
+    const name = canonicalText(nameMap, mainLocale, adminLocale);
+    if (!name) {
+      notify.error(c.productNameRequired);
+      setState({ kind: "error", message: c.productNameRequired });
+      return;
+    }
     setState({ kind: "loading", message: c.savingProduct });
     notify.info(c.savingProduct);
     const setupFeeCents = cents(formData.get("setupFee"));
@@ -183,11 +249,13 @@ export function AdminProductManager() {
             ...virtualminFields(formData)
           ],
           categoryId: String(formData.get("categoryId") ?? "") || null,
-          description: String(formData.get("description") ?? ""),
+          description: canonicalText(descriptionMap, mainLocale, adminLocale),
+          descriptionTranslations: descriptionMap,
           domainRequirement: String(formData.get("domainRequirement") ?? "NOT_NEEDED"),
           freeDomainBillingCycle: String(formData.get("freeDomainBillingCycle") ?? "") || null,
           featured: formData.get("featured") === "on",
-          name: String(formData.get("name") ?? ""),
+          name,
+          nameTranslations: nameMap,
           prices,
           provisioningModule: String(formData.get("provisioningModule") ?? "none"),
           slug: String(formData.get("slug") ?? ""),
@@ -206,6 +274,8 @@ export function AdminProductManager() {
       setState({ kind: "ok", message: c.productSaved });
       notify.success(c.productSaved);
       setEditing(undefined);
+      setNameMap({});
+      setDescriptionMap({});
       setCategoryId("");
       await refreshProducts();
     } catch (error) {
@@ -231,6 +301,8 @@ export function AdminProductManager() {
 
   function editProduct(product: ApiProduct) {
     setEditing(product);
+    setNameMap({ ...(product.nameTranslations ?? {}), [mainLocale]: product.nameTranslations?.[mainLocale] ?? product.name });
+    setDescriptionMap({ ...(product.descriptionTranslations ?? {}), [mainLocale]: product.descriptionTranslations?.[mainLocale] ?? product.description ?? "" });
     setCategoryId(product.categoryId ?? product.category?.id ?? "");
     // Product-first (Phase 6.2): the product's own module wins; category is only the default.
     setModule(product.provisioningModule ?? product.category?.provisioningModule ?? "none");
@@ -282,6 +354,10 @@ export function AdminProductManager() {
     await refreshProducts();
   }
 
+  const translateProps = useMemo(
+    () => ({ locales, adminLocale, canTranslate, translationsLabel: c.translations, doneLabel: c.done, autoTranslate: { label: c.autoTranslate, runningLabel: c.translating, failedLabel: c.translateFailed } }),
+    [adminLocale, c.autoTranslate, c.done, c.translateFailed, c.translating, c.translations, canTranslate, locales]
+  );
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
   const selectedCategory = categories.find((category) => category.id === categoryId);
   // Product-first: the select below is authoritative; picking a category only prefills it.
@@ -297,7 +373,7 @@ export function AdminProductManager() {
         <div className={styles.cardHeader}>
           <h2>{editing ? `${c.editPrefix} ${editing.name}` : c.newProduct}</h2>
           {editing ? (
-            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); }}>
+            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setNameMap({}); setDescriptionMap({}); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); }}>
               {c.newProduct}
             </Button>
           ) : null}
@@ -312,7 +388,7 @@ export function AdminProductManager() {
           <fieldset className={styles.fieldset}>
             <legend>{c.basicInfo}</legend>
             <div className={styles.grid}>
-              <label>{c.name}<input defaultValue={editing?.name ?? ""} name="name" required placeholder="Web Hosting Basic" /></label>
+              <label>{c.name}<TranslateField modalTitle={c.name} onChange={setNameMap} placeholder="Web Hosting Basic" value={nameMap} {...translateProps} /></label>
               <label>{c.slug}<input defaultValue={editing?.slug ?? ""} name="slug" required placeholder="web-hosting-basic" /></label>
               <label>
                 {c.type}
@@ -349,7 +425,7 @@ export function AdminProductManager() {
                 {c.featuredBadge}
               </label>
             </div>
-            <label>{c.description}<textarea defaultValue={editing?.description ?? ""} name="description" required rows={3} /></label>
+            <label>{c.description}<TranslateField modalTitle={c.description} multiline onChange={setDescriptionMap} value={descriptionMap} {...translateProps} /></label>
           </fieldset>
 
           {isDomainProduct ? null : (

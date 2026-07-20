@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { billingCycles, DEFAULT_TAX_COUNTRY_CONFIG, resolveVat, type TaxCountryConfig } from "@teculiar/shared";
-import { API_BASE_URL, addOnName, authHeaders, authToken, cycleLabel, money, storeAuth, type ApiAddOn, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, addOnName, authHeaders, authToken, cycleLabel, money, productDescription, productName, storeAuth, type ApiAddOn, type ApiDomainPrice, type ApiPaymentGateway, type ApiProduct, type AuthPayload } from "@teculiar/web-core/lib/api";
 import { countriesForLocale } from "@teculiar/web-core/lib/countries";
 import { getDictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -317,7 +317,10 @@ export function CheckoutForm({
 
     const body = {
       customer,
-      items
+      items,
+      // Storefront locale the buyer is checking out in. Server uses it to seed a new customer's
+      // preferred locale and to snapshot localized product names onto the order/invoice (Phase 7.1).
+      locale
     };
 
     let checkoutOrderId: string | undefined;
@@ -443,8 +446,8 @@ export function CheckoutForm({
         <aside className={styles.summary}>
           <div className={styles.summaryHeader}>
             <span className={styles.summaryEyebrow}>{copy.orderEyebrow}</span>
-            <h1 className={styles.summaryTitle}>{product.name}</h1>
-            {product.description ? <p className={styles.summaryDesc}>{product.description}</p> : null}
+            <h1 className={styles.summaryTitle}>{productName(product, locale)}</h1>
+            {productDescription(product, locale) ? <p className={styles.summaryDesc}>{productDescription(product, locale)}</p> : null}
           </div>
 
           <div className={styles.billingCycleRow}>
@@ -725,9 +728,9 @@ export function CheckoutForm({
                           }}
                           type="radio"
                         />
-                        <strong className={styles.hostingCardName}>{hosting.name}</strong>
+                        <strong className={styles.hostingCardName}>{productName(hosting, locale)}</strong>
                       </div>
-                      <span className={styles.hostingCardDesc}>{hosting.description}</span>
+                      <span className={styles.hostingCardDesc}>{productDescription(hosting, locale)}</span>
                       <ul className={styles.hostingCardFeatures}>
                         {productHighlights(hosting, copy).map((highlight) => <li key={highlight}>{highlight}</li>)}
                       </ul>
@@ -1442,7 +1445,7 @@ function orderSummary(input: {
         id: "hosting-addon",
         kind: "hostingAddon",
         detail: productDetails(input.selectedHosting),
-        label: `${input.selectedHosting.name} ${cycleLabel(input.selectedHostingPrice.billingCycle)}`,
+        label: `${productName(input.selectedHosting, input.locale)} ${cycleLabel(input.selectedHostingPrice.billingCycle)}`,
         removable: true
       });
     }
@@ -1452,7 +1455,7 @@ function orderSummary(input: {
       detail: productDetails(input.product),
       id: "hosting",
       kind: "hosting",
-      label: `${input.product.name} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
+      label: `${productName(input.product, input.locale)} ${cycleLabel(input.selectedPrice?.billingCycle ?? "")}`
     });
     // First-invoice view: recurring price + one-off setup fee billed together on the first invoice.
     for (const addOn of input.chosenAddOns) {

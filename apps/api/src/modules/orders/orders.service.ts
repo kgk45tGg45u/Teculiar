@@ -106,8 +106,8 @@ export class OrdersService implements OnModuleInit {
     return this.orders.updateOrderStatus(id, orderStatusFromAdmin(status));
   }
 
-  async previewOrder(dto: PreviewOrderDto) {
-    const items = await this.priceItems(dto.items);
+  async previewOrder(dto: PreviewOrderDto, locale?: string) {
+    const items = await this.priceItems(dto.items, locale);
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity + addOnAmountCents(item), 0);
     const setupFeeCents = items.reduce((sum, item) => sum + item.setupFeeCents + addOnSetupFeeCents(item), 0);
     const taxableCents = subtotalCents + setupFeeCents;
@@ -147,7 +147,11 @@ export class OrdersService implements OnModuleInit {
       throw new BadRequestException("Email is already registered. Please log in before ordering.");
     }
 
-    const preview = await this.previewOrder(dto);
+    // Invoice/service snapshot uses the buyer's chosen locale: an existing customer's saved
+    // preference wins, else the storefront locale they checked out in. Undefined (neither set) makes
+    // priceItem fall back to the plain product name, which already holds the store main-language value.
+    const buyerLocale = existing?.locale ?? dto.locale;
+    const preview = await this.previewOrder(dto, buyerLocale);
     if (preview.items.some((item) => item.type === "DOMAIN")) {
       assertDomainRegistrantContact(dto.customer);
     }
@@ -167,6 +171,7 @@ export class OrdersService implements OnModuleInit {
           countryCode: dto.customer.countryCode ?? "DE",
           customerType: dto.customer.customerType ?? "INDIVIDUAL",
           email,
+          locale: dto.locale,
           name: dto.customer.name,
           passwordHash: pendingPasswordHash,
           phone: dto.customer.phone,
@@ -212,7 +217,8 @@ export class OrdersService implements OnModuleInit {
     if (!user) {
       throw new NotFoundException("Client not found");
     }
-    const items = await this.priceItems(dto.items);
+    // Admin-created order: snapshot names in the target customer's chosen locale (Phase 7.1).
+    const items = await this.priceItems(dto.items, user.locale);
 
     await this.assertOrderItemsAvailable(items, "Create an invoice manually instead.");
     const subtotalCents = items.reduce((sum, item) => sum + item.unitAmountCents * item.quantity + addOnAmountCents(item), 0);
@@ -522,12 +528,12 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
-  private async priceItems(items: OrderItemDto[]): Promise<PricedOrderItem[]> {
+  private async priceItems(items: OrderItemDto[], locale?: string): Promise<PricedOrderItem[]> {
     if (items.length === 0) {
       throw new BadRequestException("Order needs at least one item");
     }
 
-    const pricedItems = await Promise.all(items.map((item) => this.priceItem(item)));
+    const pricedItems = await Promise.all(items.map((item) => this.priceItem(item, locale)));
     return applyFreeDomainDiscount(pricedItems);
   }
 
@@ -568,11 +574,14 @@ export class OrdersService implements OnModuleInit {
     return main === "de" ? "Rabatt" : "Discount";
   }
 
-  private async priceItem(item: OrderItemDto): Promise<PricedOrderItem> {
+  private async priceItem(item: OrderItemDto, locale?: string): Promise<PricedOrderItem> {
     const product = await this.orders.findProduct(item.productId);
     if (!product) {
       throw new NotFoundException("Product not found");
     }
+    // Buyer-locale product name, snapshotted onto the invoice line + service (Phase 7.1). Falls back
+    // to the plain (main-language) name when there is no override for this locale.
+    const displayName = localizedName(product, locale);
 
     const configuration = item.configuration ?? {};
     const configuredPrice = item.productPriceId
@@ -604,7 +613,7 @@ export class OrdersService implements OnModuleInit {
     let unitAmountCents = price.amountCents;
     // Renewals bill this (captured on the service). Defaults to the first-invoice amount.
     let recurringAmountCents = unitAmountCents;
-    let description = product.name;
+    let description = displayName;
 
     if (product.type === "DOMAIN") {
       if (!isYearlyCycle(billingCycle)) {
@@ -664,7 +673,7 @@ export class OrdersService implements OnModuleInit {
       productId: product.id,
       productPriceId: price.id,
       productSnapshot: {
-        name: product.name,
+        name: displayName,
         type: product.type,
         slug: product.slug,
         provisioningModule: product.provisioningModule ?? null,
@@ -848,6 +857,16 @@ export class OrdersService implements OnModuleInit {
       await this.orders.markItemFailed(item.id, message);
     }
   }
+}
+
+// Buyer-locale product name for the invoice/service snapshot (Phase 7.1). Falls back to the plain
+// (main-language) name when there is no override for this locale.
+function localizedName(product: { name: string; nameTranslations?: unknown }, locale?: string): string {
+  if (!locale || !isRecord(product.nameTranslations)) {
+    return product.name;
+  }
+  const override = product.nameTranslations[locale];
+  return typeof override === "string" && override.trim() ? override.trim() : product.name;
 }
 
 function customerSnapshot(customer: CheckoutOrderDto["customer"], email: string, customerNumber?: number) {

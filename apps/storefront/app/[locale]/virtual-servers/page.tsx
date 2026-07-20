@@ -1,6 +1,6 @@
 import { ArrowRight, Check, Cpu, HardDrive, Lock, Server, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
-import { apiGet, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { apiGet, productDescription, productName, type ApiProduct } from "@teculiar/web-core/lib/api";
 import { Button } from "@teculiar/web-core/components/ui/button";
 import { Price } from "@teculiar/web-core/components/marketing/price";
 import { getLocale, type Locale } from "@teculiar/web-core/lib/i18n";
@@ -123,7 +123,7 @@ async function VirtualServersPageBuiltIn({ locale }: { locale: Locale }) {
                   <div className={styles.productCard} key={product.id}>
                     <div className={styles.productHeader}>
                       <Cpu aria-hidden size={22} className={styles.productIcon} />
-                      <h3>{product.name}</h3>
+                      <h3>{productName(product, locale)}</h3>
                     </div>
                     {price && (
                       <div className={styles.productPrice}>
@@ -131,7 +131,7 @@ async function VirtualServersPageBuiltIn({ locale }: { locale: Locale }) {
                         <span>{isDe ? "/ Monat" : "/ month"}</span>
                       </div>
                     )}
-                    <p className={styles.productDesc}>{product.description}</p>
+                    <p className={styles.productDesc}>{productDescription(product, locale)}</p>
                     {specs.length > 0 && (
                       <ul className={styles.specList}>
                         {specs.map((spec) => (
