@@ -20,8 +20,8 @@ export class EmailAdminController {
   constructor(private readonly emails: EmailService) {}
 
   @Get()
-  async settings(@Req() request: Request & { user: { roles?: string[] } }) {
-    const settings = await this.emails.adminSettings();
+  async settings(@Req() request: Request & { user: { roles?: string[] } }, @Query("locale") locale?: string) {
+    const settings = await this.emails.adminSettings(locale);
     return shouldMask(request.user.roles) ? deepMaskPii(settings) : settings;
   }
 
@@ -34,6 +34,9 @@ export class EmailAdminController {
   @Patch()
   updateSettings(@Body() body: {
     events?: Array<{ body?: string; enabled?: boolean; key: string; layoutBlocks?: EmailLayoutBlock[]; recipients?: string[]; subject?: string }>;
+    // Which configured language the event content (subject/body/blocks) is authored in. The active
+    // toggle + recipients are global; omit to save against the store's main language.
+    locale?: string;
     smtp?: {
       adminEmails?: string[] | string;
       enabled?: boolean;
@@ -49,7 +52,7 @@ export class EmailAdminController {
     templateHtml?: string;
     testVariables?: Record<string, unknown>;
   }) {
-    return this.emails.updateSettings(body);
+    return this.emails.updateSettings(body, body.locale);
   }
 
   @Post("test")

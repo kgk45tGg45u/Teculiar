@@ -31,6 +31,20 @@ resolution is product-first** — one shared chain in `module-catalog.ts`
    form for new products; migration `20260719130000` backfilled it onto every existing product);
 4. the product-type default (`VPS`/`DEDICATED_SERVER` → `hetzner`, else `virtualmin`).
 
+## Module-gated notification emails
+
+Some notification events **ship with a module** and only exist while that module is active
+(`apps/api/src/modules/email/email-events.ts`, each event's `module` field):
+
+| Event(s)                                                              | Module        | Kind       |
+|----------------------------------------------------------------------|---------------|------------|
+| `hosting_account_information` / `_suspended` / `_terminated`          | `virtualmin`  | hosting    |
+| `domain_information`                                                  | `resellbiz`   | registrar  |
+
+When the module is inactive these events are **hidden from Admin → Emails** and **never dispatched**
+(`isEmailEventModuleActive` gates both `adminSettings` and `dispatch`). Turning the module back on restores
+them. All other events (billing, account, support) are always available.
+
 ## Disabling a module
 
 - Provisioning that resolves to a **disabled** module is left `QUEUED` for the admin to handle manually

@@ -1,16 +1,30 @@
 export type EmailRecipientType = "admin" | "client";
 
+// Groups the events in the admin list. Hosting + domain are also module-gated (see `module`).
+export type EmailCategory = "billing" | "account" | "hosting" | "domain" | "support";
+
+// A provisioning module an event belongs to. When that module is inactive the event is hidden
+// from the admin editor and never dispatched (the three hosting mails ship with `virtualmin`,
+// the domain mail ships with `resellbiz`). Undefined = always available.
+export type EmailModule = "resellbiz" | "virtualmin";
+
 export type EmailEventDefinition = {
   body: string;
+  category: EmailCategory;
   defaultRecipients: EmailRecipientType[];
   key: string;
+  module?: EmailModule;
   subject: string;
   trigger: string;
 };
 
+// Category display order for the grouped admin list.
+export const EMAIL_CATEGORY_ORDER: EmailCategory[] = ["billing", "account", "hosting", "domain", "support"];
+
 export const EMAIL_EVENTS = [
   {
     key: "new_invoice",
+    category: "billing",
     subject: "New Invoice",
     trigger: "when an invoice is generated",
     defaultRecipients: ["admin", "client"],
@@ -18,6 +32,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "welcome",
+    category: "account",
     subject: "Welcome",
     trigger: "when a user signs up or gets created",
     defaultRecipients: ["admin", "client"],
@@ -25,6 +40,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "payment_successful",
+    category: "billing",
     subject: "Payment successful",
     trigger: "when a user successfully pays an invoice",
     defaultRecipients: ["admin", "client"],
@@ -32,6 +48,8 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "domain_information",
+    category: "domain",
+    module: "resellbiz",
     subject: "Domain Information",
     trigger: "when a domain becomes marked as active",
     defaultRecipients: ["admin", "client"],
@@ -39,6 +57,8 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "hosting_account_information",
+    category: "hosting",
+    module: "virtualmin",
     subject: "Hosting Account Information",
     trigger: "when a hosting account becomes marked as active",
     defaultRecipients: ["admin", "client"],
@@ -46,6 +66,8 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "hosting_account_suspended",
+    category: "hosting",
+    module: "virtualmin",
     subject: "Hosting Account Suspended",
     trigger: "when a hosting service is marked as suspended",
     defaultRecipients: ["client"],
@@ -53,6 +75,8 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "hosting_account_terminated",
+    category: "hosting",
+    module: "virtualmin",
     subject: "Hosting Account Terminated",
     trigger: "when a hosting service is marked as terminated",
     defaultRecipients: ["client"],
@@ -60,6 +84,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "refund_request_sent",
+    category: "billing",
     subject: "Refund Request Sent",
     trigger: "when an invoice is refunded by an admin",
     defaultRecipients: ["admin", "client"],
@@ -67,6 +92,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "order_confirmation",
+    category: "billing",
     subject: "Order Confirmation",
     trigger: "when a new order is registered on the system",
     defaultRecipients: ["admin", "client"],
@@ -74,6 +100,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "invoice_reminder",
+    category: "billing",
     subject: "Invoice Reminder",
     trigger: "sent by the cron job",
     defaultRecipients: ["client"],
@@ -81,6 +108,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "password_reset",
+    category: "account",
     subject: "Password Reset",
     trigger: "when a user requests a password reset",
     defaultRecipients: ["client"],
@@ -88,6 +116,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "ticket_opened",
+    category: "support",
     subject: "Ticket Opened — #{{ticket_id}}",
     trigger: "when a support ticket is opened",
     defaultRecipients: ["admin", "client"],
@@ -95,6 +124,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "ticket_answered",
+    category: "support",
     subject: "Ticket Answered — #{{ticket_id}}",
     trigger: "when a support ticket receives an answer",
     defaultRecipients: ["admin", "client"],
@@ -102,6 +132,7 @@ export const EMAIL_EVENTS = [
   },
   {
     key: "ticket_closed",
+    category: "support",
     subject: "Ticket Closed — #{{ticket_id}}",
     trigger: "when a support ticket is closed",
     defaultRecipients: ["admin", "client"],
@@ -109,28 +140,41 @@ export const EMAIL_EVENTS = [
   }
 ] as const satisfies readonly EmailEventDefinition[];
 
+// Fuller-redesign notification shell: a 4px accent rule over a rounded white card, navy header
+// lockup ({{brand_logo}} when a logo is set, else the brand name), and a quiet receipt-style
+// footer. Email-safe tables + inline styles only (Gmail / Outlook / Apple Mail). {{content}} and
+// {{brand_logo}} are injected as trusted HTML; every other placeholder is escaped.
 export const DEFAULT_EMAIL_TEMPLATE_HTML = `<!doctype html>
 <html>
-  <body style="margin:0;background:#f4f7fb;color:#172033;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f7fb;padding:32px 12px;">
+  <body style="margin:0;background:#eef2f7;color:#1f2937;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;padding:32px 12px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #dde5ef;border-radius:8px;overflow:hidden;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;">
             <tr>
-              <td style="padding:24px 28px;background:#10223d;color:#ffffff;">
-                {{brand_logo}}
-                <div style="font-size:14px;letter-spacing:0;text-transform:uppercase;opacity:.78;">{{brand_name}}</div>
-                <h1 style="margin:8px 0 0;font-size:24px;line-height:1.25;">{{subject}}</h1>
-              </td>
+              <td style="height:4px;background:#0077b6;border-radius:12px 12px 0 0;font-size:0;line-height:0;">&nbsp;</td>
             </tr>
             <tr>
-              <td style="padding:28px;font-size:16px;line-height:1.6;">
-                {{content}}
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:18px 28px;background:#f8fafc;color:#5b6575;font-size:13px;">
-                {{brand_name}} - {{current_date}}
+              <td style="background:#ffffff;border:1px solid #e5ebf2;border-top:0;border-radius:0 0 12px 12px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="padding:26px 32px 22px;background:#0b2140;color:#ffffff;border-radius:0;">
+                      {{brand_logo}}
+                      <div style="font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#9fc7e6;">{{brand_name}}</div>
+                      <h1 style="margin:10px 0 0;font-size:23px;line-height:1.22;font-weight:800;letter-spacing:-.01em;">{{subject}}</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:26px 32px 8px;font-size:15px;line-height:1.65;color:#1f2937;">
+                      {{content}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:20px 32px 24px;background:#f7f9fc;border-top:1px solid #eef2f7;color:#64748b;font-size:12.5px;line-height:1.7;">
+                      {{brand_name}} · {{current_date}}
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -149,4 +193,18 @@ export function defaultEmailEventConfigs() {
 
 export function emailEventDefinition(key: string) {
   return EMAIL_EVENTS.find((event) => event.key === key);
+}
+
+// The provisioning module an event ships with, or undefined when it is always available.
+// (`as const` omits the property on events that don't declare it, so narrow with `in`.)
+export function emailEventModule(key: string): EmailModule | undefined {
+  const def = emailEventDefinition(key);
+  return def && "module" in def ? def.module : undefined;
+}
+
+// True when the event belongs to a module that is not in `activeModules` — such events are
+// hidden from the editor and skipped at dispatch.
+export function isEmailEventModuleActive(key: string, activeModules: readonly string[]): boolean {
+  const mod = emailEventModule(key);
+  return !mod || activeModules.includes(mod);
 }

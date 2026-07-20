@@ -242,7 +242,7 @@ function renderBlock(block: EmailLayoutBlock, context: Record<string, string>) {
   }
   if (block.type === "button") {
     const href = renderAttribute(block.href || "#", context);
-    return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:6px;background:#b11226;"><a href="${href}" style="display:inline-block;padding:13px 18px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
+    return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:8px;background:#0077b6;"><a href="${href}" style="display:inline-block;padding:14px 26px;color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
   }
   if (block.type === "link") {
     const href = renderAttribute(block.href || "#", context);
@@ -263,7 +263,7 @@ function renderBlock(block: EmailLayoutBlock, context: Record<string, string>) {
 
 function renderKeyValueTable(block: EmailLayoutBlock, context: Record<string, string>) {
   const rows = (block.rows ?? []).map((row) => `<tr><td style="padding:12px 14px;color:#5b6575;font-size:13px;border-top:1px solid #e6edf5;">${renderInline(row.label || "", context)}</td><td align="right" style="padding:12px 14px;color:#172033;font-size:14px;font-weight:700;border-top:1px solid #e6edf5;">${renderInline(row.value || "", context)}</td></tr>`).join("");
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #dde5ef;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden;"><tr><td colspan="2" style="padding:14px;background:#f8fafc;color:#172033;font-size:15px;font-weight:700;">${renderInline(block.title || "Details", context)}</td></tr>${rows}</table>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #e5ebf2;border-radius:10px;border-collapse:separate;border-spacing:0;overflow:hidden;"><tr><td colspan="2" style="padding:12px 16px;background:#f4f8fc;color:#0b2140;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">${renderInline(block.title || "Details", context)}</td></tr>${rows}</table>`;
 }
 
 function renderDataTable(block: EmailLayoutBlock, context: Record<string, string>) {

@@ -433,19 +433,31 @@ export type ApiEmailLayoutBlock = {
   type: "button" | "divider" | "invoiceTable" | "keyValueTable" | "link" | "notice" | "text";
 };
 
+export type ApiEmailCategory = "account" | "billing" | "domain" | "hosting" | "support";
+
 export type ApiEmailAdminSettings = {
+  // Provisioning modules currently active (e.g. ["virtualmin", "resellbiz"]). Module-gated events
+  // whose module is off are already omitted from `events` server-side.
+  activeModules?: string[];
   blockLibrary?: Array<{ description: string; label: string; type: ApiEmailLayoutBlock["type"] }>;
   brandLogoUrl?: string;
+  // Display order for the grouped list.
+  categoryOrder?: ApiEmailCategory[];
   events: Array<{
     body: string;
+    category?: ApiEmailCategory;
     defaultRecipients: Array<"admin" | "client">;
     enabled: boolean;
     key: string;
     layoutBlocks: ApiEmailLayoutBlock[];
+    module?: "resellbiz" | "virtualmin";
     recipients: Array<"admin" | "client">;
     subject: string;
     trigger: string;
   }>;
+  // The language currently being edited, and the store's configured language set (for the switcher).
+  languages?: { main: string; others: string[] };
+  locale?: string;
   logs: ApiEmailLog[];
   placeholders: Array<{ description: string; group?: string; key: string }>;
   smtp: {

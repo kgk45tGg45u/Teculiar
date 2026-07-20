@@ -345,31 +345,73 @@
 
 .templatePreview {
   display: grid;
-  gap: 16px;
+  gap: 8px;
   align-content: start;
 }
 
-.templatePreview > div {
-  display: grid;
-  gap: 8px;
+/* Viewport-accurate device preview: a segmented Desktop/Tablet/Mobile toggle over a stage that
+   holds one iframe rendered at the device's real width and scaled (by JS) to fit — so the desktop
+   preview is a true desktop render, not a near-copy of the mobile one. */
+.deviceToggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
 }
 
-.templatePreview strong {
+.deviceToggle button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 5px 4px;
+  background: transparent;
   color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.frameDesktop,
-.frameMobile {
-  width: 100%;
-  height: 560px;
+.deviceToggle button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(7, 26, 47, 0.12);
+}
+
+.deviceMeta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.deviceStage {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(45deg, var(--surface-muted), var(--surface-muted) 10px, var(--surface) 10px, var(--surface) 20px);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.deviceFit {
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.deviceFrame {
+  position: absolute;
+  top: 0;
+  left: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
-}
-
-.frameMobile {
-  width: min(100%, 390px);
-  justify-self: start;
 }
 
 .emailDesigner {
@@ -386,26 +428,179 @@
   gap: 8px;
 }
 
-.emailEventList button,
-.emailBlockPalette button {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: var(--surface);
-  color: var(--text);
-  text-align: left;
+/* Per-language content switcher above the grouped event list. */
+.emailLangSwitch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.emailLangLabel {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.emailLangTabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.emailLangTabs button {
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 3px 11px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.emailEventList button[aria-current="page"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+.emailLangTabs button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--surface);
 }
 
-.emailEventList span,
+/* Grouped event list: a category heading (with an optional module chip) over its event rows. */
+.emailEventGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.emailEventGroupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.emailModuleTag {
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.emailModuleHosting {
+  background: rgba(220, 38, 38, 0.14);
+  color: #b91c1c;
+}
+
+.emailModuleDomain {
+  background: rgba(219, 39, 119, 0.14);
+  color: #be185d;
+}
+
+/* Event row: subject + trigger on the left, an active/inactive toggle on the right. */
+.emailEventRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.emailEventRow[aria-current="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.emailEventRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.emailEventText {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.emailEventText strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.emailEventText span {
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+
+.emailEventRowOff {
+  opacity: 0.6;
+}
+
+.emailEventRowOff .emailEventText strong {
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+}
+
+/* iOS-style active/inactive toggle. */
+.emailToggle {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border: 0;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.emailToggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s;
+}
+
+.emailToggle[aria-pressed="true"] {
+  background: var(--success);
+}
+
+.emailToggle[aria-pressed="true"]::after {
+  transform: translateX(14px);
+}
+
+.emailToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .emailBuilderBlock span {
   color: var(--muted);
   font-weight: 700;
@@ -418,8 +613,23 @@
 }
 
 .emailBlockPalette button {
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.emailBlockPalette button:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 .emailBlockList {
@@ -443,7 +653,7 @@
   cursor: grab;
 }
 
-.emailBuilderBlock summary button {
+.emailBlockDelete {
   display: inline-grid;
   place-items: center;
   width: 28px;
@@ -452,6 +662,12 @@
   border-radius: 6px;
   background: var(--surface);
   color: var(--muted);
+  cursor: pointer;
+}
+
+.emailBlockDelete:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* Only the grip is draggable, so editing a block's fields never starts an accidental drag. */
@@ -466,17 +682,9 @@
   cursor: grabbing;
 }
 
-/* Insertion indicator while reordering: a coloured line on the edge the block will drop to. */
-.emailBuilderBlock[data-drop="before"] {
-  box-shadow: inset 0 2px 0 0 var(--accent);
-}
-
-.emailBuilderBlock[data-drop="after"] {
-  box-shadow: inset 0 -2px 0 0 var(--accent);
-}
-
+/* DND-Kit lifts the dragged block; a subtle accent ring marks it while dragging. */
 .emailBuilderBlock[data-dragging="true"] {
-  opacity: 0.5;
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(7, 26, 47, 0.14);
 }
 
 .emailBlockHint {
@@ -535,12 +743,12 @@
 
 /* Compact, smaller-font variant for the Emails admin UI (does not touch the rendered email
    preview, only the editor chrome). Horizontal container padding is intentionally left as-is. */
-.emailCompact .emailEventList button strong,
+.emailCompact .emailEventText strong,
 .emailCompact .emailBuilderBlock strong {
   font-size: 0.8rem;
 }
 
-.emailCompact .emailEventList span,
+.emailCompact .emailEventText span,
 .emailCompact .emailBuilderBlock span {
   font-size: 0.72rem;
 }
@@ -555,7 +763,7 @@
   gap: 8px;
 }
 
-.emailCompact .emailEventList button {
+.emailCompact .emailEventRow {
   padding: 7px 10px;
 }
 

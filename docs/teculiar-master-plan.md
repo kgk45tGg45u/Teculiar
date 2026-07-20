@@ -747,13 +747,33 @@ traffic; both re-runnable on MariaDB). Then
   `ProductCard`/`product-grid` render `localized(product.name, locale)`. Emails/invoices use the buyer's
   locale. Well-tested (this is customer-facing across catalog + checkout + emails).
 
-### 7.2 Per-language email editor + per-customer dispatch
-- Dispatch already resolves `recipientLocale` from `User.locale` and looks up `EmailTemplate` by
-  `key_locale` — **the gap is the editor**: `apps/web/components/admin/email-admin-editor.tsx` has no locale
-  selector and saves overrides on the main language only. Add a **language switcher** so admins author each
-  event's content per configured language (`updateSettings` upserts `EmailTemplate` per locale). Confirm a
-  customer with `locale = en` receives English emails end-to-end. (This is the Phase-1-deferred per-locale
-  email editor.)
+### 7.2 Per-language email editor + per-customer dispatch  ✅ DONE (2026-07-20)
+- Dispatch already resolved `recipientLocale` from `User.locale`; the gap was the editor + the fact that
+  saved **layout blocks** were stored flat (main-language) and reused for every locale — so once an admin
+  saved, English recipients also got the German blocks. Fixes:
+  - **Per-locale storage.** `emailLayoutBlocks` is now `{ [locale]: { [eventKey]: blocks } }` (legacy flat
+    shape migrated under the main language on read). `EmailTemplate` (subject/body) already keyed by
+    `key_locale`. Active toggle + recipients stay **global**. `email.service.ts` `adminSettings(locale)` /
+    `updateSettings(input, locale)`; controller `GET ?locale=` + `PATCH { locale }`.
+  - **Editor language switcher** (`email-admin-editor.tsx` `LanguageSwitcher`) authors each configured
+    language; the editor also auto-follows the admin's UI language on mount, so toggling the dashboard to
+    English shows English email content (the "I only see German" bug). `adminSettings` returns
+    `{ languages, locale, categoryOrder, activeModules }`.
+  - Verified: `apps/api/test/email-module.test.mjs` — English customer receives English content; editing DE
+    never clobbers EN.
+
+**Also landed in this pass (email workspace redesign — the D2 design session):**
+- **Module-gated events.** The three hosting mails ship with `virtualmin`, the domain mail with `resellbiz`
+  (`email-events.ts` `category` + `module`). When a module is inactive the events are hidden from the editor
+  **and** skipped at dispatch (`isEmailEventModuleActive`).
+- **Grouped list** (Billing / Account / Hosting / Domain / Support) with a per-email **active/inactive toggle**.
+- **DND-Kit** replaces the hand-rolled HTML5 drag for content blocks.
+- **Viewport-accurate preview** — one iframe rendered at the selected device's real width (Desktop 640 /
+  Tablet 480 / Mobile 375) and scaled to fit, so the desktop preview is a true desktop render, not a
+  near-copy of mobile.
+- **New template** (`DEFAULT_EMAIL_TEMPLATE_HTML` + `email-layouts.ts`): 4px accent rule, rounded card, navy
+  header lockup, receipt-style tables, accent-blue (#0077b6) CTA. Email-safe tables/inline styles; saved
+  templates stay compatible. New editor strings added to `admin.json` de+en.
 
 ### 7.3 Sales vs support ticket routing
 - Formalize the convention: admin-defined per department whether it's **open to non-clients** (sales) or

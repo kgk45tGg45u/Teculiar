@@ -38,16 +38,33 @@ test("email module exposes admin settings, placeholders, logs, and admin UI rout
   assert.ok(existsSync(new URL("../../web/app/admin/emails/logs/page.tsx", import.meta.url)));
 });
 
-test("email template admin UI has live code preview and mobile desktop frames", async () => {
+test("email admin UI: DND-Kit blocks, per-language switch, active toggle, grouped list, viewport preview", async () => {
   const forms = await readFile(new URL("../../web/components/admin/email-admin-editor.tsx", import.meta.url), "utf8");
 
   assert.match(forms, /EmailTemplateEditor/);
   assert.match(forms, /EmailBlockPalette/);
-  assert.match(forms, /draggable/);
   assert.match(forms, /layoutBlocks/);
-  assert.match(forms, /EmailPreviewFrames html=\{previewHtml\}/);
+  // DND-Kit replaced the hand-rolled HTML5 drag for content blocks.
+  assert.match(forms, /@dnd-kit\/core/);
+  assert.match(forms, /useSortable/);
+  assert.match(forms, /DndContext/);
+  assert.match(forms, /arrayMove/);
+  // Per-language editing (fixes the German-only bug + Phase 7.2).
+  assert.match(forms, /LanguageSwitcher/);
+  assert.match(forms, /locale: activeLocale/);
+  assert.match(forms, /\?locale=\$\{encodeURIComponent/);
+  // Active/inactive toggle per event row.
+  assert.match(forms, /emailToggle/);
+  assert.match(forms, /updateEnabled/);
+  // Grouped list.
+  assert.match(forms, /groupEvents/);
+  // Viewport-accurate device preview (Desktop / Tablet / Mobile), scaled + contained.
+  assert.match(forms, /EmailDevicePreview/);
+  assert.match(forms, /PREVIEW_DEVICES/);
   assert.match(forms, /srcDoc=\{html\}/);
+  assert.match(forms, /ResizeObserver/);
   assert.match(forms, /mobile/i);
+  assert.match(forms, /tablet/i);
   assert.match(forms, /desktop/i);
 });
 
@@ -284,6 +301,65 @@ test("smtp-enabled test emails can be captured by Mailpit-compatible SMTP", asyn
   assert.match(received[0], /client@example.test/);
 });
 
+test("module-gated events are hidden in the editor and never dispatched when the module is inactive", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", adminEmails: [] }],
+    ["emailEventConfigs", { domain_information: { enabled: true, recipients: ["client"] } }],
+    ["module.virtualmin.active", 0],
+    ["module.resellbiz.active", false]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  const admin = await email.adminSettings();
+  const keys = admin.events.map((event) => event.key);
+  // The three hosting mails (virtualmin) and the domain mail (resellbiz) disappear entirely.
+  for (const gated of ["hosting_account_information", "hosting_account_suspended", "hosting_account_terminated", "domain_information"]) {
+    assert.ok(!keys.includes(gated), `${gated} should be hidden`);
+  }
+  assert.ok(keys.includes("new_invoice"));
+  assert.deepEqual(admin.activeModules, []);
+
+  // Dispatch is blocked for gated events even if something triggers them.
+  await email.dispatch("domain_information", { user: { email: "c@example.test", id: "u1", name: "Ada" } });
+  await email.dispatch("hosting_account_information", { user: { email: "c@example.test", id: "u1", name: "Ada" } });
+  assert.equal(logs.length, 0);
+
+  // With the modules active, the events come back and dispatch works.
+  settings.set("module.virtualmin.active", 1);
+  settings.set("module.resellbiz.active", true);
+  const active = await email.adminSettings();
+  assert.ok(active.events.map((event) => event.key).includes("domain_information"));
+  await email.dispatch("domain_information", { user: { email: "c@example.test", id: "u1", name: "Ada" } });
+  assert.equal(logs.length, 1);
+});
+
+test("per-locale editing keeps each language separate and dispatches in the recipient's language", async () => {
+  const logs = [];
+  const settings = new Map([
+    ["emailSmtp", { fromEmail: "support@example.test", adminEmails: [] }],
+    ["i18n.languages", { main: "de", others: ["en"] }]
+  ]);
+  const email = new EmailService(fakePrisma(settings, logs));
+
+  await email.updateSettings({ events: [{ key: "new_invoice", enabled: true, recipients: ["client"], subject: "DE Rechnung", layoutBlocks: [{ id: "t", type: "text", content: "DE-Text {{customer_name}}" }] }] }, "de");
+  await email.updateSettings({ events: [{ key: "new_invoice", enabled: true, recipients: ["client"], subject: "EN Invoice", layoutBlocks: [{ id: "t", type: "text", content: "EN text {{customer_name}}" }] }] }, "en");
+
+  const de = await email.adminSettings("de");
+  const en = await email.adminSettings("en");
+  assert.equal(en.locale, "en");
+  assert.deepEqual(en.languages, { main: "de", others: ["en"] });
+  assert.equal(de.events.find((event) => event.key === "new_invoice").subject, "DE Rechnung");
+  assert.equal(en.events.find((event) => event.key === "new_invoice").subject, "EN Invoice");
+
+  // An English customer receives the English content — the German-only bug is gone.
+  await email.dispatch("new_invoice", { user: { email: "c@example.test", id: "u1", locale: "en", name: "Ada" } });
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].subject, "EN Invoice");
+  assert.match(logs[0].payload.html, /EN text Ada/);
+  assert.doesNotMatch(logs[0].payload.html, /DE-Text/);
+});
+
 function fakePrisma(settings, logs) {
   return {
     emailLog: {
@@ -293,12 +369,27 @@ function fakePrisma(settings, logs) {
       },
       findMany: async () => logs
     },
-    emailTemplate: {
-      findUnique: async () => null,
-      upsert: async ({ create }) => create
-    },
+    // Persist per key+locale so per-language editing can be asserted end-to-end.
+    emailTemplate: (() => {
+      const store = new Map();
+      const idOf = (where) => `${where.key_locale.key}:${where.key_locale.locale}`;
+      return {
+        findUnique: async ({ where }) => store.get(idOf(where)) ?? null,
+        upsert: async ({ create, update, where }) => {
+          const existing = store.get(idOf(where));
+          const row = existing ? { ...existing, ...update } : { ...create };
+          store.set(idOf(where), row);
+          return row;
+        }
+      };
+    })(),
     systemSetting: {
       findUnique: async ({ where }) => settings.has(where.key) ? { key: where.key, value: settings.get(where.key) } : null,
+      // Module active-state lookup (email dispatch reads module.<name>.active). Return only the
+      // stored rows in the requested key set; absent rows default the module to active.
+      findMany: async ({ where }) => (where?.key?.in ?? [])
+        .filter((key) => settings.has(key))
+        .map((key) => ({ key, value: settings.get(key) })),
       upsert: async ({ create, update, where }) => {
         settings.set(where.key, update.value);
         return { ...create, value: update.value };

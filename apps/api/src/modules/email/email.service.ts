@@ -5,7 +5,7 @@ import tls from "node:tls";
 import { readMainCurrency, readMainLanguage } from "../../common/currency";
 import { formatDate, formatMoney, loadDictionary } from "../../common/i18n";
 import { PrismaService } from "../prisma/prisma.service";
-import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, type EmailRecipientType } from "./email-events";
+import { DEFAULT_EMAIL_TEMPLATE_HTML, EMAIL_CATEGORY_ORDER, EMAIL_EVENTS, defaultEmailEventConfigs, emailEventDefinition, isEmailEventModuleActive, type EmailRecipientType } from "./email-events";
 import { emailLayoutBlockLibrary, normalizeEmailLayoutBlocks, renderEmailLayout, type EmailDict, type EmailLayoutBlock } from "./email-layouts";
 import { emailPlaceholdersForModules } from "./email-placeholders";
 import { toQuotedPrintable } from "./quoted-printable";
@@ -55,33 +55,44 @@ type EmailSmtpSettings = {
 export class EmailService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async adminSettings() {
-    // The admin editor shows defaults in the store's main language; DB overrides still win.
-    const [mainLang, mainCurrency] = await Promise.all([this.mainLanguage(), this.mainCurrency()]);
-    const dict = loadDictionary(mainLang).email;
-    const sampleVars = defaultTestVariables(mainCurrency, mainLang);
-    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, activeModules, brandLogoUrl] = await Promise.all([
+  // `locale` selects which language the editor authors: the requested one when it is a configured
+  // language, else the store's main language. Content (subject/body/blocks) is per-locale; the
+  // active toggle + recipients are global. Module-gated events (hosting/domain) are hidden entirely
+  // when their provisioning module is inactive.
+  async adminSettings(locale?: string) {
+    const [mainCurrency, languages, activeModules] = await Promise.all([this.mainCurrency(), this.configuredLanguages(), this.activeModules()]);
+    const editLocale = isConfiguredLanguage(locale, languages) ? locale! : languages.main;
+    const dict = loadDictionary(editLocale).email;
+    const sampleVars = defaultTestVariables(mainCurrency, editLocale);
+    const [smtp, eventConfigs, layoutConfigs, templateHtml, testVariables, templates, logs, brandLogoUrl] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
-      this.layoutConfigs(),
+      this.layoutConfigs(editLocale),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.settingJson<Record<string, unknown>>("emailTestVariables", sampleVars),
-      Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, mainLang))),
+      Promise.all(EMAIL_EVENTS.map((event) => this.templateFor(event.key, editLocale))),
       this.listLogs(100),
-      this.activeModules(),
       this.emailBrandLogoUrl()
     ]);
 
     return {
       brandLogoUrl,
-      events: EMAIL_EVENTS.map((event, index) => ({
-        ...event,
-        enabled: eventConfigs[event.key]?.enabled ?? true,
-        layoutBlocks: normalizeEmailLayoutBlocks(layoutConfigs[event.key], event.key, templates[index]?.body ?? packBody(dict, event.key, event.body), dict),
-        recipients: eventConfigs[event.key]?.recipients ?? event.defaultRecipients,
-        body: templates[index]?.body ?? packBody(dict, event.key, event.body),
-        subject: templates[index]?.subject ?? packSubject(dict, event.key, event.subject)
-      })),
+      categoryOrder: EMAIL_CATEGORY_ORDER,
+      // The language being edited + the configured set, so the editor can render its switcher.
+      locale: editLocale,
+      languages,
+      activeModules,
+      events: EMAIL_EVENTS
+        .map((event, index) => ({ event, index }))
+        .filter(({ event }) => isEmailEventModuleActive(event.key, activeModules))
+        .map(({ event, index }) => ({
+          ...event,
+          enabled: eventConfigs[event.key]?.enabled ?? true,
+          layoutBlocks: normalizeEmailLayoutBlocks(layoutConfigs[event.key], event.key, templates[index]?.body ?? packBody(dict, event.key, event.body), dict),
+          recipients: eventConfigs[event.key]?.recipients ?? event.defaultRecipients,
+          body: templates[index]?.body ?? packBody(dict, event.key, event.body),
+          subject: templates[index]?.subject ?? packSubject(dict, event.key, event.subject)
+        })),
       blockLibrary: emailLayoutBlockLibrary(dict),
       logs,
       // Only show shortcodes contributed by modules that are currently active.
@@ -91,6 +102,16 @@ export class EmailService {
       // Merge defaults under any saved overrides so newly added placeholders still preview.
       testVariables: { ...sampleVars, ...testVariables }
     };
+  }
+
+  // The configured store languages ({ main, others }) from the i18n.languages setting.
+  private async configuredLanguages(): Promise<{ main: string; others: string[] }> {
+    const raw = await this.settingJson<{ main?: unknown; others?: unknown }>("i18n.languages", {});
+    const main = typeof raw.main === "string" && raw.main ? raw.main : "de";
+    const others = Array.isArray(raw.others)
+      ? raw.others.filter((item): item is string => typeof item === "string" && Boolean(item) && item !== main)
+      : ["en"].filter((item) => item !== main);
+    return { main, others };
   }
 
   // Which provisioning modules are active. Modules default to active when no setting row
@@ -114,12 +135,15 @@ export class EmailService {
     return modules;
   }
 
+  // `locale` selects which language's content to save. Subject/body/blocks are written per locale
+  // so editing German never clobbers English; the active toggle + recipients (event configs) are
+  // global and merged over the stored set so hidden (module-gated) events keep their state.
   async updateSettings(input: {
     events?: EmailEventPatch[];
     smtp?: EmailSmtpSettings;
     templateHtml?: string;
     testVariables?: Record<string, unknown>;
-  }) {
+  }, locale?: string) {
     const tasks: Array<Promise<unknown>> = [];
     if (input.smtp) {
       tasks.push(this.saveSmtpSettings(input.smtp));
@@ -131,12 +155,12 @@ export class EmailService {
       tasks.push(this.upsertSetting("emailTestVariables", input.testVariables));
     }
     if (input.events) {
-      // Overrides are stored against the main language (the locale the admin editor shows).
-      const mainLang = await this.mainLanguage();
-      const dict = loadDictionary(mainLang).email;
-      const configs: Record<string, EmailEventConfig> = {};
-      const currentLayouts = await this.layoutConfigs();
-      const layouts: Record<string, EmailLayoutBlock[]> = { ...currentLayouts };
+      const languages = await this.configuredLanguages();
+      const editLocale = isConfiguredLanguage(locale, languages) ? locale! : languages.main;
+      const dict = loadDictionary(editLocale).email;
+      const configs: Record<string, EmailEventConfig> = { ...(await this.settingJson<Record<string, EmailEventConfig>>("emailEventConfigs", defaultEmailEventConfigs())) };
+      const allLayouts = await this.layoutConfigsAll();
+      const localeLayouts: Record<string, EmailLayoutBlock[]> = { ...(allLayouts[editLocale] ?? {}) };
       for (const event of input.events) {
         const definition = emailEventDefinition(event.key);
         if (!definition) {
@@ -148,11 +172,11 @@ export class EmailService {
           recipients: normalizedRecipients(event.recipients, definition.defaultRecipients)
         };
         tasks.push(this.prisma.emailTemplate.upsert({
-          where: { key_locale: { key: event.key, locale: mainLang } },
+          where: { key_locale: { key: event.key, locale: editLocale } },
           create: {
             body: event.body ?? fallbackBody,
             key: event.key,
-            locale: mainLang,
+            locale: editLocale,
             subject: event.subject ?? packSubject(dict, event.key, definition.subject)
           },
           update: {
@@ -161,15 +185,15 @@ export class EmailService {
           }
         }));
         if (Array.isArray(event.layoutBlocks)) {
-          layouts[event.key] = normalizeEmailLayoutBlocks(event.layoutBlocks, event.key, event.body ?? fallbackBody, dict);
+          localeLayouts[event.key] = normalizeEmailLayoutBlocks(event.layoutBlocks, event.key, event.body ?? fallbackBody, dict);
         }
       }
       tasks.push(this.upsertSetting("emailEventConfigs", configs));
-      tasks.push(this.upsertSetting("emailLayoutBlocks", layouts));
+      tasks.push(this.upsertSetting("emailLayoutBlocks", { ...allLayouts, [editLocale]: localeLayouts }));
     }
 
     await Promise.all(tasks);
-    return this.adminSettings();
+    return this.adminSettings(locale);
   }
 
   async sendTest(eventKey: string, context: Record<string, unknown> = {}, to?: string) {
@@ -193,14 +217,19 @@ export class EmailService {
     const mainLang = await this.mainLanguage();
     const recipientLocale = resolveLocale(input.user?.locale, mainLang);
     const dict = loadDictionary(recipientLocale).email;
-    const [smtp, configs, layoutConfigs, templateHtml, template, brandLogoUrl] = await Promise.all([
+    const [smtp, configs, layoutConfigs, templateHtml, template, brandLogoUrl, activeModules] = await Promise.all([
       this.smtpSettings(),
       this.eventConfigs(),
-      this.layoutConfigs(),
+      this.layoutConfigs(recipientLocale),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.templateFor(eventKey, recipientLocale),
-      this.emailBrandLogoUrl()
+      this.emailBrandLogoUrl(),
+      this.activeModules()
     ]);
+    // A module-gated event (hosting/domain) whose module is off is never sent.
+    if (!isEmailEventModuleActive(eventKey, activeModules)) {
+      return [];
+    }
     const config = configs[eventKey] ?? { enabled: true, recipients: definition.defaultRecipients };
     if (config.enabled === false) {
       return [];
@@ -303,13 +332,18 @@ export class EmailService {
     const mainLang = await this.mainLanguage();
     const recipientLocale = resolveLocale(user.locale, mainLang);
     const dict = loadDictionary(recipientLocale).email;
-    const [smtp, layoutConfigs, templateHtml, template, brandLogoUrl] = await Promise.all([
+    const [smtp, layoutConfigs, templateHtml, template, brandLogoUrl, activeModules] = await Promise.all([
       this.smtpSettings(),
-      this.layoutConfigs(),
+      this.layoutConfigs(recipientLocale),
       this.settingString("emailTemplateHtml", DEFAULT_EMAIL_TEMPLATE_HTML),
       this.templateFor(eventKey, recipientLocale),
-      this.emailBrandLogoUrl()
+      this.emailBrandLogoUrl(),
+      this.activeModules()
     ]);
+    // A module-gated event (hosting/domain) whose module is off is never sent, even on manual send.
+    if (!isEmailEventModuleActive(eventKey, activeModules)) {
+      return [];
+    }
     const context = normalizeContext({
       brand_name: smtp.fromName || "Teculiar",
       current_date: formatDate(new Date(), recipientLocale),
@@ -498,8 +532,22 @@ export class EmailService {
     return configs;
   }
 
-  private async layoutConfigs() {
-    return this.settingJson<Record<string, EmailLayoutBlock[]>>("emailLayoutBlocks", {});
+  // Saved layout blocks, stored per locale: `{ [locale]: { [eventKey]: blocks } }`. The legacy flat
+  // shape (`{ [eventKey]: blocks }`, i.e. any top-level value is an array) is migrated on read under
+  // the store's main language, so old saves keep rendering and only get split once re-saved.
+  private async layoutConfigsAll(): Promise<Record<string, Record<string, EmailLayoutBlock[]>>> {
+    const raw = await this.settingJson<Record<string, unknown>>("emailLayoutBlocks", {});
+    const isLegacyFlat = Object.values(raw).some((value) => Array.isArray(value));
+    if (isLegacyFlat) {
+      const mainLang = await this.mainLanguage();
+      return { [mainLang]: raw as Record<string, EmailLayoutBlock[]> };
+    }
+    return raw as Record<string, Record<string, EmailLayoutBlock[]>>;
+  }
+
+  private async layoutConfigs(locale: string): Promise<Record<string, EmailLayoutBlock[]>> {
+    const all = await this.layoutConfigsAll();
+    return all[locale] ?? {};
   }
 
   private async smtpSettings() {
@@ -607,6 +655,12 @@ function emailFrom(smtp: EmailSmtpSettings) {
 // Email language = the up-to-date recipient locale, falling back to the store's main language.
 function resolveLocale(value: string | null | undefined, mainLang: string): string {
   return typeof value === "string" && value ? value : mainLang;
+}
+
+// Whether `locale` is one the store actually configures (main or a secondary) — the editor may only
+// author configured languages; anything else falls back to the main language.
+function isConfiguredLanguage(locale: string | undefined, languages: { main: string; others: string[] }): locale is string {
+  return Boolean(locale) && (locale === languages.main || languages.others.includes(locale!));
 }
 
 function packSubject(dict: EmailDict, key: string, fallback: string): string {

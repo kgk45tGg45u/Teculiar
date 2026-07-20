@@ -1,9 +1,12 @@
 "use client";
 
-import type { DragEvent } from "react";
-import { GripVertical, Mail, Plus, Save, Send, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailLayoutBlock, type ApiEmailLog } from "@teculiar/web-core/lib/api";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Mail, Monitor, Plus, Save, Send, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailCategory, type ApiEmailLayoutBlock, type ApiEmailLog } from "@teculiar/web-core/lib/api";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -21,6 +24,7 @@ type EmailSettingsPatch = {
     recipients?: string[];
     subject?: string;
   }>;
+  locale?: string;
   smtp?: ApiEmailAdminSettings["smtp"];
   templateHtml?: string;
   testVariables?: Record<string, unknown>;
@@ -28,6 +32,17 @@ type EmailSettingsPatch = {
 
 type EmailEvent = ApiEmailAdminSettings["events"][number];
 type EmailPlaceholder = ApiEmailAdminSettings["placeholders"][number];
+
+// Preview viewports. Each renders the email at its true logical width, scaled to fit the pane —
+// so the desktop preview is a real desktop render, not a near-copy of the mobile one.
+const PREVIEW_DEVICES = {
+  desktop: { icon: Monitor, width: 640 },
+  tablet: { icon: Tablet, width: 480 },
+  mobile: { icon: Smartphone, width: 375 }
+} as const;
+type PreviewDevice = keyof typeof PREVIEW_DEVICES;
+
+const CATEGORY_ORDER: ApiEmailCategory[] = ["billing", "account", "hosting", "domain", "support"];
 
 // Each shortcode group gets its own tag colour so admins can tell at a glance what a
 // placeholder relates to (tickets, invoices, the Virtualmin module, …).
@@ -45,12 +60,40 @@ const PLACEHOLDER_GROUP_CLASS: Record<string, string | undefined> = {
 };
 
 export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC" }: { initial: ApiEmailAdminSettings; section?: "emails" | "logs" | "settings" | "template"; timezone?: string }) {
-  const c = getDictionary(useLocale()).admin.emailEditor;
+  const uiLocale = useLocale();
+  const c = getDictionary(uiLocale).admin.emailEditor;
   const [settings, setSettings] = useState(initial);
+  const [activeLocale, setActiveLocale] = useState(initial.locale ?? uiLocale);
   const [message, setMessage] = useState("");
+  const bootstrapped = useRef(false);
+
+  // On first mount, follow the admin's UI language so toggling the dashboard to English shows the
+  // English email content (the fix for "I only ever see the German version"). Only for the events /
+  // template sections, and only when the UI language is a configured one that differs from the load.
+  useEffect(() => {
+    if (bootstrapped.current) {
+      return;
+    }
+    bootstrapped.current = true;
+    const configured = [settings.languages?.main, ...(settings.languages?.others ?? [])].filter(Boolean);
+    if ((section === "emails" || section === "template") && configured.includes(uiLocale) && uiLocale !== (settings.locale ?? uiLocale)) {
+      void loadLocale(uiLocale);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadLocale(locale: string) {
+    const next = await fetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(locale)}`, { headers: authHeaders() })
+      .then((item) => item.json())
+      .catch(() => null);
+    if (next?.events) {
+      setSettings(next as ApiEmailAdminSettings);
+      setActiveLocale(next.locale ?? locale);
+    }
+  }
 
   async function refresh() {
-    const next = await fetch(`${API_BASE_URL}/admin/dev/emails`, { headers: authHeaders() }).then((item) => item.json()).catch(() => settings);
+    const next = await fetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(activeLocale)}`, { headers: authHeaders() }).then((item) => item.json()).catch(() => settings);
     setSettings(next);
   }
 
@@ -63,6 +106,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
     const responsePayload = await response.clone().json().catch(() => undefined);
     if (response.ok && responsePayload?.events) {
       setSettings(responsePayload as ApiEmailAdminSettings);
+      setActiveLocale(responsePayload.locale ?? activeLocale);
     }
     setMessage(await notifyResponse(response, c.settingsSaved, c.settingsFailed));
     return response.ok;
@@ -86,8 +130,36 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
       {section === "settings" ? <EmailSmtpSettingsSection settings={settings} save={save} sendTest={sendTest} /> : null}
       {section === "template" ? <EmailTemplateEditor settings={settings} save={save} /> : null}
       {section === "logs" ? <EmailLogsTable logs={settings.logs} timezone={timezone} /> : null}
-      {section === "emails" ? <EmailEventsEditor settings={settings} save={save} sendTest={sendTest} /> : null}
+      {section === "emails" ? (
+        <EmailEventsEditor
+          key={activeLocale}
+          activeLocale={activeLocale}
+          onLocale={loadLocale}
+          settings={settings}
+          save={save}
+          sendTest={sendTest}
+        />
+      ) : null}
       {message ? <p>{message}</p> : null}
+    </div>
+  );
+}
+
+// A segmented language switcher, rendered when the store configures more than one language.
+function LanguageSwitcher({ active, languages, onLocale }: { active: string; languages?: { main: string; others: string[] }; onLocale: (locale: string) => void }) {
+  const c = getDictionary(useLocale()).admin.emailEditor;
+  const codes = [languages?.main, ...(languages?.others ?? [])].filter((code): code is string => Boolean(code));
+  if (codes.length < 2) {
+    return null;
+  }
+  return (
+    <div className={styles.emailLangSwitch}>
+      <span className={styles.emailLangLabel}>{c.language}</span>
+      <div className={styles.emailLangTabs} role="group" aria-label={c.language}>
+        {codes.map((code) => (
+          <button aria-pressed={code === active} key={code} onClick={() => onLocale(code)} type="button">{code.toUpperCase()}</button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -200,12 +272,14 @@ function EmailTemplateEditor({ save, settings }: {
         <PlaceholderTray placeholders={settings.placeholders} />
         <Button icon={Save} type="submit">{c.saveTemplate}</Button>
       </form>
-      <EmailPreviewFrames html={previewHtml} />
+      <EmailDevicePreview html={previewHtml} />
     </div>
   );
 }
 
-function EmailEventsEditor({ save, sendTest, settings }: {
+function EmailEventsEditor({ activeLocale, onLocale, save, sendTest, settings }: {
+  activeLocale: string;
+  onLocale: (locale: string) => void;
   save: (payload: EmailSettingsPatch) => Promise<boolean>;
   sendTest: (eventKey: string) => Promise<void>;
   settings: ApiEmailAdminSettings;
@@ -214,6 +288,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
   const [events, setEvents] = useState(settings.events);
   const [selectedKey, setSelectedKey] = useState(settings.events[0]?.key ?? "");
   const selected = events.find((event) => event.key === selectedKey) ?? events[0];
+  const groups = useMemo(() => groupEvents(events, settings.categoryOrder), [events, settings.categoryOrder]);
   const previewHtml = selected ? renderEmailPreview(settings.templateHtml, selected.layoutBlocks, selected.subject, settings.testVariables, settings.brandLogoUrl) : "";
 
   function updateSelected(patch: Partial<EmailEvent>) {
@@ -224,12 +299,17 @@ function EmailEventsEditor({ save, sendTest, settings }: {
     setEvents((items) => items.map((event) => event.key === key ? { ...event, ...patch } : event));
   }
 
+  function updateEnabled(key: string, enabled: boolean) {
+    setEvents((items) => items.map((event) => event.key === key ? { ...event, enabled } : event));
+  }
+
   function updateBlocks(layoutBlocks: ApiEmailLayoutBlock[]) {
     updateSelected({ layoutBlocks });
   }
 
   async function submit() {
     await save({
+      locale: activeLocale,
       events: events.map((event) => ({
         body: event.body,
         enabled: event.enabled,
@@ -248,11 +328,37 @@ function EmailEventsEditor({ save, sendTest, settings }: {
   return (
     <div className={styles.emailDesigner}>
       <aside className={styles.emailEventList}>
-        {events.map((event) => (
-          <button aria-current={event.key === selected.key ? "page" : undefined} key={event.key} onClick={() => setSelectedKey(event.key)} type="button">
-            <strong>{event.subject}</strong>
-            <span>{event.trigger}</span>
-          </button>
+        <LanguageSwitcher active={activeLocale} languages={settings.languages} onLocale={onLocale} />
+        {groups.map((group) => (
+          <div className={styles.emailEventGroup} key={group.category}>
+            <div className={styles.emailEventGroupHead}>
+              <span>{categoryLabel(group.category, c)}</span>
+              {group.module ? <span className={`${styles.emailModuleTag} ${group.category === "domain" ? styles.emailModuleDomain : styles.emailModuleHosting}`}>{group.module}</span> : null}
+            </div>
+            {group.items.map((event) => (
+              <div
+                aria-current={event.key === selected.key ? "true" : undefined}
+                className={`${styles.emailEventRow} ${event.enabled ? "" : styles.emailEventRowOff}`}
+                key={event.key}
+                onClick={() => setSelectedKey(event.key)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(keyEvent) => { if (keyEvent.key === "Enter" || keyEvent.key === " ") { keyEvent.preventDefault(); setSelectedKey(event.key); } }}
+              >
+                <span className={styles.emailEventText}>
+                  <strong>{event.subject}</strong>
+                  <span>{event.trigger}</span>
+                </span>
+                <button
+                  aria-label={c.active}
+                  aria-pressed={event.enabled}
+                  className={styles.emailToggle}
+                  onClick={(toggleEvent) => { toggleEvent.stopPropagation(); updateEnabled(event.key, !event.enabled); }}
+                  type="button"
+                />
+              </div>
+            ))}
+          </div>
         ))}
       </aside>
       <form action={submit} className={styles.form}>
@@ -273,7 +379,7 @@ function EmailEventsEditor({ save, sendTest, settings }: {
           <Button icon={Send} type="button" variant="secondary" onClick={() => sendTest(selected.key)}>{c.sendTest}</Button>
         </div>
       </form>
-      <EmailPreviewFrames html={previewHtml} />
+      <EmailDevicePreview html={previewHtml} />
     </div>
   );
 }
@@ -287,13 +393,7 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
   return (
     <div className={styles.emailBlockPalette}>
       {library.map((block) => (
-        <button
-          draggable
-          key={block.type}
-          onClick={() => onAdd(block.type)}
-          onDragStart={(event) => event.dataTransfer.setData("application/email-block", block.type)}
-          type="button"
-        >
+        <button key={block.type} onClick={() => onAdd(block.type)} type="button">
           <Plus size={14} />
           <span>{block.label}</span>
         </button>
@@ -302,148 +402,68 @@ function EmailBlockPalette({ blockLibrary, onAdd }: {
   );
 }
 
-// Drag-and-drop block list. Reordering removes the dragged block first and re-inserts it
-// relative to the hovered block based on the pointer position (top half = before, bottom
-// half = after), which avoids the off-by-one jumps the previous implementation had. Only the
-// grip handle is draggable so editing the fields never starts an accidental drag.
+// Content-block list, reordered with DND-Kit (pointer + keyboard sensors). Only the grip handle
+// carries the drag listeners, so editing a block's fields never starts a drag.
 function EmailBlockList({ blocks, onChange }: { blocks: ApiEmailLayoutBlock[]; onChange: (blocks: ApiEmailLayoutBlock[]) => void }) {
   const c = getDictionary(useLocale()).admin.emailEditor;
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const [overPos, setOverPos] = useState<"after" | "before">("before");
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
-  function clearDrag() {
-    setDragId(null);
-    setOverId(null);
-  }
-
-  function moveBlock(fromId: string, targetId: string | null, position: "after" | "before") {
-    if (fromId === targetId) {
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
       return;
     }
-    const moved = blocks.find((block) => block.id === fromId);
-    if (!moved) {
-      return;
+    const from = blocks.findIndex((block) => block.id === active.id);
+    const to = blocks.findIndex((block) => block.id === over.id);
+    if (from >= 0 && to >= 0) {
+      onChange(arrayMove(blocks, from, to));
     }
-    const without = blocks.filter((block) => block.id !== fromId);
-    const targetIndex = targetId ? without.findIndex((block) => block.id === targetId) : -1;
-    if (targetIndex < 0) {
-      without.push(moved);
-    } else {
-      without.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, moved);
-    }
-    onChange(without);
-  }
-
-  function insertNew(type: ApiEmailLayoutBlock["type"], targetId: string | null, position: "after" | "before") {
-    const next = [...blocks];
-    const targetIndex = targetId ? next.findIndex((block) => block.id === targetId) : -1;
-    const block = createBlock(type);
-    if (targetIndex < 0) {
-      next.push(block);
-    } else {
-      next.splice(position === "after" ? targetIndex + 1 : targetIndex, 0, block);
-    }
-    onChange(next);
-  }
-
-  function positionFor(event: DragEvent<HTMLElement>): "after" | "before" {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return event.clientY - rect.top > rect.height / 2 ? "after" : "before";
-  }
-
-  // A drag carries a block operation when it sets either the "new block" type (palette) or a
-  // block id (reorder). Plain-text shortcode drops set neither — we must leave those alone so the
-  // browser performs its native text insertion into the targeted input/textarea.
-  function isBlockDrag(event: DragEvent<HTMLElement>) {
-    return event.dataTransfer.types.includes("application/email-block") || event.dataTransfer.types.includes("application/email-block-id");
-  }
-
-  function onSummaryDragOver(event: DragEvent<HTMLElement>, blockId: string) {
-    if (!isBlockDrag(event)) {
-      return;
-    }
-    event.preventDefault();
-    setOverId(blockId);
-    setOverPos(positionFor(event));
-  }
-
-  function onSummaryDrop(event: DragEvent<HTMLElement>, blockId: string) {
-    if (!isBlockDrag(event)) {
-      return;
-    }
-    event.preventDefault();
-    // Stop the drop from also bubbling to the list container handler, which would otherwise
-    // run with a stale `blocks` closure and clobber this reorder (e.g. move the block to the end).
-    event.stopPropagation();
-    const position = positionFor(event);
-    const newType = event.dataTransfer.getData("application/email-block");
-    const moveId = event.dataTransfer.getData("application/email-block-id");
-    if (newType) {
-      insertNew(newType as ApiEmailLayoutBlock["type"], blockId, position);
-    } else if (moveId) {
-      moveBlock(moveId, blockId, position);
-    }
-    clearDrag();
-  }
-
-  function onListDragOver(event: DragEvent<HTMLElement>) {
-    if (isBlockDrag(event)) {
-      event.preventDefault();
-    }
-  }
-
-  function onListDrop(event: DragEvent<HTMLElement>) {
-    if (!isBlockDrag(event)) {
-      return;
-    }
-    event.preventDefault();
-    const newType = event.dataTransfer.getData("application/email-block");
-    const moveId = event.dataTransfer.getData("application/email-block-id");
-    if (newType) {
-      insertNew(newType as ApiEmailLayoutBlock["type"], null, "after");
-    } else if (moveId) {
-      moveBlock(moveId, null, "after");
-    }
-    clearDrag();
   }
 
   return (
-    <div className={styles.emailBlockList} onDragOver={onListDragOver} onDrop={onListDrop}>
-      {blocks.map((block) => (
-        <details
-          className={styles.emailBuilderBlock}
-          data-drop={overId === block.id && dragId ? overPos : undefined}
-          data-dragging={dragId === block.id ? "true" : undefined}
-          key={block.id}
-          open
+    <DndContext id="email-block-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
+        <div className={styles.emailBlockList}>
+          {blocks.map((block) => (
+            <SortableBlock
+              block={block}
+              key={block.id}
+              onPatch={(patch) => onChange(blocks.map((item) => item.id === block.id ? { ...item, ...patch } : item))}
+              onRemove={() => onChange(blocks.filter((item) => item.id !== block.id))}
+            />
+          ))}
+          {blocks.length ? null : <p className={styles.emailBlockHint}>{c.addBlockHint}</p>}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableBlock({ block, onPatch, onRemove }: { block: ApiEmailLayoutBlock; onPatch: (patch: Partial<ApiEmailLayoutBlock>) => void; onRemove: () => void }) {
+  const c = getDictionary(useLocale()).admin.emailEditor;
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
+  const style = { opacity: isDragging ? 0.5 : undefined, transform: CSS.Transform.toString(transform), transition };
+  return (
+    <details className={styles.emailBuilderBlock} data-dragging={isDragging ? "true" : undefined} open ref={setNodeRef} style={style}>
+      <summary>
+        <span
+          aria-label={c.dragToReorder}
+          className={styles.emailBlockGrip}
+          onClick={(event) => event.preventDefault()}
+          {...attributes}
+          {...listeners}
         >
-          <summary onDragOver={(event) => onSummaryDragOver(event, block.id)} onDrop={(event) => onSummaryDrop(event, block.id)}>
-            <span
-              aria-label={c.dragToReorder}
-              className={styles.emailBlockGrip}
-              draggable
-              onDragEnd={clearDrag}
-              onDragStart={(event) => {
-                event.dataTransfer.setData("application/email-block-id", block.id);
-                event.dataTransfer.effectAllowed = "move";
-                setDragId(block.id);
-              }}
-            >
-              <GripVertical size={15} />
-            </span>
-            <strong>{blockLabel(block.type, c)}</strong>
-            <span>{block.title || block.content || block.type}</span>
-            <button onClick={(event) => {
-              event.preventDefault();
-              onChange(blocks.filter((item) => item.id !== block.id));
-            }} type="button"><Trash2 size={15} /></button>
-          </summary>
-          <EmailBlockFields block={block} onChange={(patch) => onChange(blocks.map((item) => item.id === block.id ? { ...item, ...patch } : item))} />
-        </details>
-      ))}
-      {blocks.length ? null : <p className={styles.emailBlockHint}>{c.addBlockHint}</p>}
-    </div>
+          <GripVertical size={15} />
+        </span>
+        <strong>{blockLabel(block.type, c)}</strong>
+        <span>{block.title || block.content || block.type}</span>
+        <button aria-label={c.remove} className={styles.emailBlockDelete} onClick={(event) => { event.preventDefault(); onRemove(); }} type="button"><Trash2 size={15} /></button>
+      </summary>
+      <EmailBlockFields block={block} onChange={onPatch} />
+    </details>
   );
 }
 
@@ -509,17 +529,52 @@ function PlaceholderTray({ placeholders }: { placeholders: EmailPlaceholder[] })
   );
 }
 
-function EmailPreviewFrames({ html }: { html: string }) {
+// Viewport-accurate preview: one iframe rendered at the selected device's real width and scaled
+// to fit the pane, so Desktop / Tablet / Mobile are genuinely different — and always contained.
+function EmailDevicePreview({ html }: { html: string }) {
   const c = getDictionary(useLocale()).admin.emailEditor;
+  const [device, setDevice] = useState<PreviewDevice>("desktop");
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const width = PREVIEW_DEVICES[device].width;
+  const height = 720;
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) {
+      return;
+    }
+    const compute = () => setScale(Math.min(1, (el.clientWidth - 28) / width));
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [width]);
+
+  const deviceLabels: Record<PreviewDevice, string> = { desktop: c.desktop, tablet: c.tablet, mobile: c.mobile };
+
   return (
     <div className={styles.templatePreview}>
-      <div>
-        <strong>{c.desktop}</strong>
-        <iframe className={styles.frameDesktop} srcDoc={html} title={c.desktopPreview} />
+      <div className={styles.deviceToggle} role="group" aria-label={c.previewViewport}>
+        {(Object.keys(PREVIEW_DEVICES) as PreviewDevice[]).map((key) => {
+          const Icon = PREVIEW_DEVICES[key].icon;
+          return (
+            <button aria-pressed={device === key} key={key} onClick={() => setDevice(key)} type="button">
+              <Icon size={14} /> {deviceLabels[key]}
+            </button>
+          );
+        })}
       </div>
-      <div>
-        <strong>{c.mobile}</strong>
-        <iframe className={styles.frameMobile} srcDoc={html} title={c.mobilePreview} />
+      <div className={styles.deviceMeta}><span>{deviceLabels[device]}</span><span>{width}px</span></div>
+      <div className={styles.deviceStage} ref={stageRef}>
+        <div className={styles.deviceFit} style={{ height: height * scale, width: width * scale }}>
+          <iframe
+            className={styles.deviceFrame}
+            srcDoc={html}
+            style={{ height, transform: `scale(${scale})`, transformOrigin: "top left", width }}
+            title={`${deviceLabels[device]} ${c.previewViewport}`}
+          />
+        </div>
       </div>
     </div>
   );
@@ -548,6 +603,34 @@ function EmailLogsTable({ logs, timezone = "UTC" }: { logs: ApiEmailLog[]; timez
       </table>
     </div>
   );
+}
+
+// Groups events by category in the configured order (module-gated groups are already absent when
+// their module is off — the API omits those events entirely).
+function groupEvents(events: EmailEvent[], categoryOrder?: ApiEmailCategory[]) {
+  const order = categoryOrder?.length ? categoryOrder : CATEGORY_ORDER;
+  const groups = new Map<ApiEmailCategory, { category: ApiEmailCategory; items: EmailEvent[]; module?: string }>();
+  for (const event of events) {
+    const category = (event.category ?? "billing") as ApiEmailCategory;
+    const group = groups.get(category) ?? { category, items: [] };
+    group.items.push(event);
+    if (event.module) {
+      group.module = event.module;
+    }
+    groups.set(category, group);
+  }
+  return [...groups.values()].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+}
+
+function categoryLabel(category: ApiEmailCategory, c: EmailDict) {
+  const map: Record<ApiEmailCategory, string> = {
+    account: c.catAccount,
+    billing: c.catBilling,
+    domain: c.catDomain,
+    hosting: c.catHosting,
+    support: c.catSupport
+  };
+  return map[category] ?? category;
 }
 
 function defaultBlockLibrary(c: EmailDict): NonNullable<ApiEmailAdminSettings["blockLibrary"]> {
@@ -610,7 +693,7 @@ function renderBlocks(blocks: ApiEmailLayoutBlock[], context: Record<string, str
       return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-top:1px solid #dde5ef;font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
     }
     if (block.type === "button") {
-      return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:6px;background:#b11226;"><a href="${renderInline(block.href || "#", context)}" style="display:inline-block;padding:13px 18px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
+      return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0;"><tr><td style="border-radius:8px;background:#0077b6;"><a href="${renderInline(block.href || "#", context)}" style="display:inline-block;padding:14px 26px;color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;">${renderInline(block.content || "Open", context)}</a></td></tr></table>`;
     }
     if (block.type === "link") {
       return `<div style="margin:0 0 18px;color:#172033;font-size:16px;line-height:1.65;"><a href="${renderInline(block.href || "#", context)}" style="color:#0b3d91;font-weight:600;text-decoration:underline;">${renderInline(block.content || block.href || "Link", context)}</a></div>`;
@@ -631,7 +714,7 @@ function renderBlocks(blocks: ApiEmailLayoutBlock[], context: Record<string, str
 
 function renderKeyValueTable(block: ApiEmailLayoutBlock, context: Record<string, string>) {
   const rows = (block.rows ?? []).map((row) => `<tr><td style="padding:12px 14px;color:#5b6575;font-size:13px;border-top:1px solid #e6edf5;">${renderInline(row.label || "", context)}</td><td align="right" style="padding:12px 14px;color:#172033;font-size:14px;font-weight:700;border-top:1px solid #e6edf5;">${renderInline(row.value || "", context)}</td></tr>`).join("");
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #dde5ef;border-radius:8px;border-collapse:separate;border-spacing:0;overflow:hidden;"><tr><td colspan="2" style="padding:14px;background:#f8fafc;color:#172033;font-size:15px;font-weight:700;">${renderInline(block.title || "Details", context)}</td></tr>${rows}</table>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #e5ebf2;border-radius:10px;border-collapse:separate;border-spacing:0;overflow:hidden;"><tr><td colspan="2" style="padding:12px 16px;background:#f4f8fc;color:#0b2140;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">${renderInline(block.title || "Details", context)}</td></tr>${rows}</table>`;
 }
 
 function renderDataTable(block: ApiEmailLayoutBlock, context: Record<string, string>) {
