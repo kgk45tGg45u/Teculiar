@@ -82,14 +82,7 @@ export class ProductsRepository {
           }))
         },
         configs: dto.configurableOptions
-          ? {
-              create: dto.configurableOptions.map((option) => ({
-                key: option.key,
-                label: option.label,
-                required: option.required ?? false,
-                values: option.values as Prisma.InputJsonValue
-              }))
-            }
+          ? { create: normalizeConfigs(dto.configurableOptions) }
           : undefined
       },
       include: { category: true, prices: true, configs: true }
@@ -117,12 +110,7 @@ export class ProductsRepository {
           type: dto.type as ProductType,
           configs: {
             deleteMany: {},
-            create: (dto.configurableOptions ?? []).map((option) => ({
-              key: option.key,
-              label: option.label,
-              required: option.required ?? false,
-              values: option.values as Prisma.InputJsonValue
-            }))
+            create: normalizeConfigs(dto.configurableOptions)
           }
         }
       });
@@ -203,9 +191,16 @@ export class ProductsRepository {
     });
   }
 
-  // Soft delete: ServiceAddOn rows keep referencing the addon (billing history + renewals),
-  // so the row must survive; unlinking the products removes it from every order form.
-  deleteAddOn(id: string) {
+  // Remove an addon. If no service ever ordered it, hard-delete it so it actually disappears from
+  // the catalog list (ProductAddOn links cascade away) — the admin clicking "Remove" expects it
+  // gone, not left behind as an inactive row. If existing services reference it (billing history +
+  // renewals, ServiceAddOn has no cascade), the row must survive: retire it instead (deactivate +
+  // unlink from every product) so it's no longer offerable.
+  async deleteAddOn(id: string) {
+    const references = await this.prisma.serviceAddOn.count({ where: { addOnId: id } });
+    if (references === 0) {
+      return this.prisma.addOn.delete({ where: { id } });
+    }
     return this.prisma.addOn.update({
       where: { id },
       data: { active: false, productLinks: { deleteMany: {} } }
@@ -561,4 +556,18 @@ function domainFields(dto: CreateProductDto) {
     domainRequirement,
     freeDomainBillingCycle: resolveFreeDomainCycle(dto.freeDomainBillingCycle, domainRequirement)
   };
+}
+
+// ProductConfig is unique on (productId, key). The admin form can submit the same key twice (a
+// preserved config plus a rebuilt custom-field of the same key) — creating both would blow up the
+// unique index with a raw 500. Collapse duplicate keys (last wins) and coerce each `values` to an
+// array (older/seeded rows sometimes store a bare string), so the write is always valid.
+function normalizeConfigs(options?: Array<{ key: string; label: string; required?: boolean; values: unknown }>) {
+  const byKey = new Map<string, { key: string; label: string; required: boolean; values: Prisma.InputJsonValue }>();
+  for (const option of options ?? []) {
+    if (!option?.key) continue;
+    const values = Array.isArray(option.values) ? option.values : option.values == null ? [] : [option.values];
+    byKey.set(option.key, { key: option.key, label: option.label, required: option.required ?? false, values: values as Prisma.InputJsonValue });
+  }
+  return [...byKey.values()];
 }

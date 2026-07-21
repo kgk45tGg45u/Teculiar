@@ -807,8 +807,8 @@ textarea.input {
   .dash-compact .table td,
   .dash-compact .compact-table th,
   .dash-compact .compact-table td {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
   }
 }
 

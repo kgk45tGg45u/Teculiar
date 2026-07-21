@@ -2810,7 +2810,11 @@ function serviceAction(item: LifecycleItem, service: Record<string, any>) {
   if (["PENDING", "PROVISIONING", "FAILED", "PROVISIONING_FAILED"].includes(service.status)) {
     return "create";
   }
-  return explicit === "create" ? "create" : "none";
+  // Service is already ACTIVE (provisioned). Paying an invoice for it — even one whose line still
+  // carries the original "create" lifecycle action — must NOT re-provision it: that knocked a live
+  // service back to PROVISIONING/pending. Renewals ("renew") and suspended services are handled
+  // above; everything else here is a no-op.
+  return "none";
 }
 
 function domainActionForItem(item: LifecycleItem, domain: Record<string, any>) {

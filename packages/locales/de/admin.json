@@ -125,7 +125,8 @@
     "invoice": "Rechnung",
     "job": "Job",
     "frequency": "Häufigkeit",
-    "whatItDoes": "Was er tut"
+    "whatItDoes": "Was er tut",
+    "clientNo": "Kunde #"
   },
   "card": {
     "clientsBody": "Kunden, Kontakte, Segmente und E-Mail Logs.",

@@ -73,6 +73,10 @@ export function OrdersTable({ locale, orders }: { locale: Locale; orders: ApiOrd
     {
       header: copy.client,
       key: "client",
+      // The always-visible flexible column: the email absorbs the leftover width between order#
+      // and status/total and ellipsizes (header clips too). Keeping it on phones is what fills the
+      // table — with it hidden there was no flexible column, so a big dead gap opened on the right.
+      truncate: true,
       render: (order) => order.user?.email ?? copy.misc.unknown,
       sortValue: (order) => order.user?.email ?? null
     },
@@ -106,6 +110,9 @@ export function OrdersTable({ locale, orders }: { locale: Locale; orders: ApiOrd
     {
       header: copy.total,
       key: "total",
+      // Right-aligned so the amount hugs the table's right edge — otherwise, as the last column
+      // absorbing the slack width, the left-aligned amount left a big empty gap on the right.
+      align: "right",
       render: (order) => <span className="cell-nowrap">{money(order.totalCents, order.currency, locale)}</span>,
       sortValue: (order) => order.totalCents
     }

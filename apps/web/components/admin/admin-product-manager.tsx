@@ -59,10 +59,14 @@ export function AdminCategoryManager() {
     void refreshCategories();
   }, []);
 
-  function editCategory(category: ApiProductCategory) {
+  function applyCategory(category: ApiProductCategory) {
     setEditingCategory(category);
     setNameMap({ ...(category.nameTranslations ?? {}), [mainLocale]: category.nameTranslations?.[mainLocale] ?? category.name });
     setDescriptionMap({ ...(category.descriptionTranslations ?? {}), [mainLocale]: category.descriptionTranslations?.[mainLocale] ?? category.description ?? "" });
+  }
+
+  function editCategory(category: ApiProductCategory) {
+    applyCategory(category);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -107,9 +111,13 @@ export function AdminCategoryManager() {
       notify.error(message);
       return;
     }
+    const saved = (await response.json().catch(() => null)) as ApiProductCategory | null;
     setState({ kind: "ok", message: c.categorySaved });
     notify.success(c.categorySaved);
-    resetCategory();
+    // Retain the saved values in the form instead of resetting it; "New category" clears on demand.
+    if (saved?.id) {
+      applyCategory(saved);
+    }
     await refreshCategories();
   }
 
@@ -273,10 +281,11 @@ export function AdminProductManager() {
 
       setState({ kind: "ok", message: c.productSaved });
       notify.success(c.productSaved);
-      setEditing(undefined);
-      setNameMap({});
-      setDescriptionMap({});
-      setCategoryId("");
+      // Keep the form populated with the saved product instead of clearing it — the admin can keep
+      // editing the same record; the "New product" button (top-right) starts a blank form on demand.
+      if (payload?.id) {
+        applyProduct(payload as ApiProduct);
+      }
       await refreshProducts();
     } catch (error) {
       const message = error instanceof Error ? error.message : c.productSaveFailedShort;
@@ -299,7 +308,9 @@ export function AdminProductManager() {
     await refreshProducts();
   }
 
-  function editProduct(product: ApiProduct) {
+  // Load a product's values into the form. Shared by the row "Edit" button and the post-save
+  // re-populate (which keeps the form filled instead of clearing it).
+  function applyProduct(product: ApiProduct) {
     setEditing(product);
     setNameMap({ ...(product.nameTranslations ?? {}), [mainLocale]: product.nameTranslations?.[mainLocale] ?? product.name });
     setDescriptionMap({ ...(product.descriptionTranslations ?? {}), [mainLocale]: product.descriptionTranslations?.[mainLocale] ?? product.description ?? "" });
@@ -310,6 +321,10 @@ export function AdminProductManager() {
     setDomainRequirement(product.domainRequirement ?? "NOT_NEEDED");
     setFreeDomainCycle(product.freeDomainBillingCycle ?? "");
     setSelectedPlan(String(product.configs?.find((config) => config.key === "virtualmin_plan")?.values?.[0] ?? ""));
+  }
+
+  function editProduct(product: ApiProduct) {
+    applyProduct(product);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -596,9 +611,14 @@ function customFields(value: FormDataEntryValue | null) {
     }));
 }
 
+// Plan-derived / structured configs — surfaced NOT in the free-form "custom fields" text box but
+// preserved verbatim across an edit. Everything else is a custom field, editable via that text box
+// and rebuilt from it on save (so it must not also be preserved — see preservedConfigs).
+const STRUCTURED_CONFIG_KEYS = ["virtualmin_plan", "virtualmin_template", "disk_space", "bandwidth", "databases", "mailboxes", "subdomains"];
+
 function customFieldsValue(product?: ApiProduct) {
   return (product?.configs ?? [])
-    .filter((c) => !["virtualmin_plan", "virtualmin_template", "disk_space", "bandwidth", "databases", "mailboxes", "subdomains"].includes(c.key))
+    .filter((c) => !STRUCTURED_CONFIG_KEYS.includes(c.key))
     .map((c) => c.label)
     .join(", ");
 }
@@ -611,7 +631,13 @@ function virtualminFields(formData: FormData) {
 }
 
 function preservedConfigs(product?: ApiProduct) {
-  return (product?.configs ?? []).filter((c) => !["virtualmin_plan", "virtualmin_template"].includes(c.key));
+  // Keep only the structured configs the custom-fields box does NOT surface (and never the
+  // virtualmin plan/template — virtualminFields() re-supplies those). The free-form configs are
+  // rebuilt by customFields() from the text box, so re-emitting them here would duplicate keys and
+  // trip the ProductConfig (productId,key) unique index → 500 on save (e.g. Cloud VPS Starter).
+  return (product?.configs ?? []).filter(
+    (c) => STRUCTURED_CONFIG_KEYS.includes(c.key) && !["virtualmin_plan", "virtualmin_template"].includes(c.key)
+  );
 }
 
 function priceValue(product: ApiProduct | undefined, cycle: string) {

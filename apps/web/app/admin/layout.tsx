@@ -27,11 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <PageShell
         sidebar={<AdminSidebar brandLogo={settings.siteLogoUrl} />}
         brand={<span className="brand-placeholder">Teculiar</span>}
-        breadcrumbs={
-          <Suspense>
-            <AdminBreadcrumbs variant="inline" />
-          </Suspense>
-        }
+        breadcrumbs={<AdminBreadcrumbs variant="inline" />}
         actions={
           <>
             <Suspense>
@@ -44,7 +40,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </>
         }
         menuLabel={copy.nav.toggleNav}
-        plainPaths={["/admin/login"]}
+        plainPaths={["/admin/login", "/login"]}
       >
         {children}
       </PageShell>

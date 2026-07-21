@@ -62,6 +62,10 @@ export function PageShell({ sidebar, brand, breadcrumbs, actions, menuLabel, clo
           <Menu aria-hidden size={17} />
         </button>
       </header>
+      {/* Mobile-only breadcrumb row: the top bar is too crowded on phones (brand + locale + logout
+          + menu), so below 1024px the crumbs move to their own full-width row under it. Empty on the
+          section home (breadcrumbs render null there) — :empty hides the row so no gap appears. */}
+      {breadcrumbs ? <div className={styles.mobileCrumbs}>{breadcrumbs}</div> : null}
       <div className={styles.body}>
         <div className={styles.sidebarSlot}>{sidebar}</div>
         <main className={styles.main}>{children}</main>

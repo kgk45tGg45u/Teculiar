@@ -16,6 +16,11 @@ export class CustomizerAdminController {
   constructor(private readonly svc: CustomizerService) {}
 
   // Static route first so it never gets shadowed by ":pageId".
+  // Auto-translate is reused by the product / category / addon catalog managers, which staff and
+  // agent may edit — so this route accepts the same roles as those managers (the layout builder
+  // routes below stay admin-only via the class-level @Roles). Translate is read-only (calls the
+  // provider, returns text; writes nothing), so the agent role is safe here.
+  @Roles("admin", "staff", "super_admin", "agent")
   @Post("translate")
   translate(@Body() dto: TranslateDto) {
     return this.svc.translate(dto.texts, dto.target, dto.source);

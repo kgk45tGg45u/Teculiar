@@ -59,6 +59,14 @@
   gap: 10px;
 }
 
+/* Phone: the four stat boxes get extra left padding so the number isn't jammed against the box
+   edge once the page side padding is tightened. (.metric is the global class from web-core.) */
+@media (max-width: 767px) {
+  .metrics :global(.metric) {
+    padding-left: 18px;
+  }
+}
+
 .module {
   display: grid;
   gap: 12px;

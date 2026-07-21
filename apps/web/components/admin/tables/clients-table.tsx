@@ -25,23 +25,21 @@ export function ClientsTable({ clients, locale }: { clients: ApiClient[]; locale
 
   const columns: DataTableColumn<ApiClient>[] = [
     {
-      header: c.name,
-      key: "name",
-      render: (client) => (
-        <>
-          <a href={href(`/admin/clients/${client.id}`)}><strong>{client.name}</strong></a>
-          <br />
-          <span style={{ color: "var(--muted)", fontSize: "0.85em" }}>{formatCustomerNumber(client.customerNumber)}</span>
-        </>
-      ),
-      sortValue: (client) => client.name
+      // nowrap header so "Client #" / "Kunde #" never breaks onto two lines when the Name column
+      // (flexible) squeezes this one.
+      header: <span className="cell-nowrap">{copy.col.clientNo}</span>,
+      key: "clientNo",
+      render: (client) => <span className="cell-nowrap">{formatCustomerNumber(client.customerNumber)}</span>,
+      sortValue: (client) => client.customerNumber ?? null
     },
     {
-      header: c.email,
-      key: "email",
-      render: (client) => client.email,
-      sortValue: (client) => client.email,
-      truncate: true
+      // Name is the flexible column: it ellipsizes instead of wrapping onto several lines (long
+      // names looked cramped) and keeps the table inside the phone width. Email column removed.
+      header: c.name,
+      key: "name",
+      truncate: true,
+      render: (client) => <a href={href(`/admin/clients/${client.id}`)}><strong>{client.name}</strong></a>,
+      sortValue: (client) => client.name
     },
     {
       header: c.active,
@@ -58,7 +56,7 @@ export function ClientsTable({ clients, locale }: { clients: ApiClient[]; locale
       sortValue: (client) => client.domainRecords?.length ?? 0
     },
     {
-      header: c.unpaidInv,
+      header: <span className="cell-nowrap">{c.unpaidInv}</span>,
       key: "unpaid",
       priority: 2,
       render: unpaidInvoices,

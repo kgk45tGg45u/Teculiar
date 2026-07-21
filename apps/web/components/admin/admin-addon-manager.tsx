@@ -62,7 +62,7 @@ export function AdminAddOnManager() {
     return (map[mainLocale] ?? map[adminLocale] ?? Object.values(map).find((value) => value?.trim()) ?? "").trim();
   }
 
-  function editAddOn(addOn: AddOnRow) {
+  function applyAddOn(addOn: AddOnRow) {
     setEditing(addOn);
     setNameMap({
       ...(addOn.nameTranslations ?? {}),
@@ -75,6 +75,10 @@ export function AdminAddOnManager() {
       [adminLocale]: addOn.descriptionTranslations?.[adminLocale] ?? addOn.description ?? ""
     });
     setProductIds((addOn.productLinks ?? []).map((link) => link.productId));
+  }
+
+  function editAddOn(addOn: AddOnRow) {
+    applyAddOn(addOn);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -118,9 +122,13 @@ export function AdminAddOnManager() {
       notify.error(message);
       return;
     }
+    const saved = (await response.json().catch(() => null)) as AddOnRow | null;
     setState({ kind: "ok", message: c.saved });
     notify.success(c.saved);
-    resetForm();
+    // Retain the saved values in the form instead of resetting it; "New add-on" clears on demand.
+    if (saved?.id) {
+      applyAddOn(saved);
+    }
     await refresh();
   }
 

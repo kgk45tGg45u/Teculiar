@@ -1054,7 +1054,7 @@ function InvoiceDetail({ invoice, loading }: { invoice?: ApiInvoice; loading: bo
       <div className={styles.invoiceSheet}>
         <header className={styles.invoiceLetterhead}>
           <div>
-            <strong>{seller.companyName || "Teculiar"}</strong>
+            <strong>{seller.companyName || ""}</strong>
             <span>{[seller.address, seller.zip, seller.city, seller.country].filter(Boolean).join(", ")}</span>
           </div>
           <div>

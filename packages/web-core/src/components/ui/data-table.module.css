@@ -9,15 +9,22 @@
   margin: 0;
 }
 
-.right {
+/* Needs to out-specify the global `.compact-table td { text-align:left }` (0,1,1), so scope it
+   under .wrap and the cell element (0,2,1) — a bare `.right` (0,1,0) loses and never applied. */
+.wrap th.right,
+.wrap td.right {
   text-align: right;
 }
 
 /* The flexible column: takes remaining width and ellipsizes instead of widening the
-   table beyond its container. */
+   table beyond its container. The header clips with an ellipsis too, so it can't overflow
+   into the neighbouring column when the flex column is squeezed on a phone. */
 .truncCell {
   width: 100%;
   max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trunc {

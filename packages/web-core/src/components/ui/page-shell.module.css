@@ -75,6 +75,16 @@
   padding: var(--space-5) var(--space-5) var(--space-6);
 }
 
+/* Mobile-only breadcrumb row under the sticky top bar. Transparent + no border so an empty row
+   (section home, where the crumbs render null) is invisible; :empty removes it entirely. */
+.mobileCrumbs {
+  display: none;
+}
+
+.mobileCrumbs:empty {
+  display: none !important;
+}
+
 /* Drawer and backdrop also start below the top bar, so the header (brand, locale,
    logout, menu button) stays visible and usable while the drawer is open. */
 .backdrop {
@@ -202,8 +212,18 @@
     padding: 0 var(--space-4);
   }
 
+  /* Side padding cut to ~65% of --space-4 (16px → 10px) so dashboard content sits closer to the
+     phone edges and tables have more room. Vertical rhythm unchanged. */
   .main {
-    padding: var(--space-4) var(--space-4) var(--space-5);
+    padding: var(--space-4) 10px var(--space-5);
+  }
+
+  /* Breadcrumbs move here from the top bar on phones. Small padding, subtle divider. */
+  .mobileCrumbs {
+    display: block;
+    padding: 7px 10px 8px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
   }
 }
 
