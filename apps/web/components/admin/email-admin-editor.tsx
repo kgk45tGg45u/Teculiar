@@ -6,7 +6,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Mail, Monitor, Plus, Save, Send, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_BASE_URL, authHeaders, type ApiEmailAdminSettings, type ApiEmailCategory, type ApiEmailLayoutBlock, type ApiEmailLog } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, authFetch, type ApiEmailAdminSettings, type ApiEmailCategory, type ApiEmailLayoutBlock, type ApiEmailLog } from "@teculiar/web-core/lib/api";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import { Button } from "@teculiar/web-core/components/ui/button";
@@ -83,7 +83,7 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
   }, []);
 
   async function loadLocale(locale: string) {
-    const next = await fetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(locale)}`, { headers: authHeaders() })
+    const next = await authFetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(locale)}`)
       .then((item) => item.json())
       .catch(() => null);
     if (next?.events) {
@@ -93,14 +93,14 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
   }
 
   async function refresh() {
-    const next = await fetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(activeLocale)}`, { headers: authHeaders() }).then((item) => item.json()).catch(() => settings);
+    const next = await authFetch(`${API_BASE_URL}/admin/dev/emails?locale=${encodeURIComponent(activeLocale)}`).then((item) => item.json()).catch(() => settings);
     setSettings(next);
   }
 
   async function save(payload: EmailSettingsPatch): Promise<boolean> {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails`, {
       body: JSON.stringify(payload),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     const responsePayload = await response.clone().json().catch(() => undefined);
@@ -113,9 +113,9 @@ export function EmailSettingsForm({ initial, section = "emails", timezone = "UTC
   }
 
   async function sendTest(eventKey: string) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/test`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails/test`, {
       body: JSON.stringify({ eventKey }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     const payload = await response.clone().json().catch(() => []);
@@ -205,9 +205,9 @@ function EmailSmtpSettingsSection({ save, sendTest, settings }: {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/dev/emails/test-connection`, {
+      const response = await authFetch(`${API_BASE_URL}/admin/dev/emails/test-connection`, {
         body: JSON.stringify({ smtp }),
-        headers: { "Content-Type": "application/json", ...authHeaders() },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
       });
       const result = await response.json().catch(() => ({ ok: false, message: c.requestFailed }));

@@ -418,6 +418,17 @@ export class ProductsService {
     return this.products.updateServiceStatus(id, status);
   }
 
+  updateServiceRenewsAt(id: string, renewsAt: string | null) {
+    let date: Date | null = null;
+    if (renewsAt) {
+      date = new Date(renewsAt);
+      if (Number.isNaN(date.getTime())) {
+        throw new BadRequestException("Invalid renewsAt date");
+      }
+    }
+    return this.products.updateServiceRenewsAt(id, date);
+  }
+
   async cancelService(id: string, cancelAt = new Date()) {
     const service = await this.products.findService(id);
     if (!service) {

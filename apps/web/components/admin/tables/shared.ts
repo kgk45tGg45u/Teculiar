@@ -1,10 +1,12 @@
-import { API_BASE_URL, authHeaders, dateLabel } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, authFetch, dateLabel } from "@teculiar/web-core/lib/api";
 import type { Locale } from "@teculiar/web-core/lib/i18n";
 
+// authFetch (not raw fetch) so a request firing after the ~15m access token expired refreshes
+// the token once and retries, instead of 401ing and bouncing the admin to the login screen.
 export function adminMutate(method: "PATCH" | "POST" | "DELETE", path: string, body?: unknown) {
-  return fetch(`${API_BASE_URL}${path}`, {
+  return authFetch(`${API_BASE_URL}${path}`, {
     body: body === undefined ? undefined : JSON.stringify(body),
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     method
   });
 }

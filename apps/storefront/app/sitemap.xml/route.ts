@@ -34,31 +34,35 @@ export const revalidate = 3600;
 
 type Alt = { hreflang: string; href: string };
 
-async function fetchSiteUrl(): Promise<string> {
-  try {
-    const res = await fetch(`${API_URL}/storefront/settings`, { next: { revalidate: 3600 } });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.siteUrl) return String(data.siteUrl).replace(/\/$/, "");
-      if (data?.storefrontBaseUrl) return String(data.storefrontBaseUrl).replace(/\/$/, "");
+// Try each API base in order (configured upstream first, then same-origin) until one answers.
+// A broken/unset TECULIAR_UPSTREAM on the storefront host used to make every SSR fetch fail — which
+// silently dropped the theme, siteUrl AND blog posts, leaving a fallback sitemap with the wrong host
+// and no blog entries. Same-origin (via nginx → API) is the safety net.
+async function fetchJson(path: string, bases: string[]): Promise<unknown | null> {
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}${path}`, { next: { revalidate: 3600 } });
+      if (res.ok) return await res.json();
+    } catch {
+      // try next base
     }
-  } catch {
-    // fall through to env fallback
   }
+  return null;
+}
+
+async function fetchSiteUrl(bases: string[]): Promise<string> {
+  const data = (await fetchJson("/storefront/settings", bases)) as { siteUrl?: string; storefrontBaseUrl?: string } | null;
+  if (data?.siteUrl) return String(data.siteUrl).replace(/\/$/, "");
+  if (data?.storefrontBaseUrl) return String(data.storefrontBaseUrl).replace(/\/$/, "");
   return FALLBACK_SITE_URL;
 }
 
-async function fetchTheme(): Promise<{ pages: ThemePage[]; languages: string[] } | null> {
-  try {
-    const res = await fetch(`${API_URL}/storefront/theme`, { next: { revalidate: 3600 } });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { pages?: ThemePage[]; languages?: string[] };
-    const pages = Array.isArray(data?.pages) ? data.pages : [];
-    const languages = Array.isArray(data?.languages) && data.languages.length ? data.languages : [];
-    return pages.length && languages.length ? { pages, languages } : null;
-  } catch {
-    return null;
-  }
+async function fetchTheme(bases: string[]): Promise<{ pages: ThemePage[]; languages: string[] } | null> {
+  const data = (await fetchJson("/storefront/theme", bases)) as { pages?: ThemePage[]; languages?: string[] } | null;
+  if (!data) return null;
+  const pages = Array.isArray(data.pages) ? data.pages : [];
+  const languages = Array.isArray(data.languages) && data.languages.length ? data.languages : [];
+  return pages.length && languages.length ? { pages, languages } : null;
 }
 
 function urlEntry(loc: string, lastmod: string, priority: string, alternates: Alt[] = []): string {
@@ -72,8 +76,14 @@ function urlEntry(loc: string, lastmod: string, priority: string, alternates: Al
   );
 }
 
-export async function GET() {
-  const [SITE_URL, theme] = await Promise.all([fetchSiteUrl(), fetchTheme()]);
+export async function GET(request: Request) {
+  // Configured upstream first, then the request's own origin (nginx → API) as a fallback so a bad
+  // upstream env can't blank the sitemap. Deduped in case they coincide.
+  const host = request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  const sameOriginApi = host ? `${proto}://${host}/api/v1` : null;
+  const apiBases = [...new Set([API_URL, ...(sameOriginApi ? [sameOriginApi] : [])])];
+  const [SITE_URL, theme] = await Promise.all([fetchSiteUrl(apiBases), fetchTheme(apiBases)]);
   const now = new Date().toISOString().slice(0, 10);
   const urls: string[] = [];
 
@@ -114,7 +124,7 @@ export async function GET() {
   }
 
   // Blog posts (per-locale data; slugs differ per locale, so no cross-locale hreflang grouping).
-  const localePosts = await Promise.all(locales.map((locale) => fetchPosts(locale)));
+  const localePosts = await Promise.all(locales.map((locale) => fetchPosts(locale, apiBases)));
   locales.forEach((locale, index) => {
     for (const post of localePosts[index] ?? []) {
       const lastmod = post.publishedAt ? String(post.publishedAt).slice(0, 10) : now;
@@ -139,15 +149,7 @@ export async function GET() {
   });
 }
 
-async function fetchPosts(locale: string): Promise<Array<{ slug: string; publishedAt?: string | null }>> {
-  try {
-    const res = await fetch(`${API_URL}/cms/posts?locale=${locale}`, {
-      next: { revalidate: 3600 }
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+async function fetchPosts(locale: string, bases: string[]): Promise<Array<{ slug: string; publishedAt?: string | null }>> {
+  const data = await fetchJson(`/cms/posts?locale=${locale}`, bases);
+  return Array.isArray(data) ? (data as Array<{ slug: string; publishedAt?: string | null }>) : [];
 }

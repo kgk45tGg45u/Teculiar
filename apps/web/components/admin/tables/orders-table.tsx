@@ -73,12 +73,18 @@ export function OrdersTable({ locale, orders }: { locale: Locale; orders: ApiOrd
     {
       header: copy.client,
       key: "client",
-      // The always-visible flexible column: the email absorbs the leftover width between order#
-      // and status/total and ellipsizes (header clips too). Keeping it on phones is what fills the
-      // table — with it hidden there was no flexible column, so a big dead gap opened on the right.
+      // Flexible column: the client name absorbs leftover width between order# and status/total and
+      // ellipsizes (header clips too). Shares the slack with the items column beside it.
       truncate: true,
-      render: (order) => order.user?.email ?? copy.misc.unknown,
-      sortValue: (order) => order.user?.email ?? null
+      render: (order) => order.user?.name ?? order.user?.email ?? copy.misc.unknown,
+      sortValue: (order) => order.user?.name ?? order.user?.email ?? null
+    },
+    {
+      header: copy.col.items,
+      key: "items",
+      // Second flexible column, directly right of client and ~its width: the order's line items.
+      truncate: true,
+      render: (order) => order.items.map((item) => item.description).join(", ") || "-"
     },
     {
       header: copy.status,
@@ -99,13 +105,6 @@ export function OrdersTable({ locale, orders }: { locale: Locale; orders: ApiOrd
       key: "invoice",
       priority: 3,
       render: (order) => (order.invoice ? <a href={href(`/admin/invoices/${order.invoice.id}`)}>{invoiceDisplayNumber(order.invoice)}</a> : "-")
-    },
-    {
-      header: copy.col.items,
-      key: "items",
-      priority: 3,
-      render: (order) => order.items.map((item) => item.description).join(", "),
-      truncate: true
     },
     {
       header: copy.total,

@@ -361,6 +361,14 @@ export class ProductsRepository {
     });
   }
 
+  updateServiceRenewsAt(id: string, renewsAt: Date | null) {
+    return this.prisma.service.update({
+      where: { id },
+      data: { renewsAt },
+      include: { domainRecords: true, product: { include: { category: true } }, productPrice: true, serviceAddOns: { include: { addOn: true } } }
+    });
+  }
+
   updateDomainRecordStatus(id: string, status: string, externalId?: string, expiresAt?: Date) {
     return this.prisma.domainRecord.update({
       where: { id },

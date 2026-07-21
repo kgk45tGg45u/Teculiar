@@ -7,7 +7,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Bell, Bold, CreditCard, Eye, EyeOff, FileText, Heading2, Italic, LinkIcon, List, Package, Plus, Redo2, RefreshCw, Save, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { domainCycleFor } from "@teculiar/shared";
-import { API_BASE_URL, addOnName, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@teculiar/web-core/lib/api";
+import { API_BASE_URL, addOnName, authFetch, authHeaders, cycleLabel, formatCustomerNumber, money, type ApiAnnouncement, type ApiBlogPost, type ApiClient, type ApiInvoice, type ApiProduct } from "@teculiar/web-core/lib/api";
 import { getDictionary, type Dictionary } from "@teculiar/web-core/lib/dictionary";
 import type { Locale } from "@teculiar/web-core/lib/i18n";
 import { useLocale } from "@teculiar/web-core/components/layout/locale-provider";
@@ -54,7 +54,7 @@ export function AddClientForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   async function createClient(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await authFetch(`${API_BASE_URL}/users`, {
       body: JSON.stringify({
         address: {
           city: String(formData.get("city") ?? ""),
@@ -70,7 +70,7 @@ export function AddClientForm() {
         phone: String(formData.get("phone") ?? "") || undefined,
         vatId: String(formData.get("vatId") ?? "") || undefined
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     if (response.ok) {
@@ -151,7 +151,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
   const defaultDomainProduct = products.find((product) => product.type === "DOMAIN");
 
   async function saveClient(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, {
       body: JSON.stringify({
         address: {
           city: String(formData.get("city") ?? ""),
@@ -167,19 +167,19 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         segment: String(formData.get("segment") ?? "standard"),
         vatId: String(formData.get("vatId") ?? "")
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, "Client saved.", "Client save failed."));
   }
 
   async function deleteClient() {
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, { method: "DELETE" });
     setMessage(await notifyResponse(response, "Client deleted. Refresh to update list.", "Client delete failed."));
   }
 
   async function createInvoice(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices`, {
       body: JSON.stringify({
         buyerCountryCode: client.countryCode ?? "DE",
         buyerVatId: client.vatId ?? undefined,
@@ -206,7 +206,7 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
         status: "PENDING",
         userId: client.id
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, "Invoice created.", "Invoice creation failed."));
@@ -249,14 +249,14 @@ function ClientRow({ client, products }: { client: ApiClient; products: ApiProdu
       } as never);
     }
     const placedAtRaw = String(formData.get("placedAt") ?? "");
-    const response = await fetch(`${API_BASE_URL}/orders/admin`, {
+    const response = await authFetch(`${API_BASE_URL}/orders/admin`, {
       body: JSON.stringify({
         items,
         notes: String(formData.get("notes") ?? ""),
         placedAt: placedAtRaw ? new Date(placedAtRaw).toISOString() : undefined,
         userId: client.id
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, "Order created with unpaid invoice and pending items.", "Order creation failed."));
@@ -325,7 +325,7 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
   const address = contact?.address ?? {};
 
   async function saveProfile(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, {
       body: JSON.stringify({
         address: {
           city: String(formData.get("city") ?? ""),
@@ -340,7 +340,7 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
         phone: String(formData.get("phone") ?? ""),
         vatId: String(formData.get("vatId") ?? "") || null
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.clientProfileSaved, c.profileSaveFailed));
@@ -353,9 +353,9 @@ export function AdminClientEditForm({ client }: { client: ApiClient }) {
       setPwMessage(c.passwordsNoMatch);
       return;
     }
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, {
       body: JSON.stringify({ newPassword }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setPwMessage(await notifyResponse(response, c.passwordChanged, c.passwordChangeFailed));
@@ -410,7 +410,7 @@ export function AdminClientDeleteButton({ clientId, clientName }: { clientId: st
   async function handleDelete() {
     const confirmed = window.confirm(c.deleteClientConfirm.replace("{name}", clientName));
     if (!confirmed) return;
-    const response = await fetch(`${API_BASE_URL}/users/${clientId}`, { headers: authHeaders(), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/users/${clientId}`, { method: "DELETE" });
     const ok = response.ok;
     setMessage(await notifyResponse(response, c.clientDeleted, c.clientDeleteFailed));
     if (ok) {
@@ -442,7 +442,7 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
       unitAmountCents: Math.round(Number(formData.getAll("amount")[index] ?? 0) * 100),
       vatRate: Number(formData.getAll("vatRate")[index] ?? 19)
     }));
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices`, {
       body: JSON.stringify({
         buyerCountryCode: client.countryCode ?? "DE",
         buyerVatId: client.vatId ?? undefined,
@@ -453,7 +453,7 @@ export function AdminCreateInvoicePanel({ client }: { client: ApiClient }) {
         status: "PENDING",
         userId: client.id
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.invoiceCreated, c.invoiceCreateFailed));
@@ -528,9 +528,9 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
         quantity: 1
       });
     }
-    const response = await fetch(`${API_BASE_URL}/orders/admin`, {
+    const response = await authFetch(`${API_BASE_URL}/orders/admin`, {
       body: JSON.stringify({ items, notes: String(formData.get("notes") ?? ""), userId: client.id }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.orderCreated, c.orderCreateFailed));
@@ -546,7 +546,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
       unitAmountCents: Math.round(Number(formData.getAll("amount")[index] ?? 0) * 100),
       vatRate: Number(formData.getAll("vatRate")[index] ?? 19)
     }));
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices`, {
       body: JSON.stringify({
         buyerCountryCode: client.countryCode ?? "DE",
         buyerVatId: client.vatId ?? undefined,
@@ -557,7 +557,7 @@ export function ClientDetailModals({ client, products }: { client: ApiClient; pr
         status: "PENDING",
         userId: client.id
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.invoiceCreated, c.invoiceCreateFailed));
@@ -619,13 +619,13 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
     const paidAtValue = String(formData.get("paidAt") ?? "");
     const transactionId = String(formData.get("transactionId") ?? "").trim() || undefined;
     const skipModules = formData.get("skipModules") === "on";
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/mark-paid`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/mark-paid`, {
       body: JSON.stringify({
         paidAt: paidAtValue ? new Date(paidAtValue).toISOString() : undefined,
         skipModules,
         transactionId
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.markedPaid, c.markPaidFailed));
@@ -633,18 +633,18 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
   }
 
   async function markUnpaid() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/mark-unpaid`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/mark-unpaid`, {
       body: JSON.stringify({ reason: "Admin manual change" }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.markedUnpaid, c.markUnpaidFailed));
   }
 
   async function refundInvoice() {
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/refund`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices/${invoice.id}/refund`, {
       body: JSON.stringify({ reason: "Admin refund" }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     setMessage(await notifyResponse(response, c.invoiceRefunded, c.refundFailed));
@@ -655,8 +655,7 @@ export function AdminInvoiceActions({ invoice }: { invoice: ApiInvoice }) {
       const confirmed = window.confirm(c.deleteInvoiceConfirm.replace("{number}", String(invoice.finalInvoiceNumber ?? invoice.invoiceNumber)));
       if (!confirmed) return;
     }
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoice.id}`, {
-      headers: authHeaders(),
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices/${invoice.id}`, {
       method: "DELETE"
     });
     setMessage(await notifyResponse(response, c.invoiceDeleted, c.invoiceDeleteFailed));
@@ -705,9 +704,9 @@ export function AdminServiceStatusForm({ serviceId, status }: { serviceId: strin
   const c = getDictionary(useLocale()).admin.forms;
   const [message, setMessage] = useState("");
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/services/${serviceId}/status`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/services/${serviceId}/status`, {
       body: JSON.stringify({ status: String(formData.get("status") ?? status) }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.serviceStatusSaved, c.serviceStatusFailed));
@@ -741,9 +740,9 @@ export function AdminServiceDueDateForm({ renewsAt, serviceId }: { renewsAt?: st
 
   async function submit(formData: FormData) {
     const value = String(formData.get("renewsAt") ?? "");
-    const response = await fetch(`${API_BASE_URL}/admin/dev/services/${serviceId}`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/services/${serviceId}`, {
       body: JSON.stringify({ renewsAt: value ? new Date(value).toISOString() : null }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.dueDateUpdated, c.dueDateUpdateFailed));
@@ -776,7 +775,7 @@ export function AnnouncementForm() {
   }, []);
 
   async function refresh() {
-    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements`, { headers: authHeaders() });
+    const response = await authFetch(`${API_BASE_URL}/cms/admin/dev/announcements`);
     const payload = await response.json().catch(() => []);
     setAnnouncements(Array.isArray(payload) ? payload : []);
   }
@@ -784,7 +783,7 @@ export function AnnouncementForm() {
   async function submit(formData: FormData) {
     const title = String(formData.get("title") ?? "");
     const publishedAt = String(formData.get("publishedAt") ?? "");
-    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements${editing ? `/${editing.id}` : ""}`, {
+    const response = await authFetch(`${API_BASE_URL}/cms/admin/dev/announcements${editing ? `/${editing.id}` : ""}`, {
       body: JSON.stringify({
         body: String(formData.get("body") ?? ""),
         excerpt: String(formData.get("excerpt") ?? ""),
@@ -792,7 +791,7 @@ export function AnnouncementForm() {
         publishedAt: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString(),
         title
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: editing ? "PATCH" : "POST"
     });
 
@@ -804,7 +803,7 @@ export function AnnouncementForm() {
   }
 
   async function remove(announcement: ApiAnnouncement) {
-    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/announcements/${announcement.id}`, { headers: authHeaders(), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/cms/admin/dev/announcements/${announcement.id}`, { method: "DELETE" });
     setMessage(await notifyResponse(response, c.announcementDeleted, c.deleteFailed));
     if (response.ok) {
       await refresh();
@@ -872,7 +871,7 @@ export function CronSettingsForm() {
   });
 
   useEffect(() => {
-    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
+    void authFetch(`${API_BASE_URL}/admin/dev/billing/settings`)
       .then((r) => r.json())
       .then((p) => setS({
         cronSecret: p.cronSecret ?? "",
@@ -905,7 +904,7 @@ export function CronSettingsForm() {
   }, []);
 
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
         cronSecret: String(formData.get("cronSecret") ?? ""),
         domainExpirationUpdateHours: Number(formData.get("domainExpirationUpdateHours") ?? 12),
@@ -933,7 +932,7 @@ export function CronSettingsForm() {
         supportMailboxAddress: String(formData.get("supportMailboxAddress") ?? "support@teculiar.com"),
         ticketAutoCloseHours: Number(formData.get("ticketAutoCloseHours") ?? 24)
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.cronSettingsSaved, c.saveFailed));
@@ -941,7 +940,7 @@ export function CronSettingsForm() {
 
   async function runCron() {
     setLastCronRun(c.runningCron);
-    const response = await fetch(`${API_BASE_URL}/cron/admin/run`, { headers: authHeaders(), method: "POST" });
+    const response = await authFetch(`${API_BASE_URL}/cron/admin/run`, { method: "POST" });
     const payload = (await response.json().catch(() => ({}))) as { ran?: unknown[]; skipped?: unknown[] };
     if (!response.ok) {
       setLastCronRun(c.cronRunFailed);
@@ -1049,7 +1048,7 @@ export function SettingsForm() {
   });
 
   useEffect(() => {
-    void fetch(`${API_BASE_URL}/admin/dev/billing/settings`, { headers: authHeaders() })
+    void authFetch(`${API_BASE_URL}/admin/dev/billing/settings`)
       .then((r) => r.json())
       .then((p) => setS({
         adminTimezone: p.adminTimezone ?? "UTC",
@@ -1080,7 +1079,7 @@ export function SettingsForm() {
   }, []);
 
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/billing/settings`, {
       body: JSON.stringify({
         adminTimezone: String(formData.get("adminTimezone") ?? "UTC"),
         deepseekApiKey: String(formData.get("deepseekApiKey") ?? ""),
@@ -1108,7 +1107,7 @@ export function SettingsForm() {
         currencyConfig: s.currencyConfig,
         taxCountries: s.taxCountries
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.settingsSaved, c.settingsFailed));
@@ -1228,7 +1227,7 @@ export function PaymentGatewayForm() {
   const [results, setResults] = useState<Record<string, { message?: string; ok?: boolean }>>({});
 
   useEffect(() => {
-    void fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, { headers: authHeaders() })
+    void authFetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`)
       .then((response) => response.json())
       .then((payload) => setGateways(Array.isArray(payload) ? payload : []))
       .catch(() => undefined);
@@ -1266,9 +1265,9 @@ export function PaymentGatewayForm() {
         method: gateway.method
       };
     });
-    const response = await fetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/billing/payment-gateways`, {
       body: JSON.stringify({ gateways: next }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
 
@@ -1458,7 +1457,7 @@ export function BlogManager() {
   }, [editing]);
 
   async function refresh() {
-    const response = await fetch(`${API_BASE_URL}/cms/admin/dev/posts`, { headers: authHeaders() });
+    const response = await authFetch(`${API_BASE_URL}/cms/admin/dev/posts`);
     const payload = await response.json().catch(() => []);
     setPosts(Array.isArray(payload) ? payload : []);
   }
@@ -1476,7 +1475,7 @@ export function BlogManager() {
       published: formData.get("published") === "on",
       tags: splitComma(formData.get("tags"))
     };
-    const response = await fetch(`${API_BASE_URL}/cms/${editing ? `pages/${editing.id}` : "posts"}`, {
+    const response = await authFetch(`${API_BASE_URL}/cms/${editing ? `pages/${editing.id}` : "posts"}`, {
       body: JSON.stringify({
         content,
         excerpt: String(formData.get("excerpt") ?? ""),
@@ -1487,7 +1486,7 @@ export function BlogManager() {
         title,
         type: "POST"
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: editing ? "PATCH" : "POST"
     });
 
@@ -1499,7 +1498,7 @@ export function BlogManager() {
   }
 
   async function remove(post: ApiBlogPost) {
-    const response = await fetch(`${API_BASE_URL}/cms/pages/${post.id}`, { headers: authHeaders(), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/cms/pages/${post.id}`, { method: "DELETE" });
     setMessage(await notifyResponse(response, "Blog article deleted.", "Delete failed."));
     if (response.ok) {
       await refresh();
@@ -1631,7 +1630,7 @@ export function DomainPriceForm() {
   async function submit(formData: FormData) {
     const amount = String(formData.get("amount") ?? "").trim();
     const amountCents = amount ? Math.round(Number(amount) * 100) : undefined;
-    const response = await fetch(`${API_BASE_URL}/orders/admin/domain-prices`, {
+    const response = await authFetch(`${API_BASE_URL}/orders/admin/domain-prices`, {
       body: JSON.stringify({
         action: String(formData.get("action") ?? "register"),
         ...(amountCents === undefined ? {} : { amountCents }),
@@ -1640,7 +1639,7 @@ export function DomainPriceForm() {
         tld: String(formData.get("tld") ?? ""),
         years: Number(formData.get("years") ?? 1)
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
 
@@ -1673,9 +1672,9 @@ export function OrderStatusForm({ orderId, status }: { orderId: string; status: 
   const [value, setValue] = useState(statusLabelValue(status));
 
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+    const response = await authFetch(`${API_BASE_URL}/orders/${orderId}/status`, {
       body: JSON.stringify({ status: String(formData.get("status") ?? value) }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
 
@@ -1740,7 +1739,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
   const defaultDomainProduct = products.find((p) => p.type === "DOMAIN");
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/orders/admin/domain-prices`, { headers: authHeaders() })
+    authFetch(`${API_BASE_URL}/orders/admin/domain-prices`)
       .then((r) => r.json())
       .then((data: Array<{ action: string; amountCents: number; tld: string; years: number }>) => {
         if (Array.isArray(data)) {
@@ -1860,7 +1859,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
     const discountFields = discountTypeValue !== "none" && discountCents > 0
       ? { discountAmountCents: discountCents, discountType: discountTypeValue }
       : {};
-    const response = await fetch(`${API_BASE_URL}/orders/admin`, {
+    const response = await authFetch(`${API_BASE_URL}/orders/admin`, {
       body: JSON.stringify({
         ...discountFields,
         firstDueAt: firstDueAt ? new Date(firstDueAt).toISOString() : undefined,
@@ -1871,7 +1870,7 @@ export function NewOrderForm({ clients, locale, preselectedClientId, products, v
         skipEmail: formData.get("skipEmail") === "on",
         userId: clientId
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     if (response.ok) {
@@ -2090,7 +2089,7 @@ export function AdminPdfDownloadButton({ invoiceId, invoiceNumber }: { invoiceId
   const c = getDictionary(locale).admin.forms;
   async function download() {
     // Render the PDF in the admin's display language so it matches the on-screen invoice.
-    const response = await fetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf?locale=${locale}`, { headers: authHeaders() });
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices/${invoiceId}/pdf?locale=${locale}`);
     if (!response.ok) {
       notify.error(c.pdfDownloadFailed);
       return;
@@ -2133,7 +2132,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
   }
 
   async function openSendEmail() {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails`, { headers: authHeaders() });
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails`);
     if (response.ok) {
       const payload = await response.json().catch(() => ({}));
       const events: Array<{ key: string; subject: string }> = Array.isArray(payload.events) ? payload.events : [];
@@ -2144,9 +2143,9 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
   }
 
   async function sendEventEmail() {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
       body: JSON.stringify({ eventKey: selectedEventKey }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     const msg = await notifyResponse(response, c.emailSent, c.emailSendFailed);
@@ -2159,9 +2158,9 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       setEmailMsg(c.subjectBodyRequired);
       return;
     }
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-custom`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-custom`, {
       body: JSON.stringify({ body: customBody, subject: customSubject }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     const msg = await notifyResponse(response, c.emailSent, c.emailSendFailed);
@@ -2170,9 +2169,9 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
   }
 
   async function sendWelcomeEmail() {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/emails/users/${client.id}/send-event`, {
       body: JSON.stringify({ eventKey: "welcome" }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     const msg = await notifyResponse(response, c.welcomeEmailSent, c.welcomeEmailFailed);
@@ -2181,7 +2180,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
   }
 
   async function saveProfile(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, {
       body: JSON.stringify({
         address: {
           city: String(formData.get("city") ?? ""),
@@ -2196,7 +2195,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
         phone: String(formData.get("phone") ?? ""),
         vatId: String(formData.get("vatId") ?? "") || null
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     const msg = await notifyResponse(response, c.profileSaved, c.profileSaveFailed);
@@ -2211,9 +2210,9 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       setPwMsg(c.passwordsNoMatch);
       return;
     }
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, {
       body: JSON.stringify({ newPassword }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     const msg = await notifyResponse(response, c.passwordChanged, c.passwordChangeFailed);
@@ -2232,7 +2231,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
       vatRate: Number(formData.getAll("vatRate")[index] ?? 19)
     }));
     const dueAtStr = String(formData.get("dueAt") ?? "");
-    const response = await fetch(`${API_BASE_URL}/billing/invoices`, {
+    const response = await authFetch(`${API_BASE_URL}/billing/invoices`, {
       body: JSON.stringify({
         buyerCountryCode: client.countryCode ?? "DE",
         buyerVatId: client.vatId ?? undefined,
@@ -2243,7 +2242,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
         status: "PENDING",
         userId: client.id
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "POST"
     });
     if (response.ok) {
@@ -2257,7 +2256,7 @@ export function AdminClientActions({ client }: { client: ApiClient }) {
   async function handleDelete() {
     const confirmed = window.confirm(c.deleteClientConfirm.replace("{name}", client.name));
     if (!confirmed) return;
-    const response = await fetch(`${API_BASE_URL}/users/${client.id}`, { headers: authHeaders(), method: "DELETE" });
+    const response = await authFetch(`${API_BASE_URL}/users/${client.id}`, { method: "DELETE" });
     if (response.ok) {
       notify.success(c.clientDeleted);
       window.location.assign(surfaceHref(window.location.pathname, "/admin/clients"));
@@ -2468,7 +2467,7 @@ export function AdminsPanel() {
 
   async function reload() {
     setLoading(true);
-    const res = await fetch(`${API_BASE_URL}/admin/dev/admins`, { headers: authHeaders("admin") });
+    const res = await authFetch(`${API_BASE_URL}/admin/dev/admins`, {}, "admin");
     if (res.ok) {
       const data = await res.json() as AdminUser[];
       setAdmins(data);
@@ -2479,16 +2478,16 @@ export function AdminsPanel() {
   useEffect(() => { void reload(); }, []);
 
   async function createAdmin(formData: FormData) {
-    const res = await fetch(`${API_BASE_URL}/admin/dev/admins`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/dev/admins`, {
       method: "POST",
-      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: formData.get("email"),
         name: formData.get("name"),
         password: formData.get("password"),
         roleSlug: formData.get("roleSlug")
       })
-    });
+    }, "admin");
     if (res.ok) {
       notify.success(c.adminCreated);
       setShowAdd(false);
@@ -2500,11 +2499,11 @@ export function AdminsPanel() {
   }
 
   async function updateRole(id: string) {
-    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}/role`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/dev/admins/${id}/role`, {
       method: "PATCH",
-      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ roleSlug: editRole })
-    });
+    }, "admin");
     if (res.ok) {
       notify.success(c.roleUpdated);
       setEditId(null);
@@ -2519,11 +2518,11 @@ export function AdminsPanel() {
       notify.error(c.pwTooShort);
       return;
     }
-    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}/password`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/dev/admins/${id}/password`, {
       method: "PATCH",
-      headers: { ...authHeaders("admin"), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: editPassword })
-    });
+    }, "admin");
     if (res.ok) {
       notify.success(c.pwUpdated);
       setEditPassword("");
@@ -2535,10 +2534,9 @@ export function AdminsPanel() {
 
   async function deleteAdmin(id: string, name: string) {
     if (!window.confirm(c.deleteAdminConfirm.replace("{name}", name))) return;
-    const res = await fetch(`${API_BASE_URL}/admin/dev/admins/${id}`, {
-      method: "DELETE",
-      headers: authHeaders("admin")
-    });
+    const res = await authFetch(`${API_BASE_URL}/admin/dev/admins/${id}`, {
+      method: "DELETE"
+    }, "admin");
     if (res.ok) {
       notify.success(c.adminDeleted);
       void reload();
@@ -2724,7 +2722,7 @@ export function SeoSettingsForm() {
   });
 
   useEffect(() => {
-    void fetch(`${API_BASE_URL}/admin/dev/seo-settings`, { headers: authHeaders() })
+    void authFetch(`${API_BASE_URL}/admin/dev/seo-settings`)
       .then((r) => r.json())
       .then((p) => setS({
         siteName: p.siteName || "Teculiar",
@@ -2739,7 +2737,7 @@ export function SeoSettingsForm() {
   }, []);
 
   async function submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/admin/dev/seo-settings`, {
+    const response = await authFetch(`${API_BASE_URL}/admin/dev/seo-settings`, {
       body: JSON.stringify({
         siteName: String(formData.get("siteName") ?? "Teculiar"),
         metaDescription: String(formData.get("metaDescription") ?? ""),
@@ -2749,7 +2747,7 @@ export function SeoSettingsForm() {
         ogImageDashboard: s.ogImageDashboard,
         ogImageBlog: s.ogImageBlog
       }),
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       method: "PATCH"
     });
     setMessage(await notifyResponse(response, c.seoSettingsSaved, c.saveFailed));

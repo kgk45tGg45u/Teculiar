@@ -107,6 +107,14 @@ export class ProductsController {
     return this.products.updateServiceStatus(id, status);
   }
 
+  // "agent" excluded: this rewrites one real customer's renewal/next-due date. `null` clears it.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "staff", "super_admin")
+  @Patch("admin/dev/services/:id")
+  updateServiceRenewsDev(@Param("id") id: string, @Body("renewsAt") renewsAt: string | null) {
+    return this.products.updateServiceRenewsAt(id, renewsAt);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("admin", "staff", "super_admin", "agent")
   @Get("admin/dev/virtualmin/templates")
