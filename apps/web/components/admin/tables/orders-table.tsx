@@ -73,18 +73,12 @@ export function OrdersTable({ locale, orders }: { locale: Locale; orders: ApiOrd
     {
       header: copy.client,
       key: "client",
-      // Flexible column: the client name absorbs leftover width between order# and status/total and
-      // ellipsizes (header clips too). Shares the slack with the items column beside it.
+      // Flexible column: the client name absorbs the leftover width between order# and status/total
+      // and ellipsizes (header clips too). Order line items are not shown here — the list response
+      // doesn't carry them (the column was always empty); expand the order row to see the items.
       truncate: true,
       render: (order) => order.user?.name ?? order.user?.email ?? copy.misc.unknown,
       sortValue: (order) => order.user?.name ?? order.user?.email ?? null
-    },
-    {
-      header: copy.col.items,
-      key: "items",
-      // Second flexible column, directly right of client and ~its width: the order's line items.
-      truncate: true,
-      render: (order) => order.items.map((item) => item.description).join(", ") || "-"
     },
     {
       header: copy.status,

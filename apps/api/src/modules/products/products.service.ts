@@ -165,6 +165,13 @@ export class ProductsService {
       if (!moduleName || !activeRegistrars.has(moduleName)) {
         continue;
       }
+      // .de is registered MANUALLY (never lands on the resell.biz panel — see billing processPaidDomain).
+      // Reconciling it against the registrar always returns "doesn't exist" → CANCELLED, which wrongly
+      // cancelled a freshly-paid .de domain and its service on the first cron pass. Skip — .de status
+      // is managed by the admin, not the registrar.
+      if (isManualRegistrationDomain(domain.domain)) {
+        continue;
+      }
       const provider = this.external.registrarProvider(moduleName);
       if (!provider?.status || ["CANCELLED"].includes(domain.status)) {
         continue;
@@ -208,6 +215,10 @@ export class ProductsService {
     for (const domain of domains) {
       const moduleName = canonicalModuleName(domain.registrarModule ?? domain.registrarProvider);
       if (!moduleName || !activeRegistrars.has(moduleName)) {
+        continue;
+      }
+      // Manual .de domains are not on the registrar panel — nothing to refresh (see refreshAllDomainStatuses).
+      if (isManualRegistrationDomain(domain.domain)) {
         continue;
       }
       const provider = this.external.registrarProvider(moduleName);
@@ -480,6 +491,13 @@ export class ProductsService {
     };
     return repository.completeReadyOrdersForService?.(serviceId) ?? Promise.resolve();
   }
+}
+
+// .de registrations are handled manually outside Resell.biz (mirrors billing/orders), so the
+// registrar reconcile must never query the panel for them (it would return "doesn't exist" → CANCELLED).
+function isManualRegistrationDomain(domain: string | null | undefined) {
+  const parts = (domain ?? "").toLowerCase().trim().split(".");
+  return parts.length > 1 && parts[parts.length - 1] === "de";
 }
 
 function domainFromConfiguration(configuration: unknown) {

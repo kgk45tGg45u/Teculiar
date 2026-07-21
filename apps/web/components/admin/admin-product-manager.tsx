@@ -230,6 +230,17 @@ export function AdminProductManager() {
     void refreshCategories();
   }, []);
 
+  // Virtualmin plans live on the live panel, not in the product payload. Load them whenever the form
+  // is showing a virtualmin product so the saved plan renders in the dropdown (with its limits)
+  // instead of an empty box — the old code only loaded them after a manual "Detect plans" click,
+  // which made an existing plan look unsaved and let a re-save wipe it with an empty value.
+  useEffect(() => {
+    if (module === "virtualmin" && virtualmin.plans.length === 0) {
+      void detectVirtualminPlans(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [module]);
+
   async function submit(formData: FormData) {
     const name = canonicalText(nameMap, mainLocale, adminLocale);
     if (!name) {
@@ -340,11 +351,16 @@ export function AdminProductManager() {
     setCategories(Array.isArray(payload) ? payload : []);
   }
 
-  async function detectVirtualminPlans() {
+  // `silent` = the auto-load fired when a virtualmin product opens (fills the dropdown so the saved
+  // plan shows). It stays quiet; only the explicit "Detect plans" button toasts.
+  async function detectVirtualminPlans(silent = false) {
     const response = await fetch(`${API_BASE_URL}/admin/dev/virtualmin/plans/detect`, { headers: authHeaders() });
     const payload = await response.json().catch(() => ({}));
     setVirtualmin({ plans: payload.plans ?? [], templates: payload.templates ?? [] });
     setDetectedPlans(payload.plans ?? []);
+    if (silent) {
+      return;
+    }
     if (response.ok) {
       notify.success(c.vmDetected);
     } else {
@@ -369,9 +385,10 @@ export function AdminProductManager() {
     await refreshProducts();
   }
 
+  // Product name/description use MANUAL translation only — no auto-translate button (omit `autoTranslate`).
   const translateProps = useMemo(
-    () => ({ locales, adminLocale, canTranslate, translationsLabel: c.translations, doneLabel: c.done, autoTranslate: { label: c.autoTranslate, runningLabel: c.translating, failedLabel: c.translateFailed } }),
-    [adminLocale, c.autoTranslate, c.done, c.translateFailed, c.translating, c.translations, canTranslate, locales]
+    () => ({ locales, adminLocale, canTranslate, translationsLabel: c.translations, doneLabel: c.done }),
+    [adminLocale, c.done, c.translations, canTranslate, locales]
   );
   const plan = virtualmin.plans.find((option) => option.id === selectedPlan);
   const selectedCategory = categories.find((category) => category.id === categoryId);
@@ -388,7 +405,7 @@ export function AdminProductManager() {
         <div className={styles.cardHeader}>
           <h2>{editing ? `${c.editPrefix} ${editing.name}` : c.newProduct}</h2>
           {editing ? (
-            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setNameMap({}); setDescriptionMap({}); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); }}>
+            <Button size="sm" type="button" variant="secondary" onClick={() => { setEditing(undefined); setNameMap({}); setDescriptionMap({}); setCategoryId(""); setType("DOMAIN"); setDomainRequirement("NOT_NEEDED"); setFreeDomainCycle(""); setSelectedPlan(""); }}>
               {c.newProduct}
             </Button>
           ) : null}
@@ -503,12 +520,18 @@ export function AdminProductManager() {
               <div className={styles.virtualminRow}>
                 <label className={styles.flexGrow}>
                   {c.plan}
-                  <select defaultValue={String(editing?.configs?.find((cfg) => cfg.key === "virtualmin_plan")?.values?.[0] ?? "")} name="virtualminPlan" onChange={(e) => setSelectedPlan(e.target.value)}>
+                  {/* Controlled by selectedPlan so the SAVED plan shows on edit. The saved id is kept
+                      as a fallback <option> even before the live plan list loads, so a re-save never
+                      submits an empty value and wipes the stored plan. */}
+                  <select value={selectedPlan} name="virtualminPlan" onChange={(e) => setSelectedPlan(e.target.value)}>
                     <option value="">{c.selectPlan}</option>
                     {virtualmin.plans.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                    {selectedPlan && !virtualmin.plans.some((option) => option.id === selectedPlan)
+                      ? <option value={selectedPlan}>{selectedPlan}</option>
+                      : null}
                   </select>
                 </label>
-                <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>{c.detectPlans}</Button>
+                <Button size="sm" type="button" variant="secondary" onClick={() => detectVirtualminPlans()}>{c.detectPlans}</Button>
               </div>
               {plan ? (
                 <div className={styles.limits}>
@@ -549,7 +572,7 @@ export function AdminProductManager() {
         </section>
       ) : (
         <div className={styles.vmRow}>
-          <Button size="sm" type="button" variant="secondary" onClick={detectVirtualminPlans}>{c.detectVmPlans}</Button>
+          <Button size="sm" type="button" variant="secondary" onClick={() => detectVirtualminPlans()}>{c.detectVmPlans}</Button>
         </div>
       )}
 
