@@ -40,7 +40,8 @@ export function AdminDepartmentsPanel() {
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? "") || undefined,
         color: String(formData.get("color") ?? "") || undefined,
-        isDefault: formData.get("isDefault") === "on"
+        isDefault: formData.get("isDefault") === "on",
+        openToNonClients: formData.get("openToNonClients") === "on"
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST"
@@ -102,7 +103,9 @@ export function AdminDepartmentsPanel() {
             <label>{c.inboxEmail}<input name="email" placeholder="billing@teculiar.com" type="email" /></label>
             <label>{c.colour}<input defaultValue="#0077b6" name="color" type="color" /></label>
             <label className={styles.inlineForm}><input name="isDefault" type="checkbox" /> {c.default}</label>
+            <label className={styles.inlineForm}><input name="openToNonClients" type="checkbox" /> {c.openToNonClients}</label>
           </div>
+          <p className={styles.ticketFileHint}>{c.accessHint}</p>
           <Button icon={Plus} type="submit">{c.addDepartment}</Button>
         </form>
 
@@ -114,9 +117,11 @@ export function AdminDepartmentsPanel() {
                 <strong>{department.name}</strong>
                 {department.isDefault ? <span className={styles.departmentTag}>{c.default}</span> : null}
                 {!department.active ? <span className={styles.departmentTag}>{c.inactive}</span> : null}
+                <span className={styles.departmentTag}>{department.openToNonClients ? c.accessSales : c.accessSupport}</span>
                 <span className={styles.departmentEmail}>{department.email ?? "—"}</span>
                 <div className={styles.departmentActions}>
                   {!department.isDefault ? <button className={styles.linkBtn} onClick={() => void updateDepartment(department.id, { isDefault: true })} type="button">{c.makeDefault}</button> : null}
+                  <button className={styles.linkBtn} onClick={() => void updateDepartment(department.id, { openToNonClients: !department.openToNonClients })} type="button">{department.openToNonClients ? c.makeClientsOnly : c.makeOpenSales}</button>
                   <button className={styles.linkBtn} onClick={() => void updateDepartment(department.id, { active: !department.active })} type="button">{department.active ? c.deactivate : c.activate}</button>
                   <button className={styles.dangerLinkBtn} onClick={() => void removeDepartment(department.id)} type="button"><Trash2 size={14} /></button>
                 </div>

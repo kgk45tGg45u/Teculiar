@@ -22,7 +22,10 @@ function segmentLabels(c: ClientDict): Record<string, string> {
     profile: c.dash.title.profile,
     payments: c.dash.title.payment,
     billing: c.accountBalance,
-    knowledgebase: c.dash.title.knowledgebase
+    knowledgebase: c.dash.title.knowledgebase,
+    // Sub-page segments — without these the German UI would show the English slug ("New", "Add Funds").
+    new: c.dash.title.newTicket,
+    "add-funds": c.dash.title.addFunds
   };
 }
 

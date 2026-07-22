@@ -34,8 +34,8 @@ mobile) and, later, the Blue storefront theme.
 | Roadmap item | Actual state | Where it lands here |
 |---|---|---|
 | Phase 1 i18n/locale/currency | Implemented; prod verify pending | Verified as part of Phase 1/7 test passes |
-| Phase 1 deferred: admin main-currency guard | Not built | Phase 7 |
-| Phase 1 deferred: per-locale email editor | Not built (editor saves main lang only) | Phase 7 |
+| Phase 1 deferred: admin main-currency guard | ✅ DONE (Phase 7.4, 2026-07-22) | Phase 7 |
+| Phase 1 deferred: per-locale email editor | ✅ DONE (Phase 7.2) | Phase 7 |
 | Phase 2 theme foundation | Implemented | ✅ mark done |
 | Phase 3 Customizer mechanism | Done, merged to `main` | ✅ mark done |
 | Phase 3 leftover: author real Blue page content | Not done | Phase 4 (teculiar.com) + ongoing |
@@ -790,18 +790,27 @@ traffic; both re-runnable on MariaDB). Then
   header lockup, receipt-style tables, accent-blue (#0077b6) CTA. Email-safe tables/inline styles; saved
   templates stay compatible. New editor strings added to `admin.json` de+en.
 
-### 7.3 Sales vs support ticket routing
-- Formalize the convention: admin-defined per department whether it's **open to non-clients** (sales) or
-  **registered-clients-only** (support). Add a `Department` flag (`prisma/schema.prisma:797`) +
-  admin toggle. Cron import (`tickets.service.ts importMailboxTickets`) routes by mailbox → department and
-  **rejects** support mail from unknown senders (no ticket, optional bounce/notice) while sales auto-creates
-  a guest contact. **Guest/sales replies must NOT include the client-portal link**: make `dispatchTicketEmail`
-  (`tickets.service.ts:487`) omit `ticket_url` for guest recipients (they see the reply in their email
-  instead of a portal button).
+### 7.3 Sales vs support ticket routing  ✅ DONE (2026-07-22)
+- **`Department.openToNonClients`** flag (migration `20260722120000_department_open_to_nonclients`,
+  re-runnable `ADD COLUMN IF NOT EXISTS`; seeds `slug='sales'` open). `false` = registered-clients-only
+  (support). DTO/repo/service + admin toggle in `admin-departments.tsx` (per-card "Clients only" ↔ "Open to
+  non-clients" button + a create-form checkbox + a Sales/Clients-only tag; en+de `admin.dept.*` keys).
+- **Import guard** (`tickets.service.ts importMailboxTickets`): a clients-only department now rejects mail
+  from anyone who isn't an existing registered client (unknown sender **or** a prior guest) — no ticket,
+  no reply, logged `SKIPPED_NOT_CLIENT` (owner's Drop+log choice; no bounce, to avoid backscatter to
+  spoofed From:). Sales (`openToNonClients`) still auto-creates a guest contact. `findUserByEmail` now
+  returns `isGuest`; routing resolves the whole department (not just its id) via `departmentForSlug`.
+- **Guest replies omit the portal link**: `dispatchTicketEmail` sets `ticket_url` empty for `isGuest`
+  owners; `email.service.ts` `stripDeadLinks()` removes any anchor whose href rendered empty (+ its empty
+  `<p>`), so the "View ticket" button disappears for guests in both default and customized templates.
+- Verified: `apps/api/test/ticket-routing.test.mjs` (clients-only rejects unknown + prior-guest, sales
+  accepts, guest email has no portal button).
 
-### 7.4 Admin main-currency guard
-- The Phase-1-deferred guard: warn in admin when changing the main currency on a store with priced data
-  (stored amounts are not re-converted). Small confirm dialog in the currency settings.
+### 7.4 Admin main-currency guard  ✅ DONE (2026-07-22)
+- `language-currency-settings.tsx`: changing the main currency now stages the pick and shows a confirm
+  banner ("switching {from}→{to} does NOT re-convert existing prices/invoices") — apply only on confirm,
+  revert on cancel. en+de `admin.langCur.currencyChange*` keys. (Warns on every main-currency change; the
+  wording covers the priced-data case rather than probing counts.)
 
 ### Verify (Phase 7)
 Set a client to `en`; place an order → order/invoice/activation emails arrive in English with correct
@@ -937,6 +946,12 @@ webhook.
 - **Load balancer + object storage** (uploads off the filesystem; shared SSO store for multi-instance).
 - **Phase 5 custom themes** — Customizer Properties tab + `Theme.styling` payload; buyer builds/downloads a
   theme and self-runs it against the hosted API.
+- **Storefront + Customizer design-token adoption** (deferred from Phase 7, 2026-07-22). Point the public
+  storefront and the Customizer-rendered components at the shared D1 tokens (`--radius-*`, `--text-*`,
+  `--space-*`, `--control-h-*` in `packages/web-core/src/globals.css`) instead of hard-coded values,
+  keeping the current storefront look via the `:root` token defaults. Pure token-wiring, no visual
+  redesign — pairs naturally with the Phase 5 custom-theme work above (both need `:root` to be the single
+  source of truth for storefront styling). The `.dash-compact` scope already consumes the tokens.
 
 ---
 

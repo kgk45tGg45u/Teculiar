@@ -17,7 +17,7 @@ dashboard-only changes are scoped under the `dash-compact` class set on the web 
 | Page shell | Contained: sidebar + content capped at 1440px, 24px padding all sides (16px < 768px). Every dashboard page renders inside one shared PageShell — fixes missing sidebars and missing edge spacing. |
 | Mobile nav | Sidebar hidden < 1024px; hamburger in top bar opens overlay drawer. |
 | Tables | Priority columns: low-priority columns hide on small screens, row expands for details. No page-level horizontal scroll anywhere. |
-| Dark mode | Out of scope for D1. `ThemeBootstrap` sets `data-theme` but no CSS consumes it (vestigial). |
+| Dark mode | Out of scope for D1. The vestigial `ThemeBootstrap`/`data-theme` hook was removed (2026-07-22, Phase 7) — no CSS consumed it. Reintroduce a proper theme toggle when dark mode is actually built. |
 
 ## Tokens
 

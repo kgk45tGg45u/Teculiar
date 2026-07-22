@@ -16,27 +16,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function ThemeBootstrap() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          (() => {
-            const stored = localStorage.getItem("theme");
-            const theme = stored || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-            document.documentElement.dataset.theme = theme;
-          })();
-        `
-      }}
-    />
-  );
-}
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
+    <html lang={DEFAULT_LOCALE}>
       <body className="dash-compact">
-        <ThemeBootstrap />
         <ToastProvider />
         {children}
         <CookieBanner locale={DEFAULT_LOCALE} />

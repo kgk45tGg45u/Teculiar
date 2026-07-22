@@ -29,6 +29,10 @@ export class CreateDepartmentDto {
   isDefault?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  openToNonClients?: boolean;
+
+  @IsOptional()
   @IsInt()
   sortOrder?: number;
 }
@@ -56,6 +60,10 @@ export class UpdateDepartmentDto {
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  openToNonClients?: boolean;
 
   @IsOptional()
   @IsInt()

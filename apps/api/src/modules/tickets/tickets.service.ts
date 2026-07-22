@@ -421,14 +421,26 @@ export class TicketsService {
         }
 
         const departmentSlug = departmentSlugFor(message.to, mailbox);
-        const departmentId = await this.departmentIdForSlug(departmentSlug);
-        if (!departmentId) {
+        const department = await this.departmentForSlug(departmentSlug);
+        if (!department) {
           skipped += 1;
           boxSkipped += 1;
           await this.logInbound(mailbox, message, undefined, "SKIPPED_NO_DEPARTMENT");
           continue;
         }
-        const user = (await this.tickets.findUserByEmail(sender)) ?? (await this.tickets.findOrCreateGuestUser(sender, sender));
+        // Sales vs support routing (7.3): a clients-only department rejects mail from anyone who
+        // isn't an existing registered client (unknown sender or a prior guest contact) — no ticket
+        // is created and the sender gets no reply. Sales (openToNonClients) auto-creates a guest.
+        const existing = await this.tickets.findUserByEmail(sender);
+        const knownClient = Boolean(existing && !existing.isGuest);
+        if (!department.openToNonClients && !knownClient) {
+          skipped += 1;
+          boxSkipped += 1;
+          await this.logInbound(mailbox, message, existing?.id, "SKIPPED_NOT_CLIENT");
+          continue;
+        }
+        const departmentId = department.id;
+        const user = existing ?? (await this.tickets.findOrCreateGuestUser(sender, sender));
         let ticketId: string | undefined;
         try {
           const ticket = await this.persistTicket({
@@ -465,9 +477,8 @@ export class TicketsService {
     return { byDepartment, fetched, imported, mailboxes, skipped };
   }
 
-  private async departmentIdForSlug(slug: string) {
-    const department = (await this.departments.findBySlug(slug)) ?? (await this.departments.defaultDepartment());
-    return department?.id;
+  private async departmentForSlug(slug: string) {
+    return (await this.departments.findBySlug(slug)) ?? (await this.departments.defaultDepartment());
   }
 
   private async logInbound(
@@ -503,6 +514,9 @@ export class TicketsService {
     const assignee = isRecord(ticket.assignee) ? ticket.assignee : {};
     const firstReply = Array.isArray(ticket.replies) ? ticket.replies.find((reply) => !reply.internal) : undefined;
     const ticketId = ticket.publicId ?? ticket.id;
+    // Guests (sales enquiries / unknown senders) have no client-portal login: send them the reply
+    // in the email body itself, without a "View ticket" portal button (empty url → button stripped).
+    const ticketUrl = user.isGuest ? "" : tenantClientUrl(`/tickets/${ticket.id}`);
     return this.emails.dispatch(eventKey, {
       context: {
         customer_email: stringValue(user.email),
@@ -514,7 +528,7 @@ export class TicketsService {
         ticket_reply: stringValue(extra.ticket_reply),
         ticket_status: ticketStatusLabel(ticket.status),
         ticket_subject: ticket.subject,
-        ticket_url: tenantClientUrl(`/tickets/${ticket.id}`),
+        ticket_url: ticketUrl,
         ...extra
       },
       user: {

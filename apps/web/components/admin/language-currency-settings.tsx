@@ -30,6 +30,9 @@ const removeBtn: React.CSSProperties = { background: "none", border: "none", col
 
 export function LanguageCurrencySettings({ languages, currencyConfig, onLanguages, onCurrencyConfig }: Props) {
   const c = getDictionary(useLocale()).admin.langCur;
+  // 7.4 main-currency guard: switching the main currency does NOT re-convert stored prices or
+  // invoices, so we hold the change behind an explicit confirm.
+  const [pendingCurrency, setPendingCurrency] = useState<string | null>(null);
   const langCodes = [languages.main, ...languages.others];
   const curCodes = [currencyConfig.main, ...currencyConfig.others];
   const languageOptions = useMemo(() => languageCatalog().map((l) => ({ code: l.code, label: `${l.flag} ${l.name} — ${l.nativeName} (${l.code})` })), []);
@@ -50,8 +53,13 @@ export function LanguageCurrencySettings({ languages, currencyConfig, onLanguage
   }
 
   // ── Currencies ──
-  function setMainCurrency(code: string) {
+  // Guarded: a select change only stages the new main currency; applyMainCurrency runs after the
+  // admin confirms the "prices are not re-converted" warning.
+  function requestMainCurrency(code: string) {
     if (code === currencyConfig.main) return;
+    setPendingCurrency(code);
+  }
+  function applyMainCurrency(code: string) {
     const others = [currencyConfig.main, ...currencyConfig.others].filter((c) => c !== code);
     const rates = { ...currencyConfig.rates };
     delete rates[code]; // new main needs no rate
@@ -59,6 +67,7 @@ export function LanguageCurrencySettings({ languages, currencyConfig, onLanguage
       rates[currencyConfig.main] = { rate: 1, buffer: 0, bufferEnabled: false }; // old main becomes convertible
     }
     onCurrencyConfig({ main: code, others, rates });
+    setPendingCurrency(null);
   }
   function addCurrency(code: string) {
     if (curCodes.includes(code)) return;
@@ -111,10 +120,20 @@ export function LanguageCurrencySettings({ languages, currencyConfig, onLanguage
       <p style={muted}>{c.currencyHint}</p>
       <label>
         {c.mainCurrency}
-        <select value={currencyConfig.main} onChange={(e) => setMainCurrency(e.target.value)}>
+        <select value={pendingCurrency ?? currencyConfig.main} onChange={(e) => requestMainCurrency(e.target.value)}>
           {curCodes.map((code) => <option key={code} value={code}>{currencySymbol(code)} {code} — {currencyName(code)}</option>)}
         </select>
       </label>
+      {pendingCurrency && (
+        <div role="alertdialog" aria-label={c.currencyChangeTitle} style={{ border: "1px solid var(--warning, #9a5b00)", background: "var(--surface-muted, #fff8ec)", borderRadius: 10, padding: 12, display: "grid", gap: 8 }}>
+          <strong>{c.currencyChangeTitle}</strong>
+          <p style={{ margin: 0, fontSize: "0.9rem" }}>{c.currencyChangeWarning.replace("{from}", currencyConfig.main).replace("{to}", pendingCurrency)}</p>
+          <div style={chipRow}>
+            <button type="button" onClick={() => applyMainCurrency(pendingCurrency)} style={{ border: "1px solid var(--warning, #9a5b00)", background: "var(--warning, #9a5b00)", color: "#fff", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>{c.currencyChangeConfirm}</button>
+            <button type="button" onClick={() => setPendingCurrency(null)} style={{ border: "1px solid var(--border)", background: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>{c.currencyChangeCancel}</button>
+          </div>
+        </div>
+      )}
       <div>
         <div style={{ fontSize: "0.84rem", color: "var(--muted)", marginBottom: 6 }}>{c.otherCurrencies}</div>
         {currencyConfig.others.length === 0 && <span style={muted}>{c.noOtherCurrencies}</span>}

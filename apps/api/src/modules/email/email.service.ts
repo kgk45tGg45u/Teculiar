@@ -244,7 +244,9 @@ export class EmailService {
     });
     const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
     const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
-    const content = renderEmailLayout(layoutBlocks, context);
+    // Drop buttons/links whose URL placeholder resolved to empty (e.g. a guest recipient has no
+    // ticket_url) so recipients never see a dead "View ticket" button linking to "".
+    const content = stripDeadLinks(renderEmailLayout(layoutBlocks, context));
     const html = renderShell(templateHtml, { ...context, brand_logo: brandLogoImg(brandLogoUrl, context.brand_name), content, subject });
     const text = stripHtml(content);
     const recipients = this.recipients(config.recipients ?? definition.defaultRecipients, input.user, smtp);
@@ -352,7 +354,9 @@ export class EmailService {
     });
     const subject = renderText(template?.subject ?? packSubject(dict, eventKey, definition.subject), context);
     const layoutBlocks = normalizeEmailLayoutBlocks(layoutConfigs[eventKey], eventKey, template?.body ?? packBody(dict, eventKey, definition.body), dict);
-    const content = renderEmailLayout(layoutBlocks, context);
+    // Drop buttons/links whose URL placeholder resolved to empty (e.g. a guest recipient has no
+    // ticket_url) so recipients never see a dead "View ticket" button linking to "".
+    const content = stripDeadLinks(renderEmailLayout(layoutBlocks, context));
     const html = renderShell(templateHtml, { ...context, brand_logo: brandLogoImg(brandLogoUrl, context.brand_name), content, subject });
     const text = stripHtml(content);
     const delivery = await this.deliver({ html, recipient: user.email, smtp, subject, text });
@@ -711,6 +715,14 @@ function brandLogoImg(url: string, brandName: string | undefined): string {
     return "";
   }
   return `<img src="${escapeHtml(url)}" alt="${escapeHtml(brandName || "")}" style="max-height:40px;max-width:200px;display:block;margin:0 0 12px;border:0;" />`;
+}
+
+// Remove anchors whose href rendered empty (an unset URL placeholder, e.g. ticket_url for a
+// guest) and collapse the now-empty wrapping <p> so no dead button/link is shown.
+export function stripDeadLinks(html: string) {
+  return html
+    .replace(/<a\b[^>]*\bhref=(""|'')[^>]*>[\s\S]*?<\/a>/gi, "")
+    .replace(/<p>\s*<\/p>/gi, "");
 }
 
 function stripHtml(value: string) {

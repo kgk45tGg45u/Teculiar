@@ -33,6 +33,7 @@ export class DepartmentsService {
       color: dto.color ?? null,
       active: dto.active ?? true,
       isDefault: dto.isDefault ?? false,
+      openToNonClients: dto.openToNonClients ?? false,
       sortOrder: dto.sortOrder ?? 0
     });
   }
@@ -48,6 +49,7 @@ export class DepartmentsService {
       color: dto.color,
       active: dto.active,
       isDefault: dto.isDefault,
+      openToNonClients: dto.openToNonClients,
       sortOrder: dto.sortOrder
     });
   }

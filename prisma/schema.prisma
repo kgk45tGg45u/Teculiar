@@ -823,6 +823,9 @@ model Department {
   color         String?
   active        Boolean            @default(true)
   isDefault     Boolean            @default(false)
+  // Sales-style department: accepts mail from unknown senders (guest contact auto-created).
+  // false = registered-clients-only (support); unknown-sender mail is rejected on import.
+  openToNonClients Boolean         @default(false)
   sortOrder     Int                @default(0)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt

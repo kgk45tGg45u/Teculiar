@@ -53,7 +53,7 @@ export class TicketsRepository {
   findUserByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email_scope: { email: email.toLowerCase(), scope: "CLIENT" } },
-      select: { email: true, id: true, name: true }
+      select: { email: true, id: true, name: true, isGuest: true }
     });
   }
 

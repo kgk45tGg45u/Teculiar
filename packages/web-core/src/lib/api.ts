@@ -376,6 +376,7 @@ export type ApiDepartment = {
   color?: string | null;
   active: boolean;
   isDefault: boolean;
+  openToNonClients?: boolean;
   sortOrder: number;
   members?: Array<{ id: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>;
 };
