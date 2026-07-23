@@ -20,10 +20,15 @@ type Overview = {
 
 /**
  * Tenant domain-setup wizard (Phase 4.6f). The tenant picks how their site runs — own website on the
- * apex, our Blue theme self-hosted, or everything pointed at Teculiar — plus where the dashboards live
- * (subdomains vs apex paths) and their client-area subdomain label ("client", "portal", "kunde", …).
- * The wizard registers the hosts (always pending + DNS-TXT ownership proof), prints the exact DNS
- * records, and verifies each host with one click. Onboarding = DNS only, never web-server config.
+ * apex, or everything pointed at Teculiar — plus where the dashboards live (subdomains vs apex paths)
+ * and their client-area subdomain label ("client", "portal", "kunde", …). The wizard registers the
+ * hosts (always pending + DNS-TXT ownership proof), prints the exact DNS records, and verifies each
+ * host with one click. Onboarding = DNS only, never web-server config.
+ *
+ * Phase 8.1: the self-hosted-storefront option (`blue_selfhosted`) is paused — the radio + install
+ * command are hidden. The backend still accepts the value, so a tenant that had saved it is coerced
+ * to `external` here (with a one-line note) instead of rendering a dead control. See
+ * docs/self-hosting-deferred.md.
  */
 export function DomainWizard() {
   const d = getDictionary(useLocale()).admin.domains;
@@ -33,6 +38,7 @@ export function DomainWizard() {
   const [apexMode, setApexMode] = useState("external");
   const [dashboards, setDashboards] = useState("subdomains");
   const [clientLabel, setClientLabel] = useState("client");
+  const [selfhostedCoerced, setSelfhostedCoerced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState("");
 
@@ -45,7 +51,11 @@ export function DomainWizard() {
     const data = (await response.json()) as Overview;
     setOverview(data);
     if (data.config) {
-      setApexMode(String(data.config.apexMode ?? "external"));
+      // Self-hosting is paused (Phase 8.1): coerce a stale `blue_selfhosted` config to `external`
+      // rather than show a dead radio. The saved value is only overwritten if the admin re-saves.
+      const savedApex = String(data.config.apexMode ?? "external");
+      setSelfhostedCoerced(savedApex === "blue_selfhosted");
+      setApexMode(savedApex === "blue_selfhosted" ? "external" : savedApex);
       setDashboards(String(data.config.dashboards ?? "subdomains"));
       setClientLabel(String(data.config.clientLabel ?? "client"));
     }
@@ -70,9 +80,6 @@ export function DomainWizard() {
     const hosts: Array<{ host: string; surface: string }> = [];
     if (apexMode !== "external") {
       hosts.push({ host: domain, surface: "apex" }, { host: `www.${domain}`, surface: "apex" });
-    }
-    if (apexMode === "blue_selfhosted") {
-      hosts.push({ host: `api.${domain}`, surface: "api" });
     }
     if (dashboards === "subdomains") {
       hosts.push({ host: `admin.${domain}`, surface: "admin" }, { host: `${label}.${domain}`, surface: "client" });
@@ -155,9 +162,9 @@ export function DomainWizard() {
 
         <fieldset>
           <legend>{d.apexModeTitle}</legend>
+          {selfhostedCoerced ? <p><small>{d.apexSelfhostedRetired}</small></p> : null}
           {[
             { value: "external", label: d.apexExternal, help: d.apexExternalHelp },
-            { value: "blue_selfhosted", label: d.apexSelfhosted, help: d.apexSelfhostedHelp },
             { value: "blue_hosted", label: d.apexHosted, help: d.apexHostedHelp }
           ].map((option) => (
             <label className={styles.inlineForm} key={option.value} title={option.help}>
@@ -252,16 +259,6 @@ export function DomainWizard() {
               ))}
             </tbody>
           </table>
-
-          {apexMode === "blue_selfhosted" && domain ? (
-            <>
-              <h3>{d.installTitle}</h3>
-              <p>{d.installHelp}</p>
-              <pre>
-                <code>{`TENANT=${overview.tenant.subdomain} DOMAIN=${domain} bash <(curl -fsSL https://get.teculiar.com/install.sh)`}</code>
-              </pre>
-            </>
-          ) : null}
         </>
       ) : null}
     </section>

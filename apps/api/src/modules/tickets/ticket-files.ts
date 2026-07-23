@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { BadRequestException } from "@nestjs/common";
+import { tenantScope } from "../../common/uploads";
 
 export type UploadedTicketFile = {
   buffer: Buffer;
@@ -26,7 +27,9 @@ export async function storeTicketFiles(files?: UploadedTicketFile[]) {
     throw new BadRequestException("Maximum 5 files per upload.");
   }
 
-  const dir = await ticketUploadsDir();
+  const scope = tenantScope();
+  const dir = await ticketUploadsDir(scope);
+  const prefix = scope ? `/uploads/${scope}/tickets` : `/uploads/tickets`;
   const stored: StoredTicketFile[] = [];
   for (const file of uploads) {
     if (file.size > 10_000_000) {
@@ -44,7 +47,7 @@ export async function storeTicketFiles(files?: UploadedTicketFile[]) {
       fileName: safeName,
       mimeType: file.mimetype,
       sizeBytes: file.size,
-      storageKey: `/uploads/tickets/${fileName}`
+      storageKey: `${prefix}/${fileName}`
     });
   }
   return stored;
@@ -63,10 +66,11 @@ function sanitizeFileName(value: string) {
   return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "attachment";
 }
 
-async function ticketUploadsDir() {
-  const dir = process.cwd().endsWith("apps/api")
-    ? resolve(process.cwd(), "../web/public/uploads/tickets")
-    : resolve(process.cwd(), "apps/web/public/uploads/tickets");
+async function ticketUploadsDir(scope: string | null) {
+  const root = process.cwd().endsWith("apps/api")
+    ? resolve(process.cwd(), "../web/public/uploads")
+    : resolve(process.cwd(), "apps/web/public/uploads");
+  const dir = scope ? resolve(root, scope, "tickets") : resolve(root, "tickets");
   await mkdir(dir, { recursive: true });
   return dir;
 }

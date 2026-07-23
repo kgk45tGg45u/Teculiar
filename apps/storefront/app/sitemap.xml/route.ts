@@ -34,6 +34,17 @@ export const revalidate = 3600;
 
 type Alt = { hreflang: string; href: string };
 
+// XML-escape URLs before embedding them. Google rejects a sitemap with a raw `&` (or `<`) in a <loc>;
+// query strings / slugs can carry them, so every loc + hreflang href is escaped.
+function xmlEscape(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // Try each API base in order (configured upstream first, then same-origin) until one answers.
 // A broken/unset TECULIAR_UPSTREAM on the storefront host used to make every SSR fetch fail — which
 // silently dropped the theme, siteUrl AND blog posts, leaving a fallback sitemap with the wrong host
@@ -65,13 +76,13 @@ async function fetchTheme(bases: string[]): Promise<{ pages: ThemePage[]; langua
   return pages.length && languages.length ? { pages, languages } : null;
 }
 
-function urlEntry(loc: string, lastmod: string, priority: string, alternates: Alt[] = []): string {
+function urlEntry(loc: string, lastmod: string, priority: string, changefreq: string, alternates: Alt[] = []): string {
   const links = alternates
-    .map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" href="${a.href}"/>`)
+    .map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" href="${xmlEscape(a.href)}"/>`)
     .join("\n");
   return (
-    `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>` +
-    `\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>` +
+    `  <url>\n    <loc>${xmlEscape(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>` +
+    `\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>` +
     `${links ? `\n${links}` : ""}\n  </url>`
   );
 }
@@ -86,6 +97,14 @@ export async function GET(request: Request) {
   const [SITE_URL, theme] = await Promise.all([fetchSiteUrl(apiBases), fetchTheme(apiBases)]);
   const now = new Date().toISOString().slice(0, 10);
   const urls: string[] = [];
+  // De-duplicate <url> entries by <loc> — two theme pages that resolve to the same slug, or an EXTRA
+  // path colliding with a theme page, would otherwise emit the same URL twice (Google flags dupes).
+  const seen = new Set<string>();
+  const addUrl = (loc: string, lastmod: string, priority: string, changefreq: string, alts: Alt[] = []) => {
+    if (seen.has(loc)) return;
+    seen.add(loc);
+    urls.push(urlEntry(loc, lastmod, priority, changefreq, alts));
+  };
 
   // Locale list: the runtime-configured languages from the theme, falling back to the build manifest.
   const locales = theme?.languages ?? SUPPORTED_LOCALES;
@@ -103,7 +122,7 @@ export async function GET(request: Request) {
       const alts = altsForPaths(paths);
       const priority = page.component === "home" ? "1.0" : "0.8";
       for (const loc of locales) {
-        urls.push(urlEntry(`${SITE_URL}${paths[loc]}`, now, priority, alts));
+        addUrl(`${SITE_URL}${paths[loc]}`, now, priority, "weekly", alts);
       }
     }
     for (const path of EXTRA_PATHS) {
@@ -111,14 +130,14 @@ export async function GET(request: Request) {
       for (const loc of locales) paths[loc] = `/${loc}${path}`;
       const alts = altsForPaths(paths);
       for (const loc of locales) {
-        urls.push(urlEntry(`${SITE_URL}${paths[loc]}`, now, "0.7", alts));
+        addUrl(`${SITE_URL}${paths[loc]}`, now, "0.7", "weekly", alts);
       }
     }
   } else {
     // Theme unavailable — emit today's flat paths per locale (no hreflang grouping).
     for (const locale of locales) {
       for (const path of FALLBACK_PATHS) {
-        urls.push(urlEntry(`${SITE_URL}/${locale}${path}`, now, path === "" ? "1.0" : "0.8"));
+        addUrl(`${SITE_URL}/${locale}${path}`, now, path === "" ? "1.0" : "0.8", "weekly");
       }
     }
   }
@@ -128,14 +147,13 @@ export async function GET(request: Request) {
   locales.forEach((locale, index) => {
     for (const post of localePosts[index] ?? []) {
       const lastmod = post.publishedAt ? String(post.publishedAt).slice(0, 10) : now;
-      urls.push(
-        `  <url><loc>${SITE_URL}/${locale}/blog/${post.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`
-      );
+      addUrl(`${SITE_URL}/${locale}/blog/${post.slug}`, lastmod, "0.6", "monthly");
     }
   });
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
+    '<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
     ...urls,
     "</urlset>"

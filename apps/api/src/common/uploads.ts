@@ -2,10 +2,14 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { BadRequestException } from "@nestjs/common";
+import { getTenantContext } from "../tenancy/tenant-context";
 
 // Shared local-disk file storage for user uploads (ticket attachments, staff
-// avatars, …). Files land under apps/web/public/uploads/<subdir> so Next.js
-// serves them statically at /uploads/<subdir>/<file>.
+// avatars, …). Phase 8.2: files land tenant-scoped under
+// apps/web/public/uploads/<tenant>/<subdir> so tenants never share an uploads
+// namespace; served at /uploads/<tenant>/<subdir>/<file> and authorized per tenant
+// by uploads-guard.ts. In single-tenant fallback (no resolved tenant) the legacy
+// flat apps/web/public/uploads/<subdir> layout is kept.
 
 export type UploadedFile = {
   buffer: Buffer;
@@ -32,10 +36,25 @@ export const DOC_TYPES: Record<string, string> = {
   "application/pdf": ".pdf"
 };
 
-function uploadsDir(subdir: string) {
+function uploadsRoot() {
   return process.cwd().endsWith("apps/api")
-    ? resolve(process.cwd(), "../web/public/uploads", subdir)
-    : resolve(process.cwd(), "apps/web/public/uploads", subdir);
+    ? resolve(process.cwd(), "../web/public/uploads")
+    : resolve(process.cwd(), "apps/web/public/uploads");
+}
+
+/** The active request's tenant subdomain, sanitized for a path segment — null in single-tenant fallback. */
+export function tenantScope(): string | null {
+  const subdomain = getTenantContext()?.tenant?.subdomain;
+  if (!subdomain) {
+    return null;
+  }
+  const safe = subdomain.toLowerCase().replace(/[^a-z0-9-]+/g, "");
+  return safe.length > 0 ? safe : null;
+}
+
+function uploadsDir(subdir: string, scope: string | null) {
+  const root = uploadsRoot();
+  return scope ? resolve(root, scope, subdir) : resolve(root, subdir);
 }
 
 export function sanitizeFileName(value: string) {
@@ -56,8 +75,10 @@ export async function storeUploadedFiles(
   }
   const allow = opts.allow ?? { ...IMAGE_TYPES, ...DOC_TYPES };
   const maxBytes = opts.maxBytes ?? 10_000_000;
-  const dir = uploadsDir(opts.subdir);
+  const scope = tenantScope();
+  const dir = uploadsDir(opts.subdir, scope);
   await mkdir(dir, { recursive: true });
+  const prefix = scope ? `/uploads/${scope}/${opts.subdir}` : `/uploads/${opts.subdir}`;
 
   const stored: StoredFile[] = [];
   for (const file of uploads) {
@@ -74,7 +95,7 @@ export async function storeUploadedFiles(
       fileName: sanitizeFileName(file.originalname ?? `upload${extension}`),
       mimeType: file.mimetype,
       sizeBytes: file.size,
-      storageKey: `/uploads/${opts.subdir}/${fileName}`
+      storageKey: `${prefix}/${fileName}`
     });
   }
   return stored;

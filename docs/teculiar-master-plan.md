@@ -43,7 +43,7 @@ mobile) and, later, the Blue storefront theme.
 | Phase 4.2 web split (storefront/dashboards) | Done | ✅ mark done |
 | Phase 4.3 Tecreator module + 4.3b licensing/suspension | Done (backend) | ✅ mark done; suspension **UI** → Phase 3 |
 | Phase 4.4 Dezhost cutover | **Done** (user finished; DNS + Caddy live) | ✅ mark done in Phase 0 |
-| Phase 4.5 release-sync publish + tenant Updates panel | **Not built** (documented only) | Phase 8 |
+| Phase 4.5 release-sync publish + tenant Updates panel | **Dropped** (self-hosting only) | Parked → [docs/self-hosting-deferred.md](docs/self-hosting-deferred.md) |
 | Phase 4.6a–f edge/white-label/SSO/wizard/install | **Code committed** (doc says "planned") | ✅ mark done; finish wiring in Phase 2 |
 | `ThemeRepository.mirrorsSeeded` per-tenant fix | Not fixed (process-level) | Phase 3 |
 | Storefront "My Account" links via SSO handoff | Mechanism exists, not surfaced | Phase 2 |
@@ -80,9 +80,10 @@ mobile) and, later, the Blue storefront theme.
 - **i18n depth (Phase 7):** product title/description translation; per-language email editor +
   per-customer-language dispatch verify; sales/support ticket routing (sales open to non-clients, support
   clients-only, no client-portal link in guest replies); admin main-currency guard.
-- **Distribution & SEO (Phase 8):** release-sync theme/locale bundle publisher + tenant Updates panel
-  (auto/one-click/revert); installer wizard (tenant DB creation + manual fallback + simple full-hosted
-  path); XML sitemap format fix.
+- **Self-hosting wind-down, file isolation & SEO (Phase 8):** drop the self-hosted storefront motion
+  (disable the `blue_selfhosted` UI option, keep the backend, document the deferral); multi-tenant upload
+  isolation (tenant-scoped paths + serving auth); XML sitemap format fix. *(Removed — self-hosting only:
+  release-sync bundle publisher, tenant Updates panel, installer wizard.)*
 - **Rebrand & platform breadth (Phase 9):** hard-coded "Dezhost" → "Teculiar" (software defaults, keep
   tenant brand via settings); headless API + SDK/widgets; document MySQL/MariaDB-only DB support.
 - **Deferred backlog:** secrets-manager indirection; load balancer + object storage; Phase 5 custom
@@ -146,11 +147,10 @@ mysqldump --single-transaction <old_db_name> | gzip > ~/dezhost-old-$(date +%F).
 - **Make ghcr `dezhost-storefront` public:** ✅ DONE (2026-07-07). GitHub → org → Packages →
   `dezhost-storefront` → Package settings → Change visibility → **Public**. (API + web stay private — they
   are hosted, never downloaded.) `deploy/storefront-install/install.sh` pulls only the storefront image.
-- **Serve `install.sh` at `get.teculiar.com` + the end-to-end wizard check → DEFERRED to Phase 8**
-  (step-by-step lives in **8.0**; its `curl` check moves to the Phase 8 Verify). Not needed for the
-  dezhost.com go-live — the storefront image is already public, which unblocks a manual install; the
-  hosted `get.teculiar.com` convenience URL and the throwaway-VM wizard run belong with the Phase 8
-  distribution/installer work.
+- **Serve `install.sh` at `get.teculiar.com` + the end-to-end wizard check → ~~DEFERRED to Phase 8~~ DROPPED
+  (2026-07-22).** Self-hosting is paused (old Phase 8.0 removed); `get.teculiar.com` was **never created** and
+  should stay absent. Not needed for the dezhost.com go-live either. Full rationale + reactivation steps:
+  [docs/self-hosting-deferred.md](docs/self-hosting-deferred.md).
 
 ### 0.5 Reconcile the roadmap doc (only doc edit this phase)  ✅ DONE (2026-07-07)
 - Update `docs/teculiar-roadmap.md`: mark Phase 4.4 **done** (cutover complete), Phase 4.6a–f **done**
@@ -820,67 +820,92 @@ rejected; translate a product and confirm the storefront + checkout show the loc
 
 ---
 
-## Phase 8 — Distribution, updates & SEO
+## Phase 8 — Self-hosting wind-down, multi-tenant file isolation & SEO
 
-### 8.0 Serve `install.sh` at `get.teculiar.com` (deferred from Phase 0.4)
-Goal: `curl -fsSL https://get.teculiar.com/install.sh | bash` works. Simplest = a one-file static host.
-The `dezhost-storefront` ghcr image is already public (0.4), so this is purely a convenience URL for the
-script that pulls it. Two options — **A (Caddy edge, recommended, same box)** or **B (Virtualmin vhost)**.
+**Decision (2026-07-22): drop the self-hosted storefront motion for now.** Running the Blue theme on the
+customer's own box (`blue_selfhosted`) is too much support/maintenance surface — per-web-server reverse-proxy
+wiring, theme/locale update distribution, ghcr image visibility — for too few buyers.
 
-**Option A — Caddy edge:**
-1. **Docroot + script:** on eu01,
-   `sudo mkdir -p /var/www/get && sudo cp /opt/teculiar/deploy/storefront-install/install.sh /var/www/get/install.sh`
-   (copy from wherever the repo/`install.sh` lives on the box). Keep it world-readable: `sudo chmod 644 /var/www/get/install.sh`.
-2. **Caddy site block** — add a **named** block to `deploy/caddy/Caddyfile`, *outside* the white-label
-   `https://` catch-all (a named address is more specific than the catch-all, so it wins and no tenant
-   lookup runs — no `register-domain.js` needed):
-   ```
-   get.teculiar.com {
-       root * /var/www/get
-       file_server
-       # serve as a script so `curl | bash` streams it and browsers don't force a download:
-       header Content-Type "text/x-shellscript; charset=utf-8"
-   }
-   ```
-3. **DNS:** point `get.teculiar.com` A (+ AAAA if used) → the Caddy floating IP `195.201.252.12`. Caddy
-   auto-issues the Let's Encrypt cert on first request.
-4. **Reload + verify:**
-   `caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile`
-   (or restart the caddy container), then
-   `curl -fsSL https://get.teculiar.com/install.sh | head` → the script's shebang + first lines.
+> **Scope of the removal (read carefully):** we remove **only** the self-hosted **theme-image** option —
+> `blue_selfhosted`, *"I host the Teculiar storefront theme on my own server."* We are **NOT** removing
+> `external` — *"I keep my own website on my domain"* (the tenant runs their own website and uses **our**
+> hosted admin/client dashboards + API on subdomains). `external` stays fully supported; it needs no image, no
+> install, no reverse-proxy wiring — just two CNAMEs — so it carries none of the cost above.
 
-**Option B — Virtualmin vhost:** create a `get.teculiar.com` virtual server, drop `install.sh` into its
-`public_html`, let Let's Encrypt issue the cert. No Caddy/app wiring; DNS points at the primary IP.
+Tenants get **exactly two options** going forward: keep their own website + our subdomains (`external`), or
+point their whole domain at us (`blue_hosted`). The self-hosting code is **paused, not deleted** — kept in the
+API/backend so it can be revived — and its full state, server footprint, resume checklist, and box on/off
+steps live in [docs/self-hosting-deferred.md](./self-hosting-deferred.md). The old **8.0** (`install.sh` at
+`get.teculiar.com`), **8.1** (release-sync bundle publisher + Updates panel) and **8.2** (installer wizard
+depth) are **removed from the plan** — they only ever served self-hosting.
 
-**Then run the end-to-end wizard check (also deferred from 0.4):** run `install.sh` in a throwaway VM,
-confirm it writes the compose + prints the Caddy vhost wiring and the storefront boots against
-`TECULIAR_UPSTREAM=https://api.<domain>`. (Deeper wizard work is 8.2.)
+### 8.1 Disable the self-hosted option in the tenant admin (UI only; backend kept)
+- Remove the **"I host the Teculiar storefront theme on my own server"** (`blue_selfhosted`) radio from the
+  domain wizard (`apps/web/components/admin/domain-wizard.tsx`) so only `external` + `blue_hosted` are offered;
+  drop the `installTitle`/`installHelp` block (the `get.teculiar.com` install command) that only rendered for
+  `blue_selfhosted`.
+- **Graceful load:** if a tenant previously **saved** `apexMode: "blue_selfhosted"`, the wizard must not
+  render a dead radio — coerce the loaded value to a supported option (fall back to `external`) and show a
+  one-line note. (Today none of our tenants use it — dezhost.com/teculiar.com are apex-path/hosted — but the
+  API still accepts the value, so a stale row must not break the form.)
+- **Keep the backend intact:** `WhitelabelConfigDto` still accepts `blue_selfhosted`, and `install.sh`, the
+  storefront image, and the edge routing all stay — this is a **UI pause**. Update the de/en admin locale
+  packs for the removed strings (keep the keys so the backend value stays describable; note the choice in the
+  deferral doc) and run `i18n-sync --check`.
+- Write **docs/self-hosting-deferred.md** (what's built, server footprint, when/why paused, resume checklist,
+  the tenant-owned-files future design, and the box on/off + reactivation steps below).
 
-### 8.1 release-sync (theme + locale bundle publisher) + tenant Updates panel
-- Build the Phase-4.5 piece: generalize `scripts/i18n-sync.ts` into a `release-sync` command that publishes
-  **versioned theme + locale bundles** to `teculiar.net/releases/...` with a manifest. Add a tenant admin
-  **Updates** panel: auto-update on/off, "update available" one-click apply, and **one-step revert** to the
-  previous version (control-plane already reserves `theme`/`locale` + `prev*` version fields). This is how
-  self-hosting tenants get theme/locale updates. (API + dashboards stay hosted/single-version — updated by
-  deploying new images; the Dezhost storefront updates by image pull.)
+### 8.2 Multi-tenant upload isolation — tenant-scope + serving auth *(was suggestion #2)*
+- **Bug being fixed:** uploads are written to a **single shared** `apps/web/public/uploads/<subdir>/`
+  (`apps/api/src/common/uploads.ts`, `apps/api/src/modules/tickets/ticket-files.ts`) and served with **no auth
+  check** (`apps/api/src/main.ts` `useStaticAssets`). On the multi-tenant box every tenant shares one uploads
+  namespace — this contradicts the "the database *is* the isolation boundary" design in
+  [docs/teculiar-architecture.md](./teculiar-architecture.md) (which already claims, falsely today, that
+  uploads are tenant-scoped `uploads/<tenant>/...`).
+- **Fix:** the write path becomes `uploads/<tenantSubdomain>/<subdir>/...` (read the request's tenant from
+  `getTenantContext()`), and the `/uploads` serving path scopes/authorizes by the request's tenant. Ticket
+  attachments carry PII and must not be world-readable by unguessable URL alone.
+- **Migration concern (must handle before deploy):** existing rows' `storageKey` point at the OLD flat
+  `/uploads/<subdir>/...`. Either (a) keep serving legacy flat paths read-only alongside the new scoped writer,
+  or (b) move existing files into `<tenant>/` and rewrite each `storageKey`. Pick + document — a naive switch
+  404s every existing attachment/logo.
+- **Scope note:** this task is only the **local-disk** tenant-scoping + auth. The fuller "tenant-owned files"
+  story (per-tenant **S3-compatible storage driver**, signed URLs) stays **deferred** — design captured in
+  [docs/self-hosting-deferred.md](./self-hosting-deferred.md) and the Deferred backlog (object storage).
 
-### 8.2 Installer wizard depth
-- Extend `deploy/storefront-install/install.sh` + the admin domain wizard into a fuller **installation
-  wizard**: for tenants who need their own DB, offer **automatic tenant DB creation** and, when that fails,
-  a **manual path** (create the DB yourself, paste connection info). Provide a **simpler wizard** for
-  customers who host everything on our server (subdomain-only, no DB step). Keep it MySQL/MariaDB-only.
-
-### 8.3 XML sitemap format
+### 8.3 XML sitemap format  *(keep — still to do; not self-hosting)*
 - The sitemap is served **live** by `apps/storefront/app/sitemap.xml/route.ts` (not cron). Clean up the
   output to Google's liking: valid, de-duplicated `<url>` entries, sane `<priority>`/`<changefreq>`,
   correct `<lastmod>`, and add an **XSL stylesheet** so it renders nicely in a browser (the "looks awful"
   complaint). Fix the parallel `apps/web/app/sitemap.xml/route.ts` too.
 
+### On the box — turn OFF self-hosting cleanly (do NOT over-stop)
+Self-hosting was **never actually deployed to eu01**: Phase 8.0 (`get.teculiar.com`) was never done — grep of
+`deploy/caddy/Caddyfile` + the box config shows **no such block or vhost exists**. So there is **almost
+nothing to stop**, and two things you must **NOT** touch:
+- **Do NOT stop Caddy.** It is the edge for *every* tenant — all `admin./client./api./apex` routing **and**
+  on-demand TLS. Stopping it takes the whole platform (dezhost.com + teculiar.com + all subdomains) down.
+- **Do NOT stop/remove the `storefront` container.** It serves the **hosted** tenants' public sites
+  (teculiar.com storefront :3011, dezhost.com storefront :3021 per `deploy/caddy/Caddyfile`). It is *not* a
+  self-hosting artifact — hosted `blue_hosted`/apex tenants are served from it.
+- **The only real levers:** (a) **do not create** the `get.teculiar.com` install endpoint — leave it absent;
+  (b) optionally **make `ghcr.io/.../teculiar-storefront` private again** to stop anonymous external pulls
+  (the box pulls it authenticated via the deploy pipeline, so hosted serving is unaffected). Full on/off +
+  **reactivation** steps are in [docs/self-hosting-deferred.md](./self-hosting-deferred.md).
+
 ### Verify (Phase 8)
-`curl -fsSL https://get.teculiar.com/install.sh` → 200 with the script body (8.0, carried from Phase 0.4).
-Publish a locale bundle bump via release-sync → a self-host tenant's Updates panel shows it → apply →
-revert. Run `install.sh` against a fresh box with the DB-manual path. Validate `sitemap.xml` in Google
-Search Console / a validator and view it in a browser.
+- **Wizard (8.1):** the domain wizard shows only `external` + `blue_hosted`; no `get.teculiar.com` command
+  renders anywhere; a tenant with a previously-saved `blue_selfhosted` config loads the form without a dead
+  control.
+- **Hosted serving intact (regression):** teculiar.com + dezhost.com storefronts still serve (Caddy +
+  storefront containers healthy); `admin./client./api.` subdomains still resolve; **two-language i18n still
+  works** for a hosted tenant — proves removing self-hosting did not touch locale delivery (locale packs ship
+  in the hosted images, not via any self-host install).
+- **Uploads (8.2):** an attachment/logo uploaded under tenant A lands in `uploads/<A>/…` and is **not**
+  reachable from tenant B's origin; existing (pre-migration) attachments still load.
+- **Sitemap (8.3):** validate `sitemap.xml` in Google Search Console / a validator; view it in a browser.
+- Per `CLAUDE.md`: local verify (`node --test`, `next build`, `i18n-sync --check`) → **production Playwright
+  Chromium** against the live host with `E2E_*` creds; update the de/en locale packs with every change.
 
 ---
 
@@ -924,7 +949,7 @@ Do this as **its own branch**, in the order: brand defaults → cookies (dual-re
 images (+ compose/install.sh/box). None of it blocks the 0.6 deploy work — that repoints the *existing*
 `dezhost-*` pipeline; the rename swaps the names later.
 
-### 9.2 Headless API + SDK/widgets (old Phase 6)
+### 9.2 Headless API + SDK/widgets (old Phase 6)  ← **NEXT FOCUS after Phase 8** (kept; now the primary "own site" path since self-hosting is parked)
 - Expose the documented `/api/v1` + webhooks for people running their own sites, plus a hosted JS SDK +
   embeddable widgets (domain search, product cards, cart, checkout, login). Assessment stands: **no installed
   agent** — stateless SDK/widgets + webhooks. Scope a first cut (public read endpoints + a domain-search +
@@ -944,8 +969,12 @@ webhook.
 ## Deferred backlog (explicitly later)
 - **Secrets-manager indirection** for per-tenant DB URLs / JWT secrets (`dbUserRef`/`jwtSecretRef`).
 - **Load balancer + object storage** (uploads off the filesystem; shared SSO store for multi-instance).
-- **Phase 5 custom themes** — Customizer Properties tab + `Theme.styling` payload; buyer builds/downloads a
-  theme and self-runs it against the hosted API.
+  The per-tenant **S3-compatible storage driver** — the "tenant-owned files" design — lives here; **Phase 8.2
+  does the local-disk tenant-scoping prerequisite**, and the full driver design is in
+  [docs/self-hosting-deferred.md](docs/self-hosting-deferred.md).
+- **Phase 5 custom themes** — Customizer Properties tab + `Theme.styling` payload. *(The "buyer
+  builds/downloads a theme and self-runs it against the hosted API" delivery is **parked with self-hosting** —
+  see [docs/self-hosting-deferred.md](docs/self-hosting-deferred.md); revisit only if self-hosting is revived.)*
 - **Storefront + Customizer design-token adoption** (deferred from Phase 7, 2026-07-22). Point the public
   storefront and the Customizer-rendered components at the shared D1 tokens (`--radius-*`, `--text-*`,
   `--space-*`, `--control-h-*` in `packages/web-core/src/globals.css`) instead of hard-coded values,

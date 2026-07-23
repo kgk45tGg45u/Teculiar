@@ -1322,6 +1322,7 @@
     "apexExternalHelp": "Your site stays on your server; only the customer/admin areas run on Teculiar subdomains.",
     "apexSelfhosted": "I host the Teculiar storefront theme on my own server",
     "apexSelfhostedHelp": "You run the storefront with our install script; dashboards and API stay hosted.",
+    "apexSelfhostedRetired": "Self-hosting the storefront is paused, so this setup was switched to \"keep your own website\". Save to confirm, or point your whole domain to Teculiar instead.",
     "apexHosted": "Point my whole domain to Teculiar",
     "apexHostedHelp": "We serve everything — you only change DNS.",
     "dashboardsTitle": "Where should the admin & customer areas live?",
