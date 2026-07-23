@@ -822,6 +822,25 @@ rejected; translate a product and confirm the storefront + checkout show the loc
 
 ## Phase 8 — Self-hosting wind-down, multi-tenant file isolation & SEO
 
+> **✅ PHASE DONE (2026-07-23): merged to `main`, deployed via Actions, phase-end prod verify green —
+> `tests/e2e/specs/phase8-verify.spec.ts` 3/3 against https://www.dezhost.com** (sitemap well-formed +
+> XSL stylesheet PI, `/sitemap.xsl` serves `text/xsl`, domain wizard shows only `external` + `blue_hosted`
+> with no `get.teculiar.com` install command). 8.1 hides the `blue_selfhosted` radio + install block and
+> coerces a stale saved config to `external` with a note (backend value + `install.sh` + edge routing kept;
+> locale keys retained, `apexSelfhostedRetired` added de/en). 8.2 tenant-scopes upload **writes** to
+> `/uploads/<tenant>/<subdir>/...` (`common/uploads.ts` → avatars + department icons; `tickets/ticket-files.ts`
+> → PII attachments) and adds an Express serving guard (`common/uploads-guard.ts`, mounted before
+> `useStaticAssets` in `main.ts`) that 404s a scoped path unless the request's own tenant owns it; legacy flat
+> paths (`/uploads/<subdir>/<file>`, pre-8.2) stay world-readable so existing attachments/logos still load
+> (verified live: `/uploads/site-logo-*.svg` 200). **Deliberate scope:** only PII/user-writable paths are
+> isolated; **public, non-PII brand assets** (site logo/favicon/OG image via `billing.service.ts`, blog images
+> via `cms.service.ts`) stay flat + world-readable by design — they are shown to anonymous visitors, so
+> guarding them would risk breaking public image serving for no security gain. 8.3 XML-escapes locs/hrefs,
+> de-duplicates `<url>` by `<loc>`, and adds an XSL stylesheet. Local verify: API 308/308 (incl.
+> `uploads-isolation.test.mjs`), web+storefront `next build`, all typechecks, `i18n-sync --check` OK. No DB
+> migration this phase (filesystem/UI/SEO only). Note: `apps/web/app/sitemap.xml/route.ts` does **not** exist
+> — only the storefront serves the sitemap, so the "fix the parallel route" sub-item was N/A.
+
 **Decision (2026-07-22): drop the self-hosted storefront motion for now.** Running the Blue theme on the
 customer's own box (`blue_selfhosted`) is too much support/maintenance surface — per-web-server reverse-proxy
 wiring, theme/locale update distribution, ghcr image visibility — for too few buyers.
@@ -839,7 +858,7 @@ steps live in [docs/self-hosting-deferred.md](./self-hosting-deferred.md). The o
 `get.teculiar.com`), **8.1** (release-sync bundle publisher + Updates panel) and **8.2** (installer wizard
 depth) are **removed from the plan** — they only ever served self-hosting.
 
-### 8.1 Disable the self-hosted option in the tenant admin (UI only; backend kept)
+### 8.1 Disable the self-hosted option in the tenant admin (UI only; backend kept)  ✅ DONE (2026-07-23)
 - Remove the **"I host the Teculiar storefront theme on my own server"** (`blue_selfhosted`) radio from the
   domain wizard (`apps/web/components/admin/domain-wizard.tsx`) so only `external` + `blue_hosted` are offered;
   drop the `installTitle`/`installHelp` block (the `get.teculiar.com` install command) that only rendered for
@@ -855,7 +874,7 @@ depth) are **removed from the plan** — they only ever served self-hosting.
 - Write **docs/self-hosting-deferred.md** (what's built, server footprint, when/why paused, resume checklist,
   the tenant-owned-files future design, and the box on/off + reactivation steps below).
 
-### 8.2 Multi-tenant upload isolation — tenant-scope + serving auth *(was suggestion #2)*
+### 8.2 Multi-tenant upload isolation — tenant-scope + serving auth *(was suggestion #2)*  ✅ DONE (2026-07-23 — writes scoped for PII/user paths; guard 404s cross-tenant reads; legacy flat paths + public brand assets stay world-readable by design; migration approach (a): read-only legacy coexistence, no file moves / no storageKey rewrites)
 - **Bug being fixed:** uploads are written to a **single shared** `apps/web/public/uploads/<subdir>/`
   (`apps/api/src/common/uploads.ts`, `apps/api/src/modules/tickets/ticket-files.ts`) and served with **no auth
   check** (`apps/api/src/main.ts` `useStaticAssets`). On the multi-tenant box every tenant shares one uploads
@@ -873,7 +892,7 @@ depth) are **removed from the plan** — they only ever served self-hosting.
   story (per-tenant **S3-compatible storage driver**, signed URLs) stays **deferred** — design captured in
   [docs/self-hosting-deferred.md](./self-hosting-deferred.md) and the Deferred backlog (object storage).
 
-### 8.3 XML sitemap format  *(keep — still to do; not self-hosting)*
+### 8.3 XML sitemap format  *(keep — still to do; not self-hosting)*  ✅ DONE (2026-07-23 — escape + dedupe + XSL stylesheet; `apps/web` has no sitemap route, so the "parallel route" fix was N/A)
 - The sitemap is served **live** by `apps/storefront/app/sitemap.xml/route.ts` (not cron). Clean up the
   output to Google's liking: valid, de-duplicated `<url>` entries, sane `<priority>`/`<changefreq>`,
   correct `<lastmod>`, and add an **XSL stylesheet** so it renders nicely in a browser (the "looks awful"
